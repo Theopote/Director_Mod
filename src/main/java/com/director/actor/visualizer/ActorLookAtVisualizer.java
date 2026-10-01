@@ -83,6 +83,7 @@ public final class ActorLookAtVisualizer {
      * @param vcp VertexConsumerProvider
      */
     public void render(MatrixStack matrices, float tickDelta, VertexConsumerProvider vcp) {
+        lastMarkerWorldPos = null;
         // 1️⃣ 检查是否有选中的 Actor
         UUID actorId = ActorSelectionHub.getSelectedActorId();
         if (actorId == null) {
@@ -111,7 +112,8 @@ public final class ActorLookAtVisualizer {
         Vec3d from = getActorEyePos(actor);
 
         // 6️⃣ 解析终点（目标点）
-        Vec3d to = resolveTargetPoint(clip);
+        Vec3d to = com.director.ui.actor.lookat.MarkerDragController.getInstance().previewPoint(actorId, clip);
+        if (to == null) to = resolveTargetPoint(clip);
         if (to == null) {
             return;
         }
@@ -141,40 +143,13 @@ public final class ActorLookAtVisualizer {
      * @return LookAtClip，如果未找到则返回 null
      */
     private EntityLookAtClip findActiveLookAtClip(TimelineModel model, UUID actorId) {
-        float time = model.getCurrentTime();
-
-        for (TimelineTrack track : model.getTracks()) {
-            if (track == null || track.getType() != TrackType.ACTOR) {
-                continue;
-            }
-
-            ActorTrack actorTrack = track.getActorTrackPayload();
-            if (actorTrack == null) {
-                continue;
-            }
-
-            ActorRef ref = actorTrack.getActorRef();
-            if (ref == null || !Objects.equals(ref.getActorId(), actorId)) {
-                continue;
-            }
-
-            // 找到覆盖当前时间的 LookAtClip（last-wins）
-            EntityLookAtClip best = null;
-            List<EntityClip> clips = actorTrack.getClips();
-            for (EntityClip c : clips) {
-                if (c instanceof EntityLookAtClip lc && !lc.isMuted()) {
-                    if (time >= lc.getStartTime() && time <= lc.getEndTime()) {
-                        if (best == null || lc.getStartTime() >= best.getStartTime()) {
-                            best = lc;
-                        }
-                    }
-                }
-            }
-
-            return best;
+        try {
+            var owner = com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
+            if (owner.isMuted()) return null;
+            return com.director.ui.actor.lookat.ActorLookAtEditSession.active(owner.getActorTrackPayload(), model.getCurrentTime());
+        } catch (IllegalArgumentException unavailable) {
+            return null;
         }
-
-        return null;
     }
 
     /**

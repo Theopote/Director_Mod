@@ -513,6 +513,10 @@ public final class ActorRuntimeController {
             }
 
             // === LookAt（简化：直接调整 yaw/pitch）===
+            var lookDraft = com.director.ui.actor.lookat.MarkerDragController.getInstance().previewPoint(actorId, null);
+            if (lookDraft != null && s.lookAtEnabled) {
+                s.lookAtPoint.set((float) lookDraft.x, (float) lookDraft.y, (float) lookDraft.z);
+            }
             if (s.lookAtEnabled && !gizmoDragging) {
                 applyLookAt(entity, s);
             }

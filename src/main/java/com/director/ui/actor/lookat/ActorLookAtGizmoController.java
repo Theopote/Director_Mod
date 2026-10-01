@@ -1,17 +1,10 @@
 package com.director.ui.actor.lookat;
 
 import com.director.core.DirectorServices;
-import com.director.actor.ActorRef;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoMode;
-import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
-import com.director.timeline.model.TimelineTrack;
-import com.director.timeline.model.TrackType;
-import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
-import com.director.timeline.model.entity.ActorTrack;
-import com.director.timeline.model.entity.EntityTimelineClip;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.hit.BlockHitResult;
@@ -21,7 +14,6 @@ import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -64,19 +56,12 @@ public final class ActorLookAtGizmoController {
     /** 当前选中的 Actor */
     private UUID targetActorId;
 
-    /** 当前编辑的 ActorTrack（缓存，避免重复查找） */
-    private ActorTrack actorTrack;
-    private TimelineTrack timelineTrack;
-
     /** 上次点击时间（用于防抖） */
     private long lastClickTime = 0;
     private static final long CLICK_DEBOUNCE_MS = 200; // 200ms 防抖
 
     /** 上次鼠标左键状态（用于 edge trigger） */
     private boolean lastLeftMouseDown = false;
-
-    /** 默认 LookAtClip 时长（秒） */
-    private static final float DEFAULT_CLIP_DURATION = 1.0f;
 
     private ActorLookAtGizmoController() {
     }
@@ -91,17 +76,16 @@ public final class ActorLookAtGizmoController {
      * @param actorId Actor ID，如果为 null 则清除目标
      */
     public void setTargetActor(UUID actorId) {
+        if (!Objects.equals(this.targetActorId, actorId)) MarkerDragController.getInstance().cancelDrag();
         this.targetActorId = actorId;
-        resolveActorTrack();
     }
 
     /**
      * 清除目标
      */
     public void clearTarget() {
+        MarkerDragController.getInstance().cancelDrag();
         this.targetActorId = null;
-        this.actorTrack = null;
-        this.timelineTrack = null;
     }
 
     // =========================================================
@@ -127,7 +111,7 @@ public final class ActorLookAtGizmoController {
         }
 
         // 2️⃣ 检查是否有目标 Actor
-        if (targetActorId == null || actorTrack == null) {
+        if (targetActorId == null) {
             lastLeftMouseDown = false;
             return;
         }
@@ -143,7 +127,7 @@ public final class ActorLookAtGizmoController {
         boolean isNewClick = leftDown && !lastLeftMouseDown;
         lastLeftMouseDown = leftDown;
 
-        if (!isNewClick) {
+        if (!isNewClick || MarkerDragController.getInstance().isMouseOverMarker()) {
             return;
         }
 
@@ -195,176 +179,35 @@ public final class ActorLookAtGizmoController {
      * <p>由 UI 按钮调用（例如"Look At Camera"按钮）
      */
     public void createCameraLookAtClip() {
-        if (targetActorId == null || actorTrack == null) {
-            LOGGER.warn("[ActorLookAtGizmoController] 无法创建 Camera LookAtClip：未选中 Actor");
-            return;
-        }
-
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (model == null) {
-            LOGGER.warn("[ActorLookAtGizmoController] TimelineModel 未初始化");
-            return;
-        }
-
-        float time = model.getCurrentTime();
-
-        // 找到或创建 LookAtClip
-        EntityLookAtClip clip = findActiveLookAtClip(time);
-        if (clip == null) {
-            clip = createLookAtClip(time);
-        }
-
-        // 设置为 CAMERA 模式
-        clip.setMode(EntityLookAtClip.TargetMode.CAMERA);
-        clip.setStrength(1.0f);
-
-        // 更新选择上下文（供 Drag Controller 使用）
-        ActorLookAtSelectionContext.setActiveLookAtClip(clip);
-
-        // 标记模型为 dirty
-        model.markDirty();
-
-        LOGGER.debug("[ActorLookAtGizmoController] 创建 Camera LookAtClip: clip={}, time={}",
-                clip.getId(), time);
+        editTarget(null);
     }
 
-    // =========================================================
-    // LookAt Clip Logic
-    // =========================================================
-
-    /**
-     * 创建或更新 LookAtClip
-     *
-     * @param worldPoint 世界坐标点
-     */
     private void createOrUpdateLookAtClip(Vec3d worldPoint) {
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (model == null) {
-            return;
-        }
-
-        float time = model.getCurrentTime();
-
-        // 找到或创建 LookAtClip
-        EntityLookAtClip clip = findActiveLookAtClip(time);
-        if (clip == null) {
-            clip = createLookAtClip(time);
-        }
-
-        // 设置目标
-        clip.setMode(EntityLookAtClip.TargetMode.WORLD_POINT);
-        clip.setWorldPoint(
-                (float) worldPoint.x,
-                (float) worldPoint.y,
-                (float) worldPoint.z
-        );
-        clip.setStrength(1.0f);
-
-        // 更新选择上下文（供 Drag Controller 使用）
-        ActorLookAtSelectionContext.setActiveLookAtClip(clip);
-
-        // 标记模型为 dirty
-        model.markDirty();
+        editTarget(worldPoint);
     }
 
-    /**
-     * 找到覆盖指定时间的 LookAtClip（last-wins 规则）
-     *
-     * @param time 时间（秒）
-     * @return LookAtClip，如果未找到则返回 null
-     */
-    private EntityLookAtClip findActiveLookAtClip(float time) {
-        if (actorTrack == null) {
+    ActorLookAtEditSession beginEdit() {
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (model == null || targetActorId == null) return null;
+        try {
+            var owner = com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model, targetActorId);
+            return new ActorLookAtEditSession(model, owner);
+        } catch (IllegalArgumentException | NullPointerException failure) {
+            LOGGER.debug("Look target edit unavailable: {}", failure.getMessage());
             return null;
         }
-
-        List<EntityClip> clips = actorTrack.getClips();
-        EntityLookAtClip result = null;
-
-        for (EntityClip c : clips) {
-            if (c instanceof EntityLookAtClip lc && !lc.isMuted()) {
-                if (time >= lc.getStartTime() && time <= lc.getEndTime()) {
-                    if (result == null || lc.getStartTime() >= result.getStartTime()) {
-                        result = lc;
-                    }
-                }
-            }
-        }
-
-        return result;
     }
 
-    /**
-     * 创建新的 LookAtClip
-     *
-     * @param time 开始时间（秒）
-     * @return 新创建的 LookAtClip
-     */
-    private EntityLookAtClip createLookAtClip(float time) {
-
-        EntityLookAtClip clip = new EntityLookAtClip(
-                "LookAt",
-                time,
-                time + DEFAULT_CLIP_DURATION
-        );
-
-        // 默认模式为 CAMERA，strength 为 1.0
-        clip.setMode(EntityLookAtClip.TargetMode.CAMERA);
-        clip.setStrength(1.0f);
-
-        // 添加到轨道
-        actorTrack.addClip(clip);
-        if (timelineTrack != null) {
-            EntityTimelineClip timelineClip = new EntityTimelineClip(clip, actorTrack.getColorRgba());
-            timelineTrack.addClip(timelineClip);
-        }
-
-        // 标记模型为 dirty
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (model != null) {
-            model.markDirty();
-        }
-
-        return clip;
-    }
-
-    // =========================================================
-    // Resolve Track
-    // =========================================================
-
-    /**
-     * 解析目标 Track（缓存，避免重复查找）
-     */
-    private void resolveActorTrack() {
-        this.actorTrack = null;
-        this.timelineTrack = null;
-
-        if (targetActorId == null) {
-            return;
-        }
-
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (model == null) {
-            return;
-        }
-
-        for (TimelineTrack track : model.getTracks()) {
-            if (track == null || track.getType() != TrackType.ACTOR) {
-                continue;
-            }
-
-            ActorTrack et = track.getActorTrackPayload();
-            if (et == null) {
-                continue;
-            }
-
-            ActorRef ref = et.getActorRef();
-            if (ref != null && Objects.equals(ref.getActorId(), targetActorId)) {
-                this.actorTrack = et;
-                this.timelineTrack = track;
-                return;
-            }
-        }
+    private void editTarget(Vec3d point) {
+        MarkerDragController.getInstance().cancelDrag();
+        var session = beginEdit();
+        if (session == null) return;
+        var clip = session.draft();
+        clip.setMode(point == null ? EntityLookAtClip.TargetMode.CAMERA : EntityLookAtClip.TargetMode.WORLD_POINT);
+        if (point != null) clip.setWorldPoint((float) point.x, (float) point.y, (float) point.z);
+        clip.setStrength(1);
+        var committed = session.commit();
+        if (committed != null) ActorLookAtSelectionContext.setActiveLookAtClip(committed);
     }
 
     // =========================================================

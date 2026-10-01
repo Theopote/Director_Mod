@@ -4,8 +4,6 @@ import com.director.core.DirectorServices;
 import com.director.actor.visualizer.ActorLookAtVisualizer;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoMode;
-import com.director.timeline.container.ContainerTimelineService;
-import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.entity.EntityLookAtClip;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
@@ -22,7 +20,7 @@ import org.slf4j.LoggerFactory;
  * <p>LOOK_AT 模式下：
  * <ul>
  *   <li>检测鼠标是否悬停在 Marker 上</li>
- *   <li>拖拽 Marker 时实时修改 EntityLookAtClip.worldPoint</li>
+ *   <li>Preview a detached target during dragging and commit once on release.</li>
  * </ul>
  *
  * <p>设计原则：
@@ -49,6 +47,7 @@ public final class MarkerDragController {
 
     /** 当前编辑的 LookAtClip */
     private EntityLookAtClip editingClip = null;
+    private ActorLookAtEditSession session;
 
     /** 上次鼠标左键状态（用于 edge trigger） */
     private boolean lastLeftMouseDown = false;
@@ -68,7 +67,7 @@ public final class MarkerDragController {
         GizmoManager gm = GizmoManager.get();
         if (gm == null || !gm.isActive() || gm.getContext() == null) {
             if (dragging) {
-                endDrag();
+                cancelDrag();
             }
             lastLeftMouseDown = false;
             return;
@@ -77,14 +76,19 @@ public final class MarkerDragController {
         GizmoMode mode = gm.getContext().getMode();
         if (mode != GizmoMode.LOOK_AT) {
             if (dragging) {
-                endDrag();
+                cancelDrag();
             }
             lastLeftMouseDown = false;
             return;
         }
 
-        // 2️⃣ 检查 ImGui 是否占用鼠标
-        if (ImGui.getIO().getWantCaptureMouse()) {
+        var client = MinecraftClient.getInstance();
+        if (dragging && (session == null || !isSessionCurrent()
+                || (client != null && GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_ESCAPE) == GLFW.GLFW_PRESS))) {
+            cancelDrag();
+        }
+        boolean captured = ImGui.getIO().getWantCaptureMouse();
+        if (captured && !dragging) {
             lastLeftMouseDown = isLeftMouseDown();
             return;
         }
@@ -104,7 +108,7 @@ public final class MarkerDragController {
         } else {
             // 拖拽状态：更新或结束
             if (leftDown) {
-                updateDrag();
+                if (!captured) updateDrag();
             } else if (isNewRelease) {
                 endDrag();
             }
@@ -119,15 +123,13 @@ public final class MarkerDragController {
      * 开始拖拽
      */
     private void beginDrag() {
-        editingClip = ActorLookAtSelectionContext.getActiveLookAtClip();
-        if (editingClip == null) {
+        session = ActorLookAtGizmoController.getInstance().beginEdit();
+        if (session == null || session.source() == null
+                || session.source().getMode() != EntityLookAtClip.TargetMode.WORLD_POINT) {
+            cancelDrag();
             return;
         }
-
-        // 只允许拖拽 WORLD_POINT 模式的 Clip
-        if (editingClip.getMode() != EntityLookAtClip.TargetMode.WORLD_POINT) {
-            return;
-        }
+        editingClip = session.draft();
 
         dragging = true;
         LOGGER.debug("[MarkerDragController] 开始拖拽 Marker: clip={}", editingClip.getId());
@@ -161,12 +163,6 @@ public final class MarkerDragController {
                 (float) newPos.z
         );
 
-        // 标记时间线为 dirty
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (model != null) {
-            model.markDirty();
-        }
-
         LOGGER.trace("[MarkerDragController] 更新 Marker 位置: ({}, {}, {})",
                 newPos.x, newPos.y, newPos.z);
     }
@@ -175,16 +171,32 @@ public final class MarkerDragController {
      * 结束拖拽
      */
     private void endDrag() {
-        if (editingClip != null) {
-            LOGGER.debug("[MarkerDragController] 结束拖拽 Marker: clip={}, worldPoint=({}, {}, {})",
-                    editingClip.getId(),
-                    editingClip.getWorldPoint().x,
-                    editingClip.getWorldPoint().y,
-                    editingClip.getWorldPoint().z);
+        if (session != null) {
+            var clip = session.commit();
+            if (clip != null) ActorLookAtSelectionContext.setActiveLookAtClip(clip);
         }
+        session = null; dragging = false; editingClip = null;
+    }
 
-        dragging = false;
-        editingClip = null;
+    public void cancelDrag() {
+        if (session != null) session.cancel();
+        session = null; dragging = false; editingClip = null;
+    }
+
+    private boolean isSessionCurrent() {
+        if (session == null || !session.isCurrent()) return false;
+        try {
+            return session.model() == DirectorServices.get().containerTimeline().getTimelineModel()
+                    && session.actorId().equals(com.director.ui.actor.selection.ActorSelectionHub.getSelectedActorId())
+                    && session.owner() == com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(session.model(), session.actorId());
+        } catch (IllegalArgumentException unavailable) { return false; }
+    }
+
+    public Vec3d previewPoint(java.util.UUID actorId, EntityLookAtClip source) {
+        if (!dragging || session == null || !isSessionCurrent()
+                || !session.actorId().equals(actorId) || (source != null && session.source() != source)) return null;
+        var point = editingClip.getWorldPoint();
+        return new Vec3d(point.x, point.y, point.z);
     }
 
     // =========================================================
@@ -197,7 +209,15 @@ public final class MarkerDragController {
      *
      * @return 如果鼠标在 Marker 上则返回 true
      */
-    private boolean isMouseOverMarker() {
+    public boolean isMouseOverMarker() {
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (model == null) return false;
+        try {
+            var owner = com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model,
+                    com.director.ui.actor.selection.ActorSelectionHub.getSelectedActorId());
+            var clip = ActorLookAtEditSession.active(owner.getActorTrackPayload(), model.getCurrentTime());
+            if (clip == null || clip.getMode() != EntityLookAtClip.TargetMode.WORLD_POINT) return false;
+        } catch (IllegalArgumentException unavailable) { return false; }
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.gameRenderer == null || client.gameRenderer.getCamera() == null) {
             return false;
