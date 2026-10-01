@@ -20,10 +20,6 @@ import java.util.UUID;
  */
 public final class ActorTransformEditService {
 
-    private static final float DEFAULT_CLIP_DURATION = 1.0f;
-    private static final double MIN_SCALE = 0.01;
-    private static final double MAX_SCALE = 100.0;
-
     private ActorTransformEditService() {
     }
 
@@ -106,29 +102,9 @@ public final class ActorTransformEditService {
         if (model == null || ctx == null || position == null || rotation == null || scale == null
                 || !position.isFinite() || !rotation.isFinite() || !scale.isFinite()) return;
         try {
-            var source = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveSource(ctx.actorTrack(), time);
-            var session = new com.director.ui.actor.gizmo.ActorTransformEditSession(model, ctx.timelineTrack(), source);
-            var clip = session.draft();
-            var sample = sampleTransform(actorId, time);
-            if (source == null) {
-                clip.setFromPos(sample.position().x, sample.position().y, sample.position().z);
-                clip.setFromRot(sample.rotation().x, sample.rotation().y, sample.rotation().z);
-                clip.setFromScale(sample.scale().x, sample.scale().y, sample.scale().z);
-            } else if (time < clip.getStartTime() || time > clip.getEndTime()) {
-                clip.setTimeRange(Math.min(clip.getStartTime(), time), Math.max(clip.getEndTime(), time + DEFAULT_CLIP_DURATION));
-            }
-            clip.setToPos(sample.position().x, sample.position().y, sample.position().z);
-            clip.setToRot(sample.rotation().x, sample.rotation().y, sample.rotation().z);
-            clip.setToScale(sample.scale().x, sample.scale().y, sample.scale().z);
-            session.arm();
-            clip.setToPos(position.x, position.y, position.z);
-            clip.setToRot(rotation.x, rotation.y, rotation.z);
-            clip.setToScale((float) clampScale(scale.x), (float) clampScale(scale.y), (float) clampScale(scale.z));
-            if (time <= clip.getStartTime() + 1e-4f) {
-                clip.setFromPos(position.x, position.y, position.z);
-                clip.setFromRot(rotation.x, rotation.y, rotation.z);
-                clip.setFromScale(clip.getToScale().x, clip.getToScale().y, clip.getToScale().z);
-            }
+            var session = new ActorNumericEditSession(model, ctx.timelineTrack(), ActorNumericEditSession.Kind.TRANSFORM,
+                    sampleTransform(actorId, time));
+            session.updateTransform(position, rotation, scale);
             session.commit();
         } catch (IllegalArgumentException unavailable) { /* Read-only or stale target. */ }
     }
@@ -187,8 +163,6 @@ public final class ActorTransformEditService {
         }
     }
 
-    private static double clampScale(float value) {
-        return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value));
-    }
+
 
 }

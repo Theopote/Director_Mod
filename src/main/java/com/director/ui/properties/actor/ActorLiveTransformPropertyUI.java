@@ -6,6 +6,7 @@ import com.director.i18n.DirectorLang;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.entity.EntityLookAtClip;
 import com.director.ui.actor.edit.ActorTransformEditService;
+import com.director.ui.actor.edit.ActorNumericEditSession;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
@@ -37,6 +38,14 @@ public final class ActorLiveTransformPropertyUI {
     private static final ImFloat lookAtStrength = new ImFloat(1f);
     private static final ImInt lookAtModeIndex = new ImInt();
 
+    private static ActorNumericEditSession gesture;
+    private static UUID editingActor;
+    private static TimelineModel editingModel;
+    private static com.director.timeline.model.TimelineTrack editingTrack;
+    private static String gestureWidget;
+    private static boolean widgetRendered, cancelledUntilRelease;
+    private static int lastFrame = -1;
+    private static String error = "";
     private static UUID cachedActorId;
     private static float cachedTime = Float.NaN;
 
@@ -53,13 +62,20 @@ public final class ActorLiveTransformPropertyUI {
             return;
         }
         float time = model.getCurrentTime();
-        syncFromSample(actorId, time);
         var target = ActorTransformEditService.resolveTrack(actorId);
         boolean readOnly = model.isPlaying() || target == null || target.timelineTrack().isLocked()
                 || target.timelineTrack().isMuted()
                 || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
                 || com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging();
-        ImGui.beginDisabled(readOnly);
+        int frame = ImGui.getFrameCount();
+        if (gesture != null && (frame != lastFrame + 1 || readOnly || target == null
+                || !gesture.isCurrent(model, target.timelineTrack(), actorId))) cancelGesture();
+        lastFrame = frame; widgetRendered = false;
+        if (ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) cancelGesture();
+        if (cancelledUntilRelease && !ImGui.isMouseDown(0) && !ImGui.isAnyItemActive()) cancelledUntilRelease = false;
+        syncFromSample(actorId, time);
+        editingActor = actorId; editingModel = model; editingTrack = target == null ? null : target.timelineTrack();
+        ImGui.beginDisabled(readOnly || cancelledUntilRelease);
 
         if (ImGui.collapsingHeader(Icons.TRANSFORM + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SECTION_TRANSFORM),
@@ -67,33 +83,23 @@ public final class ActorLiveTransformPropertyUI {
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.TIME_HINT_FMT, time));
             ImGui.spacing();
 
-            boolean changed = false;
             UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.POSITION));
-            changed |= inputFloat("X##actorLivePosX", posX);
-            changed |= inputFloat("Y##actorLivePosY", posY);
-            changed |= inputFloat("Z##actorLivePosZ", posZ);
+            inputFloat("X##actorLivePosX", posX);
+            inputFloat("Y##actorLivePosY", posY);
+            inputFloat("Z##actorLivePosZ", posZ);
             UITheme.endGroup();
 
             UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.ROTATION));
-            changed |= inputFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.YAW) + "##actorLiveRotY", rotYaw);
-            changed |= inputFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.PITCH) + "##actorLiveRotP", rotPitch);
-            changed |= inputFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.ROLL) + "##actorLiveRotR", rotRoll);
+            inputFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.YAW) + "##actorLiveRotY", rotYaw);
+            inputFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.PITCH) + "##actorLiveRotP", rotPitch);
+            inputFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.ROLL) + "##actorLiveRotR", rotRoll);
             UITheme.endGroup();
 
             UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SCALE));
-            changed |= inputFloat("X##actorLiveScaleX", scaleX);
-            changed |= inputFloat("Y##actorLiveScaleY", scaleY);
-            changed |= inputFloat("Z##actorLiveScaleZ", scaleZ);
+            inputFloat("X##actorLiveScaleX", scaleX);
+            inputFloat("Y##actorLiveScaleY", scaleY);
+            inputFloat("Z##actorLiveScaleZ", scaleZ);
             UITheme.endGroup();
-
-            if (changed) {
-                ActorTransformEditService.applyTransform(
-                        actorId,
-                        time,
-                        new Vector3f(posX.get(), posY.get(), posZ.get()),
-                        new Vector3f(rotYaw.get(), rotPitch.get(), rotRoll.get()),
-                        new Vector3f(scaleX.get(), scaleY.get(), scaleZ.get()));
-            }
         }
 
         if (ImGui.collapsingHeader(Icons.TARGET + " "
@@ -101,54 +107,102 @@ public final class ActorLiveTransformPropertyUI {
                 ImGuiTreeNodeFlags.DefaultOpen)) {
             EntityLookAtClip.TargetMode[] modes = {
                     EntityLookAtClip.TargetMode.WORLD_POINT,
-                    EntityLookAtClip.TargetMode.CAMERA
+                    EntityLookAtClip.TargetMode.CAMERA, EntityLookAtClip.TargetMode.ENTITY_UUID
             };
             if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.TARGET_MODE) + "##actorLiveLookAtMode",
-                    lookAtModeIndex, ActorPropertyAdapterI18n.liveLookAtModeLabels())) {
-                applyCurrentLookAt(actorId, time);
+                    lookAtModeIndex, new String[]{ActorPropertyAdapterI18n.liveLookAtModeLabels()[0],
+                            ActorPropertyAdapterI18n.liveLookAtModeLabels()[1],
+                            ActorPropertyAdapterI18n.lookAtModeLabel(EntityLookAtClip.TargetMode.ENTITY_UUID)})) {
+                applyCurrentLookAt();
             }
 
             float[] strength = {lookAtStrength.get()};
-            if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.STRENGTH) + "##actorLiveLookAtStrength",
-                    strength, 0f, 1f, "%.2f")) {
+            boolean strengthChanged = ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.STRENGTH) + "##actorLiveLookAtStrength",
+                    strength, 0f, 1f, "%.2f");
+            if (strengthChanged) {
                 lookAtStrength.set(strength[0]);
-                applyCurrentLookAt(actorId, time);
             }
+            observe("strength", ActorNumericEditSession.Kind.LOOK_AT, strengthChanged);
 
             if (modes[lookAtModeIndex.get()] == EntityLookAtClip.TargetMode.WORLD_POINT) {
                 UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.WORLD_COORDS));
-                boolean pointChanged = false;
-                pointChanged |= inputFloat("X##actorLiveLookX", lookAtX);
-                pointChanged |= inputFloat("Y##actorLiveLookY", lookAtY);
-                pointChanged |= inputFloat("Z##actorLiveLookZ", lookAtZ);
+                inputFloat("X##actorLiveLookX", lookAtX);
+                inputFloat("Y##actorLiveLookY", lookAtY);
+                inputFloat("Z##actorLiveLookZ", lookAtZ);
                 UITheme.endGroup();
-                if (pointChanged) {
-                    applyCurrentLookAt(actorId, time);
-                }
-            } else if (ImGui.button(Icons.TARGET + " "
+
+            } else if (modes[lookAtModeIndex.get()] == EntityLookAtClip.TargetMode.CAMERA && ImGui.button(Icons.TARGET + " "
                     + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.APPLY_LOOK_AT_CAMERA)
                     + "##actorLiveLookCam")) {
                 lookAtModeIndex.set(1);
-                applyCurrentLookAt(actorId, time);
+                applyCurrentLookAt();
             }
         }
 
+        if (gesture != null && !widgetRendered) cancelGesture();
+        if (!error.isEmpty()) ImGui.textWrapped(error);
         ImGui.spacing();
         ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.GIZMO_HINT));
         ImGui.endDisabled();
     }
 
-    private static void applyCurrentLookAt(UUID actorId, float time) {
-        if (lookAtModeIndex.get() == 0) {
-            ActorTransformEditService.applyLookAtWorldPoint(
-                    actorId, time, lookAtX.get(), lookAtY.get(), lookAtZ.get(), lookAtStrength.get());
-        } else {
-            ActorTransformEditService.applyLookAtCamera(actorId, time, lookAtStrength.get());
+    private static void applyCurrentLookAt() {
+        try {
+            finishGesture();
+            beginGesture("target", ActorNumericEditSession.Kind.LOOK_AT);
+            gesture.updateLookTarget(lookAtModeIndex.get() == 0 ? EntityLookAtClip.TargetMode.WORLD_POINT
+                    : lookAtModeIndex.get() == 1 ? EntityLookAtClip.TargetMode.CAMERA : EntityLookAtClip.TargetMode.ENTITY_UUID,
+                    new Vector3f(lookAtX.get(), lookAtY.get(), lookAtZ.get()));
+            finishGesture();
+        } catch (RuntimeException failure) { failGesture(failure); }
+    }
+
+    private static void beginGesture(String widget, ActorNumericEditSession.Kind kind) {
+        if (gesture != null && !widget.equals(gestureWidget)) finishGesture();
+        if (gesture == null) {
+            gesture = new ActorNumericEditSession(editingModel, editingTrack, kind,
+                    ActorTransformEditService.sampleTransform(editingActor, editingModel.getCurrentTime()));
+            gestureWidget = widget;
+            cachedActorId = editingActor; cachedTime = editingModel.getCurrentTime();
         }
+        widgetRendered = true;
+    }
+    private static void observe(String widget, ActorNumericEditSession.Kind kind, boolean changed) {
+        if (cancelledUntilRelease) return;
+        try {
+            if (ImGui.isItemActivated() || changed) beginGesture(widget, kind);
+            if (gesture != null && widget.equals(gestureWidget)) {
+                widgetRendered = true;
+                if (changed) {
+                    if (kind == ActorNumericEditSession.Kind.TRANSFORM)
+                        gesture.updateTransform(new Vector3f(posX.get(), posY.get(), posZ.get()),
+                                new Vector3f(rotYaw.get(), rotPitch.get(), rotRoll.get()),
+                                new Vector3f(scaleX.get(), scaleY.get(), scaleZ.get()));
+                    else if (widget.equals("strength")) gesture.updateStrength(lookAtStrength.get());
+                    else gesture.updateLookTarget(EntityLookAtClip.TargetMode.WORLD_POINT,
+                                new Vector3f(lookAtX.get(), lookAtY.get(), lookAtZ.get()));
+                }
+                if (ImGui.isItemDeactivated() || changed && !ImGui.isItemActive()) finishGesture();
+            }
+        } catch (RuntimeException failure) { failGesture(failure); }
+    }
+    private static void finishGesture() {
+        if (gesture == null) return;
+        var current = gesture; gesture = null; gestureWidget = null;
+        if (current.isCurrent(editingModel, editingTrack, editingActor)) current.commit();
+        else current.cancel();
+        cachedActorId = null; error = "";
+    }
+    private static void cancelGesture() {
+        if (gesture != null) gesture.cancel();
+        gesture = null; gestureWidget = null; cachedActorId = null; cancelledUntilRelease = true;
+    }
+    private static void failGesture(RuntimeException failure) {
+        cancelGesture(); error = failure.getMessage() == null ? "编辑已取消" : failure.getMessage();
     }
 
     private static void syncFromSample(UUID actorId, float time) {
-        if (Objects.equals(actorId, cachedActorId) && Math.abs(time - cachedTime) < 1e-4f && ImGui.isAnyItemActive()) {
+        if (Objects.equals(actorId, cachedActorId) && Math.abs(time - cachedTime) < 1e-4f && gesture != null) {
             return;
         }
         ActorTransformEditService.TransformSnapshot transform =
@@ -169,13 +223,15 @@ public final class ActorLiveTransformPropertyUI {
         lookAtY.set(lookAt.worldPoint().y);
         lookAtZ.set(lookAt.worldPoint().z);
         lookAtStrength.set(lookAt.strength());
-        lookAtModeIndex.set(lookAt.mode() == EntityLookAtClip.TargetMode.WORLD_POINT ? 0 : 1);
+        lookAtModeIndex.set(lookAt.mode() == EntityLookAtClip.TargetMode.WORLD_POINT ? 0 : lookAt.mode() == EntityLookAtClip.TargetMode.CAMERA ? 1 : 2);
 
         cachedActorId = actorId;
         cachedTime = time;
     }
 
-    private static boolean inputFloat(String label, ImFloat value) {
-        return ImGui.inputFloat(label, value);
+    private static void inputFloat(String label, ImFloat value) {
+        boolean changed = ImGui.inputFloat(label, value);
+        observe(label, label.contains("actorLiveLook") ? ActorNumericEditSession.Kind.LOOK_AT
+                : ActorNumericEditSession.Kind.TRANSFORM, changed);
     }
 }
