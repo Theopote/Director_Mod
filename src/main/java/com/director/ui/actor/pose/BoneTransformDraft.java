@@ -18,8 +18,7 @@ final class BoneTransformDraft {
     private boolean rotationChanged;
 
     boolean synchronize(Object nextContext, BoneTransform sampled) {
-        if (Objects.equals(context, nextContext) && source != null
-                && source.toMatrix().equals(sampled.toMatrix())) return false;
+        if (Objects.equals(context, nextContext) && matchesSource(sampled)) return false;
         boolean discarded = dirty;
         context = nextContext;
         source = sampled;
@@ -40,6 +39,10 @@ final class BoneTransformDraft {
     int changedChannels() { return changedChannels; }
 
     boolean isDirty() { return dirty; }
+
+    boolean matchesSource(BoneTransform sampled) {
+        return source != null && sampled != null && source.toMatrix().equals(sampled.toMatrix());
+    }
 
     boolean isValid() {
         return new Vector3f(translation).isFinite() && new Vector3f(rotation).isFinite()

@@ -153,6 +153,7 @@ public final class ActorSelectionHub {
      * @return 当前选中的 Actor ID，如果未选中则返回 null
      */
     public static void selectBone(UUID actorId, String boneId, boolean additive) {
+        com.director.ui.actor.pose.ActorBonePropertiesPanel.cancelNumericDraft();
         if (actorId == null || boneId == null) return;
         var selection = com.director.ui.actor.pose.ActorBoneSelectionController.getInstance();
         com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().deactivate();
@@ -176,6 +177,7 @@ public final class ActorSelectionHub {
      * <p>（比如点到空白区域）
      */
     public static void clearSelection() {
+        com.director.ui.actor.pose.ActorBonePropertiesPanel.cancelNumericDraft();
         TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model != null) {
             // 清空 Timeline 选择

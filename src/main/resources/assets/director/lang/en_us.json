@@ -2088,5 +2088,7 @@
   "gui.director.actor.bone_draft.asset": "Animation asset keyframes",
   "gui.director.actor.bone_draft.pose": "Quick pose (rotation)",
   "gui.director.actor.bone_draft.shared": "shared asset",
-  "gui.director.actor.bone_draft.hint": "Auto-key applies on release. Otherwise use Apply. Esc or context changes cancel the draft. Shared asset edits affect every actor referencing it."
+  "gui.director.actor.bone_draft.hint": "Auto-key applies on release. Otherwise use Apply. Esc or context changes cancel the draft. Shared asset edits affect every actor referencing it.",
+  "gui.director.actor.authoring.gizmo_pending": "Apply or cancel the bone Gizmo preview before editing numeric values.",
+  "gui.director.actor.authoring.unavailable": "Asset authoring is read-only while playing, locked or muted, incompatible, or another pose draft is pending. Move the playhead into a compatible animation clip to edit."
 }

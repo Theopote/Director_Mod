@@ -124,3 +124,16 @@
 - Commit validates source clip, asset identity, source key, pose values and target context. No-motion gestures create no undo entry.
 - Validation: 11 bone-related tests pass, including 4 new draft transaction tests. Interactive Minecraft viewport testing remains required for Escape during a drag, pending Root movement, context switching, and shared asset previews on other actors.
 - Remaining P0 work: audit numeric/keyframe/menu authoring entry points for consistent locks, targets, transactions and persistence. The bone numeric panel still has its own draft flow; this round does not claim a unified authoring service.
+
+
+## 2026-10-01: P0 numeric, keyframe and track-menu authoring consistency
+
+- Added `ActorAnimationEditContext`: freezes model/actor/track/payload/clip/asset identity, timeline and local time, clip range/speed/loop, and asset duration/loop mode. Authoring rejects playback, locked or muted owners, missing/deleted targets, rebinding, asset replacement and incompatible rigs.
+- Added `ActorAnimationAuthoringService`: numeric keying, channel/full-pose buttons, rest-pose keying, both timeline drag surfaces, delete, paste and mirror use the same asset target checks and undo transactions.
+- Mixed translation/rotation/scale selections now move, delete and paste together. Collision, missing bone, unsupported channel, approximate duplicate target, invalid value or out-of-range time rejects the whole operation before any asset change. Paste never creates empty tracks during validation.
+- Mirror and new-track paste undo remove tracks introduced by the operation. Existing bone track identity and unrelated channel data survive undo/redo. Repeated identical numeric keying does not add empty undo steps.
+- The properties and timeline inspectors share one numeric draft. Collapsing the other inspector does not discard it. Starting Gizmo editing cancels numeric drafts; pending Gizmo previews block numeric writes. Context/source key changes invalidate stale numeric drafts even when their inspector is collapsed.
+- Dope-sheet selection/drag context is scoped to model, actor, clip and asset; drag freezes source keys and cancels on Escape, source/context changes, playback, locks or competing drafts. Locked data remains selectable and copyable. Clipboard paste is restricted to the source rig, and an empty destination asset can receive keys.
+- Actor track property-menu clip creation now validates model ownership, locks, playback, actor existence and supported action/legacy-pose type, and submits one undoable payload/wrapper transaction. Unsupported quick humanoid poses are not offered to quadrupeds through this service.
+- Validation: 65 relevant tests passed, including 12 new authoring/context tests and 3 track-menu transaction tests. UI behavior in a running Minecraft client remains unverified.
+- Remaining P0: asset-library attach/duplicate/import flows and other actor tools still need an entry-point audit; the legacy low-level keyframe helpers remain for compatibility, and Gizmo draft commits retain their own implementation. This is not completion of all P0 consistency work.

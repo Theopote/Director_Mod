@@ -2088,5 +2088,7 @@
   "gui.director.actor.bone_draft.asset": "动画资产关键帧",
   "gui.director.actor.bone_draft.pose": "快速姿态片段（旋转）",
   "gui.director.actor.bone_draft.shared": "共享资产",
-  "gui.director.actor.bone_draft.hint": "开启后松开 Gizmo 自动应用；关闭后使用应用按钮提交。Esc 或切换编辑上下文会取消草稿。修改共享资产影响所有引用它的演员。"
+  "gui.director.actor.bone_draft.hint": "开启后松开 Gizmo 自动应用；关闭后使用应用按钮提交。Esc 或切换编辑上下文会取消草稿。修改共享资产影响所有引用它的演员。",
+  "gui.director.actor.authoring.gizmo_pending": "请先应用或取消骨骼 Gizmo 预览，再编辑数值。",
+  "gui.director.actor.authoring.unavailable": "播放、轨道锁定或禁用、骨架不兼容、姿态草稿未应用时不可写入。请将播放头移入匹配的动画片段后编辑。"
 }

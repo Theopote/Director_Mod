@@ -176,6 +176,7 @@ public final class ActorBoneGizmoController {
         TimelineModel model = resolveModel();
         if (actorTrack == null || model == null || timelineTrack == null || timelineTrack.isLocked() || model.isPlaying()) return;
 
+        ActorBonePropertiesPanel.cancelNumericDraft();
         float time = model.getCurrentTime();
         gestureModel = model;
         gestureTime = time;
@@ -291,7 +292,7 @@ public final class ActorBoneGizmoController {
                 || Float.compare(assetDuration, editingAsset.duration()) != 0
                 || !editingAsset.id().equals(editingAnimationClip.getAnimationId())) return false;
         BoneTrack original = editingAsset.findBoneTrack(boneId).orElse(null);
-        if (hadBoneTrack != (original != null)) return false;
+        if (hadBoneTrack == (original == null)) return false;
         if (original == null) return true;
         return animationBaseTranslation != null
                 ? Objects.equals(beforeTranslationKey, original.translation().findAt(animationKeyTime).orElse(null))

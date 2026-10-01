@@ -38,11 +38,29 @@ public final class ActorTrackClipAuthoringService {
 
     public EntityTimelineClip createClip(TimelineTrack timelineTrack, ActorTrackClipKind kind, ActorActionType actionType) {
         TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (model == null || timelineTrack == null || timelineTrack.getType() != TrackType.ACTOR || kind == null) {
+        return createClip(model, timelineTrack, kind, actionType);
+    }
+
+    /** All menu/property entry points use the same validation and one undo transaction. */
+    public EntityTimelineClip createClip(TimelineModel model, TimelineTrack timelineTrack,
+                                         ActorTrackClipKind kind, ActorActionType actionType) {
+        if (model == null || model.isPlaying() || timelineTrack == null || timelineTrack.isLocked()
+                || !model.getAllTracks().contains(timelineTrack)
+                || timelineTrack.getType() != TrackType.ACTOR || kind == null) {
             return null;
         }
-
-        ActorTrack actorTrack = timelineTrack.getOrCreateActorTrackPayload();
+        ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
+        if (actorTrack == null || actorTrack.getActorRef() == null) return null;
+        var actor = com.director.actor.ActorRegistryManager.getInstance()
+                .getActor(actorTrack.getActorRef().getActorId()).orElse(null);
+        if (actor == null) return null;
+        ActorActionType action = actionType == null ? ActorActionType.IDLE : actionType;
+        if (kind == ActorTrackClipKind.ACTION
+                && (actor.getRigProfile() == null || !actor.getRigProfile().supports(action))) return null;
+        if (kind == ActorTrackClipKind.POSE
+                && com.director.actor.rig.ActorRigCompatibility.resolveRig(actor)
+                    .filter(com.director.actor.rig.skeleton.HumanoidTopology::matches).isEmpty()) return null;
+        if (!Float.isFinite(model.getCurrentTime())) return null;
         float start = Math.max(0.0f, model.getCurrentTime());
         EntityClip clip = switch (kind) {
             case TRANSFORM -> createTransformClip(actorTrack, start);
@@ -52,11 +70,19 @@ public final class ActorTrackClipAuthoringService {
             case STATE -> createStateClip(start);
         };
 
-        actorTrack.addClip(clip);
         EntityTimelineClip timelineClip = new EntityTimelineClip(clip, actorTrack.getColorRgba());
-        model.addClip(timelineTrack, timelineClip);
+        com.director.ui.timeline.commands.TimelineCommandBridge.execute(
+                new com.director.ui.timeline.commands.StateChangeCommand(model, "Create actor " + kind,
+                        () -> {
+                            actorTrack.removeClip(clip.getId());
+                            timelineTrack.removeClip(timelineClip);
+                            if (model.isSelected(timelineClip)) model.selectItem(timelineTrack, false);
+                        },
+                        () -> {
+                            if (!actorTrack.getClips().contains(clip)) actorTrack.addClip(clip);
+                            if (!timelineTrack.getClips().contains(timelineClip)) timelineTrack.addClip(timelineClip);
+                        }));
         model.selectItem(timelineClip, false);
-        model.markDirty();
 
         LOGGER.info("[ActorTrackClipAuthoringService] Created {} clip on actor track {}", kind, timelineTrack.getName());
         return timelineClip;

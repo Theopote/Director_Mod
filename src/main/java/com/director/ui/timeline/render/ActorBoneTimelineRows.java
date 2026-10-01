@@ -8,7 +8,10 @@ import com.director.actor.rig.skeleton.HumanoidRig;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.ui.actor.pose.ActorBoneSelectionController;
-import com.director.ui.actor.pose.ActorAnimationKeyframeEditing;
+import com.director.ui.actor.pose.ActorAnimationEditContext;
+import com.director.ui.actor.pose.ActorAnimationAuthoringService;
+import com.director.ui.actor.pose.ActorBonePropertiesPanel;
+import com.director.ui.actor.pose.ActorBoneGizmoController;
 import imgui.flag.ImGuiKey;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import imgui.ImDrawList;
@@ -31,6 +34,7 @@ public final class ActorBoneTimelineRows {
     private float dragPixelsPerSecond;
     private float dragStart, dragEnd, dragSpeed;
     private Object dragSource;
+    private ActorAnimationEditContext dragContext;
 
     private static Object source(KeyHit hit) {
         return switch (hit.channel()) {
@@ -44,7 +48,11 @@ public final class ActorBoneTimelineRows {
     public boolean updateDrag(TimelineModel model) {
         if (dragging == null) return false;
         var hit = dragging;
-        if (ImGui.isKeyPressed(ImGuiKey.Escape) || hit.track().isLocked()
+        if (dragContext == null || dragContext.model() != model || !dragContext.isCurrent()
+                || ActorBonePropertiesPanel.hasNumericDraft() || ActorBoneGizmoController.getInstance().isDragging()
+                || !hit.track().getActorTrackPayload().getActorRef().getActorId().equals(ActorBoneSelectionController.getInstance().getActorId())
+                || !Objects.equals(hit.bone(), ActorBoneSelectionController.getInstance().getSelectedBoneId())
+                || ImGui.isKeyPressed(ImGuiKey.Escape) || hit.track().isLocked()
                 || hit.clip().getStartTime() != dragStart || hit.clip().getEndTime() != dragEnd
                 || hit.clip().getSpeed() != dragSpeed || !Objects.equals(source(hit), dragSource)
                 || (hit.clip().isLoop() && hit.asset().loopMode() != AnimationLoopMode.ONCE)
@@ -63,13 +71,13 @@ public final class ActorBoneTimelineRows {
             dragging = null;
             if (isCanvasWindowHovered() && Math.abs(ImGui.getMousePosX() - dragMouseX) >= 3) {
                 float delta = target - hit.assetTime();
-                boolean moved = switch (hit.channel()) {
-                    case 0 -> ActorAnimationKeyframeEditing.moveTranslations(model,
-                            List.of(new ActorAnimationKeyframeEditing.TranslationKey(hit.boneTrack(), hit.assetTime())), delta);
-                    case 1 -> ActorAnimationKeyframeEditing.moveRotation(model, hit.boneTrack(), hit.assetTime(), target);
-                    default -> ActorAnimationKeyframeEditing.moveScales(model,
-                            List.of(new ActorAnimationKeyframeEditing.ScaleKey(hit.boneTrack(), hit.assetTime())), delta);
+                var channel = switch (hit.channel()) {
+                    case 0 -> ActorAnimationAuthoringService.Channel.TRANSLATION;
+                    case 1 -> ActorAnimationAuthoringService.Channel.ROTATION;
+                    default -> ActorAnimationAuthoringService.Channel.SCALE;
                 };
+                boolean moved = ActorAnimationAuthoringService.move(dragContext,
+                        List.of(new ActorAnimationAuthoringService.Key(hit.bone(), channel, hit.assetTime())), delta);
                 if (moved) model.setCurrentTime(hit.clip().getStartTime() + target / Math.max(0.01f, hit.clip().getSpeed()));
             }
         } else if (!ImGui.isMouseDown(ImGuiMouseButton.Left)) dragging = null;
@@ -216,7 +224,9 @@ public final class ActorBoneTimelineRows {
                 }
                 if (closest != null) {
                     model.setCurrentTime(closest.time());
-                    if (!track.isLocked() && (!closest.clip().isLoop() || closest.asset().loopMode() == AnimationLoopMode.ONCE)) {
+                    if (!model.isPlaying() && !track.isLocked() && !ActorBonePropertiesPanel.hasNumericDraft()
+                            && !ActorBoneGizmoController.getInstance().isDragging() && (!closest.clip().isLoop() || closest.asset().loopMode() == AnimationLoopMode.ONCE)) {
+                        dragContext = ActorAnimationEditContext.capture(model, track, closest.clip());
                         dragging = closest;
                         dragMouseX = mx;
                         dragPixelsPerSecond = pixelsPerSecond;
