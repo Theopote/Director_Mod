@@ -22,6 +22,7 @@ public class ActorTransformApplier extends TransformApplier {
     private Vec3d accumulatedScaleDelta = Vec3d.ZERO;
     private Vec3d accumulatedRotateDelta = Vec3d.ZERO;
     private boolean isDragging = false;
+    private boolean gestureAttempted;
 
     public ActorTransformApplier(SelectionManager selectionManager, ActorGizmoController actorGizmoController) {
         super(selectionManager);
@@ -29,9 +30,10 @@ public class ActorTransformApplier extends TransformApplier {
     }
 
     public void prepareDragSession() {
-        if (actorGizmoController == null) {
+        if (actorGizmoController == null || gestureAttempted) {
             return;
         }
+        gestureAttempted = true;
         actorGizmoController.handleGizmoDragStart();
         isDragging = actorGizmoController.isDragging();
         accumulatedMoveDelta = Vec3d.ZERO;
@@ -51,8 +53,8 @@ public class ActorTransformApplier extends TransformApplier {
             accumulatedMoveDelta = accumulatedMoveDelta.add(delta);
             actorGizmoController.handleGizmoDragUpdate(accumulatedMoveDelta);
         } else {
-            // 否则使用默认行为（移动选区）
-            super.applyMove(delta);
+            // An actor applier never writes block selections after its target is cleared.
+            return;
         }
     }
 
@@ -71,7 +73,7 @@ public class ActorTransformApplier extends TransformApplier {
             accumulatedScaleDelta = accumulatedScaleDelta.add(axisDelta(axis, delta));
             actorGizmoController.handleGizmoDragUpdate(accumulatedScaleDelta);
         } else {
-            super.applyResize(axis, isMaxFace, delta);
+            return;
         }
     }
 
@@ -85,7 +87,7 @@ public class ActorTransformApplier extends TransformApplier {
             accumulatedScaleDelta = accumulatedScaleDelta.add(axisDelta);
             actorGizmoController.handleGizmoDragUpdate(accumulatedScaleDelta);
         } else {
-            super.applyResize(axisDelta);
+            return;
         }
     }
 
@@ -99,7 +101,7 @@ public class ActorTransformApplier extends TransformApplier {
             accumulatedScaleDelta = accumulatedScaleDelta.add(delta);
             actorGizmoController.handleGizmoDragUpdate(accumulatedScaleDelta);
         } else {
-            super.applyResizeFromCorner(delta, cornerSign);
+            return;
         }
     }
 
@@ -115,7 +117,7 @@ public class ActorTransformApplier extends TransformApplier {
             accumulatedRotateDelta = rotation;
             actorGizmoController.handleGizmoDragUpdate(accumulatedRotateDelta);
         } else {
-            super.applyRotation(angle, axis);
+            return;
         }
     }
 
@@ -132,13 +134,11 @@ public class ActorTransformApplier extends TransformApplier {
             }
             isDragging = false;
         }
+        gestureAttempted = false;
     }
 
     private void beginActorDragIfNeeded() {
-        if (!isDragging) {
-            actorGizmoController.handleGizmoDragStart();
-            isDragging = actorGizmoController.isDragging();
-        }
+        if (!gestureAttempted) prepareDragSession();
     }
 
     private static Vec3d axisDelta(Axis axis, double delta) {

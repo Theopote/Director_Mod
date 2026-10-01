@@ -54,6 +54,12 @@ public final class ActorLiveTransformPropertyUI {
         }
         float time = model.getCurrentTime();
         syncFromSample(actorId, time);
+        var target = ActorTransformEditService.resolveTrack(actorId);
+        boolean readOnly = model.isPlaying() || target == null || target.timelineTrack().isLocked()
+                || target.timelineTrack().isMuted()
+                || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
+                || com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging();
+        ImGui.beginDisabled(readOnly);
 
         if (ImGui.collapsingHeader(Icons.TRANSFORM + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SECTION_TRANSFORM),
@@ -129,6 +135,7 @@ public final class ActorLiveTransformPropertyUI {
 
         ImGui.spacing();
         ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.GIZMO_HINT));
+        ImGui.endDisabled();
     }
 
     private static void applyCurrentLookAt(UUID actorId, float time) {
@@ -141,7 +148,7 @@ public final class ActorLiveTransformPropertyUI {
     }
 
     private static void syncFromSample(UUID actorId, float time) {
-        if (Objects.equals(actorId, cachedActorId) && Math.abs(time - cachedTime) < 1e-4f) {
+        if (Objects.equals(actorId, cachedActorId) && Math.abs(time - cachedTime) < 1e-4f && ImGui.isAnyItemActive()) {
             return;
         }
         ActorTransformEditService.TransformSnapshot transform =

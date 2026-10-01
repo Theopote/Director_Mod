@@ -52,6 +52,16 @@ public class PreviewActorEntity extends ArmorStandEntity {
 
     /** Standard indexed pose used by the bone animation/editor pipeline. */
     private RigPose finalRigPose;
+    private final org.joml.Vector3f actorTransformScale = new org.joml.Vector3f(1);
+
+    public void setActorTransformScale(org.joml.Vector3f scale) {
+        if (scale != null && scale.isFinite() && scale.x > 0 && scale.y > 0 && scale.z > 0)
+            actorTransformScale.set(scale);
+    }
+
+    public org.joml.Vector3f getActorTransformScale() {
+        return new org.joml.Vector3f(actorTransformScale);
+    }
 
     /**
      * 构造函数

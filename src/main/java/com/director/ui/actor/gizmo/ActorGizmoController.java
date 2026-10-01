@@ -2,30 +2,21 @@ package com.director.ui.actor.gizmo;
 
 import com.director.core.DirectorServices;
 import com.director.actor.preview.ActorPreviewManager;
-import com.director.actor.ActorRef;
 import net.minecraft.entity.Entity;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoMode;
 import com.director.client.gizmo.GizmoType;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
-import com.director.timeline.model.TrackType;
-import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.ActorTrack;
-import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.entity.EntityTransformClip;
 import com.director.timeline.playback.entity.EntityClipSampler;
 import com.director.timeline.playback.entity.EntitySample;
-import com.director.ui.timeline.commands.StateChangeCommand;
-import com.director.ui.timeline.commands.TimelineCommandBridge;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.joml.Vector3f;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -78,8 +69,8 @@ public final class ActorGizmoController {
     /** Gizmo 编辑状态 */
     private EntityTransformClip editingClip;
     private boolean dragging = false;
-    private TransformClipState dragBeforeState;
-    private boolean dragCreatedClip;
+    private ActorTransformEditSession dragSession;
+    private GizmoMode dragMode;
     /** 是否由 ActorGizmoController 激活并持有当前 Gizmo。 */
     private boolean ownsGizmo = false;
 
@@ -87,6 +78,8 @@ public final class ActorGizmoController {
     private Vec3d dragBasePos;      // TRANSLATE 模式
     private Vec3d dragBaseRot;       // ROTATE 模式
     private Vec3d dragBaseScale;     // SCALE 模式
+    private Vec3d dragPreviewPosition;
+    private Vec3d dragPreviewRotation;
 
     /** Gizmo 位置缓存（用于优化更新频率） */
     private Box lastGizmoBox = null;
@@ -114,7 +107,7 @@ public final class ActorGizmoController {
      */
     public void setTargetActor(UUID actorId) {
         if (Objects.equals(targetActorId, actorId)) return;
-        if (dragging) handleGizmoDragEnd();
+        if (dragging) cancelGizmoDrag();
         // ⭐ 清除方块选区（Gizmo 激活前）
         // Actor Gizmo 不应该与方块选区有任何关联
         try {
@@ -144,7 +137,7 @@ public final class ActorGizmoController {
      * 清除目标
      */
     public void clearTarget() {
-        if (dragging) handleGizmoDragEnd();
+        if (dragging) cancelGizmoDrag();
         this.targetActorId = null;
         this.actorTrack = null;
         this.timelineTrack = null;
@@ -194,7 +187,9 @@ public final class ActorGizmoController {
     }
 
     public void setPreferredMode(GizmoMode mode) {
-        this.currentMode = mode != null ? mode : GizmoMode.TRANSLATE;
+        var nextMode = mode != null ? mode : GizmoMode.TRANSLATE;
+        if (dragging && currentMode != nextMode) cancelGizmoDrag();
+        this.currentMode = nextMode;
         if (GizmoManager.get().getContext() != null) {
             GizmoManager.get().getContext().setMode(this.currentMode);
         }
@@ -209,6 +204,13 @@ public final class ActorGizmoController {
      * <p>需要在客户端每帧调用（和 ActorPickController 类似）
      */
     public void update() {
+        if (dragging) {
+            var client = net.minecraft.client.MinecraftClient.getInstance();
+            boolean escape = client != null && client.getWindow() != null
+                    && org.lwjgl.glfw.GLFW.glfwGetKey(client.getWindow().getHandle(), org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE)
+                        == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+            if (escape || !isDragContextCurrent()) cancelGizmoDrag();
+        }
         if (targetActorId == null) {
             // 只停用自己持有的 Gizmo，避免干扰 Camera Path 等其他工具。
             if (ownsGizmo && GizmoManager.get().isActive()) {
@@ -220,6 +222,7 @@ public final class ActorGizmoController {
 
         Entity preview = ActorPreviewManager.getInstance().getPreview(targetActorId);
         if (preview == null) {
+            cancelGizmoDrag();
             // 只停用自己持有的 Gizmo，避免干扰 Camera Path 等其他工具。
             if (ownsGizmo && GizmoManager.get().isActive()) {
                 GizmoManager.get().deactivate();
@@ -371,6 +374,8 @@ public final class ActorGizmoController {
      * <p>由 GizmoInteractionController 在拖动开始时调用
      */
     public void handleGizmoDragStart() {
+        if (dragging) return;
+        resolveTargetTrack();
         if (targetActorId == null) {
             return;
         }
@@ -390,9 +395,14 @@ public final class ActorGizmoController {
             return;
         }
 
-        if (timelineTrack != null && timelineTrack.isLocked()) return;
+        if (timelineTrack == null || timelineTrack.isLocked() || timelineTrack.isMuted() || model.isPlaying()) return;
         if (currentMode == GizmoMode.LOOK_AT) return;
         dragging = true;
+        var initialPreview = ActorPreviewManager.getInstance().getPreview(targetActorId);
+        if (initialPreview != null) {
+            dragPreviewPosition = new Vec3d(initialPreview.getX(), initialPreview.getY(), initialPreview.getZ());
+            dragPreviewRotation = new Vec3d(initialPreview.getYaw(), initialPreview.getPitch(), 0);
+        }
 
         float time = model.getCurrentTime();
 
@@ -425,27 +435,25 @@ public final class ActorGizmoController {
                     targetActorId, time, sampledPos);
         }
 
-        // 2️⃣ 找到当前时间覆盖的 TransformClip（last-wins）
-        editingClip = findActiveTransformClip(actorTrack, time);
-        boolean activeClipAtCurrentTime = editingClip != null;
-
-        if (editingClip == null) {
-            editingClip = findNearestTransformClipForExtension(actorTrack, time);
+        var source = ActorTransformEditSession.resolveSource(actorTrack, time);
+        boolean activeClipAtCurrentTime = source != null && time >= source.getStartTime() && time <= source.getEndTime();
+        try {
+            dragSession = new ActorTransformEditSession(model, timelineTrack, source);
+        } catch (IllegalArgumentException | NullPointerException invalid) {
+            dragging = false;
+            return;
         }
-        dragCreatedClip = editingClip == null;
-        dragBeforeState = dragCreatedClip ? null : TransformClipState.capture(editingClip);
-
-        // 3️⃣ 如果没有，尝试扩展现有的 TransformClip 或创建新的
-        if (editingClip == null) {
-            editingClip = createTransformClip(actorTrack, time, sampledPos);
-            LOGGER.debug("[ActorGizmoController] 创建新的 TransformClip: start={}, end={}",
-                    editingClip.getStartTime(), editingClip.getEndTime());
-        } else {
-            if (!activeClipAtCurrentTime) {
-                float newStart = Math.min(editingClip.getStartTime(), time);
-                float newEnd = Math.max(editingClip.getEndTime(), time + DEFAULT_CLIP_DURATION);
-                editingClip.setTimeRange(newStart, newEnd);
-            }
+        dragMode = currentMode;
+        editingClip = dragSession.draft();
+        if (source == null) {
+            editingClip.setFromPos((float) sampledPos.x, (float) sampledPos.y, (float) sampledPos.z);
+            editingClip.setToPos((float) sampledPos.x, (float) sampledPos.y, (float) sampledPos.z);
+            editingClip.setFromRot((float) sampledRot.x, (float) sampledRot.y, (float) sampledRot.z);
+            editingClip.setToRot((float) sampledRot.x, (float) sampledRot.y, (float) sampledRot.z);
+            editingClip.setFromScale((float) sampledScale.x, (float) sampledScale.y, (float) sampledScale.z);
+            editingClip.setToScale((float) sampledScale.x, (float) sampledScale.y, (float) sampledScale.z);
+        } else if (!activeClipAtCurrentTime) {
+            editingClip.setTimeRange(Math.min(source.getStartTime(), time), Math.max(source.getEndTime(), time + DEFAULT_CLIP_DURATION));
         }
 
         // 4️⃣ 按 Gizmo 模式缓存 base 值
@@ -470,26 +478,8 @@ public final class ActorGizmoController {
                 );
             }
             case ROTATE -> {
-                // 使用当前 clip 的 fromRot 作为 base（如果 clip 已存在）
-                // 否则使用采样值（若无采样则使用 sampledRot 默认值）
-                if (editingClip.getFromRot().x != 0 || editingClip.getFromRot().y != 0 || editingClip.getFromRot().z != 0) {
-                    dragBaseRot = new Vec3d(
-                            editingClip.getFromRot().x,
-                            editingClip.getFromRot().y,
-                            editingClip.getFromRot().z
-                    );
-                } else {
-                    dragBaseRot = new Vec3d(
-                            sampledRot.x,
-                            sampledRot.y,
-                            sampledRot.z
-                    );
-                    editingClip.setFromRot(
-                            (float) sampledRot.x,
-                            (float) sampledRot.y,
-                            (float) sampledRot.z
-                    );
-                }
+                dragBaseRot = sampledRot;
+                editingClip.setFromRot((float) sampledRot.x, (float) sampledRot.y, (float) sampledRot.z);
                 // 初始化 toRot = fromRot
                 editingClip.setToRot(
                         (float) dragBaseRot.x,
@@ -498,26 +488,8 @@ public final class ActorGizmoController {
                 );
             }
             case SCALE -> {
-                // 使用当前 clip 的 fromScale 作为 base（如果 clip 已存在）
-                // 否则使用采样值（若无采样则使用 sampledScale 默认值）
-                if (editingClip.getFromScale().x != 1 || editingClip.getFromScale().y != 1 || editingClip.getFromScale().z != 1) {
-                    dragBaseScale = new Vec3d(
-                            editingClip.getFromScale().x,
-                            editingClip.getFromScale().y,
-                            editingClip.getFromScale().z
-                    );
-                } else {
-                    dragBaseScale = new Vec3d(
-                            sampledScale.x,
-                            sampledScale.y,
-                            sampledScale.z
-                    );
-                    editingClip.setFromScale(
-                            (float) sampledScale.x,
-                            (float) sampledScale.y,
-                            (float) sampledScale.z
-                    );
-                }
+                dragBaseScale = sampledScale;
+                editingClip.setFromScale((float) sampledScale.x, (float) sampledScale.y, (float) sampledScale.z);
                 // 初始化 toScale = fromScale
                 editingClip.setToScale(
                         (float) dragBaseScale.x,
@@ -527,6 +499,7 @@ public final class ActorGizmoController {
             }
         }
 
+        dragSession.arm();
         LOGGER.debug("[ActorGizmoController] 开始编辑 TransformClip: clip={}, mode={}, base={}",
                 editingClip.getId(), currentMode,
                 currentMode == GizmoMode.TRANSLATE ? dragBasePos :
@@ -540,6 +513,9 @@ public final class ActorGizmoController {
      * @param deltaWorld 世界坐标增量
      */
     public void handleGizmoDragUpdate(Vec3d deltaWorld) {
+        if (dragging && !isDragContextCurrent()) { cancelGizmoDrag(); return; }
+        if (deltaWorld == null || !Double.isFinite(deltaWorld.x) || !Double.isFinite(deltaWorld.y)
+                || !Double.isFinite(deltaWorld.z)) { cancelGizmoDrag(); return; }
         if (!dragging || editingClip == null) {
             return;
         }
@@ -633,9 +609,10 @@ public final class ActorGizmoController {
             }
         }
 
+        if (!editingClip.getToPos().isFinite() || !editingClip.getToRot().isFinite()
+                || !editingClip.getToScale().isFinite()) { cancelGizmoDrag(); return; }
         applyLivePreview();
-        // Preview reads the edited clip directly. Notify/save once at gesture commit,
-        // never on every pointer sample (markDirty may synchronously save the project).
+        // Persistent tracks remain untouched until the release command.
     }
 
     /**
@@ -673,7 +650,8 @@ public final class ActorGizmoController {
                         to.x, to.y);
             }
             case SCALE -> {
-                // 缩放由预览系统下一帧采样应用；此处不强制改实体尺寸
+                if (preview instanceof com.director.actor.preview.PreviewActorEntity previewEntity)
+                    previewEntity.setActorTransformScale(editingClip.getToScale());
             }
             default -> {
             }
@@ -693,22 +671,13 @@ public final class ActorGizmoController {
      * <p>由 GizmoInteractionController 在拖动结束时调用
      */
     public void handleGizmoDragEnd() {
-        if (editingClip != null) {
-            LOGGER.debug("[ActorGizmoController] 结束编辑 TransformClip: clip={}, mode={}",
-                    editingClip.getId(), currentMode);
-
-            // 通知时间线数据已变
-            TimelineModel model = resolveTimelineModel();
-            if (model != null) {
-                registerActorTransformUndo(model, editingClip);
-            }
-        }
-
+        if (dragging && isDragContextCurrent()) dragSession.commit();
+        else if (dragging) { cancelGizmoDrag(); return; }
         dragging = false;
         editingClip = null;
+        dragSession = null;
+        dragMode = null;
         clearDragBases();
-        dragBeforeState = null;
-        dragCreatedClip = false;
 
         // 拖动结束后立即把 Gizmo 拉回演员身上，避免 pivot 与实体脱节
         if (targetActorId != null) {
@@ -721,182 +690,51 @@ public final class ActorGizmoController {
         }
     }
 
-    private void registerActorTransformUndo(TimelineModel model, EntityTransformClip clip) {
-        TransformClipState after = TransformClipState.capture(clip);
-        if (dragCreatedClip) {
-            ActorTrack targetTrack = actorTrack;
-            TimelineTrack targetTimelineTrack = timelineTrack;
-            EntityTimelineClip wrapper = clip.getTimelineClip();
-            Runnable undo = () -> {
-                targetTrack.removeClip(clip.getId());
-                if (targetTimelineTrack != null && wrapper != null) targetTimelineTrack.removeClip(wrapper);
-            };
-            Runnable redo = () -> {
-                if (!targetTrack.getClips().contains(clip)) targetTrack.addClip(clip);
-                if (targetTimelineTrack != null && wrapper != null) targetTimelineTrack.addClip(wrapper);
-                after.apply(clip);
-            };
-            TimelineCommandBridge.execute(new StateChangeCommand(model, "Transform actor", undo, redo));
-        } else if (dragBeforeState != null && !dragBeforeState.equals(after)) {
-            TransformClipState before = dragBeforeState;
-            TimelineCommandBridge.execute(new StateChangeCommand(model, "Transform actor",
-                () -> before.apply(clip), () -> after.apply(clip)));
-        } else {
-            model.markDirty();
-        }
+    private boolean isDragContextCurrent() {
+        if (dragSession == null || !dragSession.isCurrent() || dragMode != currentMode
+                || dragSession.model() != resolveTimelineModel() || !dragSession.actorId().equals(targetActorId)) return false;
+        try {
+            var selected = com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(dragSession.model(), targetActorId);
+            var gm = GizmoManager.get();
+            return selected == dragSession.owner() && gm.isActive() && hasActorTransformApplier(gm)
+                    && gm.getContext() != null && gm.getContext().getMode() == dragMode;
+        } catch (IllegalArgumentException unavailable) { return false; }
     }
 
-    private record TransformClipState(float startTime, float endTime,
-                                      Vector3f fromPos, Vector3f toPos,
-                                      Vector3f fromRot, Vector3f toRot,
-                                      Vector3f fromScale, Vector3f toScale) {
-        static TransformClipState capture(EntityTransformClip clip) {
-            return new TransformClipState(clip.getStartTime(), clip.getEndTime(),
-                new Vector3f(clip.getFromPos()), new Vector3f(clip.getToPos()),
-                new Vector3f(clip.getFromRot()), new Vector3f(clip.getToRot()),
-                new Vector3f(clip.getFromScale()), new Vector3f(clip.getToScale()));
-        }
-
-        void apply(EntityTransformClip clip) {
-            clip.setTimeRange(startTime, endTime);
-            clip.setFromPos(fromPos.x, fromPos.y, fromPos.z);
-            clip.setToPos(toPos.x, toPos.y, toPos.z);
-            clip.setFromRot(fromRot.x, fromRot.y, fromRot.z);
-            clip.setToRot(toRot.x, toRot.y, toRot.z);
-            clip.setFromScale(fromScale.x, fromScale.y, fromScale.z);
-            clip.setToScale(toScale.x, toScale.y, toScale.z);
-        }
-    }
-
-    // =========================================================
-    // Clip Helpers
-    // =========================================================
-
-    /**
-     * 找到覆盖指定时间的 TransformClip（last-wins 规则）
-     * <p>last-wins：取 startTime 最大的 TransformClip
-     *
-     * @param track ActorTrack
-     * @param time 时间（秒）
-     * @return TransformClip，如果未找到则返回 null
-     */
-    private EntityTransformClip findActiveTransformClip(ActorTrack track, float time) {
-        if (track == null) {
-            return null;
-        }
-
-        EntityTransformClip result = null;
-
-        List<EntityClip> clips = track.getClips();
-        for (EntityClip c : clips) {
-            if (c instanceof EntityTransformClip tc && !tc.isMuted()) {
-                if (time >= tc.getStartTime() && time <= tc.getEndTime()) {
-                    if (result == null || tc.getStartTime() >= result.getStartTime()) {
-                        result = tc;
-                    }
+    public void cancelGizmoDrag() {
+        var originalPosition = dragPreviewPosition;
+        var originalRotation = dragPreviewRotation;
+        var originalModel = dragSession == null ? null : dragSession.model();
+        if (dragSession != null) dragSession.cancel();
+        dragging = false;
+        editingClip = null;
+        dragSession = null;
+        dragMode = null;
+        clearDragBases();
+        lastGizmoBox = null;
+        lastGizmoPivot = null;
+        // Restore directly without persistence; runtime will apply the full pose on its next tick.
+        if (actorTrack != null && targetActorId != null) {
+            var model = resolveTimelineModel();
+            var preview = ActorPreviewManager.getInstance().getPreview(targetActorId);
+            if (model != null && model == originalModel && preview != null) {
+                var sample = new EntityClipSampler(actorTrack).sampleAt(model.getCurrentTime());
+                if (sample != null && sample.enabled) {
+                    preview.refreshPositionAndAngles(sample.position.x, sample.position.y, sample.position.z, sample.rotation.x, sample.rotation.y);
+                    if (preview instanceof com.director.actor.preview.PreviewActorEntity previewEntity)
+                        previewEntity.setActorTransformScale(sample.scale);
+                } else if (originalPosition != null && originalRotation != null) {
+                    preview.refreshPositionAndAngles(originalPosition.x, originalPosition.y, originalPosition.z,
+                            (float) originalRotation.x, (float) originalRotation.y);
                 }
             }
         }
-
-        return result;
     }
 
-    /**
-     * 查找最近的 TransformClip（用于扩展）
-     * <p>如果当前时间没有 TransformClip，尝试找到最近的（可以扩展以覆盖当前时间）
-     * <p>只在距离很近时返回（避免扩展太远的 clip）
-     *
-     * @param track ActorTrack
-     * @param time 时间（秒）
-     * @return TransformClip，如果未找到合适的则返回 null
-     */
-    private EntityTransformClip findNearestTransformClipForExtension(ActorTrack track, float time) {
-        if (track == null) {
-            return null;
-        }
-
-        EntityTransformClip nearest = null;
-        float minDistance = Float.MAX_VALUE;
-
-        List<EntityClip> clips = track.getClips();
-        for (EntityClip c : clips) {
-            if (c instanceof EntityTransformClip tc && !tc.isMuted()) {
-                float distance;
-                if (time < tc.getStartTime()) {
-                    // 时间在 clip 之前
-                    distance = tc.getStartTime() - time;
-                } else if (time > tc.getEndTime()) {
-                    // 时间在 clip 之后
-                    distance = time - tc.getEndTime();
-                } else {
-                    // 时间在 clip 范围内（不应该到这里，因为 findActiveTransformClip 已经找过了）
-                    continue;
-                }
-
-                if (distance < DEFAULT_CLIP_DURATION && distance < minDistance) {
-                    minDistance = distance;
-                    nearest = tc;
-                }
-            }
-        }
-
-        return nearest;
-    }
-
-    /**
-     * 创建新的 TransformClip
-     *
-     * @param track ActorTrack
-     * @param time 开始时间（秒）
-     * @param pos 起始位置
-     * @return 新创建的 TransformClip
-     */
-    private EntityTransformClip createTransformClip(ActorTrack track, float time, Vec3d pos) {
-
-        EntityTransformClip clip = getEntityTransformClip(time, pos);
-
-        // 默认插值类型为 SMOOTH
-        clip.setInterpolation(com.director.timeline.model.TimelineInterpolation.SMOOTH);
-
-        // 添加到轨道
-        track.addClip(clip);
-        if (timelineTrack != null) {
-            EntityTimelineClip timelineClip = new EntityTimelineClip(clip, track.getColorRgba());
-            timelineTrack.addClip(timelineClip);
-        }
-
-        // The completed drag command performs notification and persistence.
-
-        return clip;
-    }
-
-    private static @NotNull EntityTransformClip getEntityTransformClip(float time, Vec3d pos) {
-        EntityTransformClip clip = new EntityTransformClip(
-                "Transform",
-                time,
-                time + DEFAULT_CLIP_DURATION
-        );
-
-        // 初始化所有变换属性
-        clip.setFromPos(
-                (float) pos.x,
-                (float) pos.y,
-                (float) pos.z
-        );
-        clip.setToPos(
-                (float) pos.x,
-                (float) pos.y,
-                (float) pos.z
-        );
-
-        // 旋转默认为 0
-        clip.setFromRot(0, 0, 0);
-        clip.setToRot(0, 0, 0);
-
-        // 缩放默认为 1
-        clip.setFromScale(1, 1, 1);
-        clip.setToScale(1, 1, 1);
-        return clip;
+    public org.joml.Vector3f previewScale(UUID actorId) {
+        if (!dragging || currentMode != GizmoMode.SCALE || editingClip == null
+                || !Objects.equals(targetActorId, actorId) || !isDragContextCurrent()) return null;
+        return new org.joml.Vector3f(editingClip.getToScale());
     }
 
     // =========================================================
@@ -919,22 +757,11 @@ public final class ActorGizmoController {
             return;
         }
 
-        for (TimelineTrack track : model.getTracks()) {
-            if (track == null || track.getType() != TrackType.ACTOR) {
-                continue;
-            }
-
-            ActorTrack et = track.getActorTrackPayload();
-            if (et == null) {
-                continue;
-            }
-
-            ActorRef ref = et.getActorRef();
-            if (ref != null && Objects.equals(ref.getActorId(), targetActorId)) {
-                this.actorTrack = et;
-                this.timelineTrack = track;
-                return;
-            }
+        try {
+            timelineTrack = com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model, targetActorId);
+            actorTrack = timelineTrack.getActorTrackPayload();
+        } catch (IllegalArgumentException unavailable) {
+            LOGGER.debug("Actor transform target unavailable: {}", unavailable.getMessage());
         }
     }
 
@@ -949,6 +776,8 @@ public final class ActorGizmoController {
         dragBasePos = null;
         dragBaseRot = null;
         dragBaseScale = null;
+        dragPreviewPosition = null;
+        dragPreviewRotation = null;
     }
 
     /**

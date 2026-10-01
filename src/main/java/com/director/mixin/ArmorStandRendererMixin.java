@@ -39,8 +39,11 @@ public abstract class ArmorStandRendererMixin {
             }
         }
         if (state instanceof DirectorActorScaleHolder scaleHolder) {
-            if (entity instanceof PreviewActorEntity preview && preview.getFinalRigPose() != null) {
-                var scale = preview.getFinalRigPose().localTransform(HumanoidRig.ROOT).scale();
+            if (entity instanceof PreviewActorEntity preview) {
+                var pose = preview.getFinalRigPose();
+                var scale = preview.getActorTransformScale();
+                if (pose != null && com.director.actor.rig.skeleton.HumanoidTopology.matches(pose.rig()))
+                    scale.mul(pose.localTransform(HumanoidRig.ROOT).scale());
                 scaleHolder.director$setActorScale(scale.x, scale.y, scale.z);
             } else {
                 scaleHolder.director$setActorScale(1f, 1f, 1f);

@@ -492,6 +492,10 @@ public final class ActorRuntimeController {
             boolean gizmoDragging = actorId != null
                     && com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
                     && actorId.equals(com.director.ui.actor.gizmo.ActorGizmoController.getInstance().getTargetActorId());
+            if (entity instanceof com.director.actor.preview.PreviewActorEntity previewEntity) {
+                var scaleDraft = com.director.ui.actor.gizmo.ActorGizmoController.getInstance().previewScale(actorId);
+                previewEntity.setActorTransformScale(scaleDraft == null ? s.scale : scaleDraft);
+            }
 
             // === Visibility ===
             entity.setInvisible(s.visibility <= 0.01f);

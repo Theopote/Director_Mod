@@ -1,23 +1,17 @@
 package com.director.ui.actor.edit;
 
-import com.director.actor.ActorRef;
 import com.director.actor.preview.ActorPreviewManager;
 import com.director.core.DirectorServices;
-import com.director.timeline.model.TimelineInterpolation;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
-import com.director.timeline.model.TrackType;
 import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
-import com.director.timeline.model.entity.EntityTimelineClip;
-import com.director.timeline.model.entity.EntityTransformClip;
 import com.director.timeline.playback.entity.EntityClipSampler;
 import com.director.timeline.playback.entity.EntitySample;
 import net.minecraft.entity.Entity;
 import org.joml.Vector3f;
 
-import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -55,20 +49,10 @@ public final class ActorTransformEditService {
         if (model == null) {
             return null;
         }
-        for (TimelineTrack track : model.getTracks()) {
-            if (track == null || track.getType() != TrackType.ACTOR) {
-                continue;
-            }
-            ActorTrack actorTrack = track.getActorTrackPayload();
-            if (actorTrack == null) {
-                continue;
-            }
-            ActorRef ref = actorTrack.getActorRef();
-            if (ref != null && Objects.equals(ref.getActorId(), actorId)) {
-                return new ActorTrackContext(actorTrack, track);
-            }
-        }
-        return null;
+        try {
+            var track = com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
+            return new ActorTrackContext(track.getActorTrackPayload(), track);
+        } catch (IllegalArgumentException unavailable) { return null; }
     }
 
     public static TransformSnapshot sampleTransform(UUID actorId, float time) {
@@ -117,138 +101,65 @@ public final class ActorTransformEditService {
     }
 
     public static void applyTransform(UUID actorId, float time, Vector3f position, Vector3f rotation, Vector3f scale) {
-        ActorTrackContext ctx = resolveTrack(actorId);
-        if (ctx == null) {
-            return;
-        }
-        EntityTransformClip clip = ensureTransformClip(ctx, time, sampleTransform(actorId, time));
-        clip.setToPos(position.x, position.y, position.z);
-        clip.setToRot(rotation.x, rotation.y, rotation.z);
-        clip.setToScale(
-                (float) clampScale(scale.x),
-                (float) clampScale(scale.y),
-                (float) clampScale(scale.z));
-        if (time <= clip.getStartTime() + 1e-4f) {
-            clip.setFromPos(position.x, position.y, position.z);
-            clip.setFromRot(rotation.x, rotation.y, rotation.z);
-            clip.setFromScale(clip.getToScale().x, clip.getToScale().y, clip.getToScale().z);
-        }
-        markDirty();
+        var model = editableModel(time);
+        var ctx = resolveTrack(actorId);
+        if (model == null || ctx == null || position == null || rotation == null || scale == null
+                || !position.isFinite() || !rotation.isFinite() || !scale.isFinite()) return;
+        try {
+            var source = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveSource(ctx.actorTrack(), time);
+            var session = new com.director.ui.actor.gizmo.ActorTransformEditSession(model, ctx.timelineTrack(), source);
+            var clip = session.draft();
+            var sample = sampleTransform(actorId, time);
+            if (source == null) {
+                clip.setFromPos(sample.position().x, sample.position().y, sample.position().z);
+                clip.setFromRot(sample.rotation().x, sample.rotation().y, sample.rotation().z);
+                clip.setFromScale(sample.scale().x, sample.scale().y, sample.scale().z);
+            } else if (time < clip.getStartTime() || time > clip.getEndTime()) {
+                clip.setTimeRange(Math.min(clip.getStartTime(), time), Math.max(clip.getEndTime(), time + DEFAULT_CLIP_DURATION));
+            }
+            clip.setToPos(sample.position().x, sample.position().y, sample.position().z);
+            clip.setToRot(sample.rotation().x, sample.rotation().y, sample.rotation().z);
+            clip.setToScale(sample.scale().x, sample.scale().y, sample.scale().z);
+            session.arm();
+            clip.setToPos(position.x, position.y, position.z);
+            clip.setToRot(rotation.x, rotation.y, rotation.z);
+            clip.setToScale((float) clampScale(scale.x), (float) clampScale(scale.y), (float) clampScale(scale.z));
+            if (time <= clip.getStartTime() + 1e-4f) {
+                clip.setFromPos(position.x, position.y, position.z);
+                clip.setFromRot(rotation.x, rotation.y, rotation.z);
+                clip.setFromScale(clip.getToScale().x, clip.getToScale().y, clip.getToScale().z);
+            }
+            session.commit();
+        } catch (IllegalArgumentException unavailable) { /* Read-only or stale target. */ }
     }
 
     public static void applyLookAtWorldPoint(UUID actorId, float time, float x, float y, float z, float strength) {
-        ActorTrackContext ctx = resolveTrack(actorId);
-        if (ctx == null) {
-            return;
-        }
-        EntityLookAtClip clip = ensureLookAtClip(ctx, time);
-        clip.setMode(EntityLookAtClip.TargetMode.WORLD_POINT);
-        clip.setWorldPoint(x, y, z);
-        clip.setStrength(strength);
-        markDirty();
+        applyLookAt(actorId, time, new Vector3f(x, y, z), strength);
     }
 
     public static void applyLookAtCamera(UUID actorId, float time, float strength) {
-        ActorTrackContext ctx = resolveTrack(actorId);
-        if (ctx == null) {
-            return;
-        }
-        EntityLookAtClip clip = ensureLookAtClip(ctx, time);
-        clip.setMode(EntityLookAtClip.TargetMode.CAMERA);
-        clip.setStrength(strength);
-        markDirty();
+        applyLookAt(actorId, time, null, strength);
     }
 
-    private static EntityTransformClip ensureTransformClip(
-            ActorTrackContext ctx, float time, TransformSnapshot fallback) {
-        EntityTransformClip clip = findActiveTransformClip(ctx.actorTrack(), time);
-        if (clip == null) {
-            clip = findNearestTransformClipForExtension(ctx.actorTrack(), time);
-            if (clip != null) {
-                float newStart = Math.min(clip.getStartTime(), time);
-                float newEnd = Math.max(clip.getEndTime(), time + DEFAULT_CLIP_DURATION);
-                clip.setTimeRange(newStart, newEnd);
-            } else {
-                clip = createTransformClip(ctx, time, fallback.position());
-            }
-        } else if (time > clip.getEndTime()) {
-            clip.setTimeRange(clip.getStartTime(), time + DEFAULT_CLIP_DURATION);
-        }
-        return clip;
+    private static void applyLookAt(UUID actorId, float time, Vector3f point, float strength) {
+        var model = editableModel(time);
+        var ctx = resolveTrack(actorId);
+        if (model == null || ctx == null || !Float.isFinite(strength) || point != null && !point.isFinite()) return;
+        try {
+            var session = new com.director.ui.actor.lookat.ActorLookAtEditSession(model, ctx.timelineTrack());
+            var clip = session.draft();
+            clip.setMode(point == null ? EntityLookAtClip.TargetMode.CAMERA : EntityLookAtClip.TargetMode.WORLD_POINT);
+            if (point != null) clip.setWorldPoint(point.x, point.y, point.z);
+            clip.setStrength(strength);
+            session.commit();
+        } catch (IllegalArgumentException unavailable) { /* Read-only or stale target. */ }
     }
 
-    private static EntityLookAtClip ensureLookAtClip(ActorTrackContext ctx, float time) {
-        EntityLookAtClip clip = findActiveLookAtClip(ctx.actorTrack(), time);
-        if (clip == null) {
-            clip = createLookAtClip(ctx, time);
-        }
-        return clip;
-    }
-
-    private static EntityTransformClip createTransformClip(ActorTrackContext ctx, float time, Vector3f pos) {
-        EntityTransformClip clip = new EntityTransformClip(
-                "Transform",
-                time,
-                time + DEFAULT_CLIP_DURATION);
-        clip.setInterpolation(TimelineInterpolation.SMOOTH);
-        clip.setFromPos(pos.x, pos.y, pos.z);
-        clip.setToPos(pos.x, pos.y, pos.z);
-        clip.setFromRot(0, 0, 0);
-        clip.setToRot(0, 0, 0);
-        clip.setFromScale(1, 1, 1);
-        clip.setToScale(1, 1, 1);
-        ctx.actorTrack().addClip(clip);
-        if (ctx.timelineTrack() != null) {
-            ctx.timelineTrack().addClip(new EntityTimelineClip(clip, ctx.actorTrack().getColorRgba()));
-        }
-        return clip;
-    }
-
-    private static EntityLookAtClip createLookAtClip(ActorTrackContext ctx, float time) {
-        EntityLookAtClip clip = new EntityLookAtClip("LookAt", time, time + DEFAULT_CLIP_DURATION);
-        clip.setMode(EntityLookAtClip.TargetMode.CAMERA);
-        clip.setStrength(1f);
-        ctx.actorTrack().addClip(clip);
-        if (ctx.timelineTrack() != null) {
-            ctx.timelineTrack().addClip(new EntityTimelineClip(clip, ctx.actorTrack().getColorRgba()));
-        }
-        return clip;
-    }
-
-    private static EntityTransformClip findActiveTransformClip(ActorTrack track, float time) {
-        EntityTransformClip result = null;
-        for (EntityClip c : track.getClips()) {
-            if (c instanceof EntityTransformClip tc && !tc.isMuted()) {
-                if (time >= tc.getStartTime() && time <= tc.getEndTime()) {
-                    if (result == null || tc.getStartTime() >= result.getStartTime()) {
-                        result = tc;
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    private static EntityTransformClip findNearestTransformClipForExtension(ActorTrack track, float time) {
-        EntityTransformClip nearest = null;
-        float minDistance = Float.MAX_VALUE;
-        for (EntityClip c : track.getClips()) {
-            if (c instanceof EntityTransformClip tc && !tc.isMuted()) {
-                float distance;
-                if (time < tc.getStartTime()) {
-                    distance = tc.getStartTime() - time;
-                } else if (time > tc.getEndTime()) {
-                    distance = time - tc.getEndTime();
-                } else {
-                    continue;
-                }
-                if (distance < DEFAULT_CLIP_DURATION && distance < minDistance) {
-                    minDistance = distance;
-                    nearest = tc;
-                }
-            }
-        }
-        return nearest;
+    private static TimelineModel editableModel(float time) {
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        return model != null && Float.isFinite(time) && Float.compare(time, model.getCurrentTime()) == 0
+                && !model.isPlaying() && !com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
+                && !com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging() ? model : null;
     }
 
     private static EntityLookAtClip findActiveLookAtClip(ActorTrack track, float time) {
@@ -280,10 +191,4 @@ public final class ActorTransformEditService {
         return Math.max(MIN_SCALE, Math.min(MAX_SCALE, value));
     }
 
-    private static void markDirty() {
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (model != null) {
-            model.markDirty();
-        }
-    }
 }
