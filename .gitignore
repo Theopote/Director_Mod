@@ -50,3 +50,4 @@ icons_original_backup_*/
 config/director/imgui.ini
 /logs/latest.log
 /build-deprecation.log
+/logs
