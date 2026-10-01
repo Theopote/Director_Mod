@@ -2097,5 +2097,9 @@
   "gui.director.actor.assets.overlap": "This interval overlaps %s animation clips. Existing clips will remain; the new clip may take playback priority.",
   "gui.director.actor.assets.current_clip": "Current clip: %s / %s",
   "gui.director.actor.assets.make_independent": "Make current clip independent",
-  "gui.director.actor.assets.import_context_changed": "The project, actor or playhead changed while choosing the file. Import was cancelled."
+  "gui.director.actor.assets.import_context_changed": "The project, actor or playhead changed while choosing the file. Import was cancelled.",
+  "gui.director.actor.path.target_library": "Editing a library path. Existing actor routes remain independent.",
+  "gui.director.actor.path.target_route": "Editing the selected actor's route instance. Library paths remain independent.",
+  "gui.director.actor.path.target_draft": "Drawing a path draft. Apply creates an actor route; save to the library for reuse.",
+  "gui.director.actor.path.save_library": "Save to path library"
 }

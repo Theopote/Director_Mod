@@ -31,8 +31,18 @@ public final class ActorPathLibraryPanel {
     private UUID selectedPathId = null;
     private UUID pendingDeletePathId = null;
     private boolean deleteConfirmPopupOpen = false;
+    private String lastError = "";
+    private com.director.timeline.model.TimelineModel viewModel;
+    private com.director.actor.path.ActorPathLibrary viewLibrary;
 
     public void render() {
+        var model = com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
+        var library = ActorPathLibraryManager.getInstance();
+        if (viewModel != model || viewLibrary != library) {
+            viewModel = model; viewLibrary = library;
+            renamingPathId = null; selectedPathId = null; pendingDeletePathId = null;
+            deleteConfirmPopupOpen = false; lastError = "";
+        }
         boolean headerOpen = ImGui.collapsingHeader(Icons.PATH + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.HEADER));
 
@@ -40,6 +50,7 @@ public final class ActorPathLibraryPanel {
             ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.HINT));
             ImGui.spacing();
 
+            ImGui.beginDisabled(model == null || model.isPlaying());
             var paths = ActorPathLibraryManager.getAllPaths();
             if (paths.isEmpty()) {
                 ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.EMPTY));
@@ -57,6 +68,8 @@ public final class ActorPathLibraryPanel {
                     ImGui.popID();
                 }
             }
+            ImGui.endDisabled();
+            if (!lastError.isEmpty()) ImGui.textWrapped(lastError);
         }
 
         renderDeleteConfirmPopup();
@@ -98,7 +111,7 @@ public final class ActorPathLibraryPanel {
 
         if (iconButton(path.isLocked() ? Icons.LOCK : Icons.UNLOCK, "##lock")) {
             boolean becomingLocked = !path.isLocked();
-            ActorPathLibraryManager.setPathLocked(path.getId(), becomingLocked);
+            if (!edit(model -> ActorPathEditing.setLocked(model, viewLibrary, path, becomingLocked, ActorPathController.librarySaver()))) return;
             if (becomingLocked && path.getId().equals(ActorPathController.getInstance().getEditingLibraryPathId())) {
                 ActorPathController.getInstance().onPathRemovedFromLibrary(path.getId());
             }
@@ -113,7 +126,7 @@ public final class ActorPathLibraryPanel {
 
         ImGui.sameLine();
         if (iconButton(path.isVisible() ? Icons.VISIBLE : Icons.INVISIBLE, "##visible")) {
-            ActorPathLibraryManager.setPathVisible(path.getId(), !path.isVisible());
+            edit(model -> ActorPathEditing.setVisible(model, viewLibrary, path, !path.isVisible(), ActorPathController.librarySaver()));
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(ActorPropertyAdapterI18n.tr(
@@ -208,7 +221,7 @@ public final class ActorPathLibraryPanel {
             return;
         }
         UUID pathId = pendingDeletePathId;
-        if (ActorPathLibraryManager.removePath(pathId)) {
+        if (edit(model -> ActorPathEditing.remove(model, viewLibrary, viewLibrary.get(pathId), ActorPathController.librarySaver()))) {
             if (pathId.equals(selectedPathId)) {
                 selectedPathId = null;
             }
@@ -235,8 +248,17 @@ public final class ActorPathLibraryPanel {
             LOGGER.warn("[ActorPathLibraryPanel] 路径名称已存在: {}", newName);
             return;
         }
-        if (ActorPathLibraryManager.renamePath(pathId, newName)) {
+        if (edit(model -> ActorPathEditing.rename(model, viewLibrary, viewLibrary.get(pathId), newName, ActorPathController.librarySaver()))) {
             renamingPathId = null;
+        }
+    }
+    private boolean edit(java.util.function.Consumer<com.director.timeline.model.TimelineModel> action) {
+        try {
+            if (viewModel == null || viewModel != com.director.core.DirectorServices.get().containerTimeline().getTimelineModel()
+                    || viewLibrary != ActorPathLibraryManager.getInstance()) return false;
+            action.accept(viewModel); lastError = ""; return true;
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            lastError = failure.getMessage(); LOGGER.warn("[ActorPathLibraryPanel] {}", lastError); return false;
         }
     }
 }

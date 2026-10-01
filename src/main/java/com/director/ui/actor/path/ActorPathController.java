@@ -10,9 +10,7 @@ import com.director.core.DirectorServices;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.entity.ActorRouteClip;
-import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.model.entity.EntityTimelineClip;
-import com.director.timeline.playback.entity.ActorRouteSampler;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
@@ -36,8 +34,6 @@ public final class ActorPathController {
 
     private static final int MAX_PATH_POINTS = 2048;
     private static final double MIN_SAMPLE_DISTANCE_SQ = 0.25;
-    private static final float DEFAULT_SPEED = 2.0f;
-    private static final float MIN_SEGMENT_DURATION = 0.1f;
     private static final double ANCHOR_PICK_BASE_RADIUS = 0.35;
     private static final double ANCHOR_PICK_DISTANCE_SCALE = 0.006;
     private static final double ANCHOR_BOX_HALF_SIZE = 0.12;
@@ -59,6 +55,24 @@ public final class ActorPathController {
     private UUID editingLibraryPathId = null;
     private ActorRouteClip editingClip = null;
     private boolean anchorDragDirty;
+    private boolean anchorDragActive;
+    private List<Vec3d> dragBeforePoints;
+    private UUID dragActorId;
+    private TimelineModel dragModel;
+    private float dragTime;
+    private int dragAnchorIndex;
+    private ActorPathEditing.Target editingTarget;
+    private com.director.actor.path.ActorPathLibrary editingLibrary;
+    private boolean lastEscapeDown;
+    private String lastError = "";
+    public String getLastError() { return lastError; }
+    public boolean isLibraryEditing() { return editingLibraryPathId != null; }
+    public boolean isRouteEditing() { return editingClip != null; }
+    public boolean isReadOnly() { return isEditingLocked(); }
+    public boolean canRemoveSelectedAnchor() {
+        return selectedAnchorIndex >= 0 && selectedAnchorIndex < pathPoints.size()
+                && (editingTarget == null || pathPoints.size() > 2) && !isEditingLocked();
+    }
 
     private ActorPathController() {
     }
@@ -76,7 +90,7 @@ public final class ActorPathController {
     }
 
     public void deactivate() {
-        finishAnchorDrag();
+        cancelAnchorDrag();
         active = false;
         clearGizmo();
         resetState();
@@ -114,26 +128,57 @@ public final class ActorPathController {
         return pathPoints.get(index);
     }
 
-    public void setAnchorPosition(int index, Vec3d position) {
-        if (index < 0 || index >= pathPoints.size() || position == null) {
-            return;
-        }
-        if (isEditingLocked()) {
-            return;
-        }
+    public boolean setAnchorPosition(int index, Vec3d position) {
+        if (index < 0 || index >= pathPoints.size() || position == null
+                || !Float.isFinite((float) position.x) || !Float.isFinite((float) position.y)
+                || !Float.isFinite((float) position.z) || isEditingLocked()) return false;
+        if (GizmoManager.get().isDraggingHandle() && !isAnchorDragCurrent()) return false;
+        if (position.equals(pathPoints.get(index))) return true;
         pathPoints.set(index, position);
         drawing = !pathPoints.isEmpty();
-        if (GizmoManager.get().isDraggingHandle()) {
-            anchorDragDirty = true;
-            return; // Draw the draft immediately; rebuild terrain and save only on release.
-        }
-        syncDraftToStorage();
+        if (anchorDragActive) { anchorDragDirty = true; return true; }
+        return syncDraftToStorage();
+    }
+
+    boolean beginAnchorDrag() {
+        if (!active || isEditingLocked() || selectedAnchorIndex < 0 || selectedAnchorIndex >= pathPoints.size()) return false;
+        dragModel = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (dragModel == null) return false;
+        dragBeforePoints = List.copyOf(pathPoints);
+        dragActorId = ActorSelectionHub.getSelectedActorId();
+        dragTime = dragModel.getCurrentTime(); dragAnchorIndex = selectedAnchorIndex;
+        editingLibrary = ActorPathLibraryManager.getInstance();
+        anchorDragActive = true; anchorDragDirty = false;
+        return true;
+    }
+
+    boolean isAnchorDragCurrent() {
+        var gm = GizmoManager.get();
+        return anchorDragActive && active && !isEditingLocked() && dragModel != null
+                && dragModel == DirectorServices.get().containerTimeline().getTimelineModel()
+                && dragTime == dragModel.getCurrentTime()
+                && java.util.Objects.equals(dragActorId, ActorSelectionHub.getSelectedActorId())
+                && dragAnchorIndex == selectedAnchorIndex && editingLibrary == ActorPathLibraryManager.getInstance()
+                && gm.isActive() && gm.getController() != null
+                && gm.getContext() != null && gm.getContext().getMode() == com.director.client.gizmo.GizmoMode.TRANSLATE
+                && gm.getController().getTransformApplier() instanceof ActorPathWaypointTransformApplier;
     }
 
     void finishAnchorDrag() {
-        if (!anchorDragDirty) return;
-        anchorDragDirty = false;
-        syncDraftToStorage();
+        if (!anchorDragActive) return;
+        if (!isAnchorDragCurrent()) { cancelAnchorDrag(); return; }
+        boolean changed = anchorDragDirty && !dragBeforePoints.equals(pathPoints);
+        anchorDragActive = false; anchorDragDirty = false;
+        if (changed) syncDraftToStorage();
+        dragBeforePoints = null;
+    }
+
+    void cancelAnchorDrag() {
+        if (anchorDragActive && dragBeforePoints != null) {
+            pathPoints.clear(); pathPoints.addAll(dragBeforePoints);
+        }
+        anchorDragActive = false; anchorDragDirty = false; dragBeforePoints = null;
+        lastGizmoPosition = null;
     }
 
     public ActorRouteClip.InterpolationMode getInterpolationMode() {
@@ -141,15 +186,13 @@ public final class ActorPathController {
     }
 
     public void setInterpolationMode(ActorRouteClip.InterpolationMode mode) {
+        if (mode == interpolationMode) return;
         if (mode == null || isEditingLocked()) {
             return;
         }
+        cancelAnchorDrag();
         interpolationMode = mode;
         syncDraftToStorage();
-        if (editingClip != null) {
-            editingClip.setInterpolationMode(mode);
-            markTimelineDirty();
-        }
     }
 
     public int getAnchorCount() {
@@ -172,8 +215,16 @@ public final class ActorPathController {
             LOGGER.warn("[ActorPath] Path '{}' is locked, cannot edit", path.getName());
             return;
         }
+        cancelAnchorDrag();
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (model == null) return;
+        try { editingTarget = ActorPathEditing.library(model, ActorPathLibraryManager.getInstance(), path, librarySaver()); }
+        catch (IllegalArgumentException unavailable) { LOGGER.warn("[ActorPath] {}", unavailable.getMessage()); return; }
+        editingLibrary = ActorPathLibraryManager.getInstance();
         editingLibraryPathId = pathId;
         editingClip = null;
+        lastError = "";
+        editingTarget = null; editingLibrary = null;
         interpolationMode = path.getInterpolationMode();
         pathPoints.clear();
         for (Vector3f point : path.getWaypoints()) {
@@ -202,11 +253,18 @@ public final class ActorPathController {
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null || client.getWindow() == null) {
+            cancelAnchorDrag();
             return;
         }
-
+        boolean escapeDown = isKeyPressed(client, GLFW.GLFW_KEY_ESCAPE) && !ImGui.getIO().getWantTextInput();
+        boolean escapePressed = escapeDown && !lastEscapeDown; lastEscapeDown = escapeDown;
+        if (escapePressed) {
+            if (anchorDragActive) cancelAnchorDrag(); else beginNewDraft();
+            return;
+        }
         boolean draggingNow = GizmoManager.get().isDraggingHandle();
-        if (!draggingNow) finishAnchorDrag();
+        if (anchorDragActive && (!draggingNow || !isAnchorDragCurrent())) cancelAnchorDrag();
+        if (editingTarget != null && !isTargetCurrent()) reloadEditingSource();
 
         processDeleteShortcut();
 
@@ -226,11 +284,6 @@ public final class ActorPathController {
             boolean rightDown = isRightMouseDown(client);
             lastLeftMouseDown = leftDown;
             lastRightMouseDown = rightDown;
-            return;
-        }
-
-        if (GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_ESCAPE) == GLFW.GLFW_PRESS) {
-            beginNewDraft();
             return;
         }
 
@@ -257,14 +310,23 @@ public final class ActorPathController {
     }
 
     public void applyPathToSelectedActor() {
-        UUID pathId = editingLibraryPathId;
-        if (pathPoints.size() >= 2) {
-            pathId = completeCurrentPath();
+        cancelAnchorDrag();
+        if (isEditingLocked() || pathPoints.size() < 2) { lastError = "请先准备至少两个锚点，并选择可编辑的目标"; return; }
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (model == null) return;
+        try {
+            var track = com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model, ActorSelectionHub.getSelectedActorId());
+            String name = editingLibraryPathId != null ? ActorPathLibraryManager.getPath(editingLibraryPathId).getName()
+                    : editingClip != null ? editingClip.getName() : "Actor route";
+            var wrapper = ActorPathEditing.attach(model, track, getWaypointVectors(), interpolationMode, name);
+            lastError = "";
+            model.selectItem(wrapper, false);
+            beginNewDraft();
+            tryLoadSelectedRouteClip();
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            lastError = failure.getMessage();
+            LOGGER.warn("[ActorPath] {}", failure.getMessage());
         }
-        if (pathId == null) {
-            return;
-        }
-        createRouteClipFromLibraryPath(pathId);
     }
 
     private void handleRightClick(MinecraftClient client) {
@@ -296,6 +358,8 @@ public final class ActorPathController {
     }
 
     private void handleAddPoint(MinecraftClient client) {
+        if (isEditingLocked()) return;
+        cancelAnchorDrag();
         BlockHitResult hit = resolvePlacementHit(client);
         if (hit == null) {
             return;
@@ -322,36 +386,32 @@ public final class ActorPathController {
     }
 
     private UUID completeCurrentPath() {
-        if (pathPoints.size() < 2) {
-            return editingLibraryPathId;
+        cancelAnchorDrag();
+        if (isEditingLocked() || pathPoints.size() < 2) return null;
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (model == null) return null;
+        try {
+            UUID id;
+            if (editingLibraryPathId != null) {
+                if (!syncDraftToStorage()) return null;
+                id = editingLibraryPathId;
+            } else {
+                var created = ActorPathEditing.saveNew(model, ActorPathLibraryManager.getInstance(),
+                        getWaypointVectors(), interpolationMode, librarySaver());
+                id = created.getId();
+            }
+            beginNewDraft();
+            return id;
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            lastError = failure.getMessage();
+            LOGGER.warn("[ActorPath] {}", failure.getMessage()); return null;
         }
-
-        List<Vector3f> waypoints = getWaypointVectors();
-        UUID savedId;
-        if (editingLibraryPathId != null) {
-            savedId = editingLibraryPathId;
-            ActorPathLibraryManager.updatePath(savedId, waypoints, interpolationMode);
-            ActorPathDefinition path = ActorPathLibraryManager.getPath(savedId);
-            LOGGER.info("[ActorPath] Updated library path '{}'", path != null ? path.getName() : savedId);
-        } else {
-            ActorPathDefinition created = ActorPathLibraryManager.createPath(
-                    ActorPathLibraryManager.getInstance().generateUniqueName("Path"),
-                    waypoints,
-                    interpolationMode
-            );
-            savedId = created.getId();
-            LOGGER.info("[ActorPath] Saved new library path '{}'", created.getName());
-        }
-
-        beginNewDraft();
-        return savedId;
     }
 
     private void beginNewDraft() {
-        pathPoints.clear();
-        drawing = false;
-        selectedAnchorIndex = -1;
-        editingLibraryPathId = null;
+        cancelAnchorDrag();
+        pathPoints.clear(); drawing = false; selectedAnchorIndex = -1;
+        editingLibraryPathId = null; editingClip = null; editingTarget = null; editingLibrary = null;
         clearGizmo();
     }
 
@@ -375,6 +435,8 @@ public final class ActorPathController {
     }
 
     private void handleDeleteSelectedAnchor() {
+        cancelAnchorDrag();
+        if (editingTarget != null && pathPoints.size() <= 2) return;
         if (isEditingLocked()) {
             return;
         }
@@ -393,70 +455,71 @@ public final class ActorPathController {
         syncDraftToStorage();
     }
 
-    private void syncDraftToStorage() {
-        if (isEditingLocked()) {
-            return;
-        }
-        if (editingLibraryPathId != null && pathPoints.size() >= 2) {
-            ActorPathLibraryManager.updatePath(editingLibraryPathId, getWaypointVectors(), interpolationMode);
-        }
-        if (editingClip != null) {
-            editingClip.setWaypoints(getWaypointVectors());
-            editingClip.setInterpolationMode(interpolationMode);
-            updateRouteDuration(editingClip);
-            markTimelineDirty();
+    private boolean syncDraftToStorage() {
+        if (isEditingLocked()) { reloadEditingSource(); return false; }
+        if (editingTarget == null) return true; // Unsaved paths remain local drafts.
+        try {
+            if (!isTargetCurrent() || !editingTarget.commit(getWaypointVectors(), interpolationMode)) {
+                reloadEditingSource(); return false;
+            }
+            captureEditingTarget();
+            lastError = "";
+            return true;
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            lastError = failure.getMessage();
+            LOGGER.warn("[ActorPath] {}", failure.getMessage());
+            reloadEditingSource(); return false;
         }
     }
 
-    private void createRouteClipFromLibraryPath(UUID pathId) {
-        ActorPathDefinition libraryPath = ActorPathLibraryManager.getPath(pathId);
-        if (libraryPath == null || libraryPath.getWaypoints().size() < 2) {
-            return;
+    private boolean isTargetCurrent() {
+        if (editingTarget == null) return true;
+        if (editingTarget.model() != DirectorServices.get().containerTimeline().getTimelineModel() || !editingTarget.isCurrent()) return false;
+        if (editingLibraryPathId != null) return editingTarget.library() == ActorPathLibraryManager.getInstance();
+        try {
+            return editingTarget.owner() == com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(
+                    editingTarget.model(), ActorSelectionHub.getSelectedActorId());
+        } catch (IllegalArgumentException unavailable) { return false; }
+    }
+
+    private void captureEditingTarget() {
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (editingLibraryPathId != null) {
+            editingTarget = ActorPathEditing.library(model, ActorPathLibraryManager.getInstance(),
+                    ActorPathLibraryManager.getPath(editingLibraryPathId), librarySaver());
+        } else if (editingClip != null) {
+            editingTarget = ActorPathEditing.route(model, editingClip.getTimelineClip().getParentTrack(), editingClip);
         }
+    }
 
-        UUID actorId = ActorSelectionHub.getSelectedActorId();
-        if (actorId == null) {
-            LOGGER.warn("[ActorPath] No actor selected, cannot build path clips");
-            return;
+    private void reloadEditingSource() {
+        cancelAnchorDrag();
+        var previous = editingTarget;
+        if (previous == null) return;
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (model != previous.model() || editingLibraryPathId != null && previous.library() != ActorPathLibraryManager.getInstance()) {
+            beginNewDraft(); return;
         }
+        try {
+            if (editingClip != null && previous.owner() != com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model, ActorSelectionHub.getSelectedActorId())) {
+                beginNewDraft(); return;
+            }
+            captureEditingTarget();
+            var points = editingClip != null ? editingClip.getWaypoints() : ActorPathLibraryManager.getPath(editingLibraryPathId).getWaypoints();
+            interpolationMode = editingClip != null ? editingClip.getInterpolationMode() : ActorPathLibraryManager.getPath(editingLibraryPathId).getInterpolationMode();
+            pathPoints.clear();
+            for (var point : points) pathPoints.add(new Vec3d(point.x, point.y, point.z));
+            selectedAnchorIndex = Math.min(selectedAnchorIndex, pathPoints.size() - 1);
+            drawing = pathPoints.size() >= 2; lastGizmoPosition = null;
+        } catch (IllegalArgumentException | NullPointerException unavailable) { beginNewDraft(); }
+    }
 
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (model == null) {
-            return;
-        }
-
-        TimelineTrack timelineTrack = model.findActorTrackByActorId(actorId);
-        if (timelineTrack == null) {
-            LOGGER.warn("[ActorPath] No entity track for actor {}", actorId);
-            return;
-        }
-
-        ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
-        if (actorTrack == null) {
-            return;
-        }
-
-        List<Vector3f> waypoints = new ArrayList<>(libraryPath.getWaypoints());
-        ActorRouteClip.InterpolationMode mode = libraryPath.getInterpolationMode();
-        String clipName = libraryPath.getName();
-
-        float start = model.getCurrentTime();
-        float duration = Math.max(MIN_SEGMENT_DURATION,
-                ActorRouteSampler.computeGroundCurveLength(waypoints, mode) / DEFAULT_SPEED);
-        ActorRouteClip clip = new ActorRouteClip(clipName, start, start + duration);
-        clip.setSpeed(DEFAULT_SPEED);
-        clip.setInterpolationMode(mode);
-        clip.setLoopMode(ActorRouteClip.LoopMode.ONCE);
-        clip.setAlignRotationToRoute(true);
-        clip.setWaypoints(waypoints);
-
-        actorTrack.addClip(clip);
-        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, actorTrack.getColorRgba());
-        model.addClip(timelineTrack, timelineClip);
-        model.selectItem(timelineClip, false);
-        model.markDirty();
-        editingClip = clip;
-        LOGGER.info("[ActorPath] Created route clip '{}' for actor {}", clipName, actorId);
+    static Runnable librarySaver() {
+        var library = ActorPathLibraryManager.getInstance();
+        return () -> {
+            if (library != ActorPathLibraryManager.getInstance()) throw new IllegalArgumentException("路径库已切换，请重新选择");
+            if (!ActorPathLibraryManager.save()) throw new IllegalStateException("路径库保存失败");
+        };
     }
 
     private void tryLoadSelectedRouteClip() {
@@ -474,12 +537,15 @@ public final class ActorPathController {
                 continue;
             }
             if (actorId != null) {
-                TimelineTrack track = model.findActorTrackByActorId(actorId);
-                if (track == null || !track.getClips().contains(timelineClip)) {
+                TimelineTrack track = timelineClip.getParentTrack();
+                if (track == null || track.getActorTrackPayload() == null || track.getActorTrackPayload().getActorRef() == null
+                        || !actorId.equals(track.getActorTrackPayload().getActorRef().getActorId()) || !track.getClips().contains(timelineClip)) {
                     continue;
                 }
             }
 
+            try { editingTarget = ActorPathEditing.route(model, timelineClip.getParentTrack(), routeClip); }
+            catch (IllegalArgumentException unavailable) { return; }
             editingClip = routeClip;
             editingLibraryPathId = null;
             interpolationMode = routeClip.getInterpolationMode();
@@ -495,12 +561,6 @@ public final class ActorPathController {
             LOGGER.info("[ActorPath] Loaded existing route clip with {} anchors", pathPoints.size());
             return;
         }
-    }
-
-    private void updateRouteDuration(ActorRouteClip clip) {
-        float distance = ActorRouteSampler.computeGroundCurveLength(clip.getWaypoints(), clip.getInterpolationMode());
-        float duration = Math.max(MIN_SEGMENT_DURATION, distance / Math.max(0.05f, clip.getSpeed()));
-        clip.setTimeRange(clip.getStartTime(), clip.getStartTime() + duration);
     }
 
     private int pickNearestAnchor(Vec3d rayOrigin, Vec3d rayDir) {
@@ -535,6 +595,8 @@ public final class ActorPathController {
         }
         Box box = anchorBox(pos);
         GizmoManager.get().activate(GizmoType.TRANSFORM, box, pos);
+        if (GizmoManager.get().getContext() != null)
+            GizmoManager.get().getContext().setMode(com.director.client.gizmo.GizmoMode.TRANSLATE);
         lastGizmoPosition = pos;
         GizmoInteractionController controller = GizmoManager.get().getController();
         if (controller != null) {
@@ -555,6 +617,8 @@ public final class ActorPathController {
             showGizmoForAnchor(selectedAnchorIndex);
             return;
         }
+        if (GizmoManager.get().getContext() != null)
+            GizmoManager.get().getContext().setMode(com.director.client.gizmo.GizmoMode.TRANSLATE);
         if (lastGizmoPosition == null || lastGizmoPosition.squaredDistanceTo(pos) > GIZMO_SYNC_EPSILON_SQ) {
             GizmoManager.get().setTargetBox(anchorBox(pos));
             GizmoManager.get().setPivot(pos);
@@ -580,7 +644,8 @@ public final class ActorPathController {
     private void clearGizmo() {
         selectedAnchorIndex = -1;
         lastGizmoPosition = null;
-        if (GizmoManager.get().isActive()) {
+        if (GizmoManager.get().isActive() && GizmoManager.get().getController() != null
+                && GizmoManager.get().getController().getTransformApplier() instanceof ActorPathWaypointTransformApplier) {
             GizmoManager.get().deactivate();
         }
     }
@@ -591,6 +656,7 @@ public final class ActorPathController {
         selectedAnchorIndex = -1;
         editingLibraryPathId = null;
         editingClip = null;
+        editingTarget = null; editingLibrary = null;
         interpolationMode = ActorRouteClip.InterpolationMode.CATMULL_ROM;
         resetTransientInputState();
         clearGizmo();
@@ -600,13 +666,7 @@ public final class ActorPathController {
         lastLeftMouseDown = false;
         lastRightMouseDown = false;
         lastDeleteDown = false;
-    }
-
-    private void markTimelineDirty() {
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (model != null) {
-            model.markDirty();
-        }
+        lastEscapeDown = false;
     }
 
     private static Box anchorBox(Vec3d pos) {
@@ -644,10 +704,7 @@ public final class ActorPathController {
     }
 
     private boolean isEditingLocked() {
-        if (editingLibraryPathId == null) {
-            return false;
-        }
-        ActorPathDefinition path = ActorPathLibraryManager.getPath(editingLibraryPathId);
-        return path != null && path.isLocked();
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        return model == null || model.isPlaying() || editingTarget != null && !isTargetCurrent();
     }
 }

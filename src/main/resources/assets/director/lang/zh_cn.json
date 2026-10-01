@@ -2097,5 +2097,9 @@
   "gui.director.actor.assets.overlap": "此区间与 %s 个动画片段重叠。已有片段会保留，新片段可能优先播放。",
   "gui.director.actor.assets.current_clip": "当前片段：%s / %s",
   "gui.director.actor.assets.make_independent": "为当前片段制作独立副本",
-  "gui.director.actor.assets.import_context_changed": "选择文件期间项目、演员或播放头已变化，已取消导入。"
+  "gui.director.actor.assets.import_context_changed": "选择文件期间项目、演员或播放头已变化，已取消导入。",
+  "gui.director.actor.path.target_library": "正在编辑路径库资源；已有演员路线保持独立。",
+  "gui.director.actor.path.target_route": "正在编辑所选演员的路线实例；路径库资源保持独立。",
+  "gui.director.actor.path.target_draft": "正在绘制路径草稿。应用到演员会创建路线；保存到路径库可供复用。",
+  "gui.director.actor.path.save_library": "保存到路径库"
 }

@@ -345,10 +345,14 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         ActorPathController controller = ActorPathController.getInstance();
         if (actor == null) {
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.SELECT_ACTOR_FIRST));
-            return;
         }
 
         ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.PATH_DRAW_HINT));
+        String targetKey = controller.isLibraryEditing() ? "gui.director.actor.path.target_library"
+                : controller.isRouteEditing() ? "gui.director.actor.path.target_route" : "gui.director.actor.path.target_draft";
+        ImGui.textWrapped(ActorPropertyAdapterI18n.tr(targetKey));
+        if (!controller.getLastError().isEmpty()) ImGui.textWrapped(controller.getLastError());
+        ImGui.beginDisabled(controller.isReadOnly());
 
         ActorRouteClip.InterpolationMode[] modes = ActorRouteClip.InterpolationMode.values();
         ImInt interpolation = new ImInt(controller.getInterpolationMode().ordinal());
@@ -362,20 +366,29 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.DRAWING_IN_PROGRESS));
         }
 
+        ImGui.beginDisabled(actor == null || controller.getAnchorCount() < 2);
         if (ImGui.button(Icons.ADD + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.APPLY_TO_ACTOR)
-                + "##actorPathApplyActor")) {
+                + "##actorPathApplyActor", ImGui.getContentRegionAvailX(), 0)) {
             controller.applyPathToSelectedActor();
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.APPLY_PATH_TOOLTIP));
         }
-        ImGui.sameLine();
+        ImGui.endDisabled();
+        ImGui.beginDisabled(controller.getAnchorCount() < 2);
+        if (ImGui.button(Icons.SAVE + " " + ActorPropertyAdapterI18n.tr("gui.director.actor.path.save_library") + "##actorPathSave", ImGui.getContentRegionAvailX(), 0)) {
+            controller.finalizePath();
+        }
+        ImGui.endDisabled();
+        ImGui.beginDisabled(!controller.canRemoveSelectedAnchor());
         if (ImGui.button(Icons.DELETE + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.DELETE_SELECTED_ANCHOR)
-                + "##actorPathDeleteAnchor")) {
+                + "##actorPathDeleteAnchor", ImGui.getContentRegionAvailX(), 0)) {
             controller.removeSelectedAnchor();
         }
+        ImGui.endDisabled();
+        ImGui.endDisabled();
     }
 
     private void renderTransformHint() {

@@ -9,6 +9,7 @@ import net.minecraft.util.math.Vec3d;
 final class ActorPathWaypointTransformApplier extends TransformApplier {
 
     private final ActorPathController controller;
+    private boolean accepted;
 
     ActorPathWaypointTransformApplier(ActorPathController controller) {
         super(DirectorServices.get().selection());
@@ -18,11 +19,21 @@ final class ActorPathWaypointTransformApplier extends TransformApplier {
     @Override public void resetAccumulators() {
         super.resetAccumulators();
         controller.finishAnchorDrag();
+        accepted = false;
     }
+
+    @Override public void beginDragSession() { accepted = controller.beginAnchorDrag(); }
+
+    // Path anchors only translate. Never inherit block-selection scale/rotation writes.
+    @Override public void applyResize(com.director.client.gizmo.Axis axis, double delta) {}
+    @Override public void applyResize(com.director.client.gizmo.Axis axis, boolean max, double delta) {}
+    @Override public void applyResize(Vec3d delta) {}
+    @Override public void applyResizeFromCorner(Vec3d delta, net.minecraft.util.math.Vec3i sign) {}
+    @Override public void applyRotation(double angle, com.director.client.gizmo.Axis axis) {}
 
     @Override
     public void applyMove(Vec3d delta) {
-        if (delta == null || delta.lengthSquared() < 1.0e-12) {
+        if (!accepted || !controller.isAnchorDragCurrent() || delta == null || delta.lengthSquared() < 1.0e-12) {
             return;
         }
         int index = controller.getSelectedAnchorIndex();
@@ -36,7 +47,7 @@ final class ActorPathWaypointTransformApplier extends TransformApplier {
         }
 
         Vec3d next = current.add(delta);
-        controller.setAnchorPosition(index, next);
+        if (!controller.setAnchorPosition(index, next)) return;
 
         Box currentBox = GizmoManager.get().getTargetBox();
         Vec3d currentPivot = GizmoManager.get().getPivot();
