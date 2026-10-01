@@ -2080,5 +2080,13 @@
   "gui.director.properties.adapter.actor.group_preview.no_members": "Create a timeline and add actors to the group first.",
   "gui.director.properties.adapter.actor.group_preview.no_route": "The source actor has no usable route.",
   "gui.director.properties.adapter.actor.group_preview.invalid_action": "Choose an action and a valid duration.",
-  "gui.director.properties.adapter.actor.group_preview.invalid_parameters": "Invalid group time, spacing or delay. Reset the parameters."
+  "gui.director.properties.adapter.actor.group_preview.invalid_parameters": "Invalid group time, spacing or delay. Reset the parameters.",
+  "gui.director.actor.bone_draft.pending": "Pending bone edit:",
+  "gui.director.actor.bone_draft.apply": "Apply bone edit",
+  "gui.director.actor.bone_draft.cancel": "Cancel",
+  "gui.director.actor.bone_draft.target": "Edit target",
+  "gui.director.actor.bone_draft.asset": "Animation asset keyframes",
+  "gui.director.actor.bone_draft.pose": "Quick pose (rotation)",
+  "gui.director.actor.bone_draft.shared": "shared asset",
+  "gui.director.actor.bone_draft.hint": "Auto-key applies on release. Otherwise use Apply. Esc or context changes cancel the draft. Shared asset edits affect every actor referencing it."
 }

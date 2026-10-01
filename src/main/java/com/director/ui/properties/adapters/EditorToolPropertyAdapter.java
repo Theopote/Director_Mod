@@ -159,13 +159,20 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     }
 
     private void renderAnimationAuthoring() {
+        var draft = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance();
+        com.director.ui.actor.pose.ActorBoneDraftPanel.render();
         if (!ImGui.collapsingHeader(Icons.ANIMATION + " 关键帧动画", ImGuiTreeNodeFlags.DefaultOpen)) return;
         var settings = com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance();
+        ImInt editTarget = new ImInt(settings.getEditTarget().ordinal());
+        if (ImGui.combo(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.target") + "##boneEditTarget", editTarget, new String[]{net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.asset"), net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.pose")})) {
+            draft.cancelDraft();
+            settings.setEditTarget(com.director.ui.actor.pose.ActorAnimationAuthoringSettings.EditTarget.values()[editTarget.get()]);
+        }
         animationAutoKeyframe.set(settings.isAutoKeyframe());
         if (ImGui.checkbox("自动关键帧##actorAnimationAutoKey", animationAutoKeyframe)) {
             settings.setAutoKeyframe(animationAutoKeyframe.get());
         }
-        if (ImGui.isItemHovered()) ImGui.setTooltip("开启后，骨骼 Gizmo 写入 AnimationAsset；关闭时写入快速姿态片段");
+        if (ImGui.isItemHovered()) ImGui.setTooltip(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.hint"));
 
         animationBoneGizmoMode.set(settings.getBoneGizmoMode() == com.director.client.gizmo.GizmoMode.TRANSLATE ? 1
                 : settings.getBoneGizmoMode() == com.director.client.gizmo.GizmoMode.SCALE ? 2 : 0);

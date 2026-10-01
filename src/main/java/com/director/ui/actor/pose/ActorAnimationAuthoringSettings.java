@@ -6,6 +6,10 @@ import com.director.client.gizmo.GizmoMode;
 /** Session-scoped settings shared by the Pose tool UI and bone Gizmo. */
 public final class ActorAnimationAuthoringSettings {
     private static final ActorAnimationAuthoringSettings INSTANCE = new ActorAnimationAuthoringSettings();
+    public enum EditTarget { ANIMATION, QUICK_POSE }
+    private EditTarget editTarget = EditTarget.ANIMATION;
+    public EditTarget getEditTarget() { return editTarget; }
+    public void setEditTarget(EditTarget value) { editTarget = value == null ? EditTarget.ANIMATION : value; }
     private boolean autoKeyframe;
     private String assetId = "project:actor_animation";
     private InterpolationMode interpolation = InterpolationMode.SMOOTH;
@@ -21,7 +25,7 @@ public final class ActorAnimationAuthoringSettings {
     public InterpolationMode getInterpolation() { return interpolation; }
     public void setInterpolation(InterpolationMode value) { interpolation = value == null ? InterpolationMode.SMOOTH : value; }
     public float getNewAssetDuration() { return newAssetDuration; }
-    public void setNewAssetDuration(float value) { newAssetDuration = Math.max(0.1f, Math.min(600f, value)); }
+    public void setNewAssetDuration(float value) { if (Float.isFinite(value)) newAssetDuration = Math.max(0.1f, Math.min(600f, value)); }
     public GizmoMode getBoneGizmoMode() { return boneGizmoMode; }
     public void setBoneGizmoMode(GizmoMode value) {
         boneGizmoMode = value == GizmoMode.TRANSLATE || value == GizmoMode.SCALE ? value : GizmoMode.ROTATE;

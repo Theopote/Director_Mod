@@ -24,6 +24,7 @@ public final class ActorBonePropertiesPanel {
     }
 
     public static void renderInTimeline(TimelineModel model, UUID actorId) {
+        ActorBoneDraftPanel.render();
         TIMELINE.renderContents(model, actorId);
     }
 

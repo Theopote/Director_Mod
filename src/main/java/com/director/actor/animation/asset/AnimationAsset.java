@@ -40,6 +40,12 @@ public final class AnimationAsset {
 
     public Optional<BoneTrack> findBoneTrack(String boneId) { return Optional.ofNullable(boneTracks.get(boneId)); }
 
+    /** Attach a detached authoring draft only when its transaction is committed. */
+    public void attachBoneTrack(String boneId, BoneTrack track) {
+        rig.requireBoneIndex(boneId);
+        boneTracks.put(boneId, Objects.requireNonNull(track));
+    }
+
     public boolean removeBoneTrack(String boneId) { return boneTracks.remove(boneId) != null; }
 
     public RigPose sample(float timelineTime) {

@@ -113,3 +113,14 @@
 - P0 的骨骼 Gizmo 显式编辑目标、未提交草稿与上下文切换取消尚未实现，P0 未完成。
 - 群体生成来源 ID、可持续编辑的 GroupBehaviorClip、成员例外与队形沿曲线变化仍按后续阶段推进。
 - 动作兼容目前基于已有 RigProfile.supports；需要 P1 能力与绑定描述进一步区分模型真实渲染支持。
+
+
+## 2026-10-01: P0 bone Gizmo draft transactions
+
+- Bone Gizmo now has an explicit Animation Asset / Quick Pose target. Auto-key only controls commit on release; manual mode leaves a detached preview draft.
+- Dragging creates no asset, clip, bone track or persistent key. Apply submits one undo command; cancel, Escape, actor/bone/time/model switches, playback and track locking discard the draft.
+- Pending controls appear in the tool properties and timeline bone inspector. Shared asset editing is identified explicitly.
+- Undo restores existing keys and interpolation, removes newly created bone tracks/assets/clips, and redo restores them. Looping clips map timeline time through asset playback normalization.
+- Commit validates source clip, asset identity, source key, pose values and target context. No-motion gestures create no undo entry.
+- Validation: 11 bone-related tests pass, including 4 new draft transaction tests. Interactive Minecraft viewport testing remains required for Escape during a drag, pending Root movement, context switching, and shared asset previews on other actors.
+- Remaining P0 work: audit numeric/keyframe/menu authoring entry points for consistent locks, targets, transactions and persistence. The bone numeric panel still has its own draft flow; this round does not claim a unified authoring service.
