@@ -2090,5 +2090,12 @@
   "gui.director.actor.bone_draft.shared": "shared asset",
   "gui.director.actor.bone_draft.hint": "Auto-key applies on release. Otherwise use Apply. Esc or context changes cancel the draft. Shared asset edits affect every actor referencing it.",
   "gui.director.actor.authoring.gizmo_pending": "Apply or cancel the bone Gizmo preview before editing numeric values.",
-  "gui.director.actor.authoring.unavailable": "Asset authoring is read-only while playing, locked or muted, incompatible, or another pose draft is pending. Move the playhead into a compatible animation clip to edit."
+  "gui.director.actor.authoring.unavailable": "Asset authoring is read-only while playing, locked or muted, incompatible, or another pose draft is pending. Move the playhead into a compatible animation clip to edit.",
+  "gui.director.actor.assets.rig": "Skeleton: ",
+  "gui.director.actor.assets.new_rig": "New asset skeleton: %s",
+  "gui.director.actor.assets.read_only": "Pause playback and apply or cancel the current pose draft before changing animation assets.",
+  "gui.director.actor.assets.overlap": "This interval overlaps %s animation clips. Existing clips will remain; the new clip may take playback priority.",
+  "gui.director.actor.assets.current_clip": "Current clip: %s / %s",
+  "gui.director.actor.assets.make_independent": "Make current clip independent",
+  "gui.director.actor.assets.import_context_changed": "The project, actor or playhead changed while choosing the file. Import was cancelled."
 }

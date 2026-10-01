@@ -137,3 +137,16 @@
 - Actor track property-menu clip creation now validates model ownership, locks, playback, actor existence and supported action/legacy-pose type, and submits one undoable payload/wrapper transaction. Unsupported quick humanoid poses are not offered to quadrupeds through this service.
 - Validation: 65 relevant tests passed, including 12 new authoring/context tests and 3 track-menu transaction tests. UI behavior in a running Minecraft client remains unverified.
 - Remaining P0: asset-library attach/duplicate/import flows and other actor tools still need an entry-point audit; the legacy low-level keyframe helpers remain for compatibility, and Gizmo draft commits retain their own implementation. This is not completion of all P0 consistency work.
+
+## 2026-10-01：P0 动画资产导入、复制与绑定
+
+- 资产库加入“为当前片段制作独立副本”：深复制稀疏 TRS、插值、标记、时长与循环模式，仅重新绑定指定片段。片段 ID、包装器、时间区间、速度、循环设置与其他引用保持原有数据；复制和绑定作为一个撤销事务。
+- 绑定服务与 UI 共用预检：验证播放状态、轨道归属、演员绑定、锁定/禁用、骨架兼容与时间范围。显示区间重叠数量，保留已有片段；同一播放头重复添加同一资产会被拒绝。一个演员对应多条轨道时，优先采用明确选中的轨道或片段所属轨道，不再任意选择第一条。
+- 绑定的 payload 与时间线包装器分步提交，任一步失败都会逆序恢复，包括已经部分插入再抛错的步骤。独立副本的资产与片段绑定也使用相同事务机制。
+- 资产创建不再将不支持骨骼编辑的已选演员默认为标准人形；UI 显示新建骨架与已有资产骨架，提供不冲突的副本 ID 建议。播放或姿态草稿未提交时资产修改入口只读，浏览与导出仍可用。
+- 导入对话框返回后重新核对项目、演员与播放头，避免写入变化后的上下文。导入校验拒绝重复/近似重复的关键帧时间、非法缩放、无效四元数、超范围时间与未知骨骼；项目文件重复资产 ID 不再静默覆盖已有数据。
+- 资产撤销和删除验证对象身份与所有持久化引用，包括禁用轨道和静音片段。独立副本产生新的外部引用时，撤销会回滚已尝试的解绑并保留原状态；同 ID 资产冲突不会覆盖其他对象。
+- 命令历史在撤销/重做成功后才移动栈顶。失败保留原历史步骤，可在解决冲突后重试。
+- 修正时间线初始化、重载和切换存档的依赖顺序：先加载自定义骨架与默认骨架，再解析动画资产，避免自定义动画因骨架尚未注册而无法恢复。
+- 验证：Gradle 编译和 83 项相关测试通过；新增 10 项资产生命周期与 6 项导入/持久化校验测试。JSON 解析、差异检查通过。游戏内文件对话框、重叠提示、独立副本操作与实际切档尚未人工验收。
+- 下一步：继续审计整体移动、朝向/注视、路径与其他演员写入入口的锁定/目标/撤销/持久化一致性；之后推进 P1 的统一能力描述与演员类型 UI。P0 尚未全部完成。

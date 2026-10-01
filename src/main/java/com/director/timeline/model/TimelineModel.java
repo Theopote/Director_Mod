@@ -193,11 +193,12 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         if (TimelineModelPersistence.hasSavedData()) {
             TimelineModelPersistence.loadFromFile(this, this.viewportState);
         }
-        com.director.actor.animation.asset.AnimationAssetPersistence.loadFromWorld(
-                com.director.actor.animation.asset.AnimationAssetLibrary.getInstance());
         com.director.actor.rig.skeleton.CustomRigPersistence.loadFromWorld(
                 com.director.actor.rig.skeleton.CustomRigLibrary.getInstance());
         com.director.actor.rig.skeleton.BuiltInCustomRigs.registerDefaults();
+        // Animation decoding resolves rig IDs, so skeleton definitions must already exist.
+        com.director.actor.animation.asset.AnimationAssetPersistence.loadFromWorld(
+                com.director.actor.animation.asset.AnimationAssetLibrary.getInstance());
         com.director.actor.model.CustomModelPersistence.loadFromWorld(
                 com.director.actor.model.CustomModelLibrary.getInstance());
         com.director.actor.model.BuiltInCustomModels.registerDefaults();
@@ -264,11 +265,12 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         com.director.actor.ActorRegistry registry = 
             com.director.actor.ActorRegistryManager.getInstance();
         com.director.actor.persistence.ActorRegistryPersistence.loadFromFile(registry);
-        com.director.actor.animation.asset.AnimationAssetPersistence.loadFromWorld(
-                com.director.actor.animation.asset.AnimationAssetLibrary.getInstance());
         com.director.actor.rig.skeleton.CustomRigPersistence.loadFromWorld(
                 com.director.actor.rig.skeleton.CustomRigLibrary.getInstance());
         com.director.actor.rig.skeleton.BuiltInCustomRigs.registerDefaults();
+        // Animation decoding resolves rig IDs, so skeleton definitions must already exist.
+        com.director.actor.animation.asset.AnimationAssetPersistence.loadFromWorld(
+                com.director.actor.animation.asset.AnimationAssetLibrary.getInstance());
         com.director.actor.model.CustomModelPersistence.loadFromWorld(
                 com.director.actor.model.CustomModelLibrary.getInstance());
         com.director.actor.model.BuiltInCustomModels.registerDefaults();
@@ -306,13 +308,12 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         com.director.actor.animation.asset.AnimationAssetLibrary assets =
                 com.director.actor.animation.asset.AnimationAssetLibrary.getInstance();
         assets.clear();
-        com.director.actor.animation.asset.AnimationAssetPersistence.loadFromWorld(assets);
-
         com.director.actor.rig.skeleton.CustomRigLibrary customRigs =
                 com.director.actor.rig.skeleton.CustomRigLibrary.getInstance();
         customRigs.clear();
         com.director.actor.rig.skeleton.CustomRigPersistence.loadFromWorld(customRigs);
         com.director.actor.rig.skeleton.BuiltInCustomRigs.registerDefaults();
+        com.director.actor.animation.asset.AnimationAssetPersistence.loadFromWorld(assets);
 
         com.director.actor.model.CustomModelLibrary customModels =
                 com.director.actor.model.CustomModelLibrary.getInstance();

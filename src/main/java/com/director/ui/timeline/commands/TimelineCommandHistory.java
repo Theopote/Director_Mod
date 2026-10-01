@@ -84,8 +84,9 @@ public class TimelineCommandHistory {
             return false;
         }
 
-        TimelineCommand command = undoStack.removeLast();
+        TimelineCommand command = undoStack.getLast();
         command.undo();
+        undoStack.removeLast();
         redoStack.add(command);
         LOGGER.info("[Timeline] 撤销命令: {}", command.getDescription());
         
@@ -110,8 +111,9 @@ public class TimelineCommandHistory {
             return false;
         }
 
-        TimelineCommand command = redoStack.removeLast();
+        TimelineCommand command = redoStack.getLast();
         command.execute();
+        redoStack.removeLast();
         undoStack.add(command);
         LOGGER.info("[Timeline] 重做命令: {}", command.getDescription());
         

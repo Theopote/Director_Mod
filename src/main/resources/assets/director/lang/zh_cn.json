@@ -2090,5 +2090,12 @@
   "gui.director.actor.bone_draft.shared": "共享资产",
   "gui.director.actor.bone_draft.hint": "开启后松开 Gizmo 自动应用；关闭后使用应用按钮提交。Esc 或切换编辑上下文会取消草稿。修改共享资产影响所有引用它的演员。",
   "gui.director.actor.authoring.gizmo_pending": "请先应用或取消骨骼 Gizmo 预览，再编辑数值。",
-  "gui.director.actor.authoring.unavailable": "播放、轨道锁定或禁用、骨架不兼容、姿态草稿未应用时不可写入。请将播放头移入匹配的动画片段后编辑。"
+  "gui.director.actor.authoring.unavailable": "播放、轨道锁定或禁用、骨架不兼容、姿态草稿未应用时不可写入。请将播放头移入匹配的动画片段后编辑。",
+  "gui.director.actor.assets.rig": "骨架：",
+  "gui.director.actor.assets.new_rig": "新建资产的骨架：%s",
+  "gui.director.actor.assets.read_only": "请先暂停播放，并应用或取消当前姿态草稿，再修改动画资产。",
+  "gui.director.actor.assets.overlap": "此区间与 %s 个动画片段重叠。已有片段会保留，新片段可能优先播放。",
+  "gui.director.actor.assets.current_clip": "当前片段：%s / %s",
+  "gui.director.actor.assets.make_independent": "为当前片段制作独立副本",
+  "gui.director.actor.assets.import_context_changed": "选择文件期间项目、演员或播放头已变化，已取消导入。"
 }

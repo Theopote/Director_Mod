@@ -21,6 +21,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 /** Versioned JSON persistence for project animation assets. */
 public final class AnimationAssetPersistence {
@@ -116,7 +118,12 @@ public final class AnimationAssetPersistence {
         if (version != FILE_SCHEMA_VERSION) throw new IllegalArgumentException("Unsupported animation asset schema: " + version);
         JsonArray array = required(root, "assets").getAsJsonArray();
         List<AnimationAsset> parsed = new ArrayList<>();
-        for (JsonElement element : array) parsed.add(readAsset(element.getAsJsonObject()));
+        Set<String> ids = new HashSet<>();
+        for (JsonElement element : array) {
+            AnimationAsset asset = readAsset(element.getAsJsonObject());
+            if (!ids.add(asset.id())) throw new IllegalArgumentException("Duplicate animation asset ID: " + asset.id());
+            parsed.add(asset);
+        }
         library.clear();
         for (AnimationAsset asset : parsed) library.register(asset);
     }
@@ -162,9 +169,9 @@ public final class AnimationAssetPersistence {
         for (var entry : tracks.entrySet()) {
             BoneTrack track = asset.getOrCreateBoneTrack(entry.getKey());
             JsonObject value = entry.getValue().getAsJsonObject();
-            readVectors(required(value, "translation").getAsJsonArray(), track.translation());
-            readQuaternions(required(value, "rotation").getAsJsonArray(), track.rotation());
-            readVectors(required(value, "scale").getAsJsonArray(), track.scale());
+            readVectors(required(value, "translation").getAsJsonArray(), track.translation(), asset.duration(), false);
+            readQuaternions(required(value, "rotation").getAsJsonArray(), track.rotation(), asset.duration());
+            readVectors(required(value, "scale").getAsJsonArray(), track.scale(), asset.duration(), true);
             for (var frame : track.translation().keyframes()) {
                 if (frame.time() > asset.duration() || !frame.value().isFinite())
                     throw new IllegalArgumentException("Invalid translation keyframe");
@@ -218,23 +225,37 @@ public final class AnimationAssetPersistence {
         return out;
     }
 
-    private static void readVectors(JsonArray values, KeyframeTrack<Vector3f> track) {
+    private static void readVectors(JsonArray values, KeyframeTrack<Vector3f> track, float duration, boolean scaling) {
         for (JsonElement element : values) {
             JsonObject value = element.getAsJsonObject();
-            track.put(required(value, "time").getAsFloat(),
-                    new Vector3f(required(value, "x").getAsFloat(), required(value, "y").getAsFloat(), required(value, "z").getAsFloat()),
+            float time = required(value, "time").getAsFloat();
+            requireKeyTime(time, duration, track);
+            Vector3f vector = new Vector3f(required(value, "x").getAsFloat(), required(value, "y").getAsFloat(), required(value, "z").getAsFloat());
+            if (!vector.isFinite() || scaling && (vector.x <= 0 || vector.y <= 0 || vector.z <= 0))
+                throw new IllegalArgumentException("Invalid vector keyframe");
+            track.put(time, vector,
                     InterpolationMode.valueOf(required(value, "interpolation").getAsString()));
         }
     }
 
-    private static void readQuaternions(JsonArray values, KeyframeTrack<Quaternionf> track) {
+    private static void readQuaternions(JsonArray values, KeyframeTrack<Quaternionf> track, float duration) {
         for (JsonElement element : values) {
             JsonObject value = element.getAsJsonObject();
-            track.put(required(value, "time").getAsFloat(),
-                    new Quaternionf(required(value, "x").getAsFloat(), required(value, "y").getAsFloat(),
-                            required(value, "z").getAsFloat(), required(value, "w").getAsFloat()),
+            float time = required(value, "time").getAsFloat();
+            requireKeyTime(time, duration, track);
+            Quaternionf rotation = new Quaternionf(required(value, "x").getAsFloat(), required(value, "y").getAsFloat(),
+                    required(value, "z").getAsFloat(), required(value, "w").getAsFloat());
+            if (!rotation.isFinite() || !Float.isFinite(rotation.lengthSquared()) || rotation.lengthSquared() <= 0)
+                throw new IllegalArgumentException("Invalid quaternion keyframe");
+            track.put(time, rotation,
                     InterpolationMode.valueOf(required(value, "interpolation").getAsString()));
         }
+    }
+
+    private static void requireKeyTime(float time, float duration, KeyframeTrack<?> track) {
+        if (!Float.isFinite(time) || time < 0 || time > duration)
+            throw new IllegalArgumentException("Keyframe time outside animation duration");
+        if (track.findAt(time).isPresent()) throw new IllegalArgumentException("Duplicate animation keyframe time: " + time);
     }
 
     private static JsonElement required(JsonObject object, String name) {
