@@ -336,7 +336,12 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 groupActionIntensity.getData(), 0.0f, 1.0f, "%.2f");
         ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.LOOP) + "##groupActionLoop" + group.getGroupId(), groupActionLoop);
 
-        boolean canCreate = group.size() > 0 && currentBrush != null;
+        var preview = ActorGroupTimelineCommandService.getInstance().previewActions(
+                DirectorServices.get().containerTimeline().getTimelineModel(), group, currentBrush, groupActionDuration.get());
+        ImGui.pushID("actionPreview:" + group.getGroupId());
+        renderGroupPreview(preview);
+        ImGui.popID();
+        boolean canCreate = preview.canExecute();
         if (!canCreate) {
             ImGui.beginDisabled();
         }
@@ -368,7 +373,12 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                         : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.SOURCE_NONE));
         ImGui.textDisabled(sourceLabel);
 
-        boolean canCreate = group.size() > 0 && sourceActorId != null;
+        var preview = ActorGroupTimelineCommandService.getInstance().previewRoutes(
+                DirectorServices.get().containerTimeline().getTimelineModel(), group, sourceActorId);
+        ImGui.pushID("routePreview:" + group.getGroupId());
+        renderGroupPreview(preview);
+        ImGui.popID();
+        boolean canCreate = preview.canExecute();
         if (!canCreate) {
             ImGui.beginDisabled();
         }
@@ -385,11 +395,39 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
     }
 
+    private static void renderGroupPreview(ActorGroupTimelineCommandService.Preview preview) {
+        String prefix = "gui.director.properties.adapter.actor.group_preview.";
+        if (preview.problem() != null) {
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr(prefix + preview.problem()));
+            return;
+        }
+        ImGui.textWrapped(ActorPropertyAdapterI18n.tr(prefix + "summary", preview.eligible().size(), preview.skipped().size()));
+        if (preview.overwrittenMembers() > 0)
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr(prefix + "overwrite", preview.overwrittenMembers()));
+        if (!preview.skipped().isEmpty()) {
+            ImGui.pushID(preview.overwrittenMembers() > 0 ? "groupActionPreview" : "groupPreview");
+            if (ImGui.treeNode(ActorPropertyAdapterI18n.tr(prefix + "details"))) {
+                var registry = ActorRegistryManager.getInstance();
+                for (var skipped : preview.skipped()) {
+                    String name = registry.getActor(skipped.actorId()).map(Actor::getName).orElse(skipped.actorId().toString());
+                    ImGui.textWrapped(name + ": " + ActorPropertyAdapterI18n.tr(prefix + skipped.reason().name().toLowerCase(java.util.Locale.ROOT)));
+                }
+                ImGui.treePop();
+            }
+            ImGui.popID();
+        }
+    }
+
     private void renderGroupPlacement(ActorGroup group) {
         ImGui.spacing();
         UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_PLACEMENT), UITheme.DarkTheme.TEXT);
 
-        boolean canPlace = group.size() > 0;
+        var preview = ActorGroupTimelineCommandService.getInstance().previewPlacement(
+                DirectorServices.get().containerTimeline().getTimelineModel(), group);
+        ImGui.pushID("placementPreview:" + group.getGroupId());
+        renderGroupPreview(preview);
+        ImGui.popID();
+        boolean canPlace = preview.canExecute();
         if (!canPlace) {
             ImGui.beginDisabled();
         }

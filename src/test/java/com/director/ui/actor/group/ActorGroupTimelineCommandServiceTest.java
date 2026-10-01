@@ -20,6 +20,15 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorGroupTimelineCommandServiceTest {
+    @org.junit.jupiter.api.BeforeEach void registry() {
+        com.director.actor.ActorRegistryManager.setRegistry(null);
+        com.director.actor.ActorRegistryManager.setRegistry(new com.director.actor.ActorRegistry());
+    }
+    @org.junit.jupiter.api.AfterEach void cleanup() {
+        com.director.ui.timeline.commands.TimelineCommandBridge.bind(null);
+        com.director.actor.ActorRegistryManager.setRegistry(null);
+    }
+
 
     private static final float EPS = 0.0001f;
     private static final ActorGroupController GROUP_CONTROLLER = ActorGroupController.getInstance();
@@ -495,6 +504,8 @@ class ActorGroupTimelineCommandServiceTest {
     }
 
     private static ActorTrack createActorTrackPayload(UUID actorId) {
+        com.director.actor.ActorRegistryManager.getInstance().registerActor(
+                new com.director.actor.Actor(actorId, "Actor", com.director.actor.ActorType.PLAYER));
         ActorTrack actorTrack = new ActorTrack("actor");
         actorTrack.setActorRef(new ActorRef(actorId));
         return actorTrack;

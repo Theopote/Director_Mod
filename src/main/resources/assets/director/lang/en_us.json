@@ -2067,5 +2067,18 @@
   "gui.director.selection_filter.filter.luminous_10": "Light level >= 10",
 
   "gui.director.tool_properties.embedded_title": "Tool properties are integrated into Properties",
-  "gui.director.tool_properties.embedded_hint": "Use the Properties panel on the right to view and edit tool parameters. When a tool is selected, the Properties panel automatically shows its configuration."
+  "gui.director.tool_properties.embedded_hint": "Use the Properties panel on the right to view and edit tool parameters. When a tool is selected, the Properties panel automatically shows its configuration.",
+  "gui.director.properties.adapter.actor.group_preview.summary": "Modify %s members; skip %s. Undo restores the whole operation.",
+  "gui.director.properties.adapter.actor.group_preview.overwrite": "Existing action intervals will be replaced for %s members.",
+  "gui.director.properties.adapter.actor.group_preview.details": "Skipped members",
+  "gui.director.properties.adapter.actor.group_preview.missing_actor": "Actor is missing",
+  "gui.director.properties.adapter.actor.group_preview.no_track": "No actor track in this timeline",
+  "gui.director.properties.adapter.actor.group_preview.locked": "Track is locked",
+  "gui.director.properties.adapter.actor.group_preview.unsupported_action": "Action is not supported",
+  "gui.director.properties.adapter.actor.group_preview.source_actor": "Source route is kept unchanged",
+  "gui.director.properties.adapter.actor.group_preview.route_conflict": "Movement or route already exists in the target interval",
+  "gui.director.properties.adapter.actor.group_preview.no_members": "Create a timeline and add actors to the group first.",
+  "gui.director.properties.adapter.actor.group_preview.no_route": "The source actor has no usable route.",
+  "gui.director.properties.adapter.actor.group_preview.invalid_action": "Choose an action and a valid duration.",
+  "gui.director.properties.adapter.actor.group_preview.invalid_parameters": "Invalid group time, spacing or delay. Reset the parameters."
 }

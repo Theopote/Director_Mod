@@ -2067,5 +2067,18 @@
   "gui.director.selection_filter.filter.luminous_10": "发光等级 >= 10",
 
   "gui.director.tool_properties.embedded_title": "工具属性已集成到属性面板",
-  "gui.director.tool_properties.embedded_hint": "请使用右侧「属性」面板查看和编辑工具参数。选中工具时，属性面板会自动显示该工具的配置。"
+  "gui.director.tool_properties.embedded_hint": "请使用右侧「属性」面板查看和编辑工具参数。选中工具时，属性面板会自动显示该工具的配置。",
+  "gui.director.properties.adapter.actor.group_preview.summary": "将修改 %s 个成员，跳过 %s 个成员。整组操作可一次撤销。",
+  "gui.director.properties.adapter.actor.group_preview.overwrite": "将覆盖 %s 个成员已有的动作区间。",
+  "gui.director.properties.adapter.actor.group_preview.details": "查看跳过原因",
+  "gui.director.properties.adapter.actor.group_preview.missing_actor": "演员不存在",
+  "gui.director.properties.adapter.actor.group_preview.no_track": "当前时间线没有关联轨道",
+  "gui.director.properties.adapter.actor.group_preview.locked": "轨道已锁定",
+  "gui.director.properties.adapter.actor.group_preview.unsupported_action": "不支持此动作",
+  "gui.director.properties.adapter.actor.group_preview.source_actor": "保留源演员的原路径",
+  "gui.director.properties.adapter.actor.group_preview.route_conflict": "目标时间已有移动或路径片段",
+  "gui.director.properties.adapter.actor.group_preview.no_members": "请先创建时间线并向组中添加演员。",
+  "gui.director.properties.adapter.actor.group_preview.no_route": "源演员没有可用路径，请先制作路径。",
+  "gui.director.properties.adapter.actor.group_preview.invalid_action": "请选择动作并设置有效时长。",
+  "gui.director.properties.adapter.actor.group_preview.invalid_parameters": "群体时间、间距或延迟参数无效，请重新设置。"
 }

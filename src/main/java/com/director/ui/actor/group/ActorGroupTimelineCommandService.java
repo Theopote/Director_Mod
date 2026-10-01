@@ -2,6 +2,7 @@ package com.director.ui.actor.group;
 
 import com.director.core.DirectorServices;
 import com.director.actor.ActorGroup;
+import com.director.actor.ActorRegistryManager;
 import com.director.actor.action.ActorActionType;
 import com.director.actor.group.ActorGroupController;
 import com.director.ui.timeline.interaction.ActionClipIntervalResolver;
@@ -13,6 +14,7 @@ import com.director.timeline.model.entity.ActorRouteClip;
 import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntitySpawnClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
+import com.director.timeline.model.entity.EntityTransformClip;
 import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.playback.camera.CameraAccessor;
 import com.director.timeline.playback.camera.CameraSample;
@@ -47,6 +49,76 @@ public final class ActorGroupTimelineCommandService {
         return INSTANCE;
     }
 
+    public enum SkipReason { MISSING_ACTOR, NO_TRACK, LOCKED, UNSUPPORTED_ACTION, SOURCE_ACTOR, ROUTE_CONFLICT }
+    public record SkippedMember(UUID actorId, SkipReason reason) {}
+    public record Preview(List<UUID> eligible, List<SkippedMember> skipped, String problem, int overwrittenMembers) {
+        public Preview { eligible = List.copyOf(eligible); skipped = List.copyOf(skipped); }
+        public boolean canExecute() { return problem == null && !eligible.isEmpty(); }
+    }
+
+    public Preview previewActions(TimelineModel model, ActorGroup group, ActorActionType action, float duration) {
+        Preview members = previewMembers(model, group, action, null);
+        if (action == null || !Float.isFinite(duration) || duration <= 0)
+            return new Preview(List.of(), members.skipped(), "invalid_action", 0);
+        if (members.problem() != null) return members;
+        int overwritten = 0;
+        var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, action, Math.max(0, model == null ? 0 : model.getCurrentTime()));
+        for (UUID id : members.eligible()) {
+            float start = resolveTriggerTime(triggers, id, model.getCurrentTime());
+            if (model.findActorTrackByActorId(id).getActorTrackPayload().getActionClips().stream()
+                    .anyMatch(c -> c.getStartTime() < start + Math.max(0.05f, duration) && c.getEndTime() > start)) overwritten++;
+        }
+        return new Preview(members.eligible(), members.skipped(), members.problem(), overwritten);
+    }
+
+    public Preview previewRoutes(TimelineModel model, ActorGroup group, UUID sourceActorId) {
+        Preview members = previewMembers(model, group, null, sourceActorId);
+        if (members.problem() != null) return members;
+        ActorRouteClip source = model == null || sourceActorId == null ? null : findLatestRouteClip(model, sourceActorId);
+        if (source == null || source.getWaypoints().size() < 2 || source.isMuted()
+                || ActorRegistryManager.getInstance().getActor(sourceActorId).isEmpty())
+            return new Preview(List.of(), members.skipped(), "no_route", 0);
+        var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, ActorActionType.IDLE, 0);
+        List<UUID> eligible = new ArrayList<>();
+        List<SkippedMember> skipped = new ArrayList<>(members.skipped());
+        for (UUID id : members.eligible()) {
+            float delay = Math.max(0, resolveTriggerTime(triggers, id, 0));
+            boolean conflict = model.findActorTrackByActorId(id).getActorTrackPayload().getClips().stream()
+                    .anyMatch(c -> !c.isMuted() && (c instanceof ActorRouteClip || c instanceof EntityTransformClip)
+                            && c.getStartTime() < source.getEndTime() + delay && c.getEndTime() > source.getStartTime() + delay);
+            if (conflict) skipped.add(new SkippedMember(id, SkipReason.ROUTE_CONFLICT));
+            else eligible.add(id);
+        }
+        return new Preview(eligible, skipped, members.problem(), 0);
+    }
+
+    public Preview previewPlacement(TimelineModel model, ActorGroup group) {
+        return previewMembers(model, group, null, null);
+    }
+
+    private Preview previewMembers(TimelineModel model, ActorGroup group, ActorActionType action, UUID source) {
+        if (model == null || group == null || group.size() == 0)
+            return new Preview(List.of(), List.of(), "no_members", 0);
+        if (!Float.isFinite(model.getCurrentTime()) || !Float.isFinite(group.getDelayStepSeconds())
+                || !Float.isFinite(group.getFormationSpacing()))
+            return new Preview(List.of(), List.of(), "invalid_parameters", 0);
+        List<UUID> eligible = new ArrayList<>();
+        List<SkippedMember> skipped = new ArrayList<>();
+        var registry = ActorRegistryManager.getInstance();
+        for (UUID id : group.getActorIds()) {
+            var actor = registry.getActor(id).orElse(null);
+            var track = model.findActorTrackByActorId(id);
+            SkipReason reason = actor == null ? SkipReason.MISSING_ACTOR
+                    : track == null || track.getActorTrackPayload() == null ? SkipReason.NO_TRACK
+                    : track.isLocked() ? SkipReason.LOCKED
+                    : id.equals(source) ? SkipReason.SOURCE_ACTOR
+                    : action != null && (actor.getRigProfile() == null || !actor.getRigProfile().supports(action))
+                            ? SkipReason.UNSUPPORTED_ACTION : null;
+            if (reason == null) eligible.add(id); else skipped.add(new SkippedMember(id, reason));
+        }
+        return new Preview(eligible, skipped, null, 0);
+    }
+
     public int createActionClips(ActorGroup group, ActorActionType actionType, float durationSeconds,
                                  float intensity, boolean loop) {
         TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
@@ -59,56 +131,32 @@ public final class ActorGroupTimelineCommandService {
                           float durationSeconds,
                           float intensity,
                           boolean loop) {
-        if (model == null) {
-            LOGGER.warn("[ActorGroupTimelineCommandService] TimelineModel is not available");
-            return 0;
-        }
-        if (group == null || actionType == null || group.size() == 0) {
-            return 0;
-        }
-
-        float baseStart = Math.max(0.0f, model.getCurrentTime());
+        Preview preview = previewActions(model, group, actionType, durationSeconds);
+        if (!preview.canExecute() || !Float.isFinite(intensity)) return 0;
+        float baseStart = Math.max(0, model.getCurrentTime());
         float duration = Math.max(0.05f, durationSeconds);
-        float clampedIntensity = Math.max(0.0f, Math.min(1.0f, intensity));
-        List<UUID> actorIds = group.getActorIds();
-        List<ActorGroupController.ActionTrigger> triggers =
-                GROUP_CONTROLLER.applyDelayPolicy(group, actionType, baseStart);
-
-        int created = 0;
-        for (UUID actorId : actorIds) {
-            TimelineTrack timelineTrack = model.findActorTrackByActorId(actorId);
-            if (timelineTrack == null) {
-                LOGGER.debug("[ActorGroupTimelineCommandService] Actor {} has no entity track", actorId);
-                continue;
-            }
-
-            ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
-            if (actorTrack == null) {
-                LOGGER.debug("[ActorGroupTimelineCommandService] Track {} has no ActorTrack payload",
-                        timelineTrack.getName());
-                continue;
-            }
-
+        float clampedIntensity = Math.max(0, Math.min(1, intensity));
+        var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, actionType, baseStart);
+        List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
+        for (UUID actorId : preview.eligible()) {
+            var track = model.findActorTrackByActorId(actorId);
+            var payload = track.getActorTrackPayload();
+            var before = List.copyOf(payload.getActionClips());
+            var beforeWrappers = track.getClips().stream()
+                    .filter(c -> c instanceof EntityTimelineClip e && e.getEntityClip() instanceof ActorActionClip).toList();
             float start = resolveTriggerTime(triggers, actorId, baseStart);
-            List<ActorActionClip> resolved = ActionClipIntervalResolver.resolve(
-                    actorTrack.getActionClips(),
-                    start,
-                    start + duration,
-                    actionType,
-                    clampedIntensity,
-                    loop
-            );
-            actorTrack.replaceActionClips(resolved);
-            syncActionClipsToTimeline(model, timelineTrack, actorTrack, resolved);
-            created++;
+            var after = ActionClipIntervalResolver.resolve(before, start, start + duration, actionType, clampedIntensity, loop);
+            List<TimelineClip> afterWrappers = new ArrayList<>();
+            for (var clip : after) {
+                var wrapper = beforeWrappers.stream().filter(c -> ((EntityTimelineClip)c).getEntityClip() == clip).findFirst().orElse(null);
+                afterWrappers.add(wrapper == null ? prepareWrapper(clip, payload.getColorRgba()) : wrapper);
+            }
+            changes.add(new ActorGroupEditCommand.Change(
+                    () -> setActionState(track, payload, before, beforeWrappers),
+                    () -> setActionState(track, payload, after, afterWrappers)));
         }
-
-        if (created > 0) {
-            model.markDirty();
-        }
-        LOGGER.info("[ActorGroupTimelineCommandService] Created {} action clips for group {}",
-                created, group.getName());
-        return created;
+        ActorGroupEditCommand.execute(model, "Group actor actions", changes);
+        return changes.size();
     }
 
     public int copyLatestRouteFromActor(ActorGroup group, UUID sourceActorId) {
@@ -117,127 +165,96 @@ public final class ActorGroupTimelineCommandService {
     }
 
     int copyLatestRouteFromActor(TimelineModel model, ActorGroup group, UUID sourceActorId) {
-        if (model == null) {
-            LOGGER.warn("[ActorGroupTimelineCommandService] TimelineModel is not available");
-            return 0;
+        Preview preview = previewRoutes(model, group, sourceActorId);
+        if (!preview.canExecute()) return 0;
+        var source = findLatestRouteClip(model, sourceActorId);
+        var ids = group.getActorIds();
+        var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, ActorActionType.IDLE, 0);
+        List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
+        for (UUID id : preview.eligible()) {
+            var track = model.findActorTrackByActorId(id);
+            float delay = Math.max(0, resolveTriggerTime(triggers, id, 0));
+            var copy = copyRouteClip(source, delay, computeFormationOffset(group, source, ids.indexOf(id), ids.size()));
+            var wrapper = prepareWrapper(copy, track.getActorTrackPayload().getColorRgba());
+            changes.add(addClipChange(track, copy, wrapper));
         }
-        if (group == null || sourceActorId == null || group.size() == 0) {
-            return 0;
-        }
-
-        ActorRouteClip source = findLatestRouteClip(model, sourceActorId);
-        if (source == null || source.getWaypoints().size() < 2) {
-            LOGGER.warn("[ActorGroupTimelineCommandService] Source actor {} has no usable route", sourceActorId);
-            return 0;
-        }
-
-        List<UUID> actorIds = group.getActorIds();
-        List<ActorGroupController.ActionTrigger> triggers =
-                GROUP_CONTROLLER.applyDelayPolicy(group, ActorActionType.IDLE, 0.0f);
-        int created = 0;
-        for (int i = 0; i < actorIds.size(); i++) {
-            UUID actorId = actorIds.get(i);
-            TimelineTrack timelineTrack = model.findActorTrackByActorId(actorId);
-            if (timelineTrack == null) {
-                continue;
-            }
-            ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
-            if (actorTrack == null) {
-                continue;
-            }
-
-            float delay = Math.max(0.0f, resolveTriggerTime(triggers, actorId, 0.0f));
-            Vector3f formationOffset = computeFormationOffset(group, source, i, actorIds.size());
-            ActorRouteClip copy = copyRouteClip(source, delay, formationOffset);
-            actorTrack.addClip(copy);
-            EntityTimelineClip timelineClip = new EntityTimelineClip(copy, actorTrack.getColorRgba());
-            model.addClip(timelineTrack, timelineClip);
-            created++;
-        }
-
-        if (created > 0) {
-            model.markDirty();
-        }
-        LOGGER.info("[ActorGroupTimelineCommandService] Copied route from actor {} to {} group members",
-                sourceActorId, created);
-        return created;
+        ActorGroupEditCommand.execute(model, "Group actor routes", changes);
+        return changes.size();
     }
 
     public int placeGroupAtCamera(ActorGroup group) {
-        if (group == null || group.size() == 0) {
-            return 0;
-        }
-
         MinecraftClient client = MinecraftClient.getInstance();
         TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        CameraSample cameraSample = CameraAccessor.sampleFromGameCamera(client);
-        if (client == null || client.world == null || model == null || cameraSample == null) {
-            LOGGER.warn("[ActorGroupTimelineCommandService] Cannot place group: client, world, timeline, or camera unavailable");
-            return 0;
-        }
-
-        Vector3f basePosition = new Vector3f(
-                (float) cameraSample.position().x,
-                (float) cameraSample.position().y,
-                (float) cameraSample.position().z
-        );
-        List<ActorGroupController.FormationPosition> formationPositions = GROUP_CONTROLLER.calculateFormation(
-                group,
-                new Vec3d(basePosition.x, basePosition.y, basePosition.z),
-                cameraSample.yaw()
-        );
-        float currentTime = model.getCurrentTime();
-        List<UUID> actorIds = group.getActorIds();
-
-        int placed = 0;
-        for (UUID actorId : actorIds) {
-            TimelineTrack timelineTrack = model.findActorTrackByActorId(actorId);
-            if (timelineTrack == null || timelineTrack.getActorTrackPayload() == null) {
-                continue;
-            }
-
-            ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
-            Vec3d resolvedPosition = resolveFormationPosition(
-                    formationPositions,
-                    actorId,
-                    new Vec3d(basePosition.x, basePosition.y, basePosition.z)
-            );
-            Vector3f position = new Vector3f((float) resolvedPosition.x, (float) resolvedPosition.y, (float) resolvedPosition.z);
-            EntitySpawnClip spawnClip = findSpawnClipAt(actorTrack, currentTime);
-            if (spawnClip == null) {
-                spawnClip = new EntitySpawnClip("Spawn", currentTime, currentTime + DEFAULT_SPAWN_CLIP_DURATION);
-                spawnClip.setVisibleOnSpawn(true);
-                actorTrack.addClip(spawnClip);
-            }
-
-            spawnClip.setPosition(position.x, position.y, position.z);
-            spawnClip.setYawDeg(cameraSample.yaw());
-            spawnClip.setPitchDeg(cameraSample.pitch());
-
-            if (spawnClip.getTimelineClip() == null) {
-                model.addClip(timelineTrack, new EntityTimelineClip(spawnClip, actorTrack.getColorRgba()));
-            }
-            placed++;
-        }
-
-        if (placed > 0) {
-            model.markDirty();
-        }
-        LOGGER.info("[ActorGroupTimelineCommandService] Placed {} group actors at camera", placed);
-        return placed;
+        if (client == null || client.world == null || model == null) return 0;
+        CameraSample camera = CameraAccessor.sampleFromGameCamera(client);
+        if (camera == null) return 0;
+        return placeGroup(model, group, new Vec3d(camera.position().x, camera.position().y, camera.position().z), camera.yaw(), camera.pitch());
     }
 
-    private void syncActionClipsToTimeline(TimelineModel model, TimelineTrack timelineTrack,
-                                           ActorTrack actorTrack, List<ActorActionClip> actionClips) {
-        for (TimelineClip clip : new ArrayList<>(timelineTrack.getClips())) {
-            if (clip instanceof EntityTimelineClip entityTimelineClip
-                    && entityTimelineClip.getEntityClip() instanceof ActorActionClip) {
-                timelineTrack.removeClip(clip);
-            }
+    int placeGroup(TimelineModel model, ActorGroup group, Vec3d base, float yaw, float pitch) {
+        Preview preview = previewPlacement(model, group);
+        if (!preview.canExecute() || base == null || !Double.isFinite(base.x) || !Double.isFinite(base.y)
+                || !Double.isFinite(base.z) || !Float.isFinite(yaw) || !Float.isFinite(pitch)) return 0;
+        var positions = GROUP_CONTROLLER.calculateFormation(group, base, yaw);
+        float time = model.getCurrentTime();
+        List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
+        for (UUID id : preview.eligible()) {
+            var track = model.findActorTrackByActorId(id);
+            var payload = track.getActorTrackPayload();
+            var position = resolveFormationPosition(positions, id, base);
+            EntitySpawnClip existing = findSpawnClipAt(payload, time);
+            EntitySpawnClip clip = existing == null ? new EntitySpawnClip("Spawn", time, time + DEFAULT_SPAWN_CLIP_DURATION) : existing;
+            Vector3f beforePosition = new Vector3f(clip.getPosition());
+            float beforeYaw = clip.getYawDeg(), beforePitch = clip.getPitchDeg();
+            var previousWrapper = clip.getTimelineClip();
+            var wrapper = previousWrapper == null ? prepareWrapper(clip, payload.getColorRgba()) : previousWrapper;
+            boolean addedWrapper = !track.getClips().contains(wrapper);
+            changes.add(new ActorGroupEditCommand.Change(() -> {
+                clip.setPosition(beforePosition.x, beforePosition.y, beforePosition.z);
+                clip.setYawDeg(beforeYaw); clip.setPitchDeg(beforePitch);
+                if (existing == null) payload.removeClip(clip.getId());
+                if (addedWrapper) track.removeClip(wrapper);
+                if (previousWrapper == null) clip.setTimelineClip(null);
+            }, () -> {
+                clip.setPosition((float)position.x, (float)position.y, (float)position.z);
+                clip.setYawDeg(yaw); clip.setPitchDeg(pitch);
+                if (existing == null && !payload.getClips().contains(clip)) payload.addClip(clip);
+                clip.setTimelineClip(wrapper);
+                if (addedWrapper && !track.getClips().contains(wrapper)) track.addClip(wrapper);
+            }));
         }
+        ActorGroupEditCommand.execute(model, "Place actor group", changes);
+        return changes.size();
+    }
 
-        for (ActorActionClip actionClip : actionClips) {
-            model.addClip(timelineTrack, new EntityTimelineClip(actionClip, actorTrack.getColorRgba()));
+    private static EntityTimelineClip prepareWrapper(EntityClip clip, int color) {
+        // The wrapper constructor binds itself; staging must not mutate existing clips.
+        var previous = clip.getTimelineClip();
+        var wrapper = new EntityTimelineClip(clip, color);
+        clip.setTimelineClip(previous);
+        return wrapper;
+    }
+
+    private static ActorGroupEditCommand.Change addClipChange(TimelineTrack track, EntityClip clip, EntityTimelineClip wrapper) {
+        var payload = track.getActorTrackPayload();
+        return new ActorGroupEditCommand.Change(() -> {
+            payload.removeClip(clip.getId()); track.removeClip(wrapper); clip.setTimelineClip(null);
+        }, () -> {
+            clip.setTimelineClip(wrapper);
+            if (!payload.getClips().contains(clip)) payload.addClip(clip);
+            if (!track.getClips().contains(wrapper)) track.addClip(wrapper);
+        });
+    }
+
+    private static void setActionState(TimelineTrack track, ActorTrack payload, List<ActorActionClip> clips, List<TimelineClip> wrappers) {
+        for (var clip : payload.getActionClips()) clip.setTimelineClip(null);
+        payload.replaceActionClips(clips);
+        for (var clip : clips) clip.setTimelineClip(null);
+        for (var wrapper : new ArrayList<>(track.getClips()))
+            if (wrapper instanceof EntityTimelineClip e && e.getEntityClip() instanceof ActorActionClip) track.removeClip(wrapper);
+        for (var wrapper : wrappers) {
+            ((EntityTimelineClip)wrapper).getEntityClip().setTimelineClip((EntityTimelineClip)wrapper);
+            track.addClip(wrapper);
         }
     }
 
@@ -251,7 +268,7 @@ public final class ActorGroupTimelineCommandService {
         ActorRouteClip latestBeforeOrAtPlayhead = null;
         ActorRouteClip latestOverall = null;
         for (EntityClip clip : timelineTrack.getActorTrackPayload().getClips()) {
-            if (!(clip instanceof ActorRouteClip routeClip)) {
+            if (!(clip instanceof ActorRouteClip routeClip) || routeClip.isMuted()) {
                 continue;
             }
             if (latestOverall == null || routeClip.getStartTime() > latestOverall.getStartTime()) {
