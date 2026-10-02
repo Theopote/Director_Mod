@@ -40,6 +40,38 @@ public final class ActorPropRuntime {
 
     /** 关联的 PreviewActorEntity（用于更新 Transform） */
     private Entity actorEntity;
+    private Map<ActorPropSlot,ActorPropTimelineSampler.Attachment> sampledHeld = Map.of();
+    private final Map<String,RuntimeProp> sampledFlights = new HashMap<>();
+    private final Map<String,ActorPropTimelineSampler.Attachment> flightAttachments = new HashMap<>();
+
+    /** Reconcile sampled state without recreating unchanged held props on each frame. */
+    public void sync(ActorPropTimelineSampler.Snapshot snapshot) {
+        for (var slot : new ArrayList<>(props.keySet())) if (!snapshot.held().containsKey(slot)) detach(slot);
+        for (var entry : snapshot.held().entrySet()) {
+            if (!entry.getValue().equals(sampledHeld.get(entry.getKey())) || !props.containsKey(entry.getKey()))
+                attach(entry.getKey(),entry.getValue().create(entry.getKey()));
+        }
+        sampledHeld = snapshot.held();
+        var active = new HashSet<String>();
+        for (var flight : snapshot.flights()) {
+            active.add(flight.id());
+            var prop = sampledFlights.get(flight.id());
+            if (prop == null || !flight.attachment().equals(flightAttachments.get(flight.id()))) {
+                if (prop != null) prop.dispose();
+                prop = flight.attachment().create(flight.slot()); sampledFlights.put(flight.id(),prop);
+                flightAttachments.put(flight.id(),flight.attachment());
+            }
+            prop.setSlot(flight.slot());
+            prop.setWorldTransform(flight.position());
+        }
+        for (var id : new ArrayList<>(sampledFlights.keySet())) if (!active.contains(id)) {
+            sampledFlights.remove(id).dispose(); flightAttachments.remove(id);
+        }
+    }
+    public Collection<RuntimeProp> getTimelineProjectiles() {
+        return Collections.unmodifiableCollection(sampledFlights.values());
+    }
+
 
     /**
      * 构造函数
@@ -164,6 +196,8 @@ public final class ActorPropRuntime {
      */
     public void dispose() {
         detachAll();
+        sampledHeld = Map.of();
+        sampledFlights.values().forEach(RuntimeProp::dispose); sampledFlights.clear(); flightAttachments.clear();
         actorEntity = null;
     }
 }

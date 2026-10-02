@@ -140,6 +140,7 @@ public final class ActorRuntimeController {
             ProjectileRuntimeManager.getInstance().clear();
             com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
             animationPlayers.clear();
+            propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
             LOGGER.info("[ActorRuntime] 已禁用，清空所有预览实体和投掷物");
         } else {
             LOGGER.info("[ActorRuntime] 已启用");
@@ -168,6 +169,10 @@ public final class ActorRuntimeController {
         }
 
         float time = timelineSource.getCurrentTime();
+        if (!Float.isFinite(time) || time < 0) {
+            propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
+            return;
+        }
         float deltaTime = time - lastUpdateTime;
         if (deltaTime < 0f) {
             // 时间倒流（rewind），重置 deltaTime
@@ -196,6 +201,7 @@ public final class ActorRuntimeController {
      */
     private void rebuildRuntimes() {
         runtimes.clear();
+        propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
 
         if (timelineSource == null) {
             return;
@@ -227,6 +233,14 @@ public final class ActorRuntimeController {
             return;
         }
         runtimes.keySet().removeIf(t -> !timelineSource.getTracks().contains(t));
+        var liveActors = new java.util.HashSet<UUID>();
+        for (var track : timelineSource.getTracks()) {
+            var payload = track.getActorTrackPayload();
+            if (!track.isMuted() && payload != null && payload.getActorRef() != null)
+                liveActors.add(payload.getActorRef().getActorId());
+        }
+        for (var id : new java.util.ArrayList<>(propRuntimes.keySet())) if (!liveActors.contains(id))
+            propRuntimes.remove(id).dispose();
     }
 
     /**
@@ -251,6 +265,7 @@ public final class ActorRuntimeController {
     private final class TrackRuntime {
 
         private final ActorTrack actorTrack;
+        private final TimelineTrack ownerTrack;
         private final EntityClipSampler sampler;
 
         /** 当前绑定的 Actor */
@@ -279,6 +294,7 @@ public final class ActorRuntimeController {
          * @throws IllegalArgumentException 如果轨道没有 ActorTrack payload
          */
         TrackRuntime(TimelineTrack track) {
+            this.ownerTrack = track;
             this.actorTrack = track.getActorTrackPayload();
             if (this.actorTrack == null) {
                 throw new IllegalArgumentException("Track does not have ActorTrack payload");
@@ -292,6 +308,7 @@ public final class ActorRuntimeController {
          * @param time 当前时间（秒）
          */
         void update(float time) {
+            if (ownerTrack.isMuted()) return;
             // 1️⃣ 解析 Actor
             ActorRef ref = actorTrack.getActorRef();
             if (ref == null) {
@@ -318,6 +335,8 @@ public final class ActorRuntimeController {
             // 2️⃣ 采样
             EntitySample sample = sampler.sampleAt(time);
             if (sample == null) {
+                var staleProps = propRuntimes.remove(actor.getActorId());
+                if (staleProps != null) staleProps.dispose();
                 lastSample = null;
                 return;
             }
@@ -351,13 +370,25 @@ public final class ActorRuntimeController {
                     }
                     
                     // 6️⃣ 更新 Prop Runtime（每帧更新道具 Transform） */
-                    ActorPropRuntime propRuntime = propRuntimes.get(actor.getActorId());
+                    ActorPropRuntime propRuntime = getOrCreatePropRuntime(actor);
+                    propRuntime.setActorEntity(entity);
+                    var propState = com.director.actor.prop.ActorPropTimelineSampler.sample(actorTrack,time,eventTime -> {
+                        var at = new EntityClipSampler(actorTrack).sampleAt(eventTime);
+                        if (at == null) return null;
+                        applyGroundRoute(entity,at,eventTime);
+                        return new Vec3d(at.position.x,at.position.y,at.position.z);
+                    });
+                    propRuntime.sync(propState);
                     if (propRuntime != null) {
                         propRuntime.update();
                     }
                 }
             }
 
+            if (!spawned) {
+                var staleProps = propRuntimes.remove(actor.getActorId());
+                if (staleProps != null) staleProps.dispose();
+            }
             lastSample = sample;
             lastTime = time;
         }
@@ -931,232 +962,10 @@ public final class ActorRuntimeController {
                 
                 // 处理 Prop 相关 Action
                 if (com.director.actor.prop.PropEventParameters.supports(e.type())) {
-                    applyPropAction(actor, entity, e);
+                    continue; // Prop state is reconstructed from timeline time below.
                 }
                 
                 // TODO: 未来可以在这里触发声音、粒子效果等
-            }
-        }
-
-        /**
-         * 应用 Prop Action
-         *
-         * @param actor Actor
-         * @param entity PreviewActorEntity
-         * @param event Action 事件
-         */
-        private void applyPropAction(Actor actor, Entity entity, EntityActionEvent event) {
-            ActorPropRuntime propRuntime = getOrCreatePropRuntime(actor);
-            propRuntime.setActorEntity(entity);
-
-            var params = event.params();
-            if (params == null) {
-                return;
-            }
-
-            try { com.director.actor.prop.PropEventParameters.validate(event.type(), params); }
-            catch (IllegalArgumentException invalid) {
-                LOGGER.warn("[ActorRuntime] 忽略无效道具事件 {}: {}", event.type(), invalid.getMessage());
-                return;
-            }
-
-            switch (event.type()) {
-                case ATTACH_PROP -> {
-                    String propId = (String) params.get("propId");
-                    String slotStr = (String) params.get("slot");
-                    
-                    if (propId == null || slotStr == null) {
-                        LOGGER.warn("[ActorRuntime] ATTACH_PROP 缺少必要参数: propId={}, slot={}", propId, slotStr);
-                        return;
-                    }
-
-                    PropRegistry registry = PropRegistry.getInstance();
-                    var descriptorOpt = registry.get(propId);
-                    if (descriptorOpt.isEmpty()) {
-                        LOGGER.warn("[ActorRuntime] 道具不存在: {}", propId);
-                        return;
-                    }
-
-                    ActorPropSlot slot;
-                    try {
-                        slot = ActorPropSlot.valueOf(slotStr);
-                    } catch (IllegalArgumentException e) {
-                        LOGGER.warn("[ActorRuntime] 无效的槽位: {}", slotStr);
-                        return;
-                    }
-
-                    // 获取局部偏移和旋转（可选）
-                    Vector3f offset = new Vector3f(0, 0, 0);
-                    Vector3f rotation = new Vector3f(0, 0, 0);
-                    
-                    if (params.containsKey("offsetX")) {
-                        offset.x = ((Number) params.get("offsetX")).floatValue();
-                    }
-                    if (params.containsKey("offsetY")) {
-                        offset.y = ((Number) params.get("offsetY")).floatValue();
-                    }
-                    if (params.containsKey("offsetZ")) {
-                        offset.z = ((Number) params.get("offsetZ")).floatValue();
-                    }
-                    
-                    if (params.containsKey("rotationX")) {
-                        rotation.x = ((Number) params.get("rotationX")).floatValue();
-                    }
-                    if (params.containsKey("rotationY")) {
-                        rotation.y = ((Number) params.get("rotationY")).floatValue();
-                    }
-                    if (params.containsKey("rotationZ")) {
-                        rotation.z = ((Number) params.get("rotationZ")).floatValue();
-                    }
-
-                    RuntimeProp prop = new RuntimeProp(descriptorOpt.get(), slot);
-                    prop.setLocalOffset(offset.x, offset.y, offset.z);
-                    prop.setLocalRotation(rotation.x, rotation.y, rotation.z);
-
-                    propRuntime.attach(slot, prop);
-                    LOGGER.info("[ActorRuntime] 装备道具: {} -> {} ({})", actor.getName(), propId, slot);
-                }
-
-                case DETACH_PROP -> {
-                    String slotStr = (String) params.get("slot");
-                    if (slotStr == null) {
-                        LOGGER.warn("[ActorRuntime] DETACH_PROP 缺少 slot 参数");
-                        return;
-                    }
-
-                    ActorPropSlot slot;
-                    try {
-                        slot = ActorPropSlot.valueOf(slotStr);
-                    } catch (IllegalArgumentException e) {
-                        LOGGER.warn("[ActorRuntime] 无效的槽位: {}", slotStr);
-                        return;
-                    }
-
-                    propRuntime.detach(slot);
-                    LOGGER.info("[ActorRuntime] 卸下道具: {} -> {}", actor.getName(), slot);
-                }
-
-                case SWITCH_PROP -> {
-                    // 切换道具 = 先卸下，再装备
-                    String oldSlotStr = (String) params.get("oldSlot");
-                    String newPropId = (String) params.get("newPropId");
-                    String newSlotStr = (String) params.get("newSlot");
-
-                    if (oldSlotStr != null) {
-                        try {
-                            ActorPropSlot oldSlot = ActorPropSlot.valueOf(oldSlotStr);
-                            propRuntime.detach(oldSlot);
-                        } catch (IllegalArgumentException e) {
-                            LOGGER.warn("[ActorRuntime] 无效的旧槽位: {}", oldSlotStr);
-                        }
-                    }
-
-                    if (newPropId != null && newSlotStr != null) {
-                        // 创建新的 ATTACH_PROP 事件并处理
-                        var attachParams = new java.util.HashMap<String, Object>();
-                        attachParams.put("propId", newPropId);
-                        attachParams.put("slot", newSlotStr);
-                        // 复制偏移和旋转参数（如果有）
-                        if (params.containsKey("offsetX")) attachParams.put("offsetX", params.get("offsetX"));
-                        if (params.containsKey("offsetY")) attachParams.put("offsetY", params.get("offsetY"));
-                        if (params.containsKey("offsetZ")) attachParams.put("offsetZ", params.get("offsetZ"));
-                        if (params.containsKey("rotationX")) attachParams.put("rotationX", params.get("rotationX"));
-                        if (params.containsKey("rotationY")) attachParams.put("rotationY", params.get("rotationY"));
-                        if (params.containsKey("rotationZ")) attachParams.put("rotationZ", params.get("rotationZ"));
-
-                        EntityActionEvent attachEvent = new EntityActionEvent(
-                                com.director.timeline.model.entity.EntityActionClip.ActionType.ATTACH_PROP,
-                                attachParams
-                        );
-                        applyPropAction(actor, entity, attachEvent);
-                    }
-
-                    LOGGER.info("[ActorRuntime] 切换道具: {} -> {} -> {}", actor.getName(), oldSlotStr, newPropId);
-                }
-
-                case THROW_PROP -> {
-                    // 投掷道具
-                    String slotStr = (String) params.get("slot");
-                    if (slotStr == null) {
-                        LOGGER.warn("[ActorRuntime] THROW_PROP 缺少 slot 参数");
-                        return;
-                    }
-
-                    ActorPropSlot slot;
-                    try {
-                        slot = ActorPropSlot.valueOf(slotStr);
-                    } catch (IllegalArgumentException e) {
-                        LOGGER.warn("[ActorRuntime] 无效的槽位: {}", slotStr);
-                        return;
-                    }
-
-                    // 1. 从 Actor 手中卸下道具
-                    RuntimeProp prop = propRuntime.getProp(slot);
-                    if (prop == null) {
-                        LOGGER.warn("[ActorRuntime] THROW_PROP: Actor {} 的槽位 {} 没有道具", actor.getName(), slot);
-                        return;
-                    }
-
-                    // 获取当前道具位置（作为起始位置）
-                    Vec3d startPos = prop.getWorldPosition();
-                    if (startPos == null) {
-                        // 如果道具还没有世界位置，使用 Actor 位置
-                        startPos = new Vec3d(
-                                entity.getX(),
-                                entity.getY(),
-                                entity.getZ()
-                        );
-                    }
-
-                    // 2. 获取目标位置
-                    Object targetXObj = params.get("targetX");
-                    Object targetYObj = params.get("targetY");
-                    Object targetZObj = params.get("targetZ");
-
-                    if (targetXObj == null || targetYObj == null || targetZObj == null) {
-                        LOGGER.warn("[ActorRuntime] THROW_PROP 缺少目标位置参数");
-                        return;
-                    }
-
-                    Vec3d targetPos = new Vec3d(
-                            ((Number) targetXObj).doubleValue(),
-                            ((Number) targetYObj).doubleValue(),
-                            ((Number) targetZObj).doubleValue()
-                    );
-
-                    // 3. 获取抛物线参数
-                    float arcHeight = 1.5f;
-                    if (params.containsKey("arcHeight")) {
-                        arcHeight = ((Number) params.get("arcHeight")).floatValue();
-                    }
-
-                    float flightTime = 1.0f;
-                    if (params.containsKey("flightTime")) {
-                        flightTime = ((Number) params.get("flightTime")).floatValue();
-                    }
-
-                    // 4. 卸下道具（从 Actor 手中移除）
-                    propRuntime.release(slot);
-                    prop.setWorldTransform(startPos);
-
-                    // 5. 创建投掷物
-                    RuntimeProjectile projectile = new RuntimeProjectile(
-                            prop,
-                            startPos,
-                            targetPos,
-                            arcHeight,
-                            flightTime
-                    );
-
-                    projectileManager.spawn(projectile);
-                    LOGGER.info("[ActorRuntime] 投掷道具: {} -> {} ({}, {}, {})",
-                            actor.getName(), prop.getDescriptor().getId(),
-                            targetPos.x, targetPos.y, targetPos.z);
-                }
-
-                default -> {
-                    // 其他 Action 类型不处理
-                }
             }
         }
 
