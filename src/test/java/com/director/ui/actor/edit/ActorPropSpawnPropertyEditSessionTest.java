@@ -126,6 +126,14 @@ class ActorPropSpawnPropertyEditSessionTest {
         ((EntityActionClip)edit.draft()).setParam("extra",List.of(Map.of("invalid",Double.POSITIVE_INFINITY)));
         assertThrows(IllegalArgumentException.class,edit::commit); assertNull(source.getParam("extra")); assertEquals(0,history.getUndoSize());
     }
+    @Test void visualSettingsCommitTogetherAndUndoRestoresMissingLegacyDefaults() {
+        var source=event(); var edit=new ActorClipPropertyEditSession(model,source);
+        var draft=(EntityActionClip)edit.draft(); draft.setParam("propScale",2); draft.setParam("itemPose","HAND");
+        draft.setParam("rotationX",45); assertNull(source.getParam("propScale")); assertTrue(edit.commit());
+        assertEquals(1,history.getUndoSize()); assertEquals(2,source.getParam("propScale")); history.undo();
+        assertNull(source.getParam("propScale")); assertNull(source.getParam("itemPose")); history.redo();
+        assertEquals("HAND",source.getParam("itemPose")); assertEquals(45,source.getParam("rotationX"));
+    }
     @Test void projectileTakesPropOwnershipWithoutDetachingDisposal() {
         var runtime = new ActorPropRuntime(); var prop = new RuntimeProp(PropRegistry.getInstance().get("stone").orElseThrow(),ActorPropSlot.MAIN_HAND);
         runtime.attach(ActorPropSlot.MAIN_HAND,prop); assertSame(prop,runtime.release(ActorPropSlot.MAIN_HAND));

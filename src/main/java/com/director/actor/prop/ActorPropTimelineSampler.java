@@ -8,10 +8,14 @@ import java.util.function.Function;
 
 /** Pure replay of prop state. Events occur once at clip/marker time, independent of render history. */
 public final class ActorPropTimelineSampler {
-    public record Attachment(String propId, float x, float y, float z, float rx, float ry, float rz) {
+    public record Attachment(String propId, float x, float y, float z, float rx, float ry, float rz, float scale, String itemPose) {
+        public Attachment(String propId,float x,float y,float z,float rx,float ry,float rz) {
+            this(propId,x,y,z,rx,ry,rz,1,"FIXED");
+        }
         public RuntimeProp create(ActorPropSlot slot) {
             var prop = new RuntimeProp(PropRegistry.getInstance().get(propId).orElseThrow(),slot);
-            prop.setLocalOffset(x,y,z); prop.setLocalRotation(rx,ry,rz); return prop;
+            prop.setLocalOffset(x,y,z); prop.setLocalRotation(rx,ry,rz);
+            prop.setVisualScale(scale); prop.setItemPose(itemPose); return prop;
         }
     }
     public record Flight(String id, ActorPropSlot slot, Attachment attachment, Vec3d position) {}
@@ -95,6 +99,7 @@ public final class ActorPropTimelineSampler {
     }
     private static Attachment attachment(Map<String,Object> p,String id) {
         return new Attachment((String)p.get(id),value(p,"offsetX",0),value(p,"offsetY",0),value(p,"offsetZ",0),
-                value(p,"rotationX",0),value(p,"rotationY",0),value(p,"rotationZ",0));
+                value(p,"rotationX",0),value(p,"rotationY",0),value(p,"rotationZ",0),
+                value(p,"propScale",1),p.getOrDefault("itemPose","FIXED").toString());
     }
 }

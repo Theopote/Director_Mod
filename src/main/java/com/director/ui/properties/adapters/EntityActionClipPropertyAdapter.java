@@ -68,6 +68,17 @@ public class EntityActionClipPropertyAdapter implements IPropertyAdapter<EntityA
             }
             if (type == EntityActionClip.ActionType.ATTACH_PROP || type == EntityActionClip.ActionType.SWITCH_PROP) {
                 vector(params,"offset",tr("offset"),0); vector(params,"rotation",tr("rotation"),0);
+                number(params,"propScale",tr("scale"),1);
+                String pose=params.get("itemPose") instanceof String value?value:"FIXED";
+                if (ImGui.beginCombo(tr("item_pose")+"##propItemPose",tr("pose_"+pose))) {
+                    for (String choice : List.of("FIXED","HAND"))
+                        if (ImGui.selectable(tr("pose_"+choice),choice.equals(pose))) params.put("itemPose",choice);
+                    ImGui.endCombo();
+                }
+                ImGui.textWrapped(tr("scale_hint"));
+                if (ImGui.button(tr("reset_visual")+"##resetPropVisual")) {
+                    for (String key : List.of("rotationX","rotationY","rotationZ","propScale","itemPose")) params.remove(key);
+                }
             }
             if (type == EntityActionClip.ActionType.THROW_PROP) {
                 vector(params,"target",tr("target"),0);
@@ -76,7 +87,7 @@ public class EntityActionClipPropertyAdapter implements IPropertyAdapter<EntityA
         }
         if (ImGui.collapsingHeader(tr("extras"))) {
             var known = Set.of("slot","oldSlot","newSlot","propId","newPropId","offsetX","offsetY","offsetZ",
-                    "rotationX","rotationY","rotationZ","targetX","targetY","targetZ","arcHeight","flightTime");
+                    "rotationX","rotationY","rotationZ","propScale","itemPose","targetX","targetY","targetZ","arcHeight","flightTime");
             params.entrySet().stream().filter(entry -> !known.contains(entry.getKey())).sorted(Map.Entry.comparingByKey())
                     .forEach(entry -> ImGui.text(entry.getKey()+": "+entry.getValue()));
         }

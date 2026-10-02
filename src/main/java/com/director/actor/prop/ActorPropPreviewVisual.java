@@ -21,11 +21,15 @@ public final class ActorPropPreviewVisual {
 
     /** Block displays use a corner origin; props use a centered half-block default size. */
     public static Matrix4f modelTransform(PropVisualType type, Matrix4f socket) {
-        var model=new Matrix4f(socket);
+        return modelTransform(type,socket,1);
+    }
+    public static Matrix4f modelTransform(PropVisualType type, Matrix4f socket, float scale) {
+        if (!Float.isFinite(scale) || scale < .01f || scale > 10) throw new IllegalArgumentException("Invalid prop scale");
+        var model=new Matrix4f(socket).scale(scale);
         if (type==PropVisualType.BLOCK) model.scale(.5f).translate(-.5f,-.5f,-.5f);
         return model;
     }
-    public void sync(ClientWorld nextWorld, PropDescriptor descriptor, Matrix4f socket, boolean visible) {
+    public void sync(ClientWorld nextWorld, PropDescriptor descriptor, Matrix4f socket, boolean visible, float scale, String itemPose, ActorPropSlot slot) {
         if (nextWorld!=world) { dispose(); world=nextWorld; unavailable=false; }
         if (nextWorld==null || socket==null || !socket.isFinite() || !visible) {
             discard(); return;
@@ -38,10 +42,14 @@ public final class ActorPropPreviewVisual {
             nextWorld.addEntity(entity);
         }
         if (entity==null) return;
+        if (entity instanceof DisplayEntity.ItemDisplayEntity item)
+            item.setItemDisplayContext("HAND".equals(itemPose)
+                    ? (slot==ActorPropSlot.OFF_HAND?ItemDisplayContext.THIRD_PERSON_LEFT_HAND:ItemDisplayContext.THIRD_PERSON_RIGHT_HAND)
+                    : ItemDisplayContext.FIXED);
         var origin=socket.getTranslation(new Vector3f());
         entity.setPosition(origin.x,origin.y,origin.z);
         // Retain the full affine matrix, including nonuniform parent scale/shear.
-        var local=modelTransform(descriptor.getVisualType(),socket);
+        var local=modelTransform(descriptor.getVisualType(),socket,scale);
         local.setTranslation(local.getTranslation(new Vector3f()).sub(origin));
         ((DisplayEntityAccessor)entity).director$invokeSetTransformation(new AffineTransformation(local));
     }

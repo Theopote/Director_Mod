@@ -31,6 +31,14 @@ public final class PropEventParameters {
         if (type == ActionType.ATTACH_PROP || type == ActionType.SWITCH_PROP)
             for (String key : List.of("offsetX","offsetY","offsetZ","rotationX","rotationY","rotationZ"))
                 if (params.containsKey(key)) number(params,key);
+        if (type == ActionType.ATTACH_PROP || type == ActionType.SWITCH_PROP) {
+            if (params.containsKey("propScale")) {
+                double scale=number(params,"propScale");
+                if (scale < .01f || scale > 10) throw new IllegalArgumentException("道具尺寸倍率范围为 0.01–10");
+            }
+            if (params.containsKey("itemPose") && !"FIXED".equals(params.get("itemPose")) && !"HAND".equals(params.get("itemPose")))
+                throw new IllegalArgumentException("请选择固定或握持物品朝向");
+        }
         if (type == ActionType.THROW_PROP) {
             number(params,"targetX"); number(params,"targetY"); number(params,"targetZ");
             if (params.containsKey("arcHeight") && number(params,"arcHeight") < 0)

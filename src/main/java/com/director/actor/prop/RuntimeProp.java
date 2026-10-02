@@ -38,6 +38,18 @@ public final class RuntimeProp {
 
     /** 槽位 */
     private ActorPropSlot slot;
+    private float visualScale = 1;
+    private String itemPose = "FIXED";
+    public float getVisualScale() { return visualScale; }
+    public String getItemPose() { return itemPose; }
+    public void setVisualScale(float scale) {
+        if (!Float.isFinite(scale) || scale < .01f || scale > 10) throw new IllegalArgumentException("Invalid prop scale");
+        visualScale=scale;
+    }
+    public void setItemPose(String pose) {
+        if (!"FIXED".equals(pose) && !"HAND".equals(pose)) throw new IllegalArgumentException("Invalid item pose");
+        itemPose=pose;
+    }
 
     /** 局部偏移（相对于槽位） */
     private final Vector3f localOffset = new Vector3f(0, 0, 0);
@@ -157,7 +169,8 @@ public final class RuntimeProp {
     public void setWorldTransform(Vec3d pos) {
         this.worldPosition = pos;
         this.boundToActor = false;
-        if (worldTransform == null) worldTransform = new org.joml.Matrix4f();
+        if (worldTransform == null) worldTransform = new org.joml.Matrix4f().rotateXYZ(
+                (float)Math.toRadians(localRotation.x),(float)Math.toRadians(localRotation.y),(float)Math.toRadians(localRotation.z));
         worldTransform.setTranslation((float)pos.x,(float)pos.y,(float)pos.z);
         // TODO: 更新 renderObject 的位置
         LOGGER.trace("[RuntimeProp] 设置世界位置: {} -> ({}, {}, {})",
@@ -190,7 +203,7 @@ public final class RuntimeProp {
      * 清理资源
      */
     public void syncVisual(net.minecraft.client.world.ClientWorld world, boolean visible) {
-        visual.sync(world,descriptor,worldTransform,visible);
+        visual.sync(world,descriptor,worldTransform,visible,visualScale,itemPose,slot);
     }
 
     public void dispose() {

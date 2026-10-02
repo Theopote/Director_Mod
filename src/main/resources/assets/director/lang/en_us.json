@@ -2179,5 +2179,11 @@
   "gui.director.actor.despawn_edit.hint": "Despawn takes effect near the clip end: Hide sets visibility to zero; Remove marks the actor inactive.",
   "gui.director.actor.pose_edit.sampling_hint": "Edit the clip target pose: the first pose is held; subsequent clips blend from the preceding pose. Enabled regions override the base action and animation result.",
   "gui.director.actor.pose_edit.unsupported": "This inspector requires a compatible humanoid rig. Use this actor’s bone keyframes or procedural actions. Existing pose data is preserved.",
-  "gui.director.actor.pose_edit.keys_hint": "This clip contains generic entity keyframes, which pose sampling does not read. This inspector edits the target pose and preserves those keys."
+  "gui.director.actor.pose_edit.keys_hint": "This clip contains generic entity keyframes, which pose sampling does not read. This inspector edits the target pose and preserves those keys.",
+  "gui.director.actor.prop_event.scale": "Size multiplier",
+  "gui.director.actor.prop_event.item_pose": "Item model pose",
+  "gui.director.actor.prop_event.pose_FIXED": "Fixed display (default)",
+  "gui.director.actor.prop_event.pose_HAND": "Vanilla hand pose",
+  "gui.director.actor.prop_event.scale_hint": "Size range: 0.01–10. Blocks start at half a block; 2 makes one block. Hand pose uses the model’s hand settings, with left-hand settings for offhand; it does not pose the arms.",
+  "gui.director.actor.prop_event.reset_visual": "Reset size and orientation"
 }
