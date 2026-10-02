@@ -99,4 +99,8 @@ class ActorLookAtEditSessionTest {
         track.setActorTrackPayload(other); assertNull(session.commit());
         assertEquals(1, clip.getWorldPoint().x); assertEquals(1, history.getUndoSize());
     }
+    @Test void contextRoundTripCancelsWithoutUndoEntry() {
+        var edit=new ActorLookAtEditSession(model,track); edit.draft().setWorldPoint(9,0,0); model.setScrubbing(true); model.setScrubbing(false); assertNull(edit.commit());
+        assertEquals(0,history.getUndoSize());
+    }
 }

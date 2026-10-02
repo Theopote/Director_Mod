@@ -22,11 +22,13 @@ public final class ActorTransformEditSession {
     private final List<KeyStamp> sourceKeys;
     private final EntityTransformClip draft;
     private State initial;
+    private final long contextRevision;
     private boolean finished;
 
     public ActorTransformEditSession(TimelineModel model, TimelineTrack owner,
                                      EntityTransformClip source) {
         this.model = Objects.requireNonNull(model);
+        contextRevision = model.getActorEditContextRevision();
         this.owner = Objects.requireNonNull(owner);
         payload = Objects.requireNonNull(owner.getActorTrackPayload());
         actorId = Objects.requireNonNull(payload.getActorRef()).getActorId();
@@ -42,7 +44,7 @@ public final class ActorTransformEditSession {
     }
 
     public boolean isCurrent() {
-        return !finished && !model.isPlaying() && Float.isFinite(time) && time >= 0
+        return !finished && contextRevision == model.getActorEditContextRevision() && !model.isPlaying() && Float.isFinite(time) && time >= 0
                 && Float.compare(time, model.getCurrentTime()) == 0
                 && model.getAllTracks().contains(owner) && owner.getType() == TrackType.ACTOR
                 && !owner.isLocked() && !owner.isMuted() && owner.getActorTrackPayload() == payload

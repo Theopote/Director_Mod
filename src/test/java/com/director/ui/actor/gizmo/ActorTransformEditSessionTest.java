@@ -161,4 +161,8 @@ class ActorTransformEditSessionTest {
         assertNotNull(edit.commit()); assertEquals(new Vector3f(1), key.getPosition());
         history.undo(); assertEquals(new Vector3f(2), key.getPosition());
     }
+    @Test void contextRoundTripCancelsWithoutUndoEntry() {
+        var edit=session(source()); edit.draft().setToPos(9,0,0); model.setCurrentTime(3); model.setCurrentTime(2); assertNull(edit.commit());
+        assertEquals(0,history.getUndoSize());
+    }
 }

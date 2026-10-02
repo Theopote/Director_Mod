@@ -114,4 +114,23 @@ class ActorClipPropertyEditSessionTest {
         track.setLocked(true); assertThrows(IllegalArgumentException.class, history::redo); assertEquals(1, history.getRedoSize());
         track.setLocked(false); history.redo(); assertEquals(10, source.getToPos().x);
     }
+    @Test void selectionAwayAndBackCannotReviveOldDraft() {
+        var source=transform(); model.setSelectedClip(source.getTimelineClip());
+        var edit=new ActorClipPropertyEditSession(model,source); ((EntityTransformClip)edit.draft()).setToPos(9,0,0);
+        model.clearSelection(); model.setSelectedClip(source.getTimelineClip());
+        assertFalse(edit.commit()); assertEquals(4,source.getToPos().x); assertEquals(0,history.getUndoSize());
+    }
+    @Test void playbackAndPlayheadRoundTripsInvalidateGesture() {
+        var source=transform(); var edit=new ActorClipPropertyEditSession(model,source);
+        model.setPlaying(true); model.setPlaying(false); assertFalse(edit.commit());
+        edit=new ActorClipPropertyEditSession(model,source); model.setCurrentTime(6); model.setCurrentTime(5);
+        assertFalse(edit.commit()); assertEquals(0,history.getUndoSize());
+    }
+    @Test void redundantSelectionAndTimeUpdatesDoNotCancelAndUndoSurvivesSelectionChange() {
+        var source=transform(); model.setSelectedClip(source.getTimelineClip());
+        var edit=new ActorClipPropertyEditSession(model,source); ((EntityTransformClip)edit.draft()).setToPos(9,0,0);
+        model.setSelectedClip(source.getTimelineClip()); model.setCurrentTime(5); model.setPlaying(false);
+        assertTrue(edit.commit()); model.clearSelection(); history.undo(); assertEquals(4,source.getToPos().x);
+        history.redo(); assertEquals(9,source.getToPos().x);
+    }
 }

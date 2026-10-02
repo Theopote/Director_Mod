@@ -84,4 +84,9 @@ class ActorRoutePropertyEditSessionTest {
         assertThrows(IllegalArgumentException.class, history::redo);
         assertEquals(4, route.getEndTime()); assertEquals(2, route.getSpeed()); assertEquals(1, history.getRedoSize());
     }
+    @Test void returningToSameSelectionOrTimeCannotReviveRouteDraft() {
+        var edit=session(); edit.draft().setSpeed(8); model.selectItem(route.getTimelineClip(),false); model.clearSelection();
+        assertFalse(edit.commit()); assertEquals(0,history.getUndoSize());
+        edit=session(); model.setCurrentTime(3); model.setCurrentTime(2); assertFalse(edit.commit());
+    }
 }

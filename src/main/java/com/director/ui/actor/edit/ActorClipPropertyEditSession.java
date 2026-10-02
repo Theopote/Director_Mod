@@ -151,10 +151,12 @@ public final class ActorClipPropertyEditSession {
     private final ActorType actorType;
     private final ActorRigProfile profile;
     private final String customRig;
+    private final long contextRevision;
     private boolean finished;
 
     public ActorClipPropertyEditSession(TimelineModel model, EntityClip source) {
         this.model = Objects.requireNonNull(model); this.source = Objects.requireNonNull(source);
+        contextRevision = model.getActorEditContextRevision();
         wrapper = Objects.requireNonNull(source.getTimelineClip()); owner = Objects.requireNonNull(wrapper.getParentTrack());
         payload = Objects.requireNonNull(owner.getActorTrackPayload()); actor = Objects.requireNonNull(payload.getActorRef()).getActorId();
         time = model.getCurrentTime(); before = capture(source); common = Common.capture(source);
@@ -175,7 +177,7 @@ public final class ActorClipPropertyEditSession {
     }
     public EntityClip draft() { return draft; }
     public boolean isCurrent(TimelineModel currentModel, EntityClip currentSource) {
-        return !finished && currentModel == model && currentSource == source && time == model.getCurrentTime()
+        return !finished && contextRevision == model.getActorEditContextRevision() && currentModel == model && currentSource == source && time == model.getCurrentTime()
                 && validBinding() && common.equals(Common.capture(source)) && before.equals(capture(source));
     }
     private boolean validBinding() {

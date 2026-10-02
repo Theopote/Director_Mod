@@ -18,10 +18,12 @@ public final class ActorLookAtEditSession {
     private final EntityLookAtClip source;
     private final State before;
     private final EntityLookAtClip draft;
+    private final long contextRevision;
     private boolean finished;
 
     public ActorLookAtEditSession(TimelineModel model, TimelineTrack owner) {
         this.model = Objects.requireNonNull(model);
+        contextRevision = model.getActorEditContextRevision();
         this.owner = Objects.requireNonNull(owner);
         payload = Objects.requireNonNull(owner.getActorTrackPayload());
         actorId = Objects.requireNonNull(payload.getActorRef()).getActorId();
@@ -45,7 +47,7 @@ public final class ActorLookAtEditSession {
     }
 
     public boolean isCurrent() {
-        return !finished && !model.isPlaying() && Float.isFinite(time) && time >= 0
+        return !finished && contextRevision == model.getActorEditContextRevision() && !model.isPlaying() && Float.isFinite(time) && time >= 0
                 && Float.compare(time, model.getCurrentTime()) == 0
                 && model.getAllTracks().contains(owner) && owner.getType() == TrackType.ACTOR
                 && !owner.isLocked() && !owner.isMuted()

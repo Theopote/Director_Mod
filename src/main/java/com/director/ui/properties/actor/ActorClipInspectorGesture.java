@@ -44,8 +44,7 @@ public final class ActorClipInspectorGesture {
     public void requestCommit() { released = true; dirty = true; }
     public void report(String message) {
         error = message;
-        if (session != null) session.cancel();
-        session = null; widget = null;
+        cancel();
     }
     public void end() {
         if (session != null && widget != null && !rendered) cancel();

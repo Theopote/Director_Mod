@@ -38,6 +38,12 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     private float frameRate = 30.0f;
     private int timeUnit = 0;
     // ========== 核心动画状态（现在直接拥有）==========
+    private long actorEditContextRevision;
+    /** Transient gesture invalidation; never serialized or used to guard committed undo commands. */
+    public long getActorEditContextRevision() { return actorEditContextRevision; }
+    private void selectionChanged(java.util.Set<Object> before, Object previousLast) {
+        if(!before.equals(selectedItems) || previousLast != lastClickedItem) actorEditContextRevision++;
+    }
     private boolean playing = false;
     private float currentTime = 0f;
     private float duration = 20.0f; // 默认持续时间
@@ -327,6 +333,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      * 用于“切换世界”这类场景：让 UI 从干净状态开始，然后再选择性加载该世界的存档。
      */
     private void resetInMemoryToDefaults() {
+        actorEditContextRevision++;
         playing = false;
         scrubbing = false;
         loopEnabled = false;
@@ -894,6 +901,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      */
     public void setPlaying(boolean playing) {
         boolean wasPlaying = this.playing;
+        if(this.playing != playing) actorEditContextRevision++;
         this.playing = playing;
         
         // ⭐ 关键修复：播放状态改变时通知摄像机控制器
@@ -922,7 +930,9 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      * 设置当前时间（自动限制在有效范围内）
      */
     public void setCurrentTime(float currentTime) { 
-        this.currentTime = clamp(currentTime, getDuration());
+        float nextTime = clamp(currentTime, getDuration());
+        if(Float.compare(this.currentTime,nextTime)!=0) actorEditContextRevision++;
+        this.currentTime = nextTime;
     }
     
     /**
@@ -943,8 +953,10 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      */
     public void setScrubbing(boolean scrubbing) {
         boolean wasScrubbing = this.scrubbing;
+        if(wasScrubbing != scrubbing) actorEditContextRevision++;
         if (scrubbing && this.playing) {
             // scrubbing 和 playing 互斥，如果开始 scrubbing，先停止播放
+            actorEditContextRevision++;
             this.playing = false;
             com.director.timeline.playback.camera.TimelineCameraController.getInstance().onPlaybackStopped();
         }
@@ -1093,11 +1105,16 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      * @param clip 要选择的片段，如果为 null 则清空选择。
      */
     public void setSelectedClip(TimelineClip clip) {
-        selectedItems.clear();
-        if (clip != null) {
-            selectedItems.add(clip);
-        }
-        lastClickedItem = clip;
+        var previousSelection = new java.util.HashSet<>(selectedItems);
+        Object previousLast = lastClickedItem;
+        try {
+            selectedItems.clear();
+            if (clip != null) {
+                selectedItems.add(clip);
+            }
+            lastClickedItem = clip;
+
+        } finally { selectionChanged(previousSelection,previousLast); }
     }
     
     // ========== v4.5 多选功能 ==========
@@ -1108,24 +1125,29 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      * @param addToSelection 是否添加到选择（Ctrl键）
      */
     public void selectItem(Object item, boolean addToSelection) {
-        if (item == null) {
-            return;
-        }
-        
-        if (addToSelection) {
-            // 多选模式：切换选中状态
-            if (selectedItems.contains(item)) {
-                selectedItems.remove(item);
+        var previousSelection = new java.util.HashSet<>(selectedItems);
+        Object previousLast = lastClickedItem;
+        try {
+            if (item == null) {
+                return;
+            }
+
+            if (addToSelection) {
+                // 多选模式：切换选中状态
+                if (selectedItems.contains(item)) {
+                    selectedItems.remove(item);
+                } else {
+                    selectedItems.add(item);
+                }
             } else {
+                // 单选模式：清空后选中
+                selectedItems.clear();
                 selectedItems.add(item);
             }
-        } else {
-            // 单选模式：清空后选中
-            selectedItems.clear();
-            selectedItems.add(item);
-        }
-        
-        lastClickedItem = item;
+
+            lastClickedItem = item;
+
+        } finally { selectionChanged(previousSelection,previousLast); }
     }
 
     /**
@@ -1134,24 +1156,29 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      * @param clearFirst 是否先清空现有选择（框选默认会清空，按住 Ctrl 则不清空）
      */
     public void addItemsToSelection(java.util.Collection<?> items, boolean clearFirst) {
-        if (clearFirst) {
-            selectedItems.clear();
-        }
-        if (items == null || items.isEmpty()) {
+        var previousSelection = new java.util.HashSet<>(selectedItems);
+        Object previousLast = lastClickedItem;
+        try {
             if (clearFirst) {
-                lastClickedItem = null;
+                selectedItems.clear();
             }
-            return;
-        }
-        Object last = null;
-        for (Object it : items) {
-            if (it == null) continue;
-            selectedItems.add(it);
-            last = it;
-        }
-        if (last != null) {
-            lastClickedItem = last;
-        }
+            if (items == null || items.isEmpty()) {
+                if (clearFirst) {
+                    lastClickedItem = null;
+                }
+                return;
+            }
+            Object last = null;
+            for (Object it : items) {
+                if (it == null) continue;
+                selectedItems.add(it);
+                last = it;
+            }
+            if (last != null) {
+                lastClickedItem = last;
+            }
+
+        } finally { selectionChanged(previousSelection,previousLast); }
     }
 
 
@@ -1159,8 +1186,13 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      * 清除所有选择
      */
     public void clearSelection() {
-        selectedItems.clear();
-        lastClickedItem = null;
+        var previousSelection = new java.util.HashSet<>(selectedItems);
+        Object previousLast = lastClickedItem;
+        try {
+            selectedItems.clear();
+            lastClickedItem = null;
+
+        } finally { selectionChanged(previousSelection,previousLast); }
     }
 
     /**

@@ -37,18 +37,20 @@ public final class ActorRoutePropertyEditSession {
     private final ActorRouteClip source, draft;
     private final ActorPathEditing.Target target;
     private final State before;
+    private final long contextRevision;
     private boolean finished;
 
     public ActorRoutePropertyEditSession(TimelineModel model, TimelineTrack owner, ActorRouteClip source) {
         target = ActorPathEditing.route(model, owner, source);
         this.model = model; this.owner = owner; this.source = source;
+        contextRevision = model.getActorEditContextRevision();
         payload = owner.getActorTrackPayload(); actorId = payload.getActorRef().getActorId();
         before = State.capture(source);
         draft = new ActorRouteClip(source.getName(), before.start, before.end); before.apply(draft);
     }
     public ActorRouteClip draft() { return draft; }
     public boolean isCurrent(TimelineModel currentModel, ActorRouteClip currentSource) {
-        return !finished && model == currentModel && source == currentSource && target.isCurrent()
+        return !finished && contextRevision == model.getActorEditContextRevision() && model == currentModel && source == currentSource && target.isCurrent()
                 && source.getTimelineClip().getParentTrack() == owner;
     }
     public void cancel() { finished = true; }
