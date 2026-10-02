@@ -7,9 +7,11 @@ import com.director.client.gizmo.GizmoMode;
 public final class ActorAnimationAuthoringSettings {
     private static final ActorAnimationAuthoringSettings INSTANCE = new ActorAnimationAuthoringSettings();
     public enum EditTarget { ANIMATION, QUICK_POSE }
+    private long revision;
+    public long getRevision() { return revision; }
     private EditTarget editTarget = EditTarget.ANIMATION;
     public EditTarget getEditTarget() { return editTarget; }
-    public void setEditTarget(EditTarget value) { editTarget = value == null ? EditTarget.ANIMATION : value; }
+    public void setEditTarget(EditTarget value) { var next=value == null ? EditTarget.ANIMATION : value; if(next!=editTarget) revision++; editTarget=next; }
     private boolean autoKeyframe;
     private String assetId = "project:actor_animation";
     private InterpolationMode interpolation = InterpolationMode.SMOOTH;
@@ -19,15 +21,16 @@ public final class ActorAnimationAuthoringSettings {
     private ActorAnimationAuthoringSettings() {}
     public static ActorAnimationAuthoringSettings getInstance() { return INSTANCE; }
     public boolean isAutoKeyframe() { return autoKeyframe; }
-    public void setAutoKeyframe(boolean value) { autoKeyframe = value; }
+    public void setAutoKeyframe(boolean value) { if(autoKeyframe!=value) revision++; autoKeyframe = value; }
     public String getAssetId() { return assetId; }
-    public void setAssetId(String value) { if (value != null && !value.isBlank()) assetId = value.trim(); }
+    public void setAssetId(String value) { if (value != null && !value.isBlank()) { var next=value.trim(); if(!next.equals(assetId)) revision++; assetId=next; } }
     public InterpolationMode getInterpolation() { return interpolation; }
-    public void setInterpolation(InterpolationMode value) { interpolation = value == null ? InterpolationMode.SMOOTH : value; }
+    public void setInterpolation(InterpolationMode value) { var next=value == null ? InterpolationMode.SMOOTH : value; if(next!=interpolation) revision++; interpolation=next; }
     public float getNewAssetDuration() { return newAssetDuration; }
-    public void setNewAssetDuration(float value) { if (Float.isFinite(value)) newAssetDuration = Math.max(0.1f, Math.min(600f, value)); }
+    public void setNewAssetDuration(float value) { if (Float.isFinite(value)) { float next=Math.max(0.1f, Math.min(600f, value)); if(next!=newAssetDuration) revision++; newAssetDuration=next; } }
     public GizmoMode getBoneGizmoMode() { return boneGizmoMode; }
     public void setBoneGizmoMode(GizmoMode value) {
-        boneGizmoMode = value == GizmoMode.TRANSLATE || value == GizmoMode.SCALE ? value : GizmoMode.ROTATE;
+        var next=value == GizmoMode.TRANSLATE || value == GizmoMode.SCALE ? value : GizmoMode.ROTATE;
+        if(next!=boneGizmoMode) revision++; boneGizmoMode=next;
     }
 }

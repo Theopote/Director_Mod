@@ -29,6 +29,7 @@ public final class ActorPathEditing {
     public static final class Target {
         private final TimelineModel model;
         private final float time;
+        private final com.director.ui.actor.edit.ActorGestureContext context;
         private final TimelineTrack owner;
         private final ActorTrack payload;
         private final UUID actorId;
@@ -45,6 +46,7 @@ public final class ActorPathEditing {
         private Target(TimelineModel model, TimelineTrack owner, ActorRouteClip route,
                        ActorPathLibrary library, ActorPathDefinition path, Runnable save) {
             this.model = Objects.requireNonNull(model); time = model.getCurrentTime();
+            context=new com.director.ui.actor.edit.ActorGestureContext(model);
             this.owner = owner; this.route = route; this.library = library; this.path = path; this.save = save;
             payload = owner == null ? null : owner.getActorTrackPayload();
             actorId = payload == null || payload.getActorRef() == null ? null : payload.getActorRef().getActorId();
@@ -61,7 +63,7 @@ public final class ActorPathEditing {
         public TimelineTrack owner() { return owner; }
         public ActorPathLibrary library() { return library; }
         public boolean isCurrent() {
-            if (model.isPlaying() || !Float.isFinite(time) || time < 0 || Float.compare(time, model.getCurrentTime()) != 0) return false;
+            if (!context.isCurrent(model) || model.isPlaying() || !Float.isFinite(time) || time < 0 || Float.compare(time, model.getCurrentTime()) != 0) return false;
             if (route == null) return library.get(path.getId()) == path && !path.isLocked()
                     && before.matches(path.getWaypoints(), path.getInterpolationMode());
             return validOwner(model, owner, payload, actorId) && payload.getClips().contains(route) && !route.isMuted()

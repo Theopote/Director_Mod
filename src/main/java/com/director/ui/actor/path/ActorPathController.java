@@ -59,6 +59,7 @@ public final class ActorPathController {
     private List<Vec3d> dragBeforePoints;
     private UUID dragActorId;
     private TimelineModel dragModel;
+    private com.director.ui.actor.edit.ActorGestureContext dragContext;
     private float dragTime;
     private int dragAnchorIndex;
     private ActorPathEditing.Target editingTarget;
@@ -146,6 +147,7 @@ public final class ActorPathController {
         if (dragModel == null) return false;
         dragBeforePoints = List.copyOf(pathPoints);
         dragActorId = ActorSelectionHub.getSelectedActorId();
+        dragContext=new com.director.ui.actor.edit.ActorGestureContext(dragModel);
         dragTime = dragModel.getCurrentTime(); dragAnchorIndex = selectedAnchorIndex;
         editingLibrary = ActorPathLibraryManager.getInstance();
         anchorDragActive = true; anchorDragDirty = false;
@@ -154,7 +156,7 @@ public final class ActorPathController {
 
     boolean isAnchorDragCurrent() {
         var gm = GizmoManager.get();
-        return anchorDragActive && active && !isEditingLocked() && dragModel != null
+        return anchorDragActive && dragContext!=null && dragContext.isCurrent(DirectorServices.get().containerTimeline().getTimelineModel()) && active && !isEditingLocked() && dragModel != null
                 && dragModel == DirectorServices.get().containerTimeline().getTimelineModel()
                 && dragTime == dragModel.getCurrentTime()
                 && java.util.Objects.equals(dragActorId, ActorSelectionHub.getSelectedActorId())

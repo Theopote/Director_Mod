@@ -48,6 +48,7 @@ public final class ActorBoneGizmoController {
     private boolean pending;
     private boolean changed;
     private TimelineModel gestureModel;
+    private com.director.ui.actor.edit.ActorGestureContext gestureContext;
     private float gestureTime;
     private boolean gestureAutoKey;
     private ActorAnimationAuthoringSettings.EditTarget gestureTarget;
@@ -181,6 +182,8 @@ public final class ActorBoneGizmoController {
         gestureModel = model;
         gestureTime = time;
         var settings = ActorAnimationAuthoringSettings.getInstance();
+        gestureContext=new com.director.ui.actor.edit.ActorGestureContext(model,
+                ActorBoneSelectionController.getInstance()::getRevision,settings::getRevision);
         gestureAutoKey = settings.isAutoKeyframe();
         requestedGestureMode = settings.getBoneGizmoMode();
         gestureTarget = settings.getEditTarget();
@@ -218,6 +221,7 @@ public final class ActorBoneGizmoController {
     void beginTransformGesture() { beginRotationGesture(); }
 
     void updateTranslationGesture(Vec3d delta) {
+        if(!dragging || !contextValid()) { if(dragging) cancelDraft(); return; }
         if (!animationGesture || editingBoneTrack == null || animationBaseTranslation == null) return;
         Vector3f value = translate(animationBaseTranslation, delta);
         editingBoneTrack.translation().put(animationKeyTime, value,
@@ -227,6 +231,7 @@ public final class ActorBoneGizmoController {
     }
 
     void updateScaleGesture(Vec3d delta) {
+        if(!dragging || !contextValid()) { if(dragging) cancelDraft(); return; }
         if (!animationGesture || editingBoneTrack == null || animationBaseScale == null) return;
         Vector3f value = scale(animationBaseScale, delta);
         editingBoneTrack.scale().put(animationKeyTime, value,
@@ -236,6 +241,7 @@ public final class ActorBoneGizmoController {
     }
 
     void updateRotationGesture(Axis axis, float angleRadians) {
+        if(!dragging || !contextValid()) { if(dragging) cancelDraft(); return; }
         if (animationGesture) {
             updateAnimationGesture(axis, angleRadians);
             return;
@@ -265,9 +271,11 @@ public final class ActorBoneGizmoController {
     private boolean contextValid() {
         var selection = ActorBoneSelectionController.getInstance();
         var settings = ActorAnimationAuthoringSettings.getInstance();
-        return gestureModel != null && gestureModel == resolveModel()
+        return gestureContext != null && gestureContext.isCurrent(resolveModel()) && gestureModel != null && gestureModel == resolveModel()
                 && !gestureModel.isPlaying() && Float.compare(gestureTime, gestureModel.getCurrentTime()) == 0
-                && gestureModel.getTracks().contains(timelineTrack) && !timelineTrack.isLocked()
+                && gestureModel.getAllTracks().contains(timelineTrack) && timelineTrack.getType()==TrackType.ACTOR
+                && com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).isPresent() && !timelineTrack.isLocked() && !timelineTrack.isMuted()
+                && actorTrack.getActorRef()!=null && Objects.equals(actorId,actorTrack.getActorRef().getActorId())
                 && timelineTrack.getActorTrackPayload() == actorTrack
                 && selection.isActive() && Objects.equals(actorId, selection.getActorId())
                 && Objects.equals(boneId, selection.getSelectedBoneId())
@@ -310,7 +318,8 @@ public final class ActorBoneGizmoController {
     }
 
     public void cancelDraft() {
-        if (dragging || pending) {
+        if ((dragging || pending) && gestureModel==resolveModel()
+                && Float.compare(gestureTime,gestureModel.getCurrentTime())==0) {
             if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview) {
                 if (legacyPreviewBefore != null) preview.setFinalPose(legacyPreviewBefore);
                 preview.setFinalRigPose(previewBefore);
@@ -331,6 +340,7 @@ public final class ActorBoneGizmoController {
         createdClip = false;
         changed = false;
         gestureModel = null;
+        gestureContext = null;
         previewBefore = null;
         legacyPreviewBefore = null;
         previewPositionBefore = null;

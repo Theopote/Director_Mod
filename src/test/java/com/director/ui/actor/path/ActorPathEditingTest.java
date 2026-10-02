@@ -147,4 +147,18 @@ class ActorPathEditingTest {
         assertThrows(IllegalStateException.class, () -> ActorPathEditing.saveNew(model, library, points, mode, failure));
         assertEquals(1, library.size()); assertEquals(0, history.getUndoSize());
     }
+    @Test void libraryTimeRoundTripRejectsDraftWithoutSavingOrUndoEntry() {
+        var path=path(); var target=ActorPathEditing.library(model,library,path,saves::incrementAndGet);
+        model.setCurrentTime(3); model.setCurrentTime(2);
+        assertFalse(target.commit(List.of(new Vector3f(),new Vector3f(8,0,0)),mode));
+        assertEquals(points,path.getWaypoints()); assertEquals(0,saves.get()); assertEquals(0,history.getUndoSize());
+    }
+    @Test void routeSelectionRoundTripRejectsDraftButCommittedUndoIgnoresSelectionVersion() {
+        var route=route(); history.clear(); var target=ActorPathEditing.route(model,track,route);
+        model.selectItem(track,false); model.clearSelection(); assertFalse(target.commit(List.of(new Vector3f(),new Vector3f(8,0,0)),mode));
+        assertEquals(points,route.getWaypoints()); assertEquals(0,history.getUndoSize());
+        target=ActorPathEditing.route(model,track,route); assertTrue(target.commit(List.of(new Vector3f(),new Vector3f(8,0,0)),mode));
+        model.selectItem(track,false); history.undo(); assertEquals(points,route.getWaypoints());
+        history.redo(); assertEquals(8,route.getWaypoints().get(1).x);
+    }
 }

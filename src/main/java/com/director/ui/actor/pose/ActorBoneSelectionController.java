@@ -9,6 +9,12 @@ import java.util.UUID;
 public final class ActorBoneSelectionController {
     private static final ActorBoneSelectionController INSTANCE = new ActorBoneSelectionController();
 
+    private long revision;
+    public long getRevision() { return revision; }
+    private void changed(boolean oldActive,UUID oldActor,String oldBone,java.util.List<String> oldBones) {
+        if(oldActive!=active || !java.util.Objects.equals(oldActor,actorId) || !java.util.Objects.equals(oldBone,selectedBoneId)
+                || !oldBones.equals(getSelectedBoneIds())) revision++;
+    }
     private boolean active;
     private UUID actorId;
     private String selectedBoneId;
@@ -33,27 +39,39 @@ public final class ActorBoneSelectionController {
     }
 
     public void activate(UUID actorId) {
-        active = actorId != null;
-        this.actorId = actorId;
-        selectedBoneId = active ? defaultBone(actorId) : null;
-        resetSelection();
-        hoveredBoneId = null;
+        boolean oldActive=active; UUID oldActor=this.actorId; String oldBone=selectedBoneId;
+        var oldBones=getSelectedBoneIds();
+        try {
+            active = actorId != null;
+            this.actorId = actorId;
+            selectedBoneId = active ? defaultBone(actorId) : null;
+            resetSelection();
+            hoveredBoneId = null;
+        } finally { changed(oldActive,oldActor,oldBone,oldBones); }
     }
 
     public void synchronizeActor(UUID actorId) {
-        if (!active || java.util.Objects.equals(this.actorId, actorId)) return;
-        this.actorId = actorId;
-        selectedBoneId = actorId == null ? null : defaultBone(actorId);
-        resetSelection();
-        hoveredBoneId = null;
+        boolean oldActive=active; UUID oldActor=this.actorId; String oldBone=selectedBoneId;
+        var oldBones=getSelectedBoneIds();
+        try {
+            if (!active || java.util.Objects.equals(this.actorId, actorId)) return;
+            this.actorId = actorId;
+            selectedBoneId = actorId == null ? null : defaultBone(actorId);
+            resetSelection();
+            hoveredBoneId = null;
+        } finally { changed(oldActive,oldActor,oldBone,oldBones); }
     }
 
     public void deactivate() {
-        active = false;
-        actorId = null;
-        selectedBoneId = null;
-        selectedBones.clear();
-        hoveredBoneId = null;
+        boolean oldActive=active; UUID oldActor=this.actorId; String oldBone=selectedBoneId;
+        var oldBones=getSelectedBoneIds();
+        try {
+            active = false;
+            actorId = null;
+            selectedBoneId = null;
+            selectedBones.clear();
+            hoveredBoneId = null;
+        } finally { changed(oldActive,oldActor,oldBone,oldBones); }
     }
 
     public boolean selectBone(String boneId) {
@@ -62,16 +80,20 @@ public final class ActorBoneSelectionController {
 
     /** Ctrl toggles membership; the most recently selected bone is the active Gizmo target. */
     public boolean selectBone(String boneId, boolean additive) {
-        if (!active || actorId == null || rigFor(actorId).findBoneIndex(boneId) < 0) return false;
-        if (!additive) selectedBones.clear();
-        if (additive && selectedBones.remove(boneId)) {
-            if (boneId.equals(selectedBoneId))
-                selectedBoneId = selectedBones.isEmpty() ? null : selectedBones.getLast();
-        } else {
-            selectedBones.add(boneId);
-            selectedBoneId = boneId;
-        }
-        return true;
+        boolean oldActive=active; UUID oldActor=this.actorId; String oldBone=selectedBoneId;
+        var oldBones=getSelectedBoneIds();
+        try {
+            if (!active || actorId == null || rigFor(actorId).findBoneIndex(boneId) < 0) return false;
+            if (!additive) selectedBones.clear();
+            if (additive && selectedBones.remove(boneId)) {
+                if (boneId.equals(selectedBoneId))
+                    selectedBoneId = selectedBones.isEmpty() ? null : selectedBones.getLast();
+            } else {
+                selectedBones.add(boneId);
+                selectedBoneId = boneId;
+            }
+            return true;
+        } finally { changed(oldActive,oldActor,oldBone,oldBones); }
     }
 
     private void resetSelection() {
