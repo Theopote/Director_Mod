@@ -1,18 +1,14 @@
 package com.director.ui.properties.adapters;
 
-import com.director.actor.ActorRef;
 import com.director.actor.Actor;
 import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRegistryManager;
-import com.director.core.DirectorServices;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
-import com.director.timeline.model.TimelineTrack;
-import com.director.timeline.model.TrackType;
-import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.model.entity.ActorRelationClip;
-import com.director.timeline.model.entity.EntityClip;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.actor.ActorClipInspectorGesture;
+import com.director.actor.ActorBehaviorCapabilities;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
@@ -26,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<ActorRelationClip> {
+    private final ActorClipInspectorGesture gesture = new ActorClipInspectorGesture();
     private static final int MAX_RECENT_TARGETS = 5;
     private static final Deque<UUID> RECENT_TARGETS = new ArrayDeque<>();
 
@@ -40,11 +37,9 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
     }
 
     @Override
-    public boolean renderProperties(ActorRelationClip clip) {
-        if (clip == null) {
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.NO_CLIP));
-            return false;
-        }
+    public boolean renderProperties(ActorRelationClip source) {
+        var draft = gesture.begin(source);
+        if (!(draft instanceof ActorRelationClip clip)) { gesture.end(); return false; }
 
         boolean changed = false;
         UITheme.title(getAdapterName());
@@ -60,14 +55,19 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
         if (ImGui.collapsingHeader(Icons.SETTINGS + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_RELATION),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
-            ActorRelationClip.RelationType[] types = ActorRelationClip.RelationType.values();
-            ImInt current = new ImInt(clip.getRelationType().ordinal());
-            if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.RELATION_TYPE) + "##relationType",
-                    current, ActorPropertyAdapterI18n.relationTypeLabels())) {
-                int idx = Math.max(0, Math.min(current.get(), types.length - 1));
-                clip.setRelationType(types[idx]);
-                changed = true;
+            if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.RELATION_TYPE)
+                    + "##relationType", ActorPropertyAdapterI18n.relationTypeLabels()[clip.getRelationType().ordinal()])) {
+                for (var type : ActorRelationClip.RelationType.values()) {
+                    boolean supported = ActorBehaviorCapabilities.supportsRelation(type);
+                    ImGui.beginDisabled(!supported);
+                    if (ImGui.selectable(ActorPropertyAdapterI18n.relationTypeLabels()[type.ordinal()], type == clip.getRelationType())) {
+                        clip.setRelationType(type); gesture.requestCommit();
+                    }
+                    ImGui.endDisabled();
+                }
+                ImGui.endCombo();
             }
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.behavior.relation_runtime_hint"));
 
             ActorRelationClip.RelationType relationType = clip.getRelationType();
             boolean showDistance = relationType == ActorRelationClip.RelationType.FACE_TO_FACE
@@ -81,6 +81,7 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
                     || relationType == ActorRelationClip.RelationType.FOLLOW
                     || relationType == ActorRelationClip.RelationType.CIRCLE_AROUND;
 
+            ImGui.beginDisabled(!ActorBehaviorCapabilities.supportsRelation(relationType));
             if (showDistance) {
                 float[] distance = {clip.getDistance()};
                 if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.DISTANCE) + "##relationDistance",
@@ -88,6 +89,8 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
                     clip.setDistance(distance[0]);
                     changed = true;
                 }
+                gesture.observe("distance", changed);
+                changed = false;
             }
 
             if (showAngle) {
@@ -98,6 +101,8 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
                     clip.setAngle(angle[0]);
                     changed = true;
                 }
+                gesture.observe("angle", changed);
+                changed = false;
             }
 
             if (showHeight) {
@@ -107,6 +112,8 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
                     clip.setHeightOffset(height[0]);
                     changed = true;
                 }
+                gesture.observe("height", changed);
+                changed = false;
             }
 
             if (showLookAt) {
@@ -116,14 +123,17 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
                     clip.setMaintainLookAt(!maintainLookAt);
                     changed = true;
                 }
+                gesture.observe("look", changed);
+                changed = false;
             }
+            ImGui.endDisabled();
         }
 
         if (ImGui.collapsingHeader(Icons.PIN + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_TARGET),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
             ActorRegistry registry = ActorRegistryManager.getInstance();
-            UUID selfActorId = resolveSelfActorId(clip);
+            UUID selfActorId = source.getTimelineClip().getParentTrack().getActorTrackPayload().getActorRef().getActorId();
             List<Actor> actors = new ArrayList<>();
             for (Actor actor : registry.getAllActors()) {
                 if (selfActorId == null || !selfActorId.equals(actor.getActorId())) {
@@ -143,9 +153,7 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
                 }
             }
 
-            if (renderRecentTargets(clip, actors)) {
-                changed = true;
-            }
+            if (renderRecentTargets(clip, actors)) gesture.requestCommit();
 
             ImInt targetSelection = new ImInt(selectedIndex);
             if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.TARGET_ACTOR) + "##relationTargetActor",
@@ -158,7 +166,7 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
                     clip.setTargetActorId(targetActorId);
                     pushRecentTarget(targetActorId);
                 }
-                changed = true;
+                gesture.requestCommit();
             }
 
             if (clip.getTargetActorId() != null) {
@@ -168,64 +176,8 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
             }
         }
 
-        return changed;
-    }
-
-    private UUID resolveSelfActorId(ActorRelationClip clip) {
-        TimelineTrack selectedTrack = DirectorServices.get().uiSelection().getSelectedTrack();
-        UUID actorIdFromSelectedTrack = resolveActorIdFromTrack(selectedTrack);
-        if (actorIdFromSelectedTrack != null) {
-            return actorIdFromSelectedTrack;
-        }
-
-        Object payload = DirectorServices.get().uiSelection().getSelectionPayload();
-        if (payload instanceof TimelineTrack payloadTrack) {
-            UUID actorIdFromPayloadTrack = resolveActorIdFromTrack(payloadTrack);
-            if (actorIdFromPayloadTrack != null) {
-                return actorIdFromPayloadTrack;
-            }
-        }
-
-        if (!(payload instanceof EntityClip) && clip == null) {
-            return null;
-        }
-
-        EntityClip targetClip = payload instanceof EntityClip entityClip ? entityClip : clip;
-
-        var model = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (model == null) {
-            return null;
-        }
-
-        for (TimelineTrack track : model.getTracks()) {
-            UUID actorId = resolveActorIdFromTrack(track);
-            if (actorId == null) {
-                continue;
-            }
-            ActorTrack actorTrack = track.getActorTrackPayload();
-            if (actorTrack == null) {
-                continue;
-            }
-            for (EntityClip entityClip : actorTrack.getClips()) {
-                if (entityClip == targetClip || entityClip.getId().equals(targetClip.getId())) {
-                    return actorId;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private UUID resolveActorIdFromTrack(TimelineTrack selectedTrack) {
-        if (selectedTrack == null || selectedTrack.getType() != TrackType.ACTOR) {
-            return null;
-        }
-        ActorTrack actorTrack = selectedTrack.getActorTrackPayload();
-        if (actorTrack == null) {
-            return null;
-        }
-        ActorRef actorRef = actorTrack.getActorRef();
-        return actorRef != null ? actorRef.getActorId() : null;
+        gesture.end();
+        return false;
     }
 
     private static String buildActorLabel(Actor actor) {

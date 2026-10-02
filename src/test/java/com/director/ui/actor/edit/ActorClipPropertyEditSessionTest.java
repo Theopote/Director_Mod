@@ -1,0 +1,117 @@
+package com.director.ui.actor.edit;
+
+import com.director.actor.*;
+import com.director.actor.Actor;
+import com.director.timeline.model.*;
+import com.director.timeline.model.entity.*;
+import com.director.ui.timeline.commands.*;
+import org.joml.Vector3f;
+import org.junit.jupiter.api.*;
+import java.util.UUID;
+import static org.junit.jupiter.api.Assertions.*;
+
+class ActorClipPropertyEditSessionTest {
+    TimelineModel model; TimelineTrack track; TimelineCommandHistory history;
+    @BeforeEach void setup() {
+        ActorRegistryManager.setRegistry(null); ActorRegistryManager.setRegistry(new ActorRegistry());
+        var actor = new Actor("Player", ActorType.PLAYER); ActorRegistryManager.getInstance().registerActor(actor);
+        model = new TimelineModel(new TimelineViewportState()); model.setCurrentTime(5);
+        track = new TimelineTrack("Actor", TrackType.ACTOR); var payload = new ActorTrack();
+        payload.setActorRef(new ActorRef(actor.getActorId())); track.setActorTrackPayload(payload); model.addTrack(track);
+        history = new TimelineCommandHistory(); TimelineCommandBridge.bind(history);
+    }
+    @AfterEach void cleanup() { TimelineCommandBridge.bind(null); ActorRegistryManager.setRegistry(null); }
+    void attach(EntityClip clip) { track.getActorTrackPayload().addClip(clip); track.addClip(new EntityTimelineClip(clip, 0)); }
+    EntityTransformClip transform() {
+        var clip = new EntityTransformClip("Earlier", 0, 1); clip.setFromPos(1,2,3); clip.setToPos(4,5,6);
+        clip.setPathId("legacy"); clip.setFollowPath(true); attach(clip); return clip;
+    }
+    EntityLookAtClip look() { var clip = new EntityLookAtClip("Look", 0,1); attach(clip); return clip; }
+    @Test void editsExplicitInactiveClipInsteadOfActiveClipAtPlayhead() {
+        var source = transform(); var active = new EntityTransformClip("Active", 4,6); attach(active);
+        var edit = new ActorClipPropertyEditSession(model, source);
+        ((EntityTransformClip) edit.draft()).setToPos(10,20,30); assertTrue(edit.commit());
+        assertEquals(new Vector3f(10,20,30), source.getToPos()); assertEquals(new Vector3f(), active.getToPos());
+        assertEquals(1, history.getUndoSize()); history.undo(); assertEquals(new Vector3f(4,5,6), source.getToPos());
+    }
+    @Test void manyDraftUpdatesCommitOnceAndUndoRetainsWrapperAndMetadata() {
+        var source = transform(); var wrapper = source.getTimelineClip(); var edit = new ActorClipPropertyEditSession(model, source);
+        var draft = (EntityTransformClip) edit.draft();
+        for (int i=0; i<100; i++) draft.setFromPos(i,2,3);
+        assertEquals(1, source.getFromPos().x); assertEquals(0, history.getUndoSize());
+        assertTrue(edit.commit()); assertEquals(1, history.getUndoSize());
+        history.undo(); assertEquals(1, source.getFromPos().x); history.redo(); assertEquals(99, source.getFromPos().x);
+        assertSame(wrapper, source.getTimelineClip()); assertEquals("legacy", source.getPathId()); assertTrue(source.isFollowPath());
+        assertEquals(0, source.getStartTime()); assertEquals(1, source.getEndTime());
+    }
+    @Test void noOpCancelAndReturningToOriginalDoNotCreateHistory() {
+        var source = transform(); assertTrue(new ActorClipPropertyEditSession(model, source).commit());
+        var edit = new ActorClipPropertyEditSession(model, source); ((EntityTransformClip)edit.draft()).getFromPos().set(8);
+        edit.cancel(); assertFalse(edit.commit());
+        edit = new ActorClipPropertyEditSession(model, source); ((EntityTransformClip)edit.draft()).setFromPos(1,2,3);
+        assertTrue(edit.commit()); assertEquals(0, history.getUndoSize());
+    }
+    @Test void invalidCoordinatesScaleAndEmptyEntityTargetRejectAtomically() {
+        var source = transform(); var edit = new ActorClipPropertyEditSession(model, source);
+        ((EntityTransformClip)edit.draft()).setToPos(Float.NaN,0,0); assertThrows(IllegalArgumentException.class, edit::commit);
+        edit = new ActorClipPropertyEditSession(model, source); ((EntityTransformClip)edit.draft()).setToScale(0,1,1);
+        assertThrows(IllegalArgumentException.class, edit::commit); assertEquals(new Vector3f(4,5,6), source.getToPos());
+        var look = look(); edit = new ActorClipPropertyEditSession(model, look);
+        ((EntityLookAtClip)edit.draft()).setMode(EntityLookAtClip.TargetMode.ENTITY_UUID);
+        assertThrows(IllegalArgumentException.class, edit::commit); assertEquals(EntityLookAtClip.TargetMode.CAMERA, look.getMode());
+        assertEquals(0, history.getUndoSize());
+    }
+    @Test void keyedTransformRejectsEndpointEditsWithoutTouchingKeys() {
+        var source = transform(); var key = new EntityClipKeyframe(.5f); key.setDisplayName("Keep"); source.addKeyframe(key);
+        var edit = new ActorClipPropertyEditSession(model, source); ((EntityTransformClip)edit.draft()).setToPos(8,0,0);
+        assertThrows(IllegalArgumentException.class, edit::commit); assertSame(key, source.getKeyframes().getFirst());
+        assertEquals("Keep", key.getDisplayName()); assertEquals(0, history.getUndoSize());
+    }
+    @Test void strengthPreservesEntityTargetAndExistingKeyIdentity() {
+        var source = look(); var target = UUID.randomUUID(); source.setMode(EntityLookAtClip.TargetMode.ENTITY_UUID);
+        source.setTargetEntityUuid(target); var key = new EntityClipKeyframe(.5f); source.addKeyframe(key);
+        var edit = new ActorClipPropertyEditSession(model, source); ((EntityLookAtClip)edit.draft()).setStrength(.3f);
+        assertTrue(edit.commit()); history.undo(); assertEquals(1, source.getStrength()); history.redo();
+        assertEquals(.3f, source.getStrength()); assertEquals(target, source.getTargetEntityUuid());
+        assertEquals(EntityLookAtClip.TargetMode.ENTITY_UUID, source.getMode()); assertSame(key, source.getKeyframes().getFirst());
+    }
+    @Test void assigningEntityTargetIsOneAtomicUndo() {
+        var source = look(); var edit = new ActorClipPropertyEditSession(model, source); var draft = (EntityLookAtClip)edit.draft();
+        var target = UUID.randomUUID(); draft.setMode(EntityLookAtClip.TargetMode.ENTITY_UUID); draft.setTargetEntityUuid(target);
+        assertTrue(edit.commit()); assertEquals(target, source.getTargetEntityUuid());
+        history.undo(); assertNull(source.getTargetEntityUuid()); assertEquals(EntityLookAtClip.TargetMode.CAMERA, source.getMode());
+        history.redo(); assertEquals(target, source.getTargetEntityUuid()); assertEquals(1, history.getUndoSize());
+    }
+    @Test void playheadLockPlaybackMuteAndActorRebindInvalidatePendingEdits() {
+        var source = transform(); var edit = new ActorClipPropertyEditSession(model, source);
+        model.setCurrentTime(6); assertFalse(edit.commit()); model.setCurrentTime(5);
+        edit = new ActorClipPropertyEditSession(model, source); track.setLocked(true); assertFalse(edit.commit()); track.setLocked(false);
+        edit = new ActorClipPropertyEditSession(model, source); model.setPlaying(true); assertFalse(edit.commit()); model.setPlaying(false);
+        edit = new ActorClipPropertyEditSession(model, source); source.setMuted(true); assertFalse(edit.commit()); source.setMuted(false);
+        edit = new ActorClipPropertyEditSession(model, source); track.getActorTrackPayload().setActorRef(new ActorRef(UUID.randomUUID()));
+        assertFalse(edit.commit()); assertEquals(0, history.getUndoSize());
+    }
+    @Test void sourceCommonAndKeyMetadataChangesInvalidateDraft() {
+        var source = look(); var key = new EntityClipKeyframe(.5f); source.addKeyframe(key);
+        var edit = new ActorClipPropertyEditSession(model, source); key.setActionSpeed(1.5f); assertFalse(edit.commit());
+        edit = new ActorClipPropertyEditSession(model, source); source.setWeight(.5f); assertFalse(edit.commit());
+        edit = new ActorClipPropertyEditSession(model, source); source.setName("Renamed"); assertFalse(edit.commit());
+        assertEquals(0, history.getUndoSize());
+    }
+    @Test void removalPayloadAndWrapperReplacementInvalidateBinding() {
+        var source = transform(); var edit = new ActorClipPropertyEditSession(model, source);
+        track.removeClip(source.getTimelineClip()); assertFalse(edit.commit());
+        source = transform(); edit = new ActorClipPropertyEditSession(model, source);
+        new EntityTimelineClip(source, 0); assertFalse(edit.commit());
+        source = transform(); edit = new ActorClipPropertyEditSession(model, source);
+        track.setActorTrackPayload(new ActorTrack()); assertFalse(edit.commit());
+    }
+    @Test void undoAndRedoCheckSourceAndKeepHistoryOnFailure() {
+        var source = transform(); var edit = new ActorClipPropertyEditSession(model, source);
+        ((EntityTransformClip)edit.draft()).setToPos(10,20,30); assertTrue(edit.commit());
+        source.setToPos(99,20,30); assertThrows(IllegalArgumentException.class, history::undo); assertEquals(1, history.getUndoSize());
+        source.setToPos(10,20,30); model.setCurrentTime(8); history.undo();
+        track.setLocked(true); assertThrows(IllegalArgumentException.class, history::redo); assertEquals(1, history.getRedoSize());
+        track.setLocked(false); history.redo(); assertEquals(10, source.getToPos().x);
+    }
+}
