@@ -9,12 +9,18 @@ import java.util.function.BiFunction;
 /** Resolves relation placement against samples at one explicit time, never preview entities. */
 public final class ActorRelationTimeResolver {
     private ActorRelationTimeResolver() {}
+    @FunctionalInterface public interface PlacementConstraint {
+        org.joml.Vector3f project(UUID actor,float time,EntitySample sample,org.joml.Vector3f requested);
+    }
     public static void resolveInto(UUID actor, EntitySample sample, float time, BiFunction<UUID,Float,EntitySample> source) {
+        resolveInto(actor,sample,time,source,(id,at,value,requested)->requested);
+    }
+    public static void resolveInto(UUID actor, EntitySample sample, float time, BiFunction<UUID,Float,EntitySample> source,PlacementConstraint constraint) {
         if (actor==null || sample==null || !Float.isFinite(time)) return;
-        try { resolve(actor,sample,time,source,new HashSet<>()); }
+        try { resolve(actor,sample,time,source,constraint,new HashSet<>()); }
         catch (Cycle ignored) { /* A legacy cyclic chain falls back to the actor's own track placement. */ }
     }
-    private static void resolve(UUID actor,EntitySample sample,float time,BiFunction<UUID,Float,EntitySample> source,Set<UUID> visiting) {
+    private static void resolve(UUID actor,EntitySample sample,float time,BiFunction<UUID,Float,EntitySample> source,PlacementConstraint constraint,Set<UUID> visiting) {
         if (!visiting.add(actor) || visiting.size()>128) throw new Cycle();
         try {
             if (!sample.relationEnabled || sample.relationTargetActorId==null || sample.relationType==null) return;
@@ -24,13 +30,16 @@ public final class ActorRelationTimeResolver {
             if (!ActorBehaviorCapabilities.supportsRelation(type) || !Float.isFinite(sample.relationDistance) || sample.relationDistance < .1f
                     || !Float.isFinite(sample.relationAngle) || !Float.isFinite(sample.relationHeightOffset)) return;
             var target=source.apply(sample.relationTargetActorId,time);
-            if (target==null || !target.active || !target.position.isFinite() || !target.rotation.isFinite()) return;
-            resolve(sample.relationTargetActorId,target,time,source,visiting);
+            if (target==null || !target.active || target.visibility<=.01f || !target.position.isFinite() || !target.rotation.isFinite()) return;
+            resolve(sample.relationTargetActorId,target,time,source,constraint,visiting);
+            if (target.visibility<=.01f) { sample.visibility=0; sample.speed=0; return; }
             float yaw=worldLookYaw(target);
             double radians=Math.toRadians(yaw+sample.relationAngle);
             var position=new org.joml.Vector3f(target.position.x-(float)Math.sin(radians)*sample.relationDistance,
                     target.position.y+sample.relationHeightOffset,target.position.z+(float)Math.cos(radians)*sample.relationDistance);
             if (!position.isFinite()) return;
+            position=constraint.project(actor,time,sample,position);
+            if (position==null || !position.isFinite()) { sample.visibility=0; sample.speed=0; return; }
             sample.position.set(position);
             if (sample.relationMaintainLookAt && type!=ActorRelationClip.RelationType.RELATIVE_POSITION) {
                 sample.lookAtEnabled=true; sample.lookAtMode="WORLD_POINT";

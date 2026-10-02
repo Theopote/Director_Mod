@@ -2185,5 +2185,6 @@
   "gui.director.actor.prop_event.pose_FIXED": "固定展示（默认）",
   "gui.director.actor.prop_event.pose_HAND": "原版握持模型",
   "gui.director.actor.prop_event.scale_hint": "尺寸倍率范围 0.01–10；方块基准为半格，倍率 2 为一格。物品握持模式使用模型的手部设置，副手使用左手设置；不自动摆臂。",
-  "gui.director.actor.prop_event.reset_visual": "重置尺寸与朝向"
+  "gui.director.actor.prop_event.reset_visual": "重置尺寸与朝向",
+  "gui.director.actor.behavior.relation_ground_hint": "当前演员的关系位置按地面投影，沿自身轨道位置到目标位置直线检测。遇到障碍停在可达位置；无安全起点时隐藏预览。高度偏移不会形成飞行；单次检测最多 64 格，不自动绕路。"
 }

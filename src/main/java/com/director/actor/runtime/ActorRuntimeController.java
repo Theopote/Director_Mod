@@ -188,9 +188,6 @@ public final class ActorRuntimeController {
         // 清理已删除的轨道
         pruneDeadTracks();
 
-        // Create current-time preview hosts before relation sampling needs their terrain dimensions.
-        for (TrackRuntime rt : runtimes.values()) rt.preparePreview(time);
-
         // 更新每条轨道的运行时
         for (TrackRuntime rt : runtimes.values()) {
             rt.update(time);
@@ -293,7 +290,8 @@ public final class ActorRuntimeController {
         private com.director.actor.path.GroundRoute groundRoute;
         private com.director.timeline.model.entity.ActorRouteClip groundClip;
         private long groundRevision = -1;
-        private Entity groundEntity;
+        private net.minecraft.world.World groundWorld;
+        private com.director.actor.path.ActorCollisionDimensions groundDimensions;
 
         /**
          * 构造函数
@@ -315,16 +313,6 @@ public final class ActorRuntimeController {
          *
          * @param time 当前时间（秒）
          */
-        void preparePreview(float time) {
-            if (ownerTrack.isMuted() || actorTrack.getActorRef()==null) return;
-            var definition=actorRegistry.resolve(actorTrack.getActorRef()).orElse(null);
-            if (definition==null) return;
-            if (spawned && actor==definition && ActorPreviewManager.getInstance().hasPreview(definition.getActorId())) return;
-            actor=definition;
-            var sample=new EntityClipSampler(actorTrack).sampleAt(time);
-            if (sample!=null) handleSpawnLifecycle(sample);
-        }
-
         void update(float time) {
             if (ownerTrack.isMuted()) return;
             // 1️⃣ 解析 Actor
@@ -379,8 +367,8 @@ public final class ActorRuntimeController {
                         }
                     }
 
-                    applyGroundRoute(entity, sample, time);
-                    ActorRelationTimeResolver.resolveInto(actor.getActorId(),sample,time,this::sampleRelationTarget);
+                    applyGroundRoute(actor.getActorId(), sample, time);
+                    ActorRelationTimeResolver.resolveInto(actor.getActorId(),sample,time,this::sampleRelationTarget,this::constrainRelationPlacement);
                     applySample(entity, sample, lastSample, deltaTime);
                     
                     // 5️⃣ 将 ActorRuntime 传递给 PreviewEntity（供 Renderer 使用）
@@ -409,6 +397,17 @@ public final class ActorRuntimeController {
             lastTime = time;
         }
 
+        private org.joml.Vector3f constrainRelationPlacement(UUID id,float time,EntitySample sample,org.joml.Vector3f requested) {
+            var terrain=terrainFor(id,sample);
+            if (terrain==null) return null;
+            var result=com.director.actor.path.ActorRelationGroundConstraint.project(
+                    new Vec3d(sample.position.x,sample.position.y,sample.position.z),
+                    new Vec3d(requested.x,requested.y,requested.z),terrain);
+            if (!result.warning().isEmpty()) { sample.speed=0; EntityClipSampler.resolveAutoAction(sample); }
+            if (result.position()==null) return null;
+            var point=result.position(); return new org.joml.Vector3f((float)point.x,(float)point.y,(float)point.z);
+        }
+
         private EntitySample sampleRelationTarget(UUID id, Float time) {
             if (actorRegistry.getActor(id).isEmpty()) return null;
             // Timeline order chooses the binding; runtime-map iteration must not choose it.
@@ -417,8 +416,7 @@ public final class ActorRuntimeController {
                 if (track.isMuted() || payload==null || payload.getActorRef()==null || !id.equals(payload.getActorRef().getActorId())) continue;
                 var target=new EntityClipSampler(payload).sampleAt(time);
                 var runtime=runtimes.get(track);
-                var preview=ActorPreviewManager.getInstance().getPreview(id);
-                if (target!=null && runtime!=null && preview!=null) runtime.applyGroundRoute(preview,target,time);
+                if (target!=null && runtime!=null) runtime.applyGroundRoute(id,target,time);
                 return target;
             }
             return null;
@@ -429,8 +427,9 @@ public final class ActorRuntimeController {
             var at = new EntityClipSampler(actorTrack).sampleAt(time);
             var rig = com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElse(null);
             if (at == null || rig == null || !com.director.actor.ActorBehaviorCapabilities.supportsLegacyPose(actor)) return null;
-            applyGroundRoute(entity,at,time);
-            ActorRelationTimeResolver.resolveInto(actor.getActorId(),at,time,this::sampleRelationTarget);
+            applyGroundRoute(actor.getActorId(),at,time);
+            ActorRelationTimeResolver.resolveInto(actor.getActorId(),at,time,this::sampleRelationTarget,this::constrainRelationPlacement);
+            if (at.visibility<=.01f) return null;
             ActorRelationTimeResolver.applyWorldLookRotation(at);
             var base = actor.getRigProfile().sampleAt(actorRuntime,at.action == null ? ActorActionType.IDLE : at.action,
                     at.actionIntensity,at.actionLocalTime).pose;
@@ -451,18 +450,31 @@ public final class ActorRuntimeController {
             return socket.orElse(null);
         }
 
-        private void applyGroundRoute(Entity entity, EntitySample sample, float time) {
+        private com.director.actor.path.ActorGroundTerrain terrainFor(UUID id,EntitySample sample) {
+            var client=net.minecraft.client.MinecraftClient.getInstance();
+            var definition=actorRegistry.getActor(id).orElse(null);
+            if(client==null || client.world==null || definition==null) return null;
+            try {
+                return new com.director.actor.path.ActorGroundTerrain(client.world,
+                        com.director.actor.path.ActorCollisionDimensions.forActor(definition,sample.scale));
+            } catch(IllegalArgumentException invalid) { return null; }
+        }
+
+        private void applyGroundRoute(UUID id, EntitySample sample, float time) {
             var clip = sample.routeClip;
             if (clip == null) return;
-            var terrain = new com.director.actor.path.ActorGroundTerrain(entity);
+            var terrain=terrainFor(id,sample);
+            if(terrain==null) { sample.visibility=0; sample.speed=0; EntityClipSampler.resolveAutoAction(sample); return; }
+            var world=net.minecraft.client.MinecraftClient.getInstance().world;
+            var dimensions=com.director.actor.path.ActorCollisionDimensions.forActor(actorRegistry.getActor(id).orElseThrow(),sample.scale);
             if (groundRoute == null || groundClip != clip || groundRevision != clip.getTerrainRevision()
-                    || groundEntity != entity) {
+                    || groundWorld != world || !dimensions.equals(groundDimensions)) {
                 groundRoute = com.director.actor.path.GroundRoute.compile(
                         com.director.timeline.playback.entity.ActorRouteSampler.sampleCurvePositions(
                                 clip.getWaypoints(), clip.getInterpolationMode()), terrain);
                 groundClip = clip;
                 groundRevision = clip.getTerrainRevision();
-                groundEntity = entity;
+                groundWorld=world; groundDimensions=dimensions;
             }
             clip.setTerrainWarning(groundRoute.warning());
             if (!groundRoute.valid()) {

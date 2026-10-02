@@ -2185,5 +2185,6 @@
   "gui.director.actor.prop_event.pose_FIXED": "Fixed display (default)",
   "gui.director.actor.prop_event.pose_HAND": "Vanilla hand pose",
   "gui.director.actor.prop_event.scale_hint": "Size range: 0.01–10. Blocks start at half a block; 2 makes one block. Hand pose uses the model’s hand settings, with left-hand settings for offhand; it does not pose the arms.",
-  "gui.director.actor.prop_event.reset_visual": "Reset size and orientation"
+  "gui.director.actor.prop_event.reset_visual": "Reset size and orientation",
+  "gui.director.actor.behavior.relation_ground_hint": "Relation placement projects onto ground and checks a straight segment from the actor’s track position. Obstacles stop it at a reachable point; an unsafe start hides preview. Height offsets do not create flight. Detection is limited to 64 blocks without pathfinding."
 }

@@ -44,4 +44,14 @@ class ActorRelationTimeResolverTest {
     @Test void nonFiniteRelationValuesCannotPoisonPosition() {
         var s=follower(b); s.relationDistance=Float.NaN; ActorRelationTimeResolver.resolveInto(a,s,1,(id,t)->base(0,0)); assertTrue(s.position.isFinite()); assertEquals(10,s.position.x);
     }
+    @Test void placementConstraintIsAppliedInsideTargetChain() {
+        var s=follower(b);
+        ActorRelationTimeResolver.resolveInto(a,s,3,(id,t)->id.equals(b)?follower(c):base(3,0),
+                (id,t,value,requested)->new Vector3f(requested.x,1,requested.z));
+        assertEquals(new Vector3f(3,1,4),s.position);
+    }
+    @Test void unsafePlacementHidesSourceAndPreventsFloatingPreview() {
+        var s=follower(b); ActorRelationTimeResolver.resolveInto(a,s,1,(id,t)->base(0,0),(id,t,value,requested)->null);
+        assertEquals(0,s.visibility); assertEquals(0,s.speed); assertEquals(10,s.position.x);
+    }
 }

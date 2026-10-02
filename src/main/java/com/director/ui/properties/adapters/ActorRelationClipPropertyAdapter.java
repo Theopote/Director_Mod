@@ -68,6 +68,7 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
                 ImGui.endCombo();
             }
             ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.behavior.relation_runtime_hint"));
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.behavior.relation_ground_hint"));
 
             ActorRelationClip.RelationType relationType = clip.getRelationType();
             boolean showDistance = relationType == ActorRelationClip.RelationType.FACE_TO_FACE
