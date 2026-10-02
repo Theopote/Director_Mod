@@ -2176,5 +2176,8 @@
   "gui.director.actor.despawn_edit.mode": "离场方式",
   "gui.director.actor.despawn_edit.HIDE": "隐藏",
   "gui.director.actor.despawn_edit.REMOVE": "移除",
-  "gui.director.actor.despawn_edit.hint": "离场在片段结束附近生效：隐藏仅关闭可见性，移除将演员设为未激活。"
+  "gui.director.actor.despawn_edit.hint": "离场在片段结束附近生效：隐藏仅关闭可见性，移除将演员设为未激活。",
+  "gui.director.actor.pose_edit.sampling_hint": "此处编辑片段目标姿态：首个姿态保持目标，后续片段从前一个姿态过渡；启用部位会覆盖该部位的基础动作与动画结果。",
+  "gui.director.actor.pose_edit.unsupported": "此面板需要兼容的标准人形骨架。当前演员请使用自身部位关键帧或过程化动作；旧姿态数据保留。",
+  "gui.director.actor.pose_edit.keys_hint": "此片段包含通用实体关键帧，但姿态采样不读取它们；本面板仅修改目标姿态，保留这些关键帧。"
 }

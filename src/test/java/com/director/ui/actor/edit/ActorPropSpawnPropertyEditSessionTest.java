@@ -43,14 +43,14 @@ class ActorPropSpawnPropertyEditSessionTest {
         ((EntitySpawnClip)edit.draft()).setPosition(Float.NaN,0,0); assertThrows(IllegalArgumentException.class,edit::commit);
         edit = new ActorClipPropertyEditSession(model,source); ((EntitySpawnClip)edit.draft()).setPitchDeg(100);
         assertThrows(IllegalArgumentException.class,edit::commit);
-        edit = new ActorClipPropertyEditSession(model,source); ((EntitySpawnClip)edit.draft()).setTimeRange(1,Float.POSITIVE_INFINITY);
+        edit = new ActorClipPropertyEditSession(model,source); edit.draft().setTimeRange(1,Float.POSITIVE_INFINITY);
         assertThrows(IllegalArgumentException.class,edit::commit); assertEquals(3,source.getEndTime()); assertEquals(0,history.getUndoSize());
     }
     @Test void spawnRangeConflictIsAtomicAndRedoRechecksIt() {
-        var source = spawn(); var edit = new ActorClipPropertyEditSession(model,source); ((EntitySpawnClip)edit.draft()).setTimeRange(1,5);
+        var source = spawn(); var edit = new ActorClipPropertyEditSession(model,source); edit.draft().setTimeRange(1,5);
         assertTrue(edit.commit()); history.undo(); attach(new EntitySpawnClip("Later",4,6));
         assertThrows(IllegalArgumentException.class,history::redo); assertEquals(3,source.getEndTime()); assertEquals(1,history.getRedoSize());
-        edit = new ActorClipPropertyEditSession(model,source); ((EntitySpawnClip)edit.draft()).setTimeRange(1,5);
+        edit = new ActorClipPropertyEditSession(model,source); edit.draft().setTimeRange(1,5);
         assertThrows(IllegalArgumentException.class,edit::commit);
     }
     @Test void shortSpawnAndNoOpPreserveKeyIdentity() {

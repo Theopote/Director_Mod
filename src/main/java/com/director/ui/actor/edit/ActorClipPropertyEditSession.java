@@ -97,6 +97,31 @@ public final class ActorClipPropertyEditSession {
         public void apply(EntityClip clip) { ((EntityDespawnClip) clip).setMode(mode); }
         public void validate() { if (mode == null) throw new IllegalArgumentException("请选择离场方式"); }
     }
+    private record PoseState(List<Boolean> overrides, List<Float> angles) implements State {
+        public void apply(EntityClip clip) {
+            var c = (ActorPoseClip) clip;
+            c.setOverrideBody(overrides.get(0));
+            c.setOverrideHead(overrides.get(1));
+            c.setOverrideArms(overrides.get(2));
+            c.setOverrideLegs(overrides.get(3));
+            c.setBodyPitch(angles.get(0));
+            c.setBodyYaw(angles.get(1));
+            c.setBodyRoll(angles.get(2));
+            c.setHeadPitch(angles.get(3));
+            c.setHeadYaw(angles.get(4));
+            c.setLeftArmPitch(angles.get(5));
+            c.setLeftArmYaw(angles.get(6));
+            c.setLeftArmRoll(angles.get(7));
+            c.setRightArmPitch(angles.get(8));
+            c.setRightArmYaw(angles.get(9));
+            c.setRightArmRoll(angles.get(10));
+            c.setLeftLegPitch(angles.get(11));
+            c.setRightLegPitch(angles.get(12));
+        }
+        public void validate() {
+            if (angles.stream().anyMatch(v -> !Float.isFinite(v))) throw new IllegalArgumentException("姿态角度必须是有限数值");
+        }
+    }
     private record Key(EntityClipKeyframe identity, float time, TimelineInterpolation interpolation,
                        Vector3f position, Vector3f rotation, Vector3f scale, EntityKeyframe.ActionType action,
                        float speed, boolean loop, float visibility, boolean active, String name,
@@ -141,6 +166,7 @@ public final class ActorClipPropertyEditSession {
         else if (source instanceof ActorRelationClip) draft = new ActorRelationClip(source.getName(), common.start, common.end);
         else if (source instanceof EntityActionClip) draft = new EntityActionClip(source.getName(), common.start, common.end);
         else if (source instanceof EntitySpawnClip) draft = new EntitySpawnClip(source.getName(), common.start, common.end);
+        else if (source instanceof ActorPoseClip) draft = new ActorPoseClip(source.getName(), common.start, common.end);
         else if (source instanceof EntityStateClip) draft = new EntityStateClip(source.getName(), common.start, common.end);
         else if (source instanceof EntityDespawnClip) draft = new EntityDespawnClip(source.getName(), common.start, common.end);
         else throw new IllegalArgumentException("不支持此片段类型");
@@ -197,12 +223,17 @@ public final class ActorClipPropertyEditSession {
         if (clip instanceof ActorRelationClip c) return new Relation(c.getTargetActorId(), c.getRelationType(), c.getDistance(), c.getAngle(), c.getHeightOffset(), c.isMaintainLookAt());
         if (clip instanceof EntityActionClip c) return new Event(c.getActionType(),c.isTriggerOnce(),PropEventParameters.copy(c.getParams(),true));
         if (clip instanceof EntitySpawnClip c) return new Spawn(new Vector3f(c.getPosition()),c.getYawDeg(),c.getPitchDeg(),c.isVisibleOnSpawn(),c.getStartTime(),c.getEndTime());
+        if (clip instanceof ActorPoseClip c) return new PoseState(List.of(c.isOverrideBody(),c.isOverrideHead(),c.isOverrideArms(),c.isOverrideLegs()),
+                List.of(c.getBodyPitch(),c.getBodyYaw(),c.getBodyRoll(),c.getHeadPitch(),c.getHeadYaw(),c.getLeftArmPitch(),c.getLeftArmYaw(),c.getLeftArmRoll(),c.getRightArmPitch(),c.getRightArmYaw(),c.getRightArmRoll(),c.getLeftLegPitch(),c.getRightLegPitch()));
         if (clip instanceof EntityStateClip c) return new Status(c.isSneaking(),c.isSprinting(),c.isGlowing(),c.isInvulnerable(),c.getVisibility());
         if (clip instanceof EntityDespawnClip c) return new Despawn(c.getMode());
         throw new IllegalArgumentException("不支持此片段类型");
     }
     private void validateBehavior(State next, State expected, boolean forward) {
-        if (next instanceof Action a) {
+        if (next instanceof PoseState) {
+            if (forward && !ActorBehaviorCapabilities.supportsLegacyPose(ActorRegistryManager.getInstance().getActor(actor).orElse(null)))
+                throw new IllegalArgumentException("此姿态片段需要标准人形骨骼绑定");
+        } else if (next instanceof Action a) {
             if (forward && !ActorBehaviorCapabilities.supportsAction(ActorRegistryManager.getInstance().getActor(actor).orElse(null), a.type))
                 throw new IllegalArgumentException("当前演员不支持此动作，请选择可用动作");
             var old = (Action) expected;

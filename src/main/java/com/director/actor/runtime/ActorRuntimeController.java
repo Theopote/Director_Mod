@@ -660,7 +660,8 @@ public final class ActorRuntimeController {
         }
 
         private void applyPoseOverrides(Pose pose, EntitySample s) {
-            if (pose == null || s == null || !s.poseOverrideEnabled) {
+            if (pose == null || s == null || !s.poseOverrideEnabled
+                    || !com.director.actor.ActorBehaviorCapabilities.supportsLegacyPose(actor)) {
                 return;
             }
             if (s.poseOverrideBody) {
@@ -703,7 +704,9 @@ public final class ActorRuntimeController {
         }
 
         private void applyRigPoseOverrides(com.director.actor.rig.skeleton.RigPose pose, EntitySample s) {
-            if (pose == null || s == null || !s.poseOverrideEnabled) return;
+            if (pose == null || s == null || !s.poseOverrideEnabled
+                    || !com.director.actor.ActorBehaviorCapabilities.supportsLegacyPose(actor)
+                    || !com.director.actor.rig.skeleton.HumanoidTopology.matches(pose.rig())) return;
             if (s.poseOverrideBody) setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.BODY,
                     s.poseBodyPitch, s.poseBodyYaw, s.poseBodyRoll);
             if (s.poseOverrideHead) setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.HEAD,
