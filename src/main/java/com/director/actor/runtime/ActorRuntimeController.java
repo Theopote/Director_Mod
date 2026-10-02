@@ -377,8 +377,8 @@ public final class ActorRuntimeController {
                     // 6️⃣ 更新 Prop Runtime（每帧更新道具 Transform） */
                     ActorPropRuntime propRuntime = getOrCreatePropRuntime(actor);
                     propRuntime.setActorEntity(entity);
-                    var propState = com.director.actor.prop.ActorPropTimelineSampler.sampleSockets(actorTrack,time,
-                            (eventTime,slot,attachment) -> samplePropLaunchOrigin(entity,eventTime,slot,attachment));
+                    var propState = com.director.actor.prop.ActorPropTimelineSampler.sampleTransforms(actorTrack,time,
+                            (eventTime,slot,attachment) -> samplePropLaunchTransform(entity,eventTime,slot,attachment));
                     propRuntime.sync(propState);
                     propRuntime.setHeldVisible(sample.visibility > .01f);
                     if (propRuntime != null) {
@@ -395,7 +395,7 @@ public final class ActorRuntimeController {
             lastTime = time;
         }
 
-        private Vec3d samplePropLaunchOrigin(Entity entity, float time, ActorPropSlot slot,
+        private org.joml.Matrix4f samplePropLaunchTransform(Entity entity, float time, ActorPropSlot slot,
                 com.director.actor.prop.ActorPropTimelineSampler.Attachment attachment) {
             var at = new EntityClipSampler(actorTrack).sampleAt(time);
             var rig = com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElse(null);
@@ -417,9 +417,7 @@ public final class ActorRuntimeController {
             var socket = com.director.actor.prop.ActorPropSocketResolver.resolve(pose,world,slot,
                     new org.joml.Vector3f(attachment.x(),attachment.y(),attachment.z()),
                     new org.joml.Vector3f(attachment.rx(),attachment.ry(),attachment.rz()));
-            if (socket.isEmpty()) return null;
-            var position=socket.get().getTranslation(new org.joml.Vector3f());
-            return new Vec3d(position.x,position.y,position.z);
+            return socket.orElse(null);
         }
 
         private void applyGroundRoute(Entity entity, EntitySample sample, float time) {
@@ -756,6 +754,10 @@ public final class ActorRuntimeController {
             org.joml.Vector3f offset = pose.localTransform(
                     com.director.actor.rig.skeleton.HumanoidRig.ROOT).translation();
             if (offset.lengthSquared() <= 1.0e-10f) return;
+            var scale = entity instanceof com.director.actor.preview.PreviewActorEntity preview
+                    ? preview.getActorTransformScale() : new org.joml.Vector3f(1);
+            offset = new org.joml.Matrix4f().rotateY((float)Math.toRadians(-entity.getYaw())).scale(scale)
+                    .transformDirection(offset);
             entity.refreshPositionAndAngles(
                     entity.getX() + offset.x,
                     entity.getY() + offset.y,

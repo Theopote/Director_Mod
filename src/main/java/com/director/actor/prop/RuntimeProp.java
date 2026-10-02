@@ -166,6 +166,14 @@ public final class RuntimeProp {
      *
      * @param pos 世界位置
      */
+    /** Preserve launch orientation/scale/shear, replacing only position while in flight. */
+    public void setWorldMatrix(org.joml.Matrix4f matrix) {
+        if (matrix==null || !matrix.isFinite()) throw new IllegalArgumentException("Invalid prop world matrix");
+        worldTransform=new org.joml.Matrix4f(matrix);
+        var position=matrix.getTranslation(new Vector3f());
+        worldPosition=new Vec3d(position.x,position.y,position.z); boundToActor=false;
+    }
+
     public void setWorldTransform(Vec3d pos) {
         this.worldPosition = pos;
         this.boundToActor = false;

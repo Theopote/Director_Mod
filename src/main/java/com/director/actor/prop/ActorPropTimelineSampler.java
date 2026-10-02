@@ -18,7 +18,10 @@ public final class ActorPropTimelineSampler {
             prop.setVisualScale(scale); prop.setItemPose(itemPose); return prop;
         }
     }
-    public record Flight(String id, ActorPropSlot slot, Attachment attachment, Vec3d position) {}
+    public record Flight(String id, ActorPropSlot slot, Attachment attachment, Vec3d position, org.joml.Matrix4f transform) {
+        public Flight { transform = new org.joml.Matrix4f(transform); }
+        @Override public org.joml.Matrix4f transform() { return new org.joml.Matrix4f(transform); }
+    }
     public record Snapshot(Map<ActorPropSlot,Attachment> held, List<Flight> flights) {}
     private record Event(String id, float time, EntityActionEvent action) {}
     private ActorPropTimelineSampler() {}
@@ -31,7 +34,17 @@ public final class ActorPropTimelineSampler {
             return origin==null?null:origin.add(attachment.x,attachment.y,attachment.z);
         });
     }
+    @FunctionalInterface public interface LaunchTransform {
+        org.joml.Matrix4f resolve(float time, ActorPropSlot slot, Attachment attachment);
+    }
     public static Snapshot sampleSockets(ActorTrack track, float time, LaunchOrigin launchOrigin) {
+        return sampleTransforms(track,time,(at,slot,attachment) -> {
+            var origin=launchOrigin.resolve(at,slot,attachment);
+            return origin==null?null:new org.joml.Matrix4f().translate((float)origin.x,(float)origin.y,(float)origin.z)
+                    .rotateXYZ((float)Math.toRadians(attachment.rx),(float)Math.toRadians(attachment.ry),(float)Math.toRadians(attachment.rz));
+        });
+    }
+    public static Snapshot sampleTransforms(ActorTrack track, float time, LaunchTransform launchTransform) {
         if (!Float.isFinite(time) || time < 0) return new Snapshot(Map.of(),List.of());
         var events = new ArrayList<Event>();
         for (var clip : track.getClips()) {
@@ -75,12 +88,15 @@ public final class ActorPropTimelineSampler {
                     if (attachment==null) continue;
                     float duration=value(params,"flightTime",1), age=time-event.time;
                     if (age>=duration) continue;
-                    Vec3d origin=launchOrigin.resolve(event.time,slot,attachment);
-                    if (origin==null) continue;
+                    var launch=launchTransform.resolve(event.time,slot,attachment);
+                    if (launch==null || !launch.isFinite()) continue;
+                    var start=launch.getTranslation(new org.joml.Vector3f());
+                    Vec3d origin=new Vec3d(start.x,start.y,start.z);
                     var target=new Vec3d(PropEventParameters.number(params,"targetX"),PropEventParameters.number(params,"targetY"),PropEventParameters.number(params,"targetZ"));
                     double progress=age/duration;
                     var position=origin.lerp(target,progress).add(0,Math.sin(progress*Math.PI)*value(params,"arcHeight",1.5f),0);
-                    flights.add(new Flight(event.id,slot,attachment,position));
+                    var transform=new org.joml.Matrix4f(launch).setTranslation((float)position.x,(float)position.y,(float)position.z);
+                    flights.add(new Flight(event.id,slot,attachment,position,transform));
                 }
                 default -> {}
             }

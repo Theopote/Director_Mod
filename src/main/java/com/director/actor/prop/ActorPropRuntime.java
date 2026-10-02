@@ -62,7 +62,7 @@ public final class ActorPropRuntime {
                 flightAttachments.put(flight.id(),flight.attachment());
             }
             prop.setSlot(flight.slot());
-            prop.setWorldTransform(flight.position());
+            prop.setWorldMatrix(flight.transform());
         }
         for (var id : new ArrayList<>(sampledFlights.keySet())) if (!active.contains(id)) {
             sampledFlights.remove(id).dispose(); flightAttachments.remove(id);
