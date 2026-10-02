@@ -1961,10 +1961,10 @@
   "gui.director.tool.container_cull.tip.1": "Remove blocks from the active container",
   "gui.director.tool.container_cull.tip.2": "Right-click to confirm, ESC to cancel",
 
-  "gui.director.tool.actor_select.name": "Actor Select/Transform",
-  "gui.director.tool.actor_select.desc": "Select an actor; edit position, rotation, scale, and look-at (Gizmo or Properties).",
-  "gui.director.tool.actor_select.tip.1": "Click an actor to select and show the Gizmo",
-  "gui.director.tool.actor_select.tip.2": "G/R/S/T: translate / rotate / scale / look-at; use Properties for exact values",
+  "gui.director.tool.actor_select.name": "Actor object",
+  "gui.director.tool.actor_select.desc": "Select an actor and choose Move, Rotate, Scale, or Look at to edit its transform or target.",
+  "gui.director.tool.actor_select.tip.1": "Click an actor, choose a mode below, then drag its handles",
+  "gui.director.tool.actor_select.tip.2": "G/R/S/T: move/rotate/scale/look at; Esc cancels, release commits",
 
   "gui.director.tool.actor_move.name": "Actor Move",
   "gui.director.tool.actor_move.desc": "Move the selected actor and write a Transform clip.",
@@ -1987,9 +1987,9 @@
   "gui.director.tool.actor_look_at.tip.2": "Click a world point to create or update a LookAt clip",
 
   "gui.director.tool.actor_pose.name": "Actor Pose",
-  "gui.director.tool.actor_pose.desc": "Author semantic pose/action clips for the selected actor.",
-  "gui.director.tool.actor_pose.tip.1": "Author actor pose/action clips",
-  "gui.director.tool.actor_pose.tip.2": "Use Properties to create semantic ActorAction clips",
+  "gui.director.tool.actor_pose.desc": "Select controllable actor parts to edit local poses and animation keyframes.",
+  "gui.director.tool.actor_pose.tip.1": "Click a bone or select a part track to edit that part",
+  "gui.director.tool.actor_pose.tip.2": "Choose the edit target and bone operation in Properties; unsupported channels are unavailable",
 
   "gui.director.tool.actor_path.name": "Actor Route",
   "gui.director.tool.actor_path.desc": "Draw path anchors in the world, save to the path library, and apply to actors.",
@@ -2224,5 +2224,14 @@
   "gui.director.actor.diagnostics.reason.prop_launch": "The launch position or socket is unavailable; the prop cannot be previewed.",
   "gui.director.actor.diagnostics.reason.prop_socket": "The actor rig does not support this prop socket.",
   "gui.director.actor.diagnostics.reason.prop_custom": "Custom prop models cannot be previewed yet.",
-  "gui.director.actor.diagnostics.reason.prop_asset": "The prop item or block resource is missing."
+  "gui.director.actor.diagnostics.reason.prop_asset": "The prop item or block resource is missing.",
+  "gui.director.actor.tools.whole": "Whole actor",
+  "gui.director.actor.tools.move": "Move",
+  "gui.director.actor.tools.rotate": "Rotate",
+  "gui.director.actor.tools.scale": "Scale",
+  "gui.director.actor.tools.look": "Look at",
+  "gui.director.actor.tools.transform_hint": "Click an actor to select it. Press on a handle to drag: axis, plane, or free movement at the center. Choose Rotate for rings. Esc cancels; release commits.",
+  "gui.director.actor.tools.look_hint": "Use the target marker to edit gaze. Use Rotate to turn the whole actor.",
+  "gui.director.actor.tools.rotate_hint": "Drag red/green/blue rings to rotate around X/Y/Z. Use the green Y ring to turn; Pose or Look at edits the head. Esc cancels; release commits.",
+  "gui.director.actor.tools.scale_hint": "Drag an axis cube to scale one axis or a plane to scale two. Drag the center right to enlarge uniformly, left to shrink. Esc cancels; release commits."
 }

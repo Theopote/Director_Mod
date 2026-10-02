@@ -35,8 +35,8 @@ public class GizmoRenderer {
     private static final double BASE_ARROW_HEIGHT = 0.35;       // 基础箭头高度（增大到0.35）
     private static final double BASE_ARROW_RADIUS = 0.15;       // 基础箭头底部半径（增大到0.15）
     private static final double BASE_PIVOT_SIZE = 0.12;         // 基础中心点立方体大小（增大到0.12）
-    private static final double BASE_PLANE_SIZE = 0.8;          // 基础平面手柄大小（增大到0.8）
-    private static final double BASE_CENTER_RADIUS = 0.25;      // 基础中心手柄大小（增大到0.25）
+    private static final double BASE_PLANE_SIZE = com.director.client.gizmo.util.GizmoVisualScale.BASE_PLANE_SIZE;
+    private static final double BASE_CENTER_RADIUS = com.director.client.gizmo.util.GizmoVisualScale.BASE_CENTER_SIZE;
     private static final double MIN_DISTANCE_MULTIPLIER = 8.0;  // 最小距离乘数（调整为8.0）
     private static final double DISTANCE_SCALE_DIVISOR = 15.0;  // 距离缩放除数（调整为15.0，使Gizmo更大）
 
@@ -129,78 +129,70 @@ public class GizmoRenderer {
                 LOGGER.debug("[GizmoRenderer] 🧩 开始渲染: Box={}, Pivot={}, Type={}, Visible={}",
                     box, pivot, context.getType(), context.isActive());
 
-            // === 1️⃣ 绘制 Gizmo 中心点 ===
-            // BOUNDS Gizmo：中心只保留一个简单的立方体（由 renderCenterHandle 负责），避免重复渲染导致视觉杂乱
-            if (context.getType() != GizmoType.BOUNDS) {
+            boolean moveHandles = context.getMode() == GizmoMode.TRANSLATE || context.getMode() == GizmoMode.SCALE;
+            if (moveHandles) {
+                // === 2️⃣ 渲染三轴线条（纯色，使用 VertexConsumerProvider） ===
                 try {
-                    drawPivotCube(posMat, vcp, pivot, pivotSize);
-                    LOGGER.debug("[GizmoRenderer] ✅ 中心点立方体渲染完成");
+                    VertexConsumer lineBuffer = vcp.getBuffer(RenderLayer.getLines());
+
+                    Vec3d xEnd = getAxisEndPoint(pivot, Axis.X, axisLength, cameraPos);
+                    drawLineToBuffer(lineBuffer, posMat, pivot, xEnd, axisColor(Axis.X, time));
+
+                    Vec3d yEnd = getAxisEndPoint(pivot, Axis.Y, axisLength, cameraPos);
+                    drawLineToBuffer(lineBuffer, posMat, pivot, yEnd, axisColor(Axis.Y, time));
+
+                    Vec3d zEnd = getAxisEndPoint(pivot, Axis.Z, axisLength, cameraPos);
+                    drawLineToBuffer(lineBuffer, posMat, pivot, zEnd, axisColor(Axis.Z, time));
+
+                    LOGGER.debug("[GizmoRenderer] ✅ 轴手柄线条渲染完成: 3条轴 (X={}, Y={}, Z={})",
+                            java.util.Arrays.toString(COLOR_X),
+                            java.util.Arrays.toString(COLOR_Y),
+                            java.util.Arrays.toString(COLOR_Z));
                 } catch (Exception e) {
-                    LOGGER.error("[GizmoRenderer] ❌ 渲染中心点立方体失败", e);
+                    LOGGER.error("[GizmoRenderer] ❌ 渲染轴手柄线条失败", e);
                 }
-            }
 
-            // === 2️⃣ 渲染三轴线条（纯色，使用 VertexConsumerProvider） ===
-            try {
-                VertexConsumer lineBuffer = vcp.getBuffer(RenderLayer.getLines());
-
-                Vec3d xEnd = getAxisEndPoint(pivot, Axis.X, axisLength, cameraPos);
-                drawLineToBuffer(lineBuffer, posMat, pivot, xEnd, axisColor(Axis.X, time));
-
-                Vec3d yEnd = getAxisEndPoint(pivot, Axis.Y, axisLength, cameraPos);
-                drawLineToBuffer(lineBuffer, posMat, pivot, yEnd, axisColor(Axis.Y, time));
-
-                Vec3d zEnd = getAxisEndPoint(pivot, Axis.Z, axisLength, cameraPos);
-                drawLineToBuffer(lineBuffer, posMat, pivot, zEnd, axisColor(Axis.Z, time));
-
-                LOGGER.debug("[GizmoRenderer] ✅ 轴手柄线条渲染完成: 3条轴 (X={}, Y={}, Z={})",
-                        java.util.Arrays.toString(COLOR_X),
-                        java.util.Arrays.toString(COLOR_Y),
-                        java.util.Arrays.toString(COLOR_Z));
-            } catch (Exception e) {
-                LOGGER.error("[GizmoRenderer] ❌ 渲染轴手柄线条失败", e);
-            }
-
-            // === 3️⃣ 渲染箭头（纯色三角锥，使用 VertexConsumerProvider） ===
-            try {
-                renderAxisHandlesArrows(posMat, vcp, pivot, axisLength, arrowHeight, arrowRadius, cameraPos, time);
-                LOGGER.debug("[GizmoRenderer] ✅ 轴手柄箭头渲染完成");
-            } catch (Exception e) {
-                LOGGER.error("[GizmoRenderer] ❌ 渲染轴手柄箭头失败", e);
-            }
-
-            // 渲染平面手柄（XY/XZ/YZ 半透明平面）
-            // BOUNDS Gizmo：禁用平面手柄，避免中心出现“多片相交的面”的视觉效果；该 Gizmo 主要用于移动包围盒。
-            if (context.getType() != GizmoType.BOUNDS) {
+                // === 3️⃣ 渲染箭头（纯色三角锥，使用 VertexConsumerProvider） ===
                 try {
-                    renderPlaneHandles(posMat, vcp, pivot, time, planeSize);
-                    LOGGER.debug("[GizmoRenderer] ✅ 平面手柄渲染完成");
+                    renderAxisHandlesArrows(posMat, vcp, pivot, axisLength, arrowHeight, arrowRadius, cameraPos, time);
+                    LOGGER.debug("[GizmoRenderer] ✅ 轴手柄箭头渲染完成");
                 } catch (Exception e) {
-                    LOGGER.error("[GizmoRenderer] ❌ 渲染平面手柄失败", e);
+                    LOGGER.error("[GizmoRenderer] ❌ 渲染轴手柄箭头失败", e);
                 }
+
+                // 渲染平面手柄（XY/XZ/YZ 半透明平面）
+                // BOUNDS Gizmo：禁用平面手柄，避免中心出现“多片相交的面”的视觉效果；该 Gizmo 主要用于移动包围盒。
+                if (context.getType() != GizmoType.BOUNDS) {
+                    try {
+                        renderPlaneHandles(posMat, vcp, pivot, time, planeSize,cameraPos);
+                        LOGGER.debug("[GizmoRenderer] ✅ 平面手柄渲染完成");
+                    } catch (Exception e) {
+                        LOGGER.error("[GizmoRenderer] ❌ 渲染平面手柄失败", e);
+                    }
+                }
+
+                // ✅ v4.8: 角点手柄已移至 SelectionOverlayRenderer，不再在此处渲染
+                // 避免双层角点标记（橙+黄）的问题
+                // 角点标记由 SelectionOverlayRenderer.drawCornerHandles() 在 Ctrl 按下时统一管理
+
+                // 渲染 ResizeHandle（BOUNDS 类型使用新的 ResizeHandle）
+                // 注意：对于框选工具（BoxSelectTool），面手柄由 SelectionOverlayRenderer 统一渲染为白色
+                // 这里不再渲染面手柄，避免重复渲染
+                // 其他工具如果需要 ResizeHandle，可以在这里渲染
+                if (context.getType() == GizmoType.BOUNDS) {
+                    // 框选工具的面手柄由 SelectionOverlayRenderer 渲染，这里跳过
+                    // 如果需要为其他工具渲染 ResizeHandle，可以在这里添加条件判断
+                    // try {
+                    //     renderResizeHandles(posMat, vcp, time);
+                    //     LOGGER.debug("[GizmoRenderer] ✅ ResizeHandle 渲染完成");
+                    // } catch (Exception e) {
+                    //     LOGGER.error("[GizmoRenderer] ❌ 渲染 ResizeHandle 失败", e);
+                    // }
+                }
+
             }
-
-            // ✅ v4.8: 角点手柄已移至 SelectionOverlayRenderer，不再在此处渲染
-            // 避免双层角点标记（橙+黄）的问题
-            // 角点标记由 SelectionOverlayRenderer.drawCornerHandles() 在 Ctrl 按下时统一管理
-
-            // 渲染 ResizeHandle（BOUNDS 类型使用新的 ResizeHandle）
-            // 注意：对于框选工具（BoxSelectTool），面手柄由 SelectionOverlayRenderer 统一渲染为白色
-            // 这里不再渲染面手柄，避免重复渲染
-            // 其他工具如果需要 ResizeHandle，可以在这里渲染
-            if (context.getType() == GizmoType.BOUNDS) {
-                // 框选工具的面手柄由 SelectionOverlayRenderer 渲染，这里跳过
-                // 如果需要为其他工具渲染 ResizeHandle，可以在这里添加条件判断
-                // try {
-                //     renderResizeHandles(posMat, vcp, time);
-                //     LOGGER.debug("[GizmoRenderer] ✅ ResizeHandle 渲染完成");
-                // } catch (Exception e) {
-                //     LOGGER.error("[GizmoRenderer] ❌ 渲染 ResizeHandle 失败", e);
-                // }
-            }
-
-            // 渲染旋转环（TRANSFORM / PIVOT 始终可见；交互仅在 ROTATE 模式下启用）
-            if (context.getType() == GizmoType.TRANSFORM || context.getType() == GizmoType.PIVOT) {
+            // Rendering and picking use the same explicit mode.
+            if (context.getMode() == GizmoMode.ROTATE && (context.getType() == GizmoType.TRANSFORM || context.getType() == GizmoType.PIVOT)) {
                 try {
                     renderRotationRings(posMat, vcp, pivot, time, distanceMultiplier);
                     LOGGER.debug("[GizmoRenderer] ✅ 旋转环渲染完成");
@@ -210,14 +202,16 @@ public class GizmoRenderer {
             }
 
             // 渲染中心手柄
-            try {
-                // ✅ 修复：传入距离缩放，使中心手柄大小随距离动态调整
-                renderCenterHandle(posMat, vcp, pivot, time, distanceMultiplier);
-                LOGGER.debug("[GizmoRenderer] ✅ 中心手柄渲染完成");
-            } catch (Exception e) {
-                LOGGER.error("[GizmoRenderer] ❌ 渲染中心手柄失败", e);
-            }
+            if (moveHandles) {
+                try {
+                    // ✅ 修复：传入距离缩放，使中心手柄大小随距离动态调整
+                    renderCenterHandle(posMat, vcp, pivot, time, distanceMultiplier);
+                    LOGGER.debug("[GizmoRenderer] ✅ 中心手柄渲染完成");
+                } catch (Exception e) {
+                    LOGGER.error("[GizmoRenderer] ❌ 渲染中心手柄失败", e);
+                }
 
+            }
             LOGGER.debug("[GizmoRenderer] ✅ Gizmo 渲染完成: Pivot={}", pivot);
 
         } catch (Exception e) {
@@ -311,6 +305,11 @@ public class GizmoRenderer {
                                          double arrowRadius,
                                          Vec3d cameraPos,
                                          double time) {
+        if(context.getMode()==GizmoMode.SCALE) {
+            var lines=vcp.getBuffer(RenderLayer.getLines());
+            for(var axis:Axis.values()) drawCube(lines,posMat,getAxisEndPoint(pivot,axis,axisLength,cameraPos),axisColor(axis,time),arrowRadius*2);
+            return;
+        }
         drawArrowHead(posMat, vcp,
                 getAxisEndPoint(pivot, Axis.X, axisLength, cameraPos),
                 Axis.X, axisColor(Axis.X, time), arrowHeight, arrowRadius,
@@ -400,24 +399,25 @@ public class GizmoRenderer {
      * 渲染平面手柄
      * ✅ v4.9: 添加动态大小支持
      */
-    private void renderPlaneHandles(Matrix4f posMat, VertexConsumerProvider vcp, Vec3d center, double time, double planeSize) {
+    private void renderPlaneHandles(Matrix4f posMat, VertexConsumerProvider vcp, Vec3d center, double time, double planeSize, Vec3d cameraPos) {
         VertexConsumer fillConsumer = vcp.getBuffer(com.director.client.renderer.RenderLayers.getPreviewLayer());
 
         // XY 平面
-        renderPlane(fillConsumer, posMat, center, Axis.X, Axis.Y, planeSize);
+        renderPlane(fillConsumer, posMat, center, Axis.X, Axis.Y, planeSize,cameraPos);
 
         // XZ 平面
-        renderPlane(fillConsumer, posMat, center, Axis.X, Axis.Z, planeSize);
+        renderPlane(fillConsumer, posMat, center, Axis.X, Axis.Z, planeSize,cameraPos);
 
         // YZ 平面
-        renderPlane(fillConsumer, posMat, center, Axis.Y, Axis.Z, planeSize);
+        renderPlane(fillConsumer, posMat, center, Axis.Y, Axis.Z, planeSize,cameraPos);
     }
 
     /**
      * 渲染单个平面
      * ✅ v4.9: 添加动态大小支持
      */
-    private void renderPlane(VertexConsumer consumer, Matrix4f posMat, Vec3d center, Axis a1, Axis a2, double planeSize) {
+    private void renderPlane(VertexConsumer consumer, Matrix4f posMat, Vec3d center, Axis a1, Axis a2, double planeSize, Vec3d cameraPos) {
+        center=com.director.client.gizmo.util.GizmoVisualScale.planeCenter(center,cameraPos,a1,a2,planeSize);
         Vec3d dir1 = getAxisDirection(a1);
         Vec3d dir2 = getAxisDirection(a2);
         double halfSize = planeSize / 2.0;

@@ -42,11 +42,13 @@ public class PlaneHandle extends AbstractGizmoHandle {
         }
         
         // 检查交点是否在平面范围内（方形平面）
-        Vec3d localPos = intersection.subtract(position);
+        double scaledSize=size*com.director.client.gizmo.util.GizmoVisualScale.distanceMultiplier(position,rayOrigin);
+        Vec3d center=com.director.client.gizmo.util.GizmoVisualScale.planeCenter(position,rayOrigin,axis1,axis2,scaledSize);
+        Vec3d localPos = intersection.subtract(center);
         double dot1 = localPos.dotProduct(planeAxis1);
         double dot2 = localPos.dotProduct(planeAxis2);
         
-        double halfSize = size / 2.0;
+        double halfSize = scaledSize / 2.0;
         if (Math.abs(dot1) <= halfSize && Math.abs(dot2) <= halfSize) {
             double distance = rayOrigin.subtract(intersection).length();
             return new HitResult(this, distance);

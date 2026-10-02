@@ -137,11 +137,6 @@ public class GizmoRenderEvents {
     private static void pollInteraction() {
         try {
             GizmoManager gm = GizmoManager.get();
-            if (!gm.isActive()) {
-                lastMouseDown = false;
-                return;
-            }
-
             MinecraftClient client = MinecraftClient.getInstance();
             if (client == null || client.world == null || client.getWindow() == null) {
                 return;
@@ -152,8 +147,19 @@ public class GizmoRenderEvents {
 
             boolean mouseDown = org.lwjgl.glfw.GLFW.glfwGetMouseButton(
                     client.getWindow().getHandle(), org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT) == 1;
+            boolean mousePressed = !lastMouseDown && mouseDown;
             boolean mouseReleased = lastMouseDown && !mouseDown;
             lastMouseDown = mouseDown;
+            if (!gm.isActive()) return;
+            if(imgui.ImGui.getIO().getWantCaptureMouse()) {
+                var controller=gm.getController();
+                if(controller!=null) {
+                    controller.clearHover();
+                    if(mouseReleased && controller.getState()==GizmoState.DRAGGING)
+                        controller.update(Vec3d.ZERO,new Vec3d(0,0,1),false,true,false);
+                }
+                return;
+            }
 
             DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
             if (ray == null) {
@@ -165,7 +171,7 @@ public class GizmoRenderEvents {
                 return;
             }
 
-            gm.tick(ray.origin(), ray.direction(), mouseDown, mouseReleased);
+            gm.tick(ray.origin(), ray.direction(), mouseDown, mouseReleased,mousePressed);
             updateGizmoCursor(gm);
         } catch (Exception e) {
             LOGGER.warn("[GizmoRenderEvents] Gizmo 交互 tick 失败", e);

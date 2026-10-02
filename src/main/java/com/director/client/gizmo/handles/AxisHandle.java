@@ -52,14 +52,7 @@ public class AxisHandle extends AbstractGizmoHandle {
         // 覆盖渲染可见轴长度（GizmoRenderer 的 axisLength 也是按距离缩放）
         double effectiveLength = length * dm;
         // 覆盖圆锥体的“视觉半径”，并适当放大容错
-        double dist = position.distanceTo(rayOrigin);
-        double effectiveRadius = Math.max(
-            radius * dm,
-            Math.max(
-                VISUAL_ARROW_RADIUS_BASE * dm,
-                Math.min(0.8, Math.max(0.12, dist * 0.025))
-            )
-        );
+        double effectiveRadius = Math.max(radius,VISUAL_ARROW_RADIUS_BASE)*dm;
 
         // 计算轴线的边界盒（简化为圆柱 → AABB）
         Vec3d start = position;

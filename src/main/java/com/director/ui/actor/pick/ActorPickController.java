@@ -13,7 +13,6 @@ import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
@@ -59,6 +58,8 @@ public final class ActorPickController {
 
     /** 上一帧鼠标左键状态，用于 edge-trigger */
     private boolean lastLeftMouseDown = false;
+    private boolean consumedActorClick;
+    public boolean consumedActorClick() { return consumedActorClick; }
 
     /** 上一帧鼠标右键状态，用于 edge-trigger（放置模式） */
     private boolean lastRightMouseDown = false;
@@ -79,6 +80,7 @@ public final class ActorPickController {
      * </ul>
      */
     public void update() {
+        consumedActorClick=false;
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.player == null || client.world == null) {
             lastLeftMouseDown = false;
@@ -110,6 +112,11 @@ public final class ActorPickController {
             return;
         }
 
+        var gizmo=com.director.client.gizmo.GizmoManager.get();
+        if(gizmo.getContext()!=null && gizmo.getContext().getMode()==com.director.client.gizmo.GizmoMode.LOOK_AT
+                && com.director.ui.actor.lookat.MarkerDragController.getInstance().isMouseOverMarker()) {
+            lastLeftMouseDown=isLeftMouseDown(client); return;
+        }
         boolean leftDown = isLeftMouseDown(client);
 
         ActorBoneSelectionController boneSelection = ActorBoneSelectionController.getInstance();
@@ -158,17 +165,10 @@ public final class ActorPickController {
 
         // 🔥 统一入口：ActorSelectionHub
         ActorSelectionHub.selectActor(actorId);
+        consumedActorClick=true;
     }
 
     private Entity resolveClickedEntity(MinecraftClient client) {
-        HitResult hit = client.crosshairTarget;
-        if (hit instanceof EntityHitResult ehr) {
-            Entity entity = ehr.getEntity();
-            if (ActorPreviewManager.getInstance().getActorId(entity) != null) {
-                return entity;
-            }
-        }
-
         DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
         if (ray == null) {
             return null;
@@ -178,12 +178,16 @@ public final class ActorPickController {
         Vec3d end = start.add(ray.direction().multiply(128.0));
 
         Entity closest = null;
-        double closestDist = Double.MAX_VALUE;
-        for (Entity entity : ActorPreviewManager.getInstance().getPreviewEntities()) {
+        var blockHit=ActorViewportRay.blockHit();
+        double closestDist=blockHit!=null && blockHit.getType()==HitResult.Type.BLOCK
+                ? start.squaredDistanceTo(blockHit.getPos()) : Double.MAX_VALUE;
+        for (Entity entity : ActorPreviewManager.getInstance().getPreviewEntities().stream()
+                .filter(e->e!=null && ActorPreviewManager.getInstance().getActorId(e)!=null)
+                .sorted(java.util.Comparator.comparing(e->ActorPreviewManager.getInstance().getActorId(e).toString())).toList()) {
             if (entity == null || !entity.isAlive()) {
                 continue;
             }
-            Box box = entity.getBoundingBox().expand(0.25);
+            Box box = entity.getBoundingBox().expand(0.05);
             Optional<Vec3d> hitPos = box.raycast(start, end);
             if (hitPos.isPresent()) {
                 double dist = start.squaredDistanceTo(hitPos.get());

@@ -1961,10 +1961,10 @@
   "gui.director.tool.container_cull.tip.1": "从当前激活容器中剔除方块",
   "gui.director.tool.container_cull.tip.2": "右键确认剔除，ESC 取消",
 
-  "gui.director.tool.actor_select.name": "演员选择/变换",
-  "gui.director.tool.actor_select.desc": "选择演员，编辑位置、旋转、缩放与朝向（Gizmo 或属性面板）。",
-  "gui.director.tool.actor_select.tip.1": "点击演员选中并显示 Gizmo",
-  "gui.director.tool.actor_select.tip.2": "G/R/S/T：平移/旋转/缩放/朝向；属性面板可精确输入",
+  "gui.director.tool.actor_select.name": "演员整体",
+  "gui.director.tool.actor_select.desc": "选择演员，通过明确的移动、旋转、缩放或注视模式编辑整体与目标。",
+  "gui.director.tool.actor_select.tip.1": "点击演员选择；在下方模式按钮中选择操作，再拖动对应手柄",
+  "gui.director.tool.actor_select.tip.2": "G/R/S/T：移动/旋转/缩放/注视；Esc 取消拖动，松开提交",
 
   "gui.director.tool.actor_move.name": "演员移动",
   "gui.director.tool.actor_move.desc": "移动所选演员并写入变换片段。",
@@ -1987,9 +1987,9 @@
   "gui.director.tool.actor_look_at.tip.2": "点击世界中的点以创建或更新看向片段",
 
   "gui.director.tool.actor_pose.name": "演员姿态",
-  "gui.director.tool.actor_pose.desc": "为所选演员编写语义化姿态/动作片段。",
-  "gui.director.tool.actor_pose.tip.1": "编写演员姿态/动作片段",
-  "gui.director.tool.actor_pose.tip.2": "在属性面板中创建语义化动作片段",
+  "gui.director.tool.actor_pose.desc": "选择演员的可控制部位，编辑局部姿态与动画关键帧。",
+  "gui.director.tool.actor_pose.tip.1": "点击骨骼或在部位轨道选择；仅编辑选中部位",
+  "gui.director.tool.actor_pose.tip.2": "属性面板明确选择编辑目标与骨骼操作；能力不支持的通道不可编辑",
 
   "gui.director.tool.actor_path.name": "演员路径",
   "gui.director.tool.actor_path.desc": "在世界中绘制路径锚点，保存到路径库，并可应用到演员。",
@@ -2224,5 +2224,14 @@
   "gui.director.actor.diagnostics.reason.prop_launch": "投掷起点或挂点不可用，道具无法预览",
   "gui.director.actor.diagnostics.reason.prop_socket": "演员骨架不支持此道具挂点，道具无法预览",
   "gui.director.actor.diagnostics.reason.prop_custom": "自定义道具模型尚不支持预览",
-  "gui.director.actor.diagnostics.reason.prop_asset": "道具物品或方块资源不存在，无法预览"
+  "gui.director.actor.diagnostics.reason.prop_asset": "道具物品或方块资源不存在，无法预览",
+  "gui.director.actor.tools.whole": "演员整体操作",
+  "gui.director.actor.tools.move": "移动",
+  "gui.director.actor.tools.rotate": "旋转",
+  "gui.director.actor.tools.scale": "缩放",
+  "gui.director.actor.tools.look": "注视",
+  "gui.director.actor.tools.transform_hint": "点击演员选择；从手柄上按下左键拖动。箭头沿轴移动，方片沿平面移动，中心自由移动；旋转请先切换到旋转。Esc 取消，松开提交。",
+  "gui.director.actor.tools.look_hint": "注视模式通过目标标记编辑头部朝向；整体旋转请使用旋转模式。",
+  "gui.director.actor.tools.rotate_hint": "拖动红/绿/蓝旋转圈，分别绕 X/Y/Z 轴旋转。整体转身使用绿色 Y 圈；头部动作使用姿态或注视工具。Esc 取消，松开提交。",
+  "gui.director.actor.tools.scale_hint": "拖动轴端方块缩放对应轴；方片缩放两个轴；拖动中心向屏幕右侧整体放大、左侧缩小。Esc 取消，松开提交。"
 }

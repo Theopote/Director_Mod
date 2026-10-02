@@ -186,6 +186,8 @@ public final class ActorGizmoController {
         return dragging;
     }
 
+    public GizmoMode getPreferredMode() { return currentMode; }
+
     public void setPreferredMode(GizmoMode mode) {
         var nextMode = mode != null ? mode : GizmoMode.TRANSLATE;
         if (dragging && currentMode != nextMode) cancelGizmoDrag();
@@ -217,6 +219,16 @@ public final class ActorGizmoController {
                 GizmoManager.get().deactivate();
             }
             ownsGizmo = false;
+            return;
+        }
+
+        var model=resolveTimelineModel();
+        resolveTargetTrack();
+        if(model==null || model.isPlaying() || model.isScrubbing() || timelineTrack==null
+                || timelineTrack.isLocked() || timelineTrack.isMuted()) {
+            cancelGizmoDrag();
+            deactivateActorTransformGizmoIfPresent();
+            ownsGizmo=false;
             return;
         }
 

@@ -49,10 +49,10 @@ public class GizmoManager {
     // 与 GizmoRenderer 的可见尺寸对齐（避免“箭头看得见但点不到/范围短”）
     private static final double AXIS_ARROW_LENGTH = 2.0;
     private static final double AXIS_ARROW_RADIUS = 0.15;
-    private static final double PLANE_SIZE = 0.5;
+    private static final double PLANE_SIZE = com.director.client.gizmo.util.GizmoVisualScale.BASE_PLANE_SIZE;
     @SuppressWarnings("unused")
     private static final double CORNER_RADIUS = 0.12;
-    private static final double CENTER_RADIUS = 0.15;
+    private static final double CENTER_RADIUS = com.director.client.gizmo.util.GizmoVisualScale.BASE_CENTER_SIZE;
     
     private GizmoManager() {
         // 延迟初始化
@@ -271,6 +271,17 @@ public class GizmoManager {
         controller.update(rayOrigin, rayDir, mouseDown, mouseReleased);
     }
     
+    public void tick(Vec3d rayOrigin, Vec3d rayDir, boolean mouseDown, boolean mouseReleased, boolean mousePressed) {
+        if (context == null || !context.isActive() || controller == null) {
+            return;
+        }
+
+        // 先同步手柄/旋转环位置与半径，再跑射线检测，避免“看得见但点不到”
+        updateHandlePositions();
+
+        controller.update(rayOrigin, rayDir, mouseDown, mouseReleased,mousePressed);
+    }
+
     /**
      * 渲染 Gizmo
      * ✅ v4.7: 更新方法签名以支持 Camera 参数

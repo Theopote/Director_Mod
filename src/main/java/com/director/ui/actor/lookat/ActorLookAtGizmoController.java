@@ -100,19 +100,19 @@ public final class ActorLookAtGizmoController {
         // 1️⃣ 检查是否在 LOOK_AT 模式
         GizmoManager gm = GizmoManager.get();
         if (gm == null || !gm.isActive() || gm.getContext() == null) {
-            lastLeftMouseDown = false;
+            lastLeftMouseDown = isLeftMouseDown();
             return;
         }
 
         GizmoMode mode = gm.getContext().getMode();
         if (mode != GizmoMode.LOOK_AT) {
-            lastLeftMouseDown = false;
+            lastLeftMouseDown = isLeftMouseDown();
             return;
         }
 
         // 2️⃣ 检查是否有目标 Actor
         if (targetActorId == null) {
-            lastLeftMouseDown = false;
+            lastLeftMouseDown = isLeftMouseDown();
             return;
         }
 
@@ -127,7 +127,8 @@ public final class ActorLookAtGizmoController {
         boolean isNewClick = leftDown && !lastLeftMouseDown;
         lastLeftMouseDown = leftDown;
 
-        if (!isNewClick || MarkerDragController.getInstance().isMouseOverMarker()) {
+        if (!isNewClick || com.director.ui.actor.pick.ActorPickController.getInstance().consumedActorClick()
+                || MarkerDragController.getInstance().isMouseOverMarker()) {
             return;
         }
 
@@ -155,7 +156,7 @@ public final class ActorLookAtGizmoController {
             return;
         }
 
-        HitResult hit = client.crosshairTarget;
+        HitResult hit = com.director.ui.actor.pick.ActorViewportRay.blockHit();
         if (hit == null) {
             return;
         }

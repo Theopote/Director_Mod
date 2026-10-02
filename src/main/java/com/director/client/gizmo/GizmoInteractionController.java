@@ -24,6 +24,9 @@ import java.util.Set;
  */
 public class GizmoInteractionController {
     private GizmoContext context;
+    private boolean previousMouseDown;
+    private Vec3d scaleSigns= new Vec3d(1,1,1), scaleRight= new Vec3d(1,0,0);
+    private double scaleUnit=1;
     private GizmoState state = GizmoState.IDLE;
     private GizmoHandle hoveredHandle = null;
     private RotationHandle hoveredRotationHandle = null;
@@ -37,18 +40,18 @@ public class GizmoInteractionController {
             new com.director.client.gizmo.util.DragSnapAccumulator();
 
     // BOUNDS Gizmo：移动"包围盒(区域)"预览，松手后按过滤器重建选区
-    private final com.director.core.selection.SelectionManager selectionManager =
-        DirectorServices.get().selection();
+    private final com.director.core.selection.SelectionManager selectionManager;
     private Vec3d boundsMoveCarry = Vec3d.ZERO;
     
     public GizmoInteractionController(GizmoContext context) {
-        this.context = context;
-        // 初始化 TransformApplier
-        this.transformApplier = new TransformApplier(
-            DirectorServices.get().selection()
-        );
+        this(context, DirectorServices.get().selection());
     }
-    
+    GizmoInteractionController(GizmoContext context, com.director.core.selection.SelectionManager selectionManager) {
+        this.context = context;
+        this.selectionManager = selectionManager;
+        this.transformApplier = new TransformApplier(selectionManager);
+    }
+
     public void setTransformApplier(TransformApplier applier) {
         this.transformApplier = applier;
     }
@@ -62,6 +65,12 @@ public class GizmoInteractionController {
      * @param mouseReleased 鼠标是否释放
      */
     public void update(Vec3d rayOrigin, Vec3d rayDir, boolean mouseDown, boolean mouseReleased) {
+        boolean pressed = mouseDown && !previousMouseDown;
+        previousMouseDown = mouseDown;
+        update(rayOrigin,rayDir,mouseDown,mouseReleased,pressed);
+    }
+    public void update(Vec3d rayOrigin, Vec3d rayDir, boolean mouseDown, boolean mouseReleased, boolean mousePressed) {
+        previousMouseDown = mouseDown;
         if (state == GizmoState.DRAGGING) {
             if (mouseReleased) {
                 // 结束拖拽
@@ -71,7 +80,7 @@ public class GizmoInteractionController {
                 updateDrag(rayOrigin, rayDir);
             }
         } else {
-            if (mouseDown) {
+            if (mousePressed) {
                 // Mouse-down frame may arrive before a hover frame.
                 // Refresh hover first so click-drag can start immediately.
                 detectHover(rayOrigin, rayDir);
@@ -84,6 +93,10 @@ public class GizmoInteractionController {
         }
     }
     
+    public void clearHover() {
+        if(state==GizmoState.DRAGGING) return;
+        hoveredHandle=null; hoveredRotationHandle=null; state=GizmoState.IDLE;
+    }
     private GizmoMode currentMode() {
         if (context == null || context.getMode() == null) {
             return GizmoMode.TRANSLATE;
@@ -103,27 +116,16 @@ public class GizmoInteractionController {
     /** 检测悬停。 */
     private void detectHover(Vec3d rayOrigin, Vec3d rayDir) {
         GizmoHandle closestHandle = null;
-        RotationHandle closestRotationHandle = null;
-        double closestDistance = Double.POSITIVE_INFINITY;
 
-        // 旋转环悬停（任意模式都检测，用于高亮；拖拽仅在 ROTATE 模式或下方自动切换）
-        RotationHandle rotationHover = pickRotationHandle(rayOrigin, rayDir);
-        if (rotationHover != null) {
-            closestRotationHandle = rotationHover;
-            closestDistance = rotationHover.intersectRay(rayOrigin, rayDir);
-        }
-
+        // Only the explicitly selected mode participates in picking.
         if (allowsRotationHandles()) {
             hoveredHandle = null;
-            hoveredRotationHandle = closestRotationHandle;
-            state = closestRotationHandle != null ? GizmoState.HOVER : GizmoState.IDLE;
+            hoveredRotationHandle = pickRotationHandle(rayOrigin,rayDir);
+            state = hoveredRotationHandle != null ? GizmoState.HOVER : GizmoState.IDLE;
             return;
         }
-
         if (!allowsMoveHandles()) {
-            hoveredHandle = null;
-            hoveredRotationHandle = closestRotationHandle;
-            state = closestRotationHandle != null ? GizmoState.HOVER : GizmoState.IDLE;
+            hoveredHandle = null; hoveredRotationHandle = null; state = GizmoState.IDLE;
             return;
         }
 
@@ -138,6 +140,11 @@ public class GizmoInteractionController {
             }
         }
 
+        for (GizmoHandle handle : handles) {
+            if(handle instanceof com.director.client.gizmo.handles.CenterHandle && handle.intersectRay(rayOrigin,rayDir).isHit()) {
+                hoveredHandle=handle; hoveredRotationHandle=null; state=GizmoState.HOVER; return;
+            }
+        }
         // 检测普通 Handle
         for (GizmoHandle handle : handles) {
             HitResult hit = handle.intersectRay(rayOrigin, rayDir);
@@ -147,20 +154,9 @@ public class GizmoInteractionController {
             }
         }
 
-        // 平移/缩放模式：移动手柄优先于旋转环
-        if (closestHandle != null && (rotationHover == null || moveBestDistance <= closestDistance)) {
-            hoveredHandle = closestHandle;
-            hoveredRotationHandle = null;
-            state = GizmoState.HOVER;
-        } else if (rotationHover != null) {
-            hoveredHandle = null;
-            hoveredRotationHandle = rotationHover;
-            state = GizmoState.HOVER;
-        } else {
-            hoveredHandle = null;
-            hoveredRotationHandle = null;
-            state = GizmoState.IDLE;
-        }
+        hoveredHandle = closestHandle;
+        hoveredRotationHandle = null;
+        state = closestHandle != null ? GizmoState.HOVER : GizmoState.IDLE;
     }
 
     private RotationHandle pickRotationHandle(Vec3d rayOrigin, Vec3d rayDir) {
@@ -193,51 +189,16 @@ public class GizmoInteractionController {
         return true;
     }
 
-    private void promoteRotateModeForRingInteraction() {
-        if (context == null || context.getType() != GizmoType.TRANSFORM) {
-            return;
-        }
-        if (currentMode() == GizmoMode.ROTATE) {
-            return;
-        }
-        context.setMode(GizmoMode.ROTATE);
-        com.director.ui.actor.gizmo.ActorGizmoController.getInstance().setPreferredMode(GizmoMode.ROTATE);
-    }
-    
-    /** 开始拖拽。 */
+    /** Start only the handle selected by the same hover query shown to the user. */
     private void startDrag(Vec3d rayOrigin, Vec3d rayDir) {
-        RotationHandle rotationHit = pickRotationHandle(rayOrigin, rayDir);
+        if (allowsRotationHandles() && hoveredRotationHandle != null) {
+            if (!beginTransformApplierSession()) return;
+            activeRotationHandle = hoveredRotationHandle;
+            activeRotationHandle.beginRotation(rayOrigin,rayDir);
+            state = GizmoState.DRAGGING;
+            return;
+        }
         boolean moveHit = allowsMoveHandles() && hoveredHandle != null;
-
-        if (moveHit && rotationHit != null) {
-            double moveDistance = hoveredHandle.intersectRay(rayOrigin, rayDir).getDistance();
-            double rotationDistance = rotationHit.intersectRay(rayOrigin, rayDir);
-            if (rotationDistance < moveDistance) {
-                moveHit = false;
-            }
-        }
-
-        if (!moveHit && rotationHit != null) {
-            promoteRotateModeForRingInteraction();
-            if (!beginTransformApplierSession()) {
-                return;
-            }
-            activeRotationHandle = rotationHit;
-            rotationHit.beginRotation(rayOrigin, rayDir);
-            state = GizmoState.DRAGGING;
-            return;
-        }
-
-        if (allowsRotationHandles() && rotationHit != null) {
-            if (!beginTransformApplierSession()) {
-                return;
-            }
-            activeRotationHandle = rotationHit;
-            rotationHit.beginRotation(rayOrigin, rayDir);
-            state = GizmoState.DRAGGING;
-            return;
-        }
-
         if (!moveHit || hoveredHandle == null) {
             return;
         }
@@ -247,6 +208,11 @@ public class GizmoInteractionController {
         }
 
         activeHandle = hoveredHandle;
+        Vec3d pivot=context.getPivot();
+        scaleUnit=2*com.director.client.gizmo.util.GizmoVisualScale.distanceMultiplier(pivot,rayOrigin);
+        scaleSigns=new Vec3d(rayOrigin.x<pivot.x?-1:1,rayOrigin.y<pivot.y?-1:1,rayOrigin.z<pivot.z?-1:1);
+        scaleRight=pivot.subtract(rayOrigin).crossProduct(new Vec3d(0,1,0)).normalize();
+        if(scaleRight.lengthSquared()<1e-8) scaleRight=new Vec3d(1,0,0);
         if (context != null && context.getType() == GizmoType.BOUNDS && isMoveHandle(activeHandle)) {
             boundsMoveCarry = Vec3d.ZERO;
             selectionManager.setBoundsGizmoMovePreviewBounds(context.getTargetBox());
@@ -273,7 +239,7 @@ public class GizmoInteractionController {
             double deltaAngle = activeRotationHandle.getDeltaAngle();
             
             // 应用旋转（通过 TransformApplier）
-            if (transformApplier != null && Math.abs(deltaAngle) > 1e-6) {
+            if (transformApplier != null) {
                 transformApplier.applyRotation(deltaAngle, activeRotationHandle.getAxis());
             }
         } else if (activeHandle != null) {
@@ -389,14 +355,14 @@ public class GizmoInteractionController {
             }
         } else if (activeHandle instanceof com.director.client.gizmo.handles.AxisHandle axisHandle) {
             if (context != null && context.getType() == GizmoType.TRANSFORM && currentMode() == GizmoMode.SCALE) {
-                Vec3d axisDelta = axisDelta(axisHandle.getAxis(), delta.dotProduct(axisDirection(axisHandle.getAxis())));
+                Vec3d axisDelta = axisDelta(axisHandle.getAxis(), delta.dotProduct(axisDirection(axisHandle.getAxis())) * axisDirection(axisHandle.getAxis()).dotProduct(scaleSigns)/scaleUnit);
                 transformApplier.applyResize(axisDelta);
             } else {
                 transformApplier.applyMove(delta);
             }
         } else if (activeHandle instanceof com.director.client.gizmo.handles.PlaneHandle) {
             if (context != null && context.getType() == GizmoType.TRANSFORM && currentMode() == GizmoMode.SCALE) {
-                transformApplier.applyResize(delta);
+                transformApplier.applyResize(new Vec3d(delta.x*scaleSigns.x/scaleUnit,delta.y*scaleSigns.y/scaleUnit,delta.z*scaleSigns.z/scaleUnit));
             } else {
                 transformApplier.applyMove(delta);
             }
@@ -404,6 +370,11 @@ public class GizmoInteractionController {
             // 角点手柄：从角点调整选区大小
             transformApplier.applyResizeFromCorner(delta, corner.getCornerSign());
         } else if (activeHandle instanceof com.director.client.gizmo.handles.CenterHandle) {
+            if(context.getType()==GizmoType.TRANSFORM && currentMode()==GizmoMode.SCALE) {
+                double amount=delta.dotProduct(scaleRight)/scaleUnit;
+                transformApplier.applyResize(new Vec3d(amount,amount,amount));
+                return;
+            }
             transformApplier.applyMove(delta);
             // TRANSFORM（演员编辑）的 pivot 由 ActorGizmoController 跟随实体更新，勿在此直接改 pivot
             if (context == null || context.getType() != GizmoType.TRANSFORM) {

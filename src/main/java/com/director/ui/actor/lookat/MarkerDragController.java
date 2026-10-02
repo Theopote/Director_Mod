@@ -1,7 +1,6 @@
 package com.director.ui.actor.lookat;
 
 import com.director.core.DirectorServices;
-import com.director.actor.visualizer.ActorLookAtVisualizer;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoMode;
 import com.director.timeline.model.entity.EntityLookAtClip;
@@ -148,7 +147,7 @@ public final class MarkerDragController {
             return;
         }
 
-        HitResult hit = client.crosshairTarget;
+        HitResult hit = com.director.ui.actor.pick.ActorViewportRay.blockHit();
         if (hit == null || hit.getType() != HitResult.Type.BLOCK) {
             return;
         }
@@ -210,40 +209,18 @@ public final class MarkerDragController {
      * @return 如果鼠标在 Marker 上则返回 true
      */
     public boolean isMouseOverMarker() {
-        var model = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (model == null) return false;
+        var model=DirectorServices.get().containerTimeline().getTimelineModel();
+        if(model==null) return false;
         try {
-            var owner = com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model,
+            var owner=com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model,
                     com.director.ui.actor.selection.ActorSelectionHub.getSelectedActorId());
-            var clip = ActorLookAtEditSession.active(owner.getActorTrackPayload(), model.getCurrentTime());
-            if (clip == null || clip.getMode() != EntityLookAtClip.TargetMode.WORLD_POINT) return false;
-        } catch (IllegalArgumentException unavailable) { return false; }
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.gameRenderer == null || client.gameRenderer.getCamera() == null) {
-            return false;
-        }
-
-        // 获取 Marker 世界坐标
-        Vec3d markerWorld = ActorLookAtVisualizer.getInstance().getLastMarkerWorldPos();
-        if (markerWorld == null) {
-            return false;
-        }
-
-        // 获取鼠标射线（使用 crosshairTarget）
-        HitResult hit = client.crosshairTarget;
-        if (hit == null || hit.getType() != HitResult.Type.BLOCK) {
-            return false;
-        }
-
-        BlockHitResult bhr = (BlockHitResult) hit;
-        Vec3d hitPos = bhr.getPos();
-
-        // 计算 Marker 与射线命中点的距离
-        double distance = markerWorld.distanceTo(hitPos);
-
-        // 如果距离小于阈值（0.5 方块），则认为鼠标在 Marker 上
-        double threshold = 0.5;
-        return distance < threshold;
+            var clip=ActorLookAtEditSession.active(owner.getActorTrackPayload(),model.getCurrentTime());
+            var ray=com.director.client.input.DirectorInputSystem.computeImGuiRay();
+            if(clip==null || clip.getMode()!=EntityLookAtClip.TargetMode.WORLD_POINT || ray==null) return false;
+            var point=clip.getWorldPoint();
+            return com.director.client.gizmo.util.RaycastUtil.rayToSphereDistance(ray.origin(),ray.direction(),
+                    new Vec3d(point.x,point.y,point.z),.2)<Double.POSITIVE_INFINITY;
+        } catch(IllegalArgumentException unavailable) { return false; }
     }
 
     /**

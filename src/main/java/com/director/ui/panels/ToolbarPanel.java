@@ -113,6 +113,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
         // 工具按钮组（组级换行优先，组内再换行）
         renderSelectionToolButtons();
+        renderActorModes();
 
         // 工具栏主体只保留工具区；属性/过滤/历史由 Window → Toggle Panels 控制
         // FPS/关闭已迁移到 MenuBarPanel 右侧（全局状态/窗口级操作）
@@ -125,6 +126,35 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         // 不再在此处处理快捷键输入
 
         ImGui.popStyleVar(2);
+    }
+
+    /** Explicit submodes for whole-actor editing; Pose and Path keep their own controls. */
+    private void renderActorModes() {
+        if (!ToolRegistry.ACTOR_SELECT_TOOL_ID.equals(toolRegistry.getActiveNonSelectionToolId())) return;
+        ImGui.separator();
+        ImGui.text(tr("gui.director.actor.tools.whole"));
+        var mode=com.director.ui.actor.gizmo.ActorGizmoController.getInstance().getPreferredMode();
+        String[] ids={"actor_move","actor_rotate","actor_scale","actor_look_at"};
+        String[] names={"move","rotate","scale","look"};
+        for(int i=0;i<ids.length;i++) {
+            String label=tr("gui.director.actor.tools."+names[i]);
+            float width=ImGui.calcTextSize(label).x+ImGui.getStyle().getFramePadding().x*2;
+            if(i>0) { ImGui.sameLine(); if(ImGui.getContentRegionAvailX()<width) ImGui.newLine(); }
+            boolean selected=mode==switch(i) {
+                case 1 -> com.director.client.gizmo.GizmoMode.ROTATE;
+                case 2 -> com.director.client.gizmo.GizmoMode.SCALE;
+                case 3 -> com.director.client.gizmo.GizmoMode.LOOK_AT;
+                default -> com.director.client.gizmo.GizmoMode.TRANSLATE;
+            };
+            if(selected) {
+                float[] color=UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
+                ImGui.pushStyleColor(ImGuiCol.Button,color[0],color[1],color[2],color[3]);
+            }
+            if(ImGui.button(label+"##actorMode"+i) && commands!=null && commands.tools()!=null)
+                commands.tools().activateTool(ids[i]);
+            if(selected) ImGui.popStyleColor();
+        }
+        ImGui.textWrapped(tr("gui.director.actor.tools."+(switch(mode) { case LOOK_AT -> "look_hint"; case ROTATE -> "rotate_hint"; case SCALE -> "scale_hint"; default -> "transform_hint"; })));
     }
 
     /* ---------- 选择工具按钮 ---------- */

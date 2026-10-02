@@ -14,6 +14,12 @@ import com.director.client.gizmo.util.RaycastUtil;
  */
 public class CenterHandle extends AbstractGizmoHandle {
     private final double radius;
+    private Vec3d dragPlaneNormal;
+    @Override public void onDragStart(Vec3d origin,Vec3d direction) {
+        dragging=true;
+        dragPlaneNormal=origin.subtract(position).normalize();
+        dragStartHitPoint=RaycastUtil.rayToPlaneIntersection(origin,direction,position,dragPlaneNormal);
+    }
     
     public CenterHandle(String id, Vec3d position, double radius) {
         super(id, position);
@@ -23,7 +29,9 @@ public class CenterHandle extends AbstractGizmoHandle {
     @Override
     public HitResult intersectRay(Vec3d rayOrigin, Vec3d rayDir) {
         // 使用球体检测
-        double distance = RaycastUtil.rayToSphereDistance(rayOrigin, rayDir, position, radius);
+        double half=radius*.5*com.director.client.gizmo.util.GizmoVisualScale.distanceMultiplier(position,rayOrigin);
+        double distance = RaycastUtil.rayToBoxDistance(rayOrigin,rayDir,
+                new net.minecraft.util.math.Box(position.x-half,position.y-half,position.z-half,position.x+half,position.y+half,position.z+half));
         if (distance < Double.POSITIVE_INFINITY) {
             return new HitResult(this, distance);
         }
@@ -38,7 +46,7 @@ public class CenterHandle extends AbstractGizmoHandle {
         
         // ✅ 使用与摄像机垂直的平面来计算当前拖拽位置
         // 1. 计算从 position 到摄像机的方向作为平面法线
-        Vec3d planeNormal = rayOrigin.subtract(position).normalize();
+        Vec3d planeNormal = dragPlaneNormal;
         
         // 2. 计算平面常数 d (平面方程: nx*x + ny*y + nz*z = d)
         double planeD = planeNormal.dotProduct(position);
@@ -63,11 +71,6 @@ public class CenterHandle extends AbstractGizmoHandle {
         
         // 5. 更新拖拽起点（用于下一帧）
         dragStartHitPoint = currentHit;
-        
-        // 6. 如果 delta 太小，认为是点击而不是拖动
-        if (delta.lengthSquared() < 0.01) {
-            return Vec3d.ZERO;
-        }
         
         return delta;
     }

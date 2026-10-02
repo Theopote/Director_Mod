@@ -31,6 +31,7 @@ public class RotationHandle {
     private double radius;            // 环半径
     private boolean active;           // 是否被激活
     private double startAngle;        // 起始角（弧度）
+    private double accumulatedAngle;
     private double currentAngle;      // 当前角（弧度）
     
     public RotationHandle(Vec3d center, double radius, Axis axis) {
@@ -40,6 +41,7 @@ public class RotationHandle {
         this.active = false;
         this.startAngle = 0.0;
         this.currentAngle = 0.0;
+        this.accumulatedAngle = 0.0;
     }
     
     /**
@@ -66,10 +68,10 @@ public class RotationHandle {
         Vec3d toCenter = intersection.subtract(center);
         double dist = toCenter.length();
         // 检查是否在环的范围内（容差随环半径放大，提升拾取稳定性）
-        double tolerance = Math.max(0.35, radius * 0.22);
+        double tolerance = radius * 0.06;
         if (Math.abs(dist - radius) < tolerance) {
             double distance = rayOrigin.subtract(intersection).length();
-            LOGGER.debug("[RotationHandle] 命中旋转环 (轴: {}, 距离误差: {})", axis, Math.abs(dist - radius));
+            LOGGER.trace("[RotationHandle] 命中旋转环 (轴: {}, 距离误差: {})", axis, Math.abs(dist - radius));
             return distance;
         }
         
@@ -90,6 +92,7 @@ public class RotationHandle {
             this.active = true;
             this.startAngle = computeAngle(intersection);
             this.currentAngle = startAngle;
+            this.accumulatedAngle = 0;
             LOGGER.debug("[RotationHandle] 开始旋转 (轴: {}, 起始角: {}°)", axis, Math.toDegrees(startAngle));
         }
     }
@@ -107,7 +110,10 @@ public class RotationHandle {
         Vec3d intersection = RaycastUtil.rayToPlaneIntersection(rayOrigin, rayDir, center, normal);
         
         if (intersection != null) {
-            this.currentAngle = computeAngle(intersection);
+            double next = computeAngle(intersection);
+            // Unwrap successive angles so crossing +/-180 degrees never jumps a full turn.
+            accumulatedAngle += Math.atan2(Math.sin(next-currentAngle),Math.cos(next-currentAngle));
+            currentAngle = next;
         }
     }
     
@@ -117,7 +123,7 @@ public class RotationHandle {
      * @return 角度增量（弧度）
      */
     public double getDeltaAngle() {
-        return currentAngle - startAngle;
+        return accumulatedAngle;
     }
     
     /**
@@ -139,6 +145,7 @@ public class RotationHandle {
         this.active = false;
         this.startAngle = 0.0;
         this.currentAngle = 0.0;
+        this.accumulatedAngle = 0.0;
     }
     
     /**

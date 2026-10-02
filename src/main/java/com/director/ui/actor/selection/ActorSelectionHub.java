@@ -135,9 +135,13 @@ public final class ActorSelectionHub {
             boneSelection.synchronizeActor(actorId);
             gizmoController.clearTarget();
             lookAtController.clearTarget();
-        } else {
+        } else if (com.director.ui.tools.ToolRegistry.isActorTransformGizmoToolId(
+                com.director.ui.tools.ToolRegistry.get().getActiveNonSelectionToolId())) {
             gizmoController.setTargetActor(actorId);
             lookAtController.setTargetActor(actorId);
+        } else {
+            gizmoController.clearTarget();
+            lookAtController.clearTarget();
         }
 
         // 6️⃣ 更新当前选中的 Actor ID（供 Visualizer 使用）
