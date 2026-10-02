@@ -25,7 +25,7 @@ public final class ActorRuntimeDiagnosticsUI {
         ImGui.textWrapped(tr("title"));
         for(var issue:issues) {
             String status=tr(issue.hidden()?"hidden":"limited");
-            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.diagnostics.issue",status,tr(issue.stage()),issue.sampleTime(),issue.message()));
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.diagnostics.issue",status,tr(issue.stage()),issue.sampleTime(),issue.reason()==null?issue.message():ActorPropertyAdapterI18n.tr(issue.reason().translationKey())));
         }
     }
     private static String tr(String key) { return ActorPropertyAdapterI18n.tr("gui.director.actor.diagnostics."+key); }

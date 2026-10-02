@@ -4,6 +4,7 @@ import com.director.timeline.model.entity.*;
 import com.director.timeline.playback.entity.EntityActionEvent;
 import net.minecraft.util.math.Vec3d;
 import java.util.*;
+import com.director.actor.runtime.ActorDiagnosticReason;
 import java.util.function.Function;
 
 /** Pure replay of prop state. Events occur once at clip/marker time, independent of render history. */
@@ -45,6 +46,10 @@ public final class ActorPropTimelineSampler {
         });
     }
     public static Snapshot sampleTransforms(ActorTrack track, float time, LaunchTransform launchTransform) {
+        return sampleTransforms(track,time,launchTransform,(at,reason)->{});
+    }
+    public static Snapshot sampleTransforms(ActorTrack track, float time, LaunchTransform launchTransform,
+            java.util.function.BiConsumer<Float,ActorDiagnosticReason> diagnostic) {
         if (!Float.isFinite(time) || time < 0) return new Snapshot(Map.of(),List.of());
         var events = new ArrayList<Event>();
         for (var clip : track.getClips()) {
@@ -75,7 +80,7 @@ public final class ActorPropTimelineSampler {
             if (event.time>time) break;
             var params=event.action.params(); var type=event.action.type();
             try { PropEventParameters.validate(type,params); }
-            catch (IllegalArgumentException | NullPointerException malformed) { continue; }
+            catch (IllegalArgumentException | NullPointerException malformed) { diagnostic.accept(event.time,ActorDiagnosticReason.PROP_PARAMETERS); continue; }
             switch(type) {
                 case ATTACH_PROP -> held.put(PropEventParameters.slot(params,"slot"),attachment(params,"propId"));
                 case DETACH_PROP -> held.remove(PropEventParameters.slot(params,"slot"));
@@ -85,11 +90,11 @@ public final class ActorPropTimelineSampler {
                 }
                 case THROW_PROP -> {
                     var slot=PropEventParameters.slot(params,"slot"); var attachment=held.remove(slot);
-                    if (attachment==null) continue;
+                    if (attachment==null) { diagnostic.accept(event.time,ActorDiagnosticReason.PROP_EMPTY_SLOT); continue; }
                     float duration=value(params,"flightTime",1), age=time-event.time;
                     if (age>=duration) continue;
                     var launch=launchTransform.resolve(event.time,slot,attachment);
-                    if (launch==null || !launch.isFinite()) continue;
+                    if (launch==null || !launch.isFinite()) { diagnostic.accept(event.time,ActorDiagnosticReason.PROP_LAUNCH); continue; }
                     var start=launch.getTranslation(new org.joml.Vector3f());
                     Vec3d origin=new Vec3d(start.x,start.y,start.z);
                     var target=new Vec3d(PropEventParameters.number(params,"targetX"),PropEventParameters.number(params,"targetY"),PropEventParameters.number(params,"targetZ"));

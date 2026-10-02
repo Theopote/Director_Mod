@@ -389,11 +389,12 @@ public final class ActorRuntimeController {
                     ActorPropRuntime propRuntime = getOrCreatePropRuntime(actor);
                     propRuntime.setActorEntity(entity);
                     var propState = com.director.actor.prop.ActorPropTimelineSampler.sampleTransforms(actorTrack,time,
-                            (eventTime,slot,attachment) -> samplePropLaunchTransform(entity,eventTime,slot,attachment));
+                            (eventTime,slot,attachment) -> samplePropLaunchTransform(entity,eventTime,slot,attachment),
+                            (eventTime,reason)->reportPlacement(actor.getActorId(),eventTime,"prop",true,reason.legacyMessage()));
                     propRuntime.sync(propState);
                     propRuntime.setHeldVisible(sample.visibility > .01f);
                     if (propRuntime != null) {
-                        propRuntime.update();
+                        propRuntime.update(reason->reportPlacement(actor.getActorId(),time,"prop",true,reason.legacyMessage()));
                     }
                 }
             }

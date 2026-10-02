@@ -184,7 +184,8 @@ public final class ActorPropRuntime {
     private boolean heldVisible = true;
     public void setHeldVisible(boolean visible) { heldVisible = visible; }
 
-    public void update() {
+    public void update() { update(reason->{}); }
+    public void update(java.util.function.Consumer<com.director.actor.runtime.ActorDiagnosticReason> diagnostic) {
         if (actorEntity == null) {
             return;
         }
@@ -193,9 +194,13 @@ public final class ActorPropRuntime {
             prop.updateTransform(actorEntity);
             if (actorEntity.getEntityWorld() instanceof net.minecraft.client.world.ClientWorld world)
                 prop.syncVisual(world,heldVisible);
+            var failure=prop.previewFailure(heldVisible); if(failure!=null) diagnostic.accept(failure);
         }
         if (actorEntity.getEntityWorld() instanceof net.minecraft.client.world.ClientWorld world) {
-            for (var prop : sampledFlights.values()) prop.syncVisual(world,true);
+            for (var prop : sampledFlights.values()) {
+                prop.syncVisual(world,true);
+                var failure=prop.previewFailure(true); if(failure!=null) diagnostic.accept(failure);
+            }
         }
     }
 

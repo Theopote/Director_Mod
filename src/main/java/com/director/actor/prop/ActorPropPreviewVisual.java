@@ -18,6 +18,7 @@ public final class ActorPropPreviewVisual {
     private DisplayEntity entity;
     private ClientWorld world;
     private boolean unavailable;
+    public boolean isUnavailable() { return unavailable; }
 
     /** Block displays use a corner origin; props use a centered half-block default size. */
     public static Matrix4f modelTransform(PropVisualType type, Matrix4f socket) {

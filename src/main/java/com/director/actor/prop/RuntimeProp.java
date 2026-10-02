@@ -214,6 +214,13 @@ public final class RuntimeProp {
         visual.sync(world,descriptor,worldTransform,visible,visualScale,itemPose,slot);
     }
 
+    public com.director.actor.runtime.ActorDiagnosticReason previewFailure(boolean visible) {
+        if(!visible) return null;
+        if(worldTransform==null || !worldTransform.isFinite()) return com.director.actor.runtime.ActorDiagnosticReason.PROP_SOCKET;
+        if(visual.isUnavailable()) return descriptor.getVisualType()==PropVisualType.CUSTOM
+                ? com.director.actor.runtime.ActorDiagnosticReason.PROP_CUSTOM : com.director.actor.runtime.ActorDiagnosticReason.PROP_ASSET;
+        return null;
+    }
     public void dispose() {
         visual.dispose();
         LOGGER.debug("[RuntimeProp] 清理道具: {}", descriptor.getId());

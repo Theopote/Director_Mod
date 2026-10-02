@@ -29,4 +29,22 @@ class ActorRuntimeDiagnosticsTest {
     @Test void returnedListCannotMutateStore() {
         store.begin(2); store.report(actor,track,2,"root",false,"Blocked"); assertThrows(UnsupportedOperationException.class,()->store.current(actor,2,List.of(track)).clear());
     }
+    @Test void reasonCodesAdaptLegacyMessagesAndPreserveUnknownFeedback() {
+        store.begin(2); store.reportReason(actor,track,2,"prop",true,ActorDiagnosticReason.PROP_SOCKET);
+        assertEquals(ActorDiagnosticReason.PROP_SOCKET,store.current(actor,2,List.of(track)).getFirst().reason());
+        store.report(actor,track,2,"route",false,"External diagnostic");
+        assertNull(store.current(actor,2,List.of(track)).get(1).reason());
+        assertNull(ActorDiagnosticReason.fromLegacy(""));
+    }
+    @Test void everyReasonHasChineseAndEnglishTranslation() throws Exception {
+        for(String lang:List.of("zh_cn","en_us")) {
+            var json=com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(
+                    java.nio.file.Path.of("src/main/resources/assets/director/lang/"+lang+".json"))).getAsJsonObject();
+            for(var reason:ActorDiagnosticReason.values()) {
+                assertEquals(reason,ActorDiagnosticReason.fromLegacy(reason.legacyMessage()));
+                assertTrue(json.has(reason.translationKey()),reason.name());
+                assertFalse(json.get(reason.translationKey()).getAsString().isBlank());
+            }
+        }
+    }
 }

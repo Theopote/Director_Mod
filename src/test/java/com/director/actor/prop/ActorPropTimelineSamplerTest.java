@@ -63,4 +63,28 @@ class ActorPropTimelineSamplerTest {
         throwAt(2); assertEquals(new Vec3d(4,2,0),sample(2).flights().getFirst().position());
         assertTrue(sample(Float.NaN).held().isEmpty()); assertTrue(sample(-1).flights().isEmpty());
     }
+    @Test void diagnosticsKeepEventTimesAndIgnoreFutureOrMutedEvents() {
+        attach(1,"missing"); throwAt(2);
+        var muted=attach(3,"missing"); muted.setMuted(true); attach(8,"missing");
+        var reasons=new ArrayList<com.director.actor.runtime.ActorDiagnosticReason>(); var times=new ArrayList<Float>();
+        ActorPropTimelineSampler.sampleTransforms(track,4,(t,slot,a)->null,(t,r)->{ times.add(t); reasons.add(r); });
+        assertEquals(List.of(1f,2f),times);
+        assertEquals(List.of(com.director.actor.runtime.ActorDiagnosticReason.PROP_PARAMETERS,
+                com.director.actor.runtime.ActorDiagnosticReason.PROP_EMPTY_SLOT),reasons);
+    }
+    @Test void unavailableLaunchReportsOnlyWhileFlightIsActive() {
+        attach(1,"stone"); throwAt(2); var reasons=new ArrayList<com.director.actor.runtime.ActorDiagnosticReason>();
+        ActorPropTimelineSampler.sampleTransforms(track,3,(t,slot,a)->null,(t,r)->reasons.add(r));
+        assertEquals(List.of(com.director.actor.runtime.ActorDiagnosticReason.PROP_LAUNCH),reasons);
+        reasons.clear(); ActorPropTimelineSampler.sampleTransforms(track,5,(t,slot,a)->null,(t,r)->reasons.add(r));
+        assertTrue(reasons.isEmpty());
+    }
+    @Test void missingSocketIsReportedButIntentionalHideIsSilentAndRecoveryClearsIt() {
+        var prop=new RuntimeProp(PropRegistry.getInstance().get("stone").orElseThrow(),ActorPropSlot.MAIN_HAND);
+        prop.updateSocketTransform(null,new org.joml.Matrix4f());
+        assertEquals(com.director.actor.runtime.ActorDiagnosticReason.PROP_SOCKET,prop.previewFailure(true));
+        assertNull(prop.previewFailure(false));
+        prop.updateSocketTransform(new com.director.actor.rig.skeleton.RigPose(com.director.actor.rig.skeleton.HumanoidRig.DEFINITION),new org.joml.Matrix4f());
+        assertNull(prop.previewFailure(true));
+    }
 }
