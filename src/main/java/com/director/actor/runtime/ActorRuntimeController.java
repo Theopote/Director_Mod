@@ -188,6 +188,9 @@ public final class ActorRuntimeController {
         // 清理已删除的轨道
         pruneDeadTracks();
 
+        // Create current-time preview hosts before relation sampling needs their terrain dimensions.
+        for (TrackRuntime rt : runtimes.values()) rt.preparePreview(time);
+
         // 更新每条轨道的运行时
         for (TrackRuntime rt : runtimes.values()) {
             rt.update(time);
@@ -312,6 +315,16 @@ public final class ActorRuntimeController {
          *
          * @param time 当前时间（秒）
          */
+        void preparePreview(float time) {
+            if (ownerTrack.isMuted() || actorTrack.getActorRef()==null) return;
+            var definition=actorRegistry.resolve(actorTrack.getActorRef()).orElse(null);
+            if (definition==null) return;
+            if (spawned && actor==definition && ActorPreviewManager.getInstance().hasPreview(definition.getActorId())) return;
+            actor=definition;
+            var sample=new EntityClipSampler(actorTrack).sampleAt(time);
+            if (sample!=null) handleSpawnLifecycle(sample);
+        }
+
         void update(float time) {
             if (ownerTrack.isMuted()) return;
             // 1️⃣ 解析 Actor
@@ -367,6 +380,7 @@ public final class ActorRuntimeController {
                     }
 
                     applyGroundRoute(entity, sample, time);
+                    ActorRelationTimeResolver.resolveInto(actor.getActorId(),sample,time,this::sampleRelationTarget);
                     applySample(entity, sample, lastSample, deltaTime);
                     
                     // 5️⃣ 将 ActorRuntime 传递给 PreviewEntity（供 Renderer 使用）
@@ -395,12 +409,29 @@ public final class ActorRuntimeController {
             lastTime = time;
         }
 
+        private EntitySample sampleRelationTarget(UUID id, Float time) {
+            if (actorRegistry.getActor(id).isEmpty()) return null;
+            // Timeline order chooses the binding; runtime-map iteration must not choose it.
+            for (var track : timelineSource.getTracks()) {
+                var payload=track.getActorTrackPayload();
+                if (track.isMuted() || payload==null || payload.getActorRef()==null || !id.equals(payload.getActorRef().getActorId())) continue;
+                var target=new EntityClipSampler(payload).sampleAt(time);
+                var runtime=runtimes.get(track);
+                var preview=ActorPreviewManager.getInstance().getPreview(id);
+                if (target!=null && runtime!=null && preview!=null) runtime.applyGroundRoute(preview,target,time);
+                return target;
+            }
+            return null;
+        }
+
         private org.joml.Matrix4f samplePropLaunchTransform(Entity entity, float time, ActorPropSlot slot,
                 com.director.actor.prop.ActorPropTimelineSampler.Attachment attachment) {
             var at = new EntityClipSampler(actorTrack).sampleAt(time);
             var rig = com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElse(null);
             if (at == null || rig == null || !com.director.actor.ActorBehaviorCapabilities.supportsLegacyPose(actor)) return null;
             applyGroundRoute(entity,at,time);
+            ActorRelationTimeResolver.resolveInto(actor.getActorId(),at,time,this::sampleRelationTarget);
+            ActorRelationTimeResolver.applyWorldLookRotation(at);
             var base = actor.getRigProfile().sampleAt(actorRuntime,at.action == null ? ActorActionType.IDLE : at.action,
                     at.actionIntensity,at.actionLocalTime).pose;
             var pose = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(base,rig);
@@ -567,11 +598,6 @@ public final class ActorRuntimeController {
                         s.rotation.x,
                         s.rotation.y
                 );
-            }
-
-            // === ActorRelation（多演员关系）===
-            if (s.relationEnabled && !gizmoDragging) {
-                applyActorRelation(entity, s);
             }
 
             // === LookAt（简化：直接调整 yaw/pitch）===
@@ -910,50 +936,6 @@ public final class ActorRuntimeController {
                     runtime.setHeadYaw((float) Math.toRadians(yaw - currentYaw));
                     runtime.setHeadPitch((float) Math.toRadians(pitch - currentPitch));
                 }
-            }
-        }
-
-        private void applyActorRelation(Entity entity, EntitySample s) {
-            if (s.relationTargetActorId == null || s.relationType == null) {
-                return;
-            }
-
-            Entity target = ActorPreviewManager.getInstance().getPreview(s.relationTargetActorId);
-            if (target == null) {
-                return;
-            }
-
-            ActorRelationClip.RelationType relationType;
-            try {
-                relationType = ActorRelationClip.RelationType.valueOf(s.relationType);
-            } catch (IllegalArgumentException e) {
-                return;
-            }
-
-            Vec3d targetPos = new Vec3d(target.getX(), target.getY(), target.getZ());
-            float targetYaw = target.getYaw();
-            double radians = Math.toRadians(targetYaw + s.relationAngle);
-            double offsetX = -Math.sin(radians) * s.relationDistance;
-            double offsetZ = Math.cos(radians) * s.relationDistance;
-
-            switch (relationType) {
-                case FACE_TO_FACE, FOLLOW, RELATIVE_POSITION, CIRCLE_AROUND -> {
-                    double newX = targetPos.x + offsetX;
-                    double newY = targetPos.y + s.relationHeightOffset;
-                    double newZ = targetPos.z + offsetZ;
-                    entity.refreshPositionAndAngles(newX, newY, newZ, entity.getYaw(), entity.getPitch());
-                }
-                default -> {
-                    // MIRROR / PASS_OBJECT 暂不在 Runtime 层实现，保留采样信息供后续扩展
-                }
-            }
-
-            if (s.relationMaintainLookAt && (relationType == ActorRelationClip.RelationType.FACE_TO_FACE
-                    || relationType == ActorRelationClip.RelationType.FOLLOW
-                    || relationType == ActorRelationClip.RelationType.CIRCLE_AROUND)) {
-                s.lookAtEnabled = true;
-                s.lookAtPoint.set((float) targetPos.x, (float) targetPos.y + 1.6f, (float) targetPos.z);
-                s.lookAtStrength = Math.max(0.85f, s.lookAtStrength);
             }
         }
 
