@@ -369,6 +369,7 @@ public final class ActorRuntimeController {
 
                     applyGroundRoute(actor.getActorId(), sample, time);
                     ActorRelationTimeResolver.resolveInto(actor.getActorId(),sample,time,this::sampleRelationTarget,this::constrainRelationPlacement);
+                    restoreRelationJump(sample,time);
                     applySample(entity, sample, lastSample, deltaTime);
                     
                     // 5️⃣ 将 ActorRuntime 传递给 PreviewEntity（供 Renderer 使用）
@@ -429,6 +430,7 @@ public final class ActorRuntimeController {
             if (at == null || rig == null || !com.director.actor.ActorBehaviorCapabilities.supportsLegacyPose(actor)) return null;
             applyGroundRoute(actor.getActorId(),at,time);
             ActorRelationTimeResolver.resolveInto(actor.getActorId(),at,time,this::sampleRelationTarget,this::constrainRelationPlacement);
+            restoreRelationJump(at,time);
             if (at.visibility<=.01f) return null;
             ActorRelationTimeResolver.applyWorldLookRotation(at);
             var base = actor.getRigProfile().sampleAt(actorRuntime,at.action == null ? ActorActionType.IDLE : at.action,
@@ -442,6 +444,14 @@ public final class ActorRuntimeController {
                         at.animationLoop?animation.loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE));
             }
             applyRigPoseOverrides(pose,at);
+            var root=pose.localTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT);
+            if(root.translation().lengthSquared()>1e-10f) {
+                var finalPosition=finalRootPlacement(new Vec3d(at.position.x,at.position.y,at.position.z),root.translation(),at.rotation.x,at,time);
+                if(finalPosition.position()==null) return null;
+                var feet=finalPosition.position(); at.position.set((float)feet.x,(float)feet.y,(float)feet.z);
+                pose.setLocalTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT,
+                        new com.director.actor.rig.skeleton.BoneTransform(new org.joml.Vector3f(),root.rotation(),root.scale()));
+            }
             var world = new org.joml.Matrix4f().translate(at.position)
                     .rotateY((float)Math.toRadians(-at.rotation.x)).scale(at.scale);
             var socket = com.director.actor.prop.ActorPropSocketResolver.resolve(pose,world,slot,
@@ -500,8 +510,12 @@ public final class ActorRuntimeController {
             double hop = com.director.actor.path.GroundRoute.jumpOffset(local,
                     clip.getJumpStart(), clip.getJumpDuration(), clip.getJumpHeight());
             Vec3d airborne = feet.add(0, hop, 0);
-            if (hop > 0 && terrain.clear(airborne)) feet = airborne;
-            else if (hop > 0) clip.setTerrainWarning("跳跃上方空间不足，已保持地面位置");
+            if (hop > 0) {
+                boolean clear=true; int steps=(int)Math.ceil(hop/.1);
+                for(int i=1;i<=steps;i++) if(!terrain.clear(feet.add(0,hop*i/steps,0))) { clear=false; break; }
+                if(clear) feet=airborne;
+                else clip.setTerrainWarning("跳跃上方空间不足，已保持地面位置");
+            }
             sample.position.set((float) feet.x, (float) feet.y, (float) feet.z);
             sample.speed = motion.moving() ? clip.getSpeed() : 0;
             if (clip.isAlignRotationToRoute()) {
@@ -720,8 +734,10 @@ public final class ActorRuntimeController {
                 if (preview instanceof com.director.actor.preview.PreviewActorEntity previewEntity) {
                     boolean boneDragging = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
                             && actor.getActorId().equals(com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().getActorId());
-                    if (!boneDragging) previewEntity.setFinalRigPose(finalRigPose);
-                    if (!boneDragging) applyRootAnimationOffset(previewEntity, finalRigPose);
+                    if (!boneDragging) {
+                        applyRootAnimationOffset(previewEntity, finalRigPose,s);
+                        previewEntity.setFinalRigPose(finalRigPose);
+                    }
                 }
                 return;
             }
@@ -783,24 +799,42 @@ public final class ActorRuntimeController {
             }
         }
 
-        private void applyRootAnimationOffset(Entity entity,
-                                              com.director.actor.rig.skeleton.RigPose pose) {
-            if (entity == null || pose == null) return;
-            var transformGizmo = com.director.ui.actor.gizmo.ActorGizmoController.getInstance();
-            if (transformGizmo.isDragging() && actor != null
-                    && actor.getActorId().equals(transformGizmo.getTargetActorId())) return;
-            org.joml.Vector3f offset = pose.localTransform(
-                    com.director.actor.rig.skeleton.HumanoidRig.ROOT).translation();
-            if (offset.lengthSquared() <= 1.0e-10f) return;
-            var scale = entity instanceof com.director.actor.preview.PreviewActorEntity preview
-                    ? preview.getActorTransformScale() : new org.joml.Vector3f(1);
-            offset = new org.joml.Matrix4f().rotateY((float)Math.toRadians(-entity.getYaw())).scale(scale)
-                    .transformDirection(offset);
-            entity.refreshPositionAndAngles(
-                    entity.getX() + offset.x,
-                    entity.getY() + offset.y,
-                    entity.getZ() + offset.z,
-                    entity.getYaw(), entity.getPitch());
+        private void restoreRelationJump(EntitySample sample,float time) {
+            if(!sample.relationEnabled || sample.routeClip==null || sample.visibility<=.01f) return;
+            double hop=com.director.actor.path.GroundRoute.jumpOffset(Math.max(0,time-sample.routeClip.getStartTime()),
+                    sample.routeClip.getJumpStart(),sample.routeClip.getJumpDuration(),sample.routeClip.getJumpHeight());
+            if(hop<=0) return;
+            var result=finalRootPlacement(new Vec3d(sample.position.x,sample.position.y,sample.position.z),
+                    new org.joml.Vector3f(),sample.rotation.x,sample,time);
+            if(!result.warning().isEmpty()) sample.routeClip.setTerrainWarning(result.warning());
+            if(result.position()==null) { sample.visibility=0; sample.speed=0; return; }
+            var point=result.position(); sample.position.set((float)point.x,(float)point.y,(float)point.z);
+        }
+
+        private com.director.actor.path.ActorRelationGroundConstraint.Result finalRootPlacement(
+                Vec3d base,org.joml.Vector3f offset,float yaw,EntitySample sample,float time) {
+            var terrain=terrainFor(actor.getActorId(),sample);
+            if(terrain==null) return new com.director.actor.path.ActorRelationGroundConstraint.Result(null,"动作地形尚未就绪");
+            var worldOffset=new org.joml.Matrix4f().rotateY((float)Math.toRadians(-yaw)).scale(sample.scale)
+                    .transformDirection(new org.joml.Vector3f(offset));
+            double jump=sample.routeClip==null?0:com.director.actor.path.GroundRoute.jumpOffset(
+                    Math.max(0,time-sample.routeClip.getStartTime()),sample.routeClip.getJumpStart(),sample.routeClip.getJumpDuration(),sample.routeClip.getJumpHeight());
+            return com.director.actor.path.ActorFinalGroundPlacement.project(base,
+                    new Vec3d(worldOffset.x,worldOffset.y,worldOffset.z),jump,terrain);
+        }
+        private void applyRootAnimationOffset(Entity entity,com.director.actor.rig.skeleton.RigPose pose,EntitySample sample) {
+            if(entity==null || pose==null || pose.rig().findBoneIndex(com.director.actor.rig.skeleton.HumanoidRig.ROOT)<0) return;
+            var gizmo=com.director.ui.actor.gizmo.ActorGizmoController.getInstance();
+            if(gizmo.isDragging() && actor.getActorId().equals(gizmo.getTargetActorId())) return;
+            var offset=pose.localTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT).translation();
+            if(offset.lengthSquared()<=1e-10f) return;
+            var result=finalRootPlacement(new Vec3d(entity.getX(),entity.getY(),entity.getZ()),offset,entity.getYaw(),sample,timelineSource.getCurrentTime());
+            if(!result.warning().isEmpty() && sample.routeClip!=null) sample.routeClip.setTerrainWarning(result.warning());
+            if(result.position()==null) { sample.visibility=0; sample.speed=0; entity.setInvisible(true); return; }
+            var feet=result.position(); entity.refreshPositionAndAngles(feet.x,feet.y,feet.z,entity.getYaw(),entity.getPitch());
+            var root=pose.localTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT);
+            pose.setLocalTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT,
+                    new com.director.actor.rig.skeleton.BoneTransform(new org.joml.Vector3f(),root.rotation(),root.scale()));
         }
 
         private void applyRigPoseOverrides(com.director.actor.rig.skeleton.RigPose pose, EntitySample s) {
