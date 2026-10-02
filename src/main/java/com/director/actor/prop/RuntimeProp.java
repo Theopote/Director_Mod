@@ -46,7 +46,7 @@ public final class RuntimeProp {
     private final Vector3f localRotation = new Vector3f(0, 0, 0);
 
     /** 渲染对象（未来扩展） */
-    private Object renderObject; // TODO: 未来实现 RenderPropObject
+    private final ActorPropPreviewVisual visual = new ActorPropPreviewVisual();
 
     /** 世界位置（用于投掷时的独立位置） */
     private Vec3d worldPosition = null;
@@ -189,8 +189,12 @@ public final class RuntimeProp {
     /**
      * 清理资源
      */
+    public void syncVisual(net.minecraft.client.world.ClientWorld world, boolean visible) {
+        visual.sync(world,descriptor,worldTransform,visible);
+    }
+
     public void dispose() {
-        // TODO: 清理 renderObject
+        visual.dispose();
         LOGGER.debug("[RuntimeProp] 清理道具: {}", descriptor.getId());
     }
 }

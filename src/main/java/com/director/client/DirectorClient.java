@@ -102,9 +102,13 @@ public class DirectorClient implements ClientModInitializer {
             registerEventHandlers();
         });
 
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
+                com.director.actor.runtime.ActorRuntimeController.getInstance().clearPropPreviews());
+
         // 注册客户端停止事件
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             // ImGui 清理现在由 ImGuiRenderer 统一处理
+            com.director.actor.runtime.ActorRuntimeController.getInstance().clearPropPreviews();
             // 这里只处理客户端特定的清理
         });
     }

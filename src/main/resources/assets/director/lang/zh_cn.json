@@ -2127,7 +2127,7 @@
   "gui.director.actor.behavior.relation_runtime_hint": "关系按目标演员的相对偏移定位；绕圈类型目前使用固定角度。镜像和物品传递尚未实现。",
   "gui.director.actor.prop_event.title": "道具事件",
   "gui.director.actor.prop_event.type": "事件类型",
-  "gui.director.actor.prop_event.preview_hint": "挂点变换已接入兼容的人形骨架；道具可视化仍未完成。偏移使用挂点局部坐标，旋转单位为度；双手槽位仅取手部中点，不自动调整手臂。",
+  "gui.director.actor.prop_event.preview_hint": "已接入兼容人形骨架的方块、物品道具预览；方块默认显示半格大小。偏移使用挂点局部坐标，旋转单位为度；双手槽位取手部中点，不自动摆臂。自定义道具模型尚未接入。",
   "gui.director.actor.prop_event.trigger_hint": "当前事件每次进入片段触发一次；旧的重复触发标记暂不生效。",
   "gui.director.actor.prop_event.normalize_trigger": "恢复单次触发标记",
   "gui.director.actor.prop_event.apply": "应用道具事件",

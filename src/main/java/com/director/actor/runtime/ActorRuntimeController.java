@@ -152,6 +152,11 @@ public final class ActorRuntimeController {
      *
      * @return 如果启用则返回 true
      */
+    /** Release only prop visual resources when leaving a client world. */
+    public void clearPropPreviews() {
+        propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
+    }
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -375,6 +380,7 @@ public final class ActorRuntimeController {
                     var propState = com.director.actor.prop.ActorPropTimelineSampler.sampleSockets(actorTrack,time,
                             (eventTime,slot,attachment) -> samplePropLaunchOrigin(entity,eventTime,slot,attachment));
                     propRuntime.sync(propState);
+                    propRuntime.setHeldVisible(sample.visibility > .01f);
                     if (propRuntime != null) {
                         propRuntime.update();
                     }

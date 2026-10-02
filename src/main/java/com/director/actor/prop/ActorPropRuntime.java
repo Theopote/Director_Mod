@@ -181,6 +181,9 @@ public final class ActorPropRuntime {
      * 更新所有道具的 Transform（每帧调用）
      * <p>让道具跟随演员的位置、旋转
      */
+    private boolean heldVisible = true;
+    public void setHeldVisible(boolean visible) { heldVisible = visible; }
+
     public void update() {
         if (actorEntity == null) {
             return;
@@ -188,6 +191,11 @@ public final class ActorPropRuntime {
 
         for (RuntimeProp prop : props.values()) {
             prop.updateTransform(actorEntity);
+            if (actorEntity.getEntityWorld() instanceof net.minecraft.client.world.ClientWorld world)
+                prop.syncVisual(world,heldVisible);
+        }
+        if (actorEntity.getEntityWorld() instanceof net.minecraft.client.world.ClientWorld world) {
+            for (var prop : sampledFlights.values()) prop.syncVisual(world,true);
         }
     }
 
