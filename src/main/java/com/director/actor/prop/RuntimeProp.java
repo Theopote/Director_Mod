@@ -50,6 +50,11 @@ public final class RuntimeProp {
 
     /** 世界位置（用于投掷时的独立位置） */
     private Vec3d worldPosition = null;
+    private org.joml.Matrix4f worldTransform;
+
+    public org.joml.Matrix4f getWorldTransform() {
+        return worldTransform == null ? null : new org.joml.Matrix4f(worldTransform);
+    }
 
     /** 是否绑定到 Actor（false 表示独立世界位置，如投掷中） */
     private boolean boundToActor = true;
@@ -118,29 +123,29 @@ public final class RuntimeProp {
             return;
         }
 
-        // TODO: 未来实现
-        // 1. 找到骨骼/手的位置（根据 slot）
-        // 2. 应用 localOffset / localRotation
-        // 3. 更新 renderObject 的 transform
+        if (!(actor instanceof com.director.actor.preview.PreviewActorEntity preview)) {
+            worldPosition = null; worldTransform = null; return;
+        }
+        var pose = preview.getFinalRigPose();
+        if (pose != null && pose.rig().findBoneIndex(com.director.actor.rig.skeleton.HumanoidRig.ROOT) >= 0) {
+            // The host position already includes the animation root translation.
+            var root = pose.localTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT);
+            pose.setLocalTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT,
+                    new com.director.actor.rig.skeleton.BoneTransform(new Vector3f(),root.rotation(),root.scale()));
+        }
+        var actorWorld = new org.joml.Matrix4f().translate((float)actor.getX(),(float)actor.getY(),(float)actor.getZ())
+                .rotateY((float)Math.toRadians(-actor.getYaw())).scale(preview.getActorTransformScale());
+        updateSocketTransform(pose,actorWorld);
+    }
 
-        // 当前简化实现：道具位置 = 演员位置 + 局部偏移
-        Vec3d actorPos = new Vec3d(
-                actor.getX(),
-                actor.getY(),
-                actor.getZ()
-        );
-        Vec3d propPos = actorPos.add(
-                localOffset.x,
-                localOffset.y,
-                localOffset.z
-        );
-
-        // 更新世界位置（用于获取当前位置）
-        this.worldPosition = propPos;
-
-        // TODO: 更新 renderObject 的位置
-        LOGGER.trace("[RuntimeProp] 更新道具 Transform: {} -> ({}, {}, {})",
-                descriptor.getId(), propPos.x, propPos.y, propPos.z);
+    /** Pure matrix update, also usable without a Minecraft preview entity. */
+    public void updateSocketTransform(com.director.actor.rig.skeleton.RigPose pose, org.joml.Matrix4f actorWorld) {
+        if (!boundToActor) return;
+        var matrix = ActorPropSocketResolver.resolve(pose,actorWorld,slot,localOffset,localRotation);
+        worldTransform = matrix.orElse(null);
+        if (worldTransform == null) { worldPosition=null; return; }
+        var position=worldTransform.getTranslation(new Vector3f());
+        worldPosition=new Vec3d(position.x,position.y,position.z);
     }
 
     /**
@@ -152,6 +157,8 @@ public final class RuntimeProp {
     public void setWorldTransform(Vec3d pos) {
         this.worldPosition = pos;
         this.boundToActor = false;
+        if (worldTransform == null) worldTransform = new org.joml.Matrix4f();
+        worldTransform.setTranslation((float)pos.x,(float)pos.y,(float)pos.z);
         // TODO: 更新 renderObject 的位置
         LOGGER.trace("[RuntimeProp] 设置世界位置: {} -> ({}, {}, {})",
                 descriptor.getId(), pos.x, pos.y, pos.z);

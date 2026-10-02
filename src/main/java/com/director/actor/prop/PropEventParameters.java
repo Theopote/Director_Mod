@@ -14,7 +14,7 @@ public final class PropEventParameters {
                 || type == ActionType.SWITCH_PROP || type == ActionType.THROW_PROP;
     }
     public static boolean supportsSlot(Actor actor, ActorPropSlot slot, ActionType type) {
-        return actor != null && slot != null && ActorRigCompatibility.accepts(actor, HumanoidRig.DEFINITION.id())
+        return actor != null && slot != null && com.director.actor.ActorBehaviorCapabilities.supportsLegacyPose(actor)
                 && (type != ActionType.THROW_PROP || slot == ActorPropSlot.MAIN_HAND
                     || slot == ActorPropSlot.OFF_HAND || slot == ActorPropSlot.BOTH_HANDS);
     }

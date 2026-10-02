@@ -2127,7 +2127,7 @@
   "gui.director.actor.behavior.relation_runtime_hint": "Relations position an actor relative to its target. Circle-around currently uses a fixed angle. Mirror and object transfer are not implemented.",
   "gui.director.actor.prop_event.title": "Prop event",
   "gui.director.actor.prop_event.type": "Event type",
-  "gui.director.actor.prop_event.preview_hint": "Prop slots can currently be configured for standard humanoid actors. Bone following and prop rendering are unfinished; these settings do not yet provide a complete held-prop preview.",
+  "gui.director.actor.prop_event.preview_hint": "Socket transforms support compatible humanoid rigs; prop rendering is still unfinished. Offsets use socket-local coordinates and rotations use degrees. Both hands uses a midpoint without posing the arms.",
   "gui.director.actor.prop_event.trigger_hint": "Events currently fire once on entering the clip. Legacy repeat flags do not change this behavior.",
   "gui.director.actor.prop_event.normalize_trigger": "Restore single-trigger flag",
   "gui.director.actor.prop_event.apply": "Apply prop event",

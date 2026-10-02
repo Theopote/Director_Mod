@@ -372,12 +372,8 @@ public final class ActorRuntimeController {
                     // 6️⃣ 更新 Prop Runtime（每帧更新道具 Transform） */
                     ActorPropRuntime propRuntime = getOrCreatePropRuntime(actor);
                     propRuntime.setActorEntity(entity);
-                    var propState = com.director.actor.prop.ActorPropTimelineSampler.sample(actorTrack,time,eventTime -> {
-                        var at = new EntityClipSampler(actorTrack).sampleAt(eventTime);
-                        if (at == null) return null;
-                        applyGroundRoute(entity,at,eventTime);
-                        return new Vec3d(at.position.x,at.position.y,at.position.z);
-                    });
+                    var propState = com.director.actor.prop.ActorPropTimelineSampler.sampleSockets(actorTrack,time,
+                            (eventTime,slot,attachment) -> samplePropLaunchOrigin(entity,eventTime,slot,attachment));
                     propRuntime.sync(propState);
                     if (propRuntime != null) {
                         propRuntime.update();
@@ -391,6 +387,33 @@ public final class ActorRuntimeController {
             }
             lastSample = sample;
             lastTime = time;
+        }
+
+        private Vec3d samplePropLaunchOrigin(Entity entity, float time, ActorPropSlot slot,
+                com.director.actor.prop.ActorPropTimelineSampler.Attachment attachment) {
+            var at = new EntityClipSampler(actorTrack).sampleAt(time);
+            var rig = com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElse(null);
+            if (at == null || rig == null || !com.director.actor.ActorBehaviorCapabilities.supportsLegacyPose(actor)) return null;
+            applyGroundRoute(entity,at,time);
+            var base = actor.getRigProfile().sampleAt(actorRuntime,at.action == null ? ActorActionType.IDLE : at.action,
+                    at.actionIntensity,at.actionLocalTime).pose;
+            var pose = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(base,rig);
+            var asset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(at.animationId)
+                    .filter(value -> com.director.actor.rig.ActorRigCompatibility.accepts(actor,value.rigId()));
+            if (asset.isPresent()) {
+                var animation=asset.get();
+                pose=pose.overlay(animation.sample(at.animationLocalTime*Math.max(.01f,at.animationSpeed),
+                        at.animationLoop?animation.loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE));
+            }
+            applyRigPoseOverrides(pose,at);
+            var world = new org.joml.Matrix4f().translate(at.position)
+                    .rotateY((float)Math.toRadians(-at.rotation.x)).scale(at.scale);
+            var socket = com.director.actor.prop.ActorPropSocketResolver.resolve(pose,world,slot,
+                    new org.joml.Vector3f(attachment.x(),attachment.y(),attachment.z()),
+                    new org.joml.Vector3f(attachment.rx(),attachment.ry(),attachment.rz()));
+            if (socket.isEmpty()) return null;
+            var position=socket.get().getTranslation(new org.joml.Vector3f());
+            return new Vec3d(position.x,position.y,position.z);
         }
 
         private void applyGroundRoute(Entity entity, EntitySample sample, float time) {

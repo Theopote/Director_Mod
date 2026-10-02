@@ -18,7 +18,16 @@ public final class ActorPropTimelineSampler {
     public record Snapshot(Map<ActorPropSlot,Attachment> held, List<Flight> flights) {}
     private record Event(String id, float time, EntityActionEvent action) {}
     private ActorPropTimelineSampler() {}
+    @FunctionalInterface public interface LaunchOrigin {
+        Vec3d resolve(float time, ActorPropSlot slot, Attachment attachment);
+    }
     public static Snapshot sample(ActorTrack track, float time, Function<Float,Vec3d> actorPosition) {
+        return sampleSockets(track,time,(at,slot,attachment) -> {
+            var origin=actorPosition.apply(at);
+            return origin==null?null:origin.add(attachment.x,attachment.y,attachment.z);
+        });
+    }
+    public static Snapshot sampleSockets(ActorTrack track, float time, LaunchOrigin launchOrigin) {
         if (!Float.isFinite(time) || time < 0) return new Snapshot(Map.of(),List.of());
         var events = new ArrayList<Event>();
         for (var clip : track.getClips()) {
@@ -37,8 +46,12 @@ public final class ActorPropTimelineSampler {
                 }
             }
         }
-        // Stable sort: equal-time events follow the persisted clip/marker order.
-        events.sort(Comparator.comparingDouble(Event::time));
+        // Track storage is a TreeSet, so insertion order cannot define simultaneous events.
+        // Equip, switch, detach, then throw; IDs break ties between events of the same type.
+        events.sort(Comparator.comparingDouble(Event::time)
+                .thenComparingInt(e -> switch(e.action.type()) {
+                    case ATTACH_PROP -> 0; case SWITCH_PROP -> 1; case DETACH_PROP -> 2; default -> 3;
+                }).thenComparing(Event::id));
         var held = new EnumMap<ActorPropSlot,Attachment>(ActorPropSlot.class);
         var flights = new ArrayList<Flight>();
         for (var event : events) {
@@ -58,9 +71,8 @@ public final class ActorPropTimelineSampler {
                     if (attachment==null) continue;
                     float duration=value(params,"flightTime",1), age=time-event.time;
                     if (age>=duration) continue;
-                    Vec3d origin=actorPosition.apply(event.time);
+                    Vec3d origin=launchOrigin.resolve(event.time,slot,attachment);
                     if (origin==null) continue;
-                    origin=origin.add(attachment.x,attachment.y,attachment.z);
                     var target=new Vec3d(PropEventParameters.number(params,"targetX"),PropEventParameters.number(params,"targetY"),PropEventParameters.number(params,"targetZ"));
                     double progress=age/duration;
                     var position=origin.lerp(target,progress).add(0,Math.sin(progress*Math.PI)*value(params,"arcHeight",1.5f),0);
