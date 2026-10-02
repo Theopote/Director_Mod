@@ -579,6 +579,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
 
         // ---- Usage Information (只读) ----
         renderActorUsage(actor);
+        com.director.ui.properties.actor.ActorRuntimeDiagnosticsUI.render(actor.getActorId());
         
         return modified;
     }

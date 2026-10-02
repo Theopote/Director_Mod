@@ -21,6 +21,7 @@ public class EntityActionClipPropertyAdapter implements IPropertyAdapter<EntityA
     @Override public Class<EntityActionClip> getTargetType() { return EntityActionClip.class; }
     private String tr(String key) { return ActorPropertyAdapterI18n.tr("gui.director.actor.prop_event."+key); }
     @Override public boolean renderProperties(EntityActionClip source) {
+        com.director.ui.properties.actor.ActorRuntimeDiagnosticsUI.render(source);
         var model = DirectorServices.get().containerTimeline().getTimelineModel();
         boolean competing = com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
                 || com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging();

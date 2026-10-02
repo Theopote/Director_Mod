@@ -98,6 +98,8 @@ public final class ActorRuntimeController {
 
     /** 总开关 */
     private boolean enabled = true;
+    private final ActorRuntimeDiagnostics diagnostics = new ActorRuntimeDiagnostics();
+    public ActorRuntimeDiagnostics diagnostics() { return diagnostics; }
 
     private ActorRuntimeController() {
     }
@@ -136,6 +138,7 @@ public final class ActorRuntimeController {
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         if (!enabled) {
+            diagnostics.clear();
             ActorPreviewManager.getInstance().clear();
             ProjectileRuntimeManager.getInstance().clear();
             com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
@@ -154,6 +157,7 @@ public final class ActorRuntimeController {
      */
     /** Release only prop visual resources when leaving a client world. */
     public void clearPropPreviews() {
+        diagnostics.clear();
         propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
     }
 
@@ -170,10 +174,11 @@ public final class ActorRuntimeController {
      */
     public void update() {
         if (!enabled || timelineSource == null || actorRegistry == null) {
-            return;
+            diagnostics.clear(); return;
         }
 
         float time = timelineSource.getCurrentTime();
+        diagnostics.begin(time);
         if (!Float.isFinite(time) || time < 0) {
             propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
             return;
@@ -205,6 +210,7 @@ public final class ActorRuntimeController {
      * 重建运行时（当模型结构变化时调用）
      */
     private void rebuildRuntimes() {
+        diagnostics.clear();
         runtimes.clear();
         propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
 
@@ -335,6 +341,7 @@ public final class ActorRuntimeController {
             );
 
             if (actor == null) {
+                diagnostics.report(ref.getActorId(),ownerTrack,time,"binding",true,"轨道绑定的演员不存在，请重新绑定演员");
                 return;
             }
 
@@ -368,7 +375,8 @@ public final class ActorRuntimeController {
                     }
 
                     applyGroundRoute(actor.getActorId(), sample, time);
-                    ActorRelationTimeResolver.resolveInto(actor.getActorId(),sample,time,this::sampleRelationTarget,this::constrainRelationPlacement);
+                    ActorRelationTimeResolver.resolveInto(actor.getActorId(),sample,time,this::sampleRelationTarget,this::constrainRelationPlacement,
+                            (id,message)->reportPlacement(id,time,"relation",false,message));
                     restoreRelationJump(sample,time);
                     applySample(entity, sample, lastSample, deltaTime);
                     
@@ -398,12 +406,22 @@ public final class ActorRuntimeController {
             lastTime = time;
         }
 
+        private void reportPlacement(UUID id,float time,String stage,boolean hidden,String message) {
+            for(var track:timelineSource.getTracks()) {
+                var payload=track.getActorTrackPayload();
+                if(!track.isMuted() && payload!=null && payload.getActorRef()!=null && id.equals(payload.getActorRef().getActorId())) {
+                    diagnostics.report(id,track,time,stage,hidden,message); return;
+                }
+            }
+        }
+
         private org.joml.Vector3f constrainRelationPlacement(UUID id,float time,EntitySample sample,org.joml.Vector3f requested) {
             var terrain=terrainFor(id,sample);
-            if (terrain==null) return null;
+            if (terrain==null) { reportPlacement(id,time,"relation",true,"关系地形或演员碰撞尺寸尚未就绪"); return null; }
             var result=com.director.actor.path.ActorRelationGroundConstraint.project(
                     new Vec3d(sample.position.x,sample.position.y,sample.position.z),
                     new Vec3d(requested.x,requested.y,requested.z),terrain);
+            reportPlacement(id,time,"relation",result.position()==null,result.warning());
             if (!result.warning().isEmpty()) { sample.speed=0; EntityClipSampler.resolveAutoAction(sample); }
             if (result.position()==null) return null;
             var point=result.position(); return new org.joml.Vector3f((float)point.x,(float)point.y,(float)point.z);
@@ -429,7 +447,8 @@ public final class ActorRuntimeController {
             var rig = com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElse(null);
             if (at == null || rig == null || !com.director.actor.ActorBehaviorCapabilities.supportsLegacyPose(actor)) return null;
             applyGroundRoute(actor.getActorId(),at,time);
-            ActorRelationTimeResolver.resolveInto(actor.getActorId(),at,time,this::sampleRelationTarget,this::constrainRelationPlacement);
+            ActorRelationTimeResolver.resolveInto(actor.getActorId(),at,time,this::sampleRelationTarget,this::constrainRelationPlacement,
+                            (id,message)->reportPlacement(id,time,"relation",false,message));
             restoreRelationJump(at,time);
             if (at.visibility<=.01f) return null;
             ActorRelationTimeResolver.applyWorldLookRotation(at);
@@ -474,7 +493,7 @@ public final class ActorRuntimeController {
             var clip = sample.routeClip;
             if (clip == null) return;
             var terrain=terrainFor(id,sample);
-            if(terrain==null) { sample.visibility=0; sample.speed=0; EntityClipSampler.resolveAutoAction(sample); return; }
+            if(terrain==null) { reportPlacement(id,time,"route",true,"路径地形或演员碰撞尺寸尚未就绪"); sample.visibility=0; sample.speed=0; EntityClipSampler.resolveAutoAction(sample); return; }
             var world=net.minecraft.client.MinecraftClient.getInstance().world;
             var dimensions=com.director.actor.path.ActorCollisionDimensions.forActor(actorRegistry.getActor(id).orElseThrow(),sample.scale);
             if (groundRoute == null || groundClip != clip || groundRevision != clip.getTerrainRevision()
@@ -487,6 +506,7 @@ public final class ActorRuntimeController {
                 groundWorld=world; groundDimensions=dimensions;
             }
             clip.setTerrainWarning(groundRoute.warning());
+            reportPlacement(id,time,"route",!groundRoute.valid(),groundRoute.warning());
             if (!groundRoute.valid()) {
                 // No safe starting point: don't render an actor suspended in mid-air.
                 sample.visibility = 0;
@@ -500,6 +520,7 @@ public final class ActorRuntimeController {
             var support = terrain.floor(feet.x, feet.z, feet.y, 0.6, 1.25);
             if (support.isEmpty()) {
                 // A changed/unloaded block must not leave the cached actor floating.
+                reportPlacement(id,time,"route",true,"当前位置地形已改变或未加载，请重新检测路径");
                 clip.setTerrainWarning("当前位置地形已改变或未加载，请重新检测路径");
                 sample.visibility = 0;
                 sample.speed = 0;
@@ -514,7 +535,8 @@ public final class ActorRuntimeController {
                 boolean clear=true; int steps=(int)Math.ceil(hop/.1);
                 for(int i=1;i<=steps;i++) if(!terrain.clear(feet.add(0,hop*i/steps,0))) { clear=false; break; }
                 if(clear) feet=airborne;
-                else clip.setTerrainWarning("跳跃上方空间不足，已保持地面位置");
+                else { clip.setTerrainWarning("跳跃上方空间不足，已保持地面位置");
+                    reportPlacement(id,time,"jump",false,"跳跃上方空间不足，已保持地面位置"); }
             }
             sample.position.set((float) feet.x, (float) feet.y, (float) feet.z);
             sample.speed = motion.moving() ? clip.getSpeed() : 0;
@@ -572,6 +594,8 @@ public final class ActorRuntimeController {
                 if (entity != null) {
                     spawned = true;
                     LOGGER.debug("[ActorRuntime] Spawn 预览实体: {}", actor.getName());
+                } else {
+                    diagnostics.report(actor.getActorId(),ownerTrack,timelineSource.getCurrentTime(),"preview",true,"预览实体无法创建，请检查世界加载状态和演员类型");
                 }
             }
 
@@ -806,6 +830,7 @@ public final class ActorRuntimeController {
             if(hop<=0) return;
             var result=finalRootPlacement(new Vec3d(sample.position.x,sample.position.y,sample.position.z),
                     new org.joml.Vector3f(),sample.rotation.x,sample,time);
+            reportPlacement(actor.getActorId(),time,"jump",result.position()==null,result.warning());
             if(!result.warning().isEmpty()) sample.routeClip.setTerrainWarning(result.warning());
             if(result.position()==null) { sample.visibility=0; sample.speed=0; return; }
             var point=result.position(); sample.position.set((float)point.x,(float)point.y,(float)point.z);
@@ -814,13 +839,16 @@ public final class ActorRuntimeController {
         private com.director.actor.path.ActorRelationGroundConstraint.Result finalRootPlacement(
                 Vec3d base,org.joml.Vector3f offset,float yaw,EntitySample sample,float time) {
             var terrain=terrainFor(actor.getActorId(),sample);
-            if(terrain==null) return new com.director.actor.path.ActorRelationGroundConstraint.Result(null,"动作地形尚未就绪");
+            if(terrain==null) { reportPlacement(actor.getActorId(),time,"root",true,"动作地形尚未就绪");
+                return new com.director.actor.path.ActorRelationGroundConstraint.Result(null,"动作地形尚未就绪"); }
             var worldOffset=new org.joml.Matrix4f().rotateY((float)Math.toRadians(-yaw)).scale(sample.scale)
                     .transformDirection(new org.joml.Vector3f(offset));
             double jump=sample.routeClip==null?0:com.director.actor.path.GroundRoute.jumpOffset(
                     Math.max(0,time-sample.routeClip.getStartTime()),sample.routeClip.getJumpStart(),sample.routeClip.getJumpDuration(),sample.routeClip.getJumpHeight());
-            return com.director.actor.path.ActorFinalGroundPlacement.project(base,
+            var result=com.director.actor.path.ActorFinalGroundPlacement.project(base,
                     new Vec3d(worldOffset.x,worldOffset.y,worldOffset.z),jump,terrain);
+            reportPlacement(actor.getActorId(),time,"root",result.position()==null,result.warning());
+            return result;
         }
         private void applyRootAnimationOffset(Entity entity,com.director.actor.rig.skeleton.RigPose pose,EntitySample sample) {
             if(entity==null || pose==null || pose.rig().findBoneIndex(com.director.actor.rig.skeleton.HumanoidRig.ROOT)<0) return;

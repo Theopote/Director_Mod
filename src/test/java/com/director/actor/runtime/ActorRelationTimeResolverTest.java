@@ -54,4 +54,10 @@ class ActorRelationTimeResolverTest {
         var s=follower(b); ActorRelationTimeResolver.resolveInto(a,s,1,(id,t)->base(0,0),(id,t,value,requested)->null);
         assertEquals(0,s.visibility); assertEquals(0,s.speed); assertEquals(10,s.position.x);
     }
+    @Test void legacyCycleReportsReasonWithoutChangingSourcePosition() {
+        var messages=new ArrayList<String>(); var s=follower(a);
+        ActorRelationTimeResolver.resolveInto(a,s,1,(id,t)->follower(a),(id,t,value,requested)->requested,
+                (id,message)->messages.add(message));
+        assertEquals(1,messages.size()); assertEquals(10,s.position.x);
+    }
 }

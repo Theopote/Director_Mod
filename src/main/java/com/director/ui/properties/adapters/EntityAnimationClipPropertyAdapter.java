@@ -35,6 +35,7 @@ public class EntityAnimationClipPropertyAdapter implements IPropertyAdapter<Enti
 
     @Override
     public boolean renderProperties(EntityAnimationClip clip) {
+        com.director.ui.properties.actor.ActorRuntimeDiagnosticsUI.render(clip);
         if (clip == null) {
             ImGui.text("（无片段）");
             return false;

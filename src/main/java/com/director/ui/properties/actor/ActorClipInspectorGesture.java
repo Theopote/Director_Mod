@@ -16,6 +16,7 @@ public final class ActorClipInspectorGesture {
     private String error = "";
 
     public EntityClip begin(EntityClip source) {
+        ActorRuntimeDiagnosticsUI.render(source);
         var model = DirectorServices.get().containerTimeline().getTimelineModel();
         int frame = ImGui.getFrameCount();
         boolean competing = com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()

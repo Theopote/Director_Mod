@@ -2186,5 +2186,15 @@
   "gui.director.actor.prop_event.pose_HAND": "Vanilla hand pose",
   "gui.director.actor.prop_event.scale_hint": "Size range: 0.01–10. Blocks start at half a block; 2 makes one block. Hand pose uses the model’s hand settings, with left-hand settings for offhand; it does not pose the arms.",
   "gui.director.actor.prop_event.reset_visual": "Reset size and orientation",
-  "gui.director.actor.behavior.relation_ground_hint": "Relation placement projects onto ground and checks a straight segment from the actor’s track position. Obstacles stop it at a reachable point; an unsafe start hides preview. Height offsets do not create flight. Detection is limited to 64 blocks without pathfinding."
+  "gui.director.actor.behavior.relation_ground_hint": "Relation placement projects onto ground and checks a straight segment from the actor’s track position. Obstacles stop it at a reachable point; an unsafe start hides preview. Height offsets do not create flight. Detection is limited to 64 blocks without pathfinding.",
+  "gui.director.actor.diagnostics.title": "Preview diagnostics",
+  "gui.director.actor.diagnostics.hidden": "Cannot display safely",
+  "gui.director.actor.diagnostics.limited": "Constrained",
+  "gui.director.actor.diagnostics.route": "Route",
+  "gui.director.actor.diagnostics.relation": "Relation",
+  "gui.director.actor.diagnostics.root": "Root motion",
+  "gui.director.actor.diagnostics.jump": "Jump",
+  "gui.director.actor.diagnostics.issue": "%s · %s · sampled at %.2fs: %s",
+  "gui.director.actor.diagnostics.binding": "Actor binding",
+  "gui.director.actor.diagnostics.preview": "Preview entity"
 }

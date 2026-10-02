@@ -37,6 +37,7 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
 
     @Override
     public boolean renderProperties(ActorRouteClip source) {
+        com.director.ui.properties.actor.ActorRuntimeDiagnosticsUI.render(source);
         if (source == null) {
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NO_CLIP));
             return false;
