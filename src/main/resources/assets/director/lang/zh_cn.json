@@ -2169,5 +2169,12 @@
   "gui.director.actor.spawn_edit.yaw": "偏航（度）",
   "gui.director.actor.spawn_edit.pitch": "俯仰（度）",
   "gui.director.actor.spawn_edit.visible": "出生时可见",
-  "gui.director.actor.spawn_edit.invalid_time": "出生片段时长至少为 0.1 秒，时间必须为有限数值。"
+  "gui.director.actor.spawn_edit.invalid_time": "出生片段时长至少为 0.1 秒，时间必须为有限数值。",
+  "gui.director.actor.state_edit.runtime_hint": "潜行、冲刺及无敌尚未接入预览，旧参数保留。",
+  "gui.director.actor.state_edit.visibility_hint": "当前预览：可见性 ≤ 0.01 时隐藏，否则显示；尚不支持透明度渐变。",
+  "gui.director.actor.despawn_edit.title": "离场片段",
+  "gui.director.actor.despawn_edit.mode": "离场方式",
+  "gui.director.actor.despawn_edit.HIDE": "隐藏",
+  "gui.director.actor.despawn_edit.REMOVE": "移除",
+  "gui.director.actor.despawn_edit.hint": "离场在片段结束附近生效：隐藏仅关闭可见性，移除将演员设为未激活。"
 }

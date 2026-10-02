@@ -82,6 +82,21 @@ public final class ActorClipPropertyEditSession {
                 throw new IllegalArgumentException("出生位置、朝向或时间范围无效");
         }
     }
+    private record Status(boolean sneaking, boolean sprinting, boolean glowing, boolean invulnerable, float visibility) implements State {
+        public void apply(EntityClip clip) {
+            var c = (EntityStateClip) clip;
+            c.setSneaking(sneaking); c.setSprinting(sprinting); c.setGlowing(glowing);
+            c.setInvulnerable(invulnerable); c.setVisibility(visibility);
+        }
+        public void validate() {
+            if (!Float.isFinite(visibility) || visibility < 0 || visibility > 1)
+                throw new IllegalArgumentException("可见性必须是 0–1 的有限数值");
+        }
+    }
+    private record Despawn(EntityDespawnClip.DespawnMode mode) implements State {
+        public void apply(EntityClip clip) { ((EntityDespawnClip) clip).setMode(mode); }
+        public void validate() { if (mode == null) throw new IllegalArgumentException("请选择离场方式"); }
+    }
     private record Key(EntityClipKeyframe identity, float time, TimelineInterpolation interpolation,
                        Vector3f position, Vector3f rotation, Vector3f scale, EntityKeyframe.ActionType action,
                        float speed, boolean loop, float visibility, boolean active, String name,
@@ -125,7 +140,10 @@ public final class ActorClipPropertyEditSession {
         else if (source instanceof ActorActionClip) draft = new ActorActionClip(source.getName(), common.start, common.end);
         else if (source instanceof ActorRelationClip) draft = new ActorRelationClip(source.getName(), common.start, common.end);
         else if (source instanceof EntityActionClip) draft = new EntityActionClip(source.getName(), common.start, common.end);
-        else draft = new EntitySpawnClip(source.getName(), common.start, common.end);
+        else if (source instanceof EntitySpawnClip) draft = new EntitySpawnClip(source.getName(), common.start, common.end);
+        else if (source instanceof EntityStateClip) draft = new EntityStateClip(source.getName(), common.start, common.end);
+        else if (source instanceof EntityDespawnClip) draft = new EntityDespawnClip(source.getName(), common.start, common.end);
+        else throw new IllegalArgumentException("不支持此片段类型");
         before.apply(draft);
         if (!isCurrent(model, source)) throw new IllegalArgumentException("请暂停播放并选择可编辑的演员片段");
     }
@@ -179,6 +197,8 @@ public final class ActorClipPropertyEditSession {
         if (clip instanceof ActorRelationClip c) return new Relation(c.getTargetActorId(), c.getRelationType(), c.getDistance(), c.getAngle(), c.getHeightOffset(), c.isMaintainLookAt());
         if (clip instanceof EntityActionClip c) return new Event(c.getActionType(),c.isTriggerOnce(),PropEventParameters.copy(c.getParams(),true));
         if (clip instanceof EntitySpawnClip c) return new Spawn(new Vector3f(c.getPosition()),c.getYawDeg(),c.getPitchDeg(),c.isVisibleOnSpawn(),c.getStartTime(),c.getEndTime());
+        if (clip instanceof EntityStateClip c) return new Status(c.isSneaking(),c.isSprinting(),c.isGlowing(),c.isInvulnerable(),c.getVisibility());
+        if (clip instanceof EntityDespawnClip c) return new Despawn(c.getMode());
         throw new IllegalArgumentException("不支持此片段类型");
     }
     private void validateBehavior(State next, State expected, boolean forward) {
