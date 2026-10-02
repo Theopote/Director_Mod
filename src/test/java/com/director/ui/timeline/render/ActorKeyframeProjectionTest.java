@@ -25,4 +25,14 @@ class ActorKeyframeProjectionTest {
         assertTrue(ActorKeyframeProjection.times(0, 0.001f, AnimationLoopMode.LOOP, 0, 100000, 1, 0, 100000).size() <= 1024);
         assertTrue(ActorKeyframeProjection.times(Float.NaN, 4, AnimationLoopMode.ONCE, 0, 10, 1, 0, 10).isEmpty());
     }
+    @Test void sharedDragTargetProjectsThroughDifferentRatesAndRepeats() {
+        float target=ActorKeyframeDrag.target(1,50,100,2,4,8);
+        assertEquals(2f,target);
+        assertEquals(List.of(11f),ActorKeyframeProjection.times(target,4,AnimationLoopMode.ONCE,10,20,2,0,30));
+        assertEquals(List.of(22f),ActorKeyframeProjection.times(target,4,AnimationLoopMode.ONCE,20,30,1,0,30));
+        assertEquals(List.of(1f,3f,5f),ActorKeyframeProjection.times(target,4,AnimationLoopMode.LOOP,0,5,2,0,30));
+        assertEquals(List.of(2f,6f,10f),ActorKeyframeProjection.times(target,4,AnimationLoopMode.PING_PONG,0,10,1,0,30));
+        assertTrue(ActorKeyframeProjection.times(target,4,AnimationLoopMode.ONCE,0,.5f,1,0,30).isEmpty());
+    }
+
 }

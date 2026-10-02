@@ -211,4 +211,33 @@ class ActorAnimationAuthoringServiceTest {
             assertEquals(0,history.getUndoSize()); assertTrue(asset.boneTracks().isEmpty());
         } finally { settings.setEditTarget(previous); selection.deactivate(); }
     }
+    @Test void selectedOverlappingReferenceControlsAuthoringTime() {
+        var payload=track.getActorTrackPayload();
+        var later=new EntityAnimationClip("Later", .5f, 15); later.setAnimationId(asset.id()); later.setSpeed(2);
+        payload.addClip(later); track.addClip(new EntityTimelineClip(later,payload.getColorRgba()));
+        assertSame(later,ActorAnimationEditContext.resolve(model,actor.getActorId()).clip());
+        model.setSelectedClip(clip.getTimelineClip());
+        var selected=ActorAnimationEditContext.resolve(model,actor.getActorId());
+        assertSame(clip,selected.clip()); assertEquals(1f,selected.assetTime());
+        model.setSelectedClip(later.getTimelineClip());
+        assertFalse(selected.isCurrent());
+        assertEquals(1f,ActorAnimationEditContext.resolve(model,actor.getActorId()).assetTime());
+        later.setMuted(true);
+        assertSame(clip,ActorAnimationEditContext.resolve(model,actor.getActorId()).clip());
+    }
+    @Test void sharedReferenceMoveEditsAssetOnceAndUndoRestoresBothSamples() {
+        seedMixed();
+        var payload=track.getActorTrackPayload();
+        var other=new EntityAnimationClip("Shared",0,15); other.setAnimationId(asset.id()); other.setSpeed(2);
+        payload.addClip(other); track.addClip(new EntityTimelineClip(other,payload.getColorRgba()));
+        model.setSelectedClip(clip.getTimelineClip());
+        var selected=ActorAnimationEditContext.resolve(model,actor.getActorId());
+        var key=key("root",TRANSLATION,1);
+        assertTrue(ActorAnimationAuthoringService.move(selected,List.of(key,key),.5f));
+        assertEquals(1,asset.findBoneTrack("root").orElseThrow().translation().keyframes().size());
+        assertTrue(asset.findBoneTrack("root").orElseThrow().translation().findAt(1.5f).isPresent());
+        assertEquals(1,history.getUndoSize()); assertTrue(history.undo());
+        assertTrue(asset.findBoneTrack("root").orElseThrow().translation().findAt(1).isPresent());
+    }
+
 }

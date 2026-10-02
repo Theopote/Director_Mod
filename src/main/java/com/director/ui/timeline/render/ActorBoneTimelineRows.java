@@ -35,6 +35,7 @@ public final class ActorBoneTimelineRows {
     private float dragStart, dragEnd, dragSpeed;
     private Object dragSource;
     private ActorAnimationEditContext dragContext;
+    private long dragSelectionRevision, dragSettingsRevision;
 
     private static Object source(KeyHit hit) {
         return switch (hit.channel()) {
@@ -49,6 +50,8 @@ public final class ActorBoneTimelineRows {
         if (dragging == null) return false;
         var hit = dragging;
         if (dragContext == null || dragContext.model() != model || !dragContext.isCurrent()
+                || dragSelectionRevision != ActorBoneSelectionController.getInstance().getRevision()
+                || dragSettingsRevision != com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision()
                 || ActorBonePropertiesPanel.hasNumericDraft() || ActorBoneGizmoController.getInstance().isDragging()
                 || !hit.track().getActorTrackPayload().getActorRef().getActorId().equals(ActorBoneSelectionController.getInstance().getActorId())
                 || !Objects.equals(hit.bone(), ActorBoneSelectionController.getInstance().getSelectedBoneId())
@@ -162,19 +165,21 @@ public final class ActorBoneTimelineRows {
                     Set<Integer> pixels = new HashSet<>();
                     for (var key : channels.get(channel).keyframes()) {
                         var mode = animation.isLoop() ? asset.loopMode() : AnimationLoopMode.ONCE;
+                        if (dragging != null && dragging.asset() == asset && dragging.boneTrack() == boneTrack
+                                && dragging.channel() == channel && dragging.assetTime() == key.time()) {
+                            // Move one asset key; project its preview through every visible reference.
+                            float target = ActorKeyframeDrag.target(dragging.assetTime(), ImGui.getMousePosX() - dragMouseX,
+                                    dragPixelsPerSecond, dragSpeed, dragging.asset().duration(), dragEnd - dragStart);
+                            for (float preview : ActorKeyframeProjection.times(target, asset.duration(), mode,
+                                    clip.getStartTime(), clip.getEndTime(), animation.getSpeed(), math.xToTime(left), math.xToTime(right)))
+                                draw.addCircle(math.timeToX(preview), cy, 5, colors[channel]);
+                        }
                         for (float time : ActorKeyframeProjection.times(key.time(), asset.duration(), mode,
                                 clip.getStartTime(), clip.getEndTime(), animation.getSpeed(),
                                 math.xToTime(left), math.xToTime(right))) {
                             float px = math.timeToX(time);
                             if (!pixels.add(Math.round(px))) continue;
                             draw.addCircleFilled(px, cy, 3, colors[channel]);
-                            if (dragging != null && dragging.clip() == animation && dragging.boneTrack() == boneTrack
-                                    && dragging.channel() == channel && dragging.assetTime() == key.time()) {
-                                float target = ActorKeyframeDrag.target(key.time(), ImGui.getMousePosX() - dragMouseX,
-                                        dragPixelsPerSecond, animation.getSpeed(), asset.duration(), clip.getEndTime() - clip.getStartTime());
-                                float previewX = math.timeToX(clip.getStartTime() + target / Math.max(0.01f, animation.getSpeed()));
-                                draw.addCircle(previewX, cy, 5, colors[channel]);
-                            }
                             keyHits.add(new KeyHit(track, bone, px, cy, time, asset, animation, boneTrack, channel, key.time()));
                             if (isCanvasWindowHovered() && Math.abs(ImGui.getMousePosX() - px) < 4
                                     && Math.abs(ImGui.getMousePosY() - cy) < 4) {
@@ -211,6 +216,7 @@ public final class ActorBoneTimelineRows {
         var rig = rigFor(track);
         if (bone >= rig.boneCount()) return false;
         if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
+            var preferredClip = model.getSelectedClip();
             var actorId = track.getActorTrackPayload().getActorRef().getActorId();
             ActorSelectionHub.selectBone(actorId, rig.bone(bone).id(), ImGui.getIO().getKeyCtrl());
             model.selectItem(track, false);
@@ -220,13 +226,23 @@ public final class ActorBoneTimelineRows {
                 for (var hit : keyHits) {
                     if (hit.track() != track || !hit.bone().equals(rig.bone(bone).id())) continue;
                     float d = (mx - hit.x()) * (mx - hit.x()) + (my - hit.y()) * (my - hit.y());
-                    if (d < distance) { closest = hit; distance = d; }
+                    boolean preferred = hit.clip().getTimelineClip() == preferredClip;
+                    boolean oldPreferred = closest != null && closest.clip().getTimelineClip() == preferredClip;
+                    if (d < distance || (closest != null && Float.compare(d, distance) == 0
+                            && ((preferred && !oldPreferred) || (preferred == oldPreferred
+                            && hit.clip().getStartTime() > closest.clip().getStartTime())))) {
+                        closest = hit; distance = d;
+                    }
                 }
                 if (closest != null) {
+                    model.setSelectedClip(closest.clip().getTimelineClip());
                     model.setCurrentTime(closest.time());
                     if (!model.isPlaying() && !track.isLocked() && !ActorBonePropertiesPanel.hasNumericDraft()
                             && !ActorBoneGizmoController.getInstance().isDragging() && (!closest.clip().isLoop() || closest.asset().loopMode() == AnimationLoopMode.ONCE)) {
                         dragContext = ActorAnimationEditContext.capture(model, track, closest.clip());
+                        if (dragContext == null || !dragContext.isCurrent()) return true;
+                        dragSelectionRevision = ActorBoneSelectionController.getInstance().getRevision();
+                        dragSettingsRevision = com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision();
                         dragging = closest;
                         dragMouseX = mx;
                         dragPixelsPerSecond = pixelsPerSecond;

@@ -25,6 +25,12 @@ public record ActorAnimationEditContext(TimelineModel model, UUID actorId, Timel
                     && time>=animation.getStartTime() && time<=animation.getEndTime()
                     && (active==null || animation.getStartTime()>=active.getStartTime())) active=animation;
         }
+        // A clicked key belongs to a specific reference, even when another clip overlaps it.
+        var selected = model.getSelectedClip();
+        if (selected instanceof EntityTimelineClip wrapper && wrapper.getParentTrack() == owner
+                && wrapper.getEntityClip() instanceof EntityAnimationClip animation
+                && owner.getActorTrackPayload().getClips().contains(animation) && !animation.isMuted()
+                && time >= animation.getStartTime() && time <= animation.getEndTime()) active = animation;
         return capture(model, owner, active);
     }
 
