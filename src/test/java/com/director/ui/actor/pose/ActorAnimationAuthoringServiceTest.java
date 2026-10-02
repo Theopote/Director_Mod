@@ -149,4 +149,66 @@ class ActorAnimationAuthoringServiceTest {
         assertEquals(1, asset.boneTracks().size()); assertFalse(history.undo());
         assertTrue(history.redo()); assertEquals(6, asset.boneTracks().size());
     }
+    @Test void timelineRoundTripRejectsFrozenKeyframeEditWithoutHistory() {
+        model.setCurrentTime(2); model.setCurrentTime(1);
+        assertFalse(ActorAnimationAuthoringService.keyPose(context,new RigPose(HumanoidRig.DEFINITION),List.of("head"),InterpolationMode.LINEAR,RigPose.ROTATION));
+        assertTrue(asset.boneTracks().isEmpty()); assertEquals(0,history.getUndoSize());
+    }
+    @Test void numericContextDetectsSelectionAndSettingsRoundTripsButNotHover() {
+        var selection=ActorBoneSelectionController.getInstance(); var settings=ActorAnimationAuthoringSettings.getInstance();
+        selection.activate(actor.getActorId()); selection.selectBone("head");
+        try {
+            var numeric=ActorBonePropertiesPanel.NumericContext.capture(context,"head");
+            selection.setHoveredBone("body"); assertTrue(numeric.isCurrent());
+            selection.selectBone("body"); selection.selectBone("head"); assertFalse(numeric.isCurrent());
+            numeric=ActorBonePropertiesPanel.NumericContext.capture(context,"head");
+            boolean old=settings.isAutoKeyframe(); settings.setAutoKeyframe(!old); settings.setAutoKeyframe(old);
+            assertFalse(numeric.isCurrent());
+        } finally { selection.deactivate(); }
+    }
+    @Test void undoRefusesExternalKeyframeChangesWithoutPartialRollback() {
+        var pose=new RigPose(HumanoidRig.DEFINITION);
+        assertTrue(ActorAnimationAuthoringService.keyPose(context,pose,List.of("head","body"),InterpolationMode.LINEAR,RigPose.ROTATION));
+        var head=asset.findBoneTrack("head").orElseThrow(); var body=asset.findBoneTrack("body").orElseThrow();
+        head.rotation().put(2,new Quaternionf().rotateY(.3f),InterpolationMode.LINEAR);
+        assertThrows(IllegalArgumentException.class,history::undo);
+        assertSame(body,asset.findBoneTrack("body").orElseThrow()); assertEquals(1,history.getUndoSize()); assertEquals(0,history.getRedoSize());
+        assertTrue(head.rotation().findAt(2).isPresent());
+    }
+    @Test void undoRedoIgnoreSelectionTimeButRejectReplacementAsset() {
+        assertTrue(ActorAnimationAuthoringService.keyPose(context,new RigPose(HumanoidRig.DEFINITION),List.of("head"),InterpolationMode.LINEAR,RigPose.ROTATION));
+        model.selectItem(track,false); model.setCurrentTime(8); assertTrue(history.undo()); assertTrue(history.redo());
+        var replacement=new AnimationAsset(asset.id(),"Replacement",HumanoidRig.DEFINITION,5,AnimationLoopMode.ONCE);
+        AnimationAssetLibrary.getInstance().register(replacement); assertThrows(IllegalArgumentException.class,history::undo);
+        assertTrue(replacement.boneTracks().isEmpty()); assertEquals(1,history.getUndoSize());
+    }
+    @Test void redoRefusesExternalTrackInsertionAndWrapperRemovalIsReadOnly() {
+        assertTrue(ActorAnimationAuthoringService.keyPose(context,new RigPose(HumanoidRig.DEFINITION),List.of("head"),InterpolationMode.LINEAR,RigPose.ROTATION));
+        assertTrue(history.undo()); var external=asset.getOrCreateBoneTrack("head");
+        assertThrows(IllegalArgumentException.class,history::redo); assertSame(external,asset.findBoneTrack("head").orElseThrow());
+        track.removeClip(clip.getTimelineClip());
+        // A fresh captured context still cannot edit a clip whose wrapper is absent from its owner.
+        var detached=ActorAnimationEditContext.capture(model,track,clip); assertFalse(detached.isCurrent());
+    }
+    @Test void duplicateActorTracksRequireExplicitSelectionAndNeverChooseAnotherOwner() {
+        var other=new TimelineTrack("Duplicate",TrackType.ACTOR); var payload=new ActorTrack();
+        payload.setActorRef(new ActorRef(actor.getActorId())); other.setActorTrackPayload(payload); model.addTrack(other);
+        var otherClip=new EntityAnimationClip("Other",0,15); otherClip.setAnimationId(asset.id()); payload.addClip(otherClip);
+        other.addClip(new EntityTimelineClip(otherClip,payload.getColorRgba()));
+        assertNull(ActorAnimationEditContext.resolve(model,actor.getActorId()));
+        model.selectItem(track,false); var selected=ActorAnimationEditContext.resolve(model,actor.getActorId());
+        assertSame(track,selected.track()); assertSame(clip,selected.clip());
+        model.selectItem(other,false); assertFalse(selected.isCurrent());
+        assertSame(other,ActorAnimationEditContext.resolve(model,actor.getActorId()).track());
+        other.setLocked(true); assertFalse(ActorAnimationEditContext.resolve(model,actor.getActorId()).isCurrent());
+    }
+    @Test void quickPoseTargetCannotUseAssetNumericDraft() {
+        var selection=ActorBoneSelectionController.getInstance(); var settings=ActorAnimationAuthoringSettings.getInstance();
+        var previous=settings.getEditTarget(); selection.activate(actor.getActorId()); selection.selectBone("head");
+        try {
+            settings.setEditTarget(ActorAnimationAuthoringSettings.EditTarget.QUICK_POSE);
+            assertFalse(ActorBonePropertiesPanel.NumericContext.capture(context,"head").isCurrent());
+            assertEquals(0,history.getUndoSize()); assertTrue(asset.boneTracks().isEmpty());
+        } finally { settings.setEditTarget(previous); selection.deactivate(); }
+    }
 }

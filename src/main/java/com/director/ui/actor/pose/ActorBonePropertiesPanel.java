@@ -14,8 +14,20 @@ public final class ActorBonePropertiesPanel {
     private static final BoneTransformDraft draft = new BoneTransformDraft();
     private static NumericContext numericContext;
     private String message = "";
-    private record NumericContext(ActorAnimationEditContext context, String boneId,
-                                  ActorAnimationAuthoringSettings.EditTarget target, BoneKeys keys) {}
+    record NumericContext(ActorAnimationEditContext context, String boneId,
+                                  ActorAnimationAuthoringSettings.EditTarget target, BoneKeys keys, long selectionRevision, long settingsRevision) {
+        static NumericContext capture(ActorAnimationEditContext context,String bone) {
+            var selection=ActorBoneSelectionController.getInstance(); var settings=ActorAnimationAuthoringSettings.getInstance();
+            return new NumericContext(context,bone,settings.getEditTarget(),BoneKeys.capture(context.asset(),bone),selection.getRevision(),settings.getRevision());
+        }
+        boolean isCurrent() {
+            var selection=ActorBoneSelectionController.getInstance(); var settings=ActorAnimationAuthoringSettings.getInstance();
+            return target==ActorAnimationAuthoringSettings.EditTarget.ANIMATION && context.isCurrent() && selection.isActive() && selectionRevision==selection.getRevision()
+                    && settingsRevision==settings.getRevision() && context.actorId().equals(selection.getActorId())
+                    && boneId.equals(selection.getSelectedBoneId()) && target==settings.getEditTarget()
+                    && keys.equals(BoneKeys.capture(context.asset(),boneId));
+        }
+    }
     private record BoneKeys(List<?> translation, List<?> rotation, List<?> scale) {
         static BoneKeys capture(AnimationAsset asset, String boneId) {
             var track = asset.findBoneTrack(boneId).orElse(null);
@@ -26,13 +38,7 @@ public final class ActorBonePropertiesPanel {
     private ActorBonePropertiesPanel() {}
     public static boolean hasNumericDraft() {
         if (draft.isDirty()) {
-            var selection = ActorBoneSelectionController.getInstance();
-            if (numericContext == null || !numericContext.context().isCurrent()
-                    || !selection.isActive()
-                    || !numericContext.context().actorId().equals(selection.getActorId())
-                    || !numericContext.boneId().equals(selection.getSelectedBoneId())
-                    || numericContext.target() != ActorAnimationAuthoringSettings.getInstance().getEditTarget()
-                    || !numericContext.keys().equals(BoneKeys.capture(numericContext.context().asset(), numericContext.boneId()))
+            if (numericContext == null || !numericContext.isCurrent()
                     || !draft.matchesSource(numericContext.context().asset()
                         .sample(numericContext.context().assetTime(), AnimationLoopMode.ONCE)
                         .localTransform(numericContext.boneId()))) cancelNumericDraft();
@@ -73,6 +79,12 @@ public final class ActorBonePropertiesPanel {
         }
         ImGui.textWrapped("Ctrl+点击可多选部位；数值和 Gizmo 编辑最后选中的部位，打帧与恢复姿态作用于全部所选部位。");
         ImGui.textDisabled("已选择 " + selection.getSelectedBoneIds().size() + " 个部位");
+        if(ActorAnimationAuthoringSettings.getInstance().getEditTarget()!=ActorAnimationAuthoringSettings.EditTarget.ANIMATION) {
+            cancelNumericDraft();
+            ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.authoring.numeric_asset_target"));
+            ImGui.treePop();
+            return;
+        }
         if (ActorBoneGizmoController.getInstance().isDragging()) {
             draft.clear();
             ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.authoring.gizmo_pending"));
@@ -92,8 +104,7 @@ public final class ActorBonePropertiesPanel {
         RigPose pose = asset.sample(time, AnimationLoopMode.ONCE);
         BoneDefinition bone = asset.rig().bone(asset.rig().requireBoneIndex(boneId));
         BoneTransform value = pose.localTransform(boneId);
-        numericContext = new NumericContext(context, boneId, ActorAnimationAuthoringSettings.getInstance().getEditTarget(),
-                BoneKeys.capture(asset, boneId));
+        numericContext = NumericContext.capture(context,boneId);
         if (draft.synchronize(numericContext, value)) message = "编辑对象或姿态已变化，未应用的数值已取消。";
         ImGui.textDisabled(asset.name() + " · " + String.format("%.3fs", time));
         ImGui.textWrapped("显示资产局部姿态；编辑后点击应用并打帧。切换骨骼、演员或播放头会取消未应用的数值。共享资产的修改影响所有引用。");
@@ -107,7 +118,7 @@ public final class ActorBonePropertiesPanel {
         var mode = ActorAnimationAuthoringSettings.getInstance().getInterpolation();
         if (draft.isDirty()) {
             if (!draft.isValid()) ImGui.textWrapped("请输入有限数值，且缩放必须大于零。");
-            if (ImGui.button("应用并打帧##applyBone") && draft.isValid()) {
+            if (ImGui.button("应用并打帧##applyBone") && draft.isValid() && hasNumericDraft()) {
                 pose.setLocalTransform(boneId, draft.value());
                 boolean applied = ActorAnimationAuthoringService.keyPose(context, pose, List.of(boneId), mode, draft.changedChannels());
                 draft.clear();

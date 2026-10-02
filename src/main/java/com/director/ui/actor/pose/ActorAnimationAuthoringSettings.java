@@ -27,7 +27,7 @@ public final class ActorAnimationAuthoringSettings {
     public InterpolationMode getInterpolation() { return interpolation; }
     public void setInterpolation(InterpolationMode value) { var next=value == null ? InterpolationMode.SMOOTH : value; if(next!=interpolation) revision++; interpolation=next; }
     public float getNewAssetDuration() { return newAssetDuration; }
-    public void setNewAssetDuration(float value) { if (Float.isFinite(value)) { float next=Math.max(0.1f, Math.min(600f, value)); if(next!=newAssetDuration) revision++; newAssetDuration=next; } }
+    public void setNewAssetDuration(float value) { if (Float.isFinite(value)) { float next= Math.clamp(value, 0.1f, 600f); if(next!=newAssetDuration) revision++; newAssetDuration=next; } }
     public GizmoMode getBoneGizmoMode() { return boneGizmoMode; }
     public void setBoneGizmoMode(GizmoMode value) {
         var next=value == GizmoMode.TRANSLATE || value == GizmoMode.SCALE ? value : GizmoMode.ROTATE;

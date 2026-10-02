@@ -194,19 +194,32 @@ public final class ActorAnimationAuthoringService {
                 return copy(existing);
             });
         }
+        private void requireCommandSource(ActorAnimationEditContext context,Map<String,BoneTrack> expected,
+                                          Map<String,BoneTrack> identities) {
+            if(!context.isBound()) throw new IllegalArgumentException("Animation target changed or is read-only");
+            for(String id:after.keySet()) {
+                var actual=asset.findBoneTrack(id).orElse(null);
+                var value=expected.get(id);
+                if(actual!=identities.get(id) || (actual!=null && (value==null
+                        || !actual.translation().keyframes().equals(value.translation().keyframes())
+                        || !actual.rotation().keyframes().equals(value.rotation().keyframes())
+                        || !actual.scale().keyframes().equals(value.scale().keyframes()))))
+                    throw new IllegalArgumentException("Bone keyframes changed; refusing to overwrite them");
+            }
+        }
         boolean commit(ActorAnimationEditContext context, String description) {
             if (!context.isCurrent()) return false;
             Map<String, BoneTrack> targets = new LinkedHashMap<>();
             after.forEach((id, value) -> targets.put(id, original.get(id) == null ? new BoneTrack() : original.get(id)));
             TimelineCommandBridge.execute(new StateChangeCommand(context.model(), description,
-                    () -> before.forEach((id, value) -> {
+                    () -> { requireCommandSource(context,after,targets); before.forEach((id, value) -> {
                         if (original.get(id) == null) asset.removeBoneTrack(id);
                         else { copyInto(value, targets.get(id)); asset.attachBoneTrack(id, targets.get(id)); }
-                    }),
-                    () -> after.forEach((id, value) -> {
+                    }); },
+                    () -> { requireCommandSource(context,before,original); after.forEach((id, value) -> {
                         copyInto(value, targets.get(id));
                         asset.attachBoneTrack(id, targets.get(id));
-                    })));
+                    }); }));
             return true;
         }
     }

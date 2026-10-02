@@ -23,10 +23,7 @@ import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public final class ActorPathController {
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorPathController.class);
@@ -318,7 +315,7 @@ public final class ActorPathController {
         if (model == null) return;
         try {
             var track = com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model, ActorSelectionHub.getSelectedActorId());
-            String name = editingLibraryPathId != null ? ActorPathLibraryManager.getPath(editingLibraryPathId).getName()
+            String name = editingLibraryPathId != null ? Objects.requireNonNull(ActorPathLibraryManager.getPath(editingLibraryPathId)).getName()
                     : editingClip != null ? editingClip.getName() : "Actor route";
             var wrapper = ActorPathEditing.attach(model, track, getWaypointVectors(), interpolationMode, name);
             lastError = "";
@@ -507,8 +504,8 @@ public final class ActorPathController {
                 beginNewDraft(); return;
             }
             captureEditingTarget();
-            var points = editingClip != null ? editingClip.getWaypoints() : ActorPathLibraryManager.getPath(editingLibraryPathId).getWaypoints();
-            interpolationMode = editingClip != null ? editingClip.getInterpolationMode() : ActorPathLibraryManager.getPath(editingLibraryPathId).getInterpolationMode();
+            var points = editingClip != null ? editingClip.getWaypoints() : Objects.requireNonNull(ActorPathLibraryManager.getPath(editingLibraryPathId)).getWaypoints();
+            interpolationMode = editingClip != null ? editingClip.getInterpolationMode() : Objects.requireNonNull(ActorPathLibraryManager.getPath(editingLibraryPathId)).getInterpolationMode();
             pathPoints.clear();
             for (var point : points) pathPoints.add(new Vec3d(point.x, point.y, point.z));
             selectedAnchorIndex = Math.min(selectedAnchorIndex, pathPoints.size() - 1);

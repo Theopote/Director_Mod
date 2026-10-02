@@ -2233,5 +2233,6 @@
   "gui.director.actor.tools.transform_hint": "点击演员选择；从手柄上按下左键拖动。箭头沿轴移动，方片沿平面移动，中心自由移动；旋转请先切换到旋转。Esc 取消，松开提交。",
   "gui.director.actor.tools.look_hint": "注视模式通过目标标记编辑头部朝向；整体旋转请使用旋转模式。",
   "gui.director.actor.tools.rotate_hint": "拖动红/绿/蓝旋转圈，分别绕 X/Y/Z 轴旋转。整体转身使用绿色 Y 圈；头部动作使用姿态或注视工具。Esc 取消，松开提交。",
-  "gui.director.actor.tools.scale_hint": "拖动轴端方块缩放对应轴；方片缩放两个轴；拖动中心向屏幕右侧整体放大、左侧缩小。Esc 取消，松开提交。"
+  "gui.director.actor.tools.scale_hint": "拖动轴端方块缩放对应轴；方片缩放两个轴；拖动中心向屏幕右侧整体放大、左侧缩小。Esc 取消，松开提交。",
+  "gui.director.actor.authoring.numeric_asset_target": "资产数值编辑与打帧需要选择“动画资产”目标。快速姿态请使用骨骼 Gizmo 或姿态片段属性。"
 }
