@@ -927,9 +927,7 @@ public final class ActorRuntimeController {
                 LOGGER.debug("[ActorRuntime] Actor {} 触发 Action: {}", actor.getName(), e.type());
                 
                 // 处理 Prop 相关 Action
-                if (e.type() == com.director.timeline.model.entity.EntityActionClip.ActionType.ATTACH_PROP
-                        || e.type() == com.director.timeline.model.entity.EntityActionClip.ActionType.DETACH_PROP
-                        || e.type() == com.director.timeline.model.entity.EntityActionClip.ActionType.SWITCH_PROP) {
+                if (com.director.actor.prop.PropEventParameters.supports(e.type())) {
                     applyPropAction(actor, entity, e);
                 }
                 
@@ -950,6 +948,12 @@ public final class ActorRuntimeController {
 
             var params = event.params();
             if (params == null) {
+                return;
+            }
+
+            try { com.director.actor.prop.PropEventParameters.validate(event.type(), params); }
+            catch (IllegalArgumentException invalid) {
+                LOGGER.warn("[ActorRuntime] 忽略无效道具事件 {}: {}", event.type(), invalid.getMessage());
                 return;
             }
 
@@ -1129,7 +1133,8 @@ public final class ActorRuntimeController {
                     }
 
                     // 4. 卸下道具（从 Actor 手中移除）
-                    propRuntime.detach(slot);
+                    propRuntime.release(slot);
+                    prop.setWorldTransform(startPos);
 
                     // 5. 创建投掷物
                     RuntimeProjectile projectile = new RuntimeProjectile(

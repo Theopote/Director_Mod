@@ -107,6 +107,11 @@ public final class ActorPropRuntime {
         return props.get(slot);
     }
 
+    /** Transfer ownership to a projectile without disposing its visual resource. */
+    public RuntimeProp release(ActorPropSlot slot) {
+        return slot == null ? null : props.remove(slot);
+    }
+
     /**
      * 获取所有道具
      *

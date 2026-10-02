@@ -1,122 +1,46 @@
 package com.director.ui.properties.adapters;
 
+import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
-import com.director.ui.theme.Icons;
-import com.director.ui.theme.UITheme;
+import com.director.ui.properties.actor.ActorClipInspectorGesture;
 import com.director.timeline.model.entity.EntitySpawnClip;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
-import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
-import org.joml.Vector3f;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
-/**
- * EntitySpawnClipPropertyAdapter v1.0
- *
- * <p>实体出现/绑定片段属性面板适配器。
- *
- * @author Director Team
- * @version 1.0
- */
 public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySpawnClip> {
-
-    private static final String TITLE = Icons.SMILE + " 出现/绑定片段";
-
-    private final ImFloat posXFloat = new ImFloat();
-    private final ImFloat posYFloat = new ImFloat();
-    private final ImFloat posZFloat = new ImFloat();
-    private final ImFloat yawFloat = new ImFloat();
-    private final ImFloat pitchFloat = new ImFloat();
-    private final ImBoolean visibleBoolean = new ImBoolean();
-
-    @Override
-    public Class<EntitySpawnClip> getTargetType() {
-        return EntitySpawnClip.class;
-    }
-
-    @Override
-    public boolean renderProperties(EntitySpawnClip clip) {
-        if (clip == null) {
-            ImGui.text("（无片段）");
-            return false;
+    private final ActorClipInspectorGesture gesture = new ActorClipInspectorGesture();
+    @Override public Class<EntitySpawnClip> getTargetType() { return EntitySpawnClip.class; }
+    private String tr(String key) { return ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit."+key); }
+    @Override public boolean renderProperties(EntitySpawnClip source) {
+        var draft = gesture.begin(source);
+        if (!(draft instanceof EntitySpawnClip clip)) { gesture.end(); return false; }
+        ImGui.text(tr("title"));
+        ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.range",clip.getStartTime(),clip.getEndTime()));
+        var end = new ImFloat(clip.getEndTime());
+        boolean changed = ImGui.inputFloat(tr("end")+"##spawnEnd",end);
+        if (changed) {
+            if (Float.isFinite(end.get()) && end.get()-clip.getStartTime() >= .1f-1e-5f) clip.setTimeRange(clip.getStartTime(),end.get());
+            else gesture.report(tr("invalid_time"));
         }
-
-        AtomicBoolean changed = new AtomicBoolean(false);
-
-        UITheme.title(TITLE);
-
-        // ========== 基础信息 ==========
-        if (ImGui.collapsingHeader("⏱ 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
-            UITheme.beginGroup("时间范围");
-            ImGui.text(String.format("开始: %.2fs", clip.getStartTime()));
-            
-            // 可编辑的结束时间和时长
-            ImFloat endTimeFloat = new ImFloat(clip.getEndTime());
-            if (ImGui.inputFloat("结束时间 (秒)", endTimeFloat)) {
-                float newEndTime = Math.max(clip.getStartTime() + 0.1f, endTimeFloat.get());
-                clip.setTimeRange(clip.getStartTime(), newEndTime);
-                changed.set(true);
-            }
-            
-            ImFloat durationFloat = new ImFloat(clip.getLength());
-            if (ImGui.inputFloat("时长 (秒)", durationFloat)) {
-                float newDuration = Math.max(0.1f, durationFloat.get());
-                clip.setTimeRange(clip.getStartTime(), clip.getStartTime() + newDuration);
-                changed.set(true);
-            }
-            
-            UITheme.endGroup();
+        gesture.observe("end",changed);
+        var duration = new ImFloat(clip.getLength());
+        changed = ImGui.inputFloat(tr("duration")+"##spawnDuration",duration);
+        if (changed) {
+            if (Float.isFinite(duration.get()) && duration.get() >= .1f-1e-5f
+                    && Float.isFinite(clip.getStartTime()+duration.get())) clip.setTimeRange(clip.getStartTime(),clip.getStartTime()+duration.get());
+            else gesture.report(tr("invalid_time"));
         }
-
-        // ========== 位置和旋转 ==========
-        if (ImGui.collapsingHeader("📍 位置和旋转", ImGuiTreeNodeFlags.DefaultOpen)) {
-            Vector3f pos = clip.getPosition();
-            posXFloat.set(pos.x);
-            posYFloat.set(pos.y);
-            posZFloat.set(pos.z);
-
-            UITheme.beginGroup("位置");
-            if (ImGui.inputFloat("X", posXFloat)) {
-                clip.setPosition(posXFloat.get(), pos.y, pos.z);
-                changed.set(true);
-            }
-            if (ImGui.inputFloat("Y", posYFloat)) {
-                clip.setPosition(pos.x, posYFloat.get(), pos.z);
-                changed.set(true);
-            }
-            if (ImGui.inputFloat("Z", posZFloat)) {
-                clip.setPosition(pos.x, pos.y, posZFloat.get());
-                changed.set(true);
-            }
-            UITheme.endGroup();
-
-            yawFloat.set(clip.getYawDeg());
-            pitchFloat.set(clip.getPitchDeg());
-
-            UITheme.beginGroup("旋转");
-            if (ImGui.inputFloat("偏航 (Yaw)", yawFloat)) {
-                clip.setYawDeg(yawFloat.get());
-                changed.set(true);
-            }
-            if (ImGui.inputFloat("俯仰 (Pitch)", pitchFloat)) {
-                clip.setPitchDeg(pitchFloat.get());
-                changed.set(true);
-            }
-            UITheme.endGroup();
-        }
-
-        // ========== 可见性 ==========
-        if (ImGui.collapsingHeader("👁️ 可见性")) {
-            visibleBoolean.set(clip.isVisibleOnSpawn());
-            if (ImGui.checkbox("出现时可见", visibleBoolean)) {
-                clip.setVisibleOnSpawn(visibleBoolean.get());
-                changed.set(true);
-            }
-        }
-
-        return changed.get();
+        gesture.observe("duration",changed);
+        float[] pos = {clip.getPosition().x,clip.getPosition().y,clip.getPosition().z};
+        changed = ImGui.inputFloat3(tr("position")+"##spawnPosition",pos);
+        if (changed) clip.setPosition(pos[0],pos[1],pos[2]);
+        gesture.observe("position",changed);
+        var yaw = new ImFloat(clip.getYawDeg()); changed = ImGui.inputFloat(tr("yaw")+"##spawnYaw",yaw);
+        if (changed) clip.setYawDeg(yaw.get()); gesture.observe("yaw",changed);
+        float[] pitch = {clip.getPitchDeg()}; changed = ImGui.sliderFloat(tr("pitch")+"##spawnPitch",pitch,-90,90);
+        if (changed) clip.setPitchDeg(pitch[0]); gesture.observe("pitch",changed);
+        changed = ImGui.checkbox(tr("visible")+"##spawnVisible",clip.isVisibleOnSpawn());
+        if (changed) clip.setVisibleOnSpawn(!clip.isVisibleOnSpawn()); gesture.observe("visible",changed);
+        gesture.end(); return false;
     }
 }
-

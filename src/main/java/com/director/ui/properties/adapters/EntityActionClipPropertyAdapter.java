@@ -1,97 +1,133 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
+import com.director.actor.Actor;
+import com.director.actor.ActorRegistryManager;
+import com.director.actor.prop.*;
+import com.director.i18n.ActorPropertyAdapterI18n;
+import com.director.ui.actor.edit.ActorClipPropertyEditSession;
 import com.director.ui.properties.IPropertyAdapter;
-import com.director.ui.theme.Icons;
-import com.director.ui.theme.UITheme;
 import com.director.timeline.model.entity.EntityActionClip;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
-import imgui.type.ImBoolean;
-import imgui.type.ImInt;
+import imgui.type.ImFloat;
+import java.util.*;
 
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-/**
- * EntityActionClipPropertyAdapter v1.0
- *
- * <p>实体动作片段属性面板适配器。
- *
- * @author Director Team
- * @version 1.0
- */
+/** Multi-field event forms commit atomically with an explicit Apply button. */
 public class EntityActionClipPropertyAdapter implements IPropertyAdapter<EntityActionClip> {
-
-    private static final String TITLE = Icons.SMILE + " 动作片段";
-
-    private final ImInt actionTypeIndex = new ImInt();
-    private final ImBoolean triggerOnceBoolean = new ImBoolean();
-
-    @Override
-    public Class<EntityActionClip> getTargetType() {
-        return EntityActionClip.class;
+    private ActorClipPropertyEditSession session;
+    private int lastFrame = -1;
+    private String error = "";
+    private boolean cancelledUntilRelease;
+    @Override public Class<EntityActionClip> getTargetType() { return EntityActionClip.class; }
+    private String tr(String key) { return ActorPropertyAdapterI18n.tr("gui.director.actor.prop_event."+key); }
+    @Override public boolean renderProperties(EntityActionClip source) {
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        boolean competing = com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
+                || com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging();
+        int frame = ImGui.getFrameCount();
+        if (session != null && (frame != lastFrame+1 || competing || !session.isCurrent(model,source))) {
+            session.cancel(); session = null; error = tr("cancelled");
+            cancelledUntilRelease = true;
+        }
+        lastFrame = frame;
+        if (ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) {
+            if (session != null) session.cancel(); session = null;
+            cancelledUntilRelease = true;
+            error = "";
+        }
+        if (cancelledUntilRelease) {
+            if (ImGui.isMouseDown(0) || ImGui.isAnyItemActive()) { ImGui.textDisabled(tr("cancelled")); return false; }
+            cancelledUntilRelease = false;
+        }
+        if (source == null || competing) return false;
+        if (session == null) {
+            try { session = new ActorClipPropertyEditSession(model,source); }
+            catch (RuntimeException unavailable) { ImGui.textDisabled(tr("unavailable")); return false; }
+        }
+        var clip = (EntityActionClip)session.draft();
+        Actor actor = ActorRegistryManager.getInstance().getActor(source.getTimelineClip().getParentTrack()
+                .getActorTrackPayload().getActorRef().getActorId()).orElse(null);
+        ImGui.text(tr("title")); ImGui.textWrapped(tr("preview_hint"));
+        if (ImGui.beginCombo(tr("type")+"##propEventType",tr("type_"+clip.getActionType().name()))) {
+            for (var type : EntityActionClip.ActionType.values()) {
+                ImGui.beginDisabled(!PropEventParameters.supports(type));
+                if (ImGui.selectable(tr("type_"+type.name()),type == clip.getActionType())) clip.setActionType(type);
+                ImGui.endDisabled();
+            }
+            ImGui.endCombo();
+        }
+        ImGui.textWrapped(tr("trigger_hint"));
+        if (!clip.isTriggerOnce() && ImGui.button(tr("normalize_trigger"))) clip.setTriggerOnce(true);
+        var params = clip.getParams(); var type = clip.getActionType();
+        if (PropEventParameters.supports(type)) {
+            if (type == EntityActionClip.ActionType.SWITCH_PROP) {
+                slot(actor,type,params,"oldSlot",true); slot(actor,type,params,"newSlot",false); prop(params,"newPropId");
+            } else {
+                slot(actor,type,params,"slot",false);
+                if (type == EntityActionClip.ActionType.ATTACH_PROP) prop(params,"propId");
+            }
+            if (type == EntityActionClip.ActionType.ATTACH_PROP || type == EntityActionClip.ActionType.SWITCH_PROP) {
+                vector(params,"offset",tr("offset"),0); vector(params,"rotation",tr("rotation"),0);
+            }
+            if (type == EntityActionClip.ActionType.THROW_PROP) {
+                vector(params,"target",tr("target"),0);
+                number(params,"arcHeight",tr("arc"),1.5f); number(params,"flightTime",tr("flight"),1);
+            }
+        }
+        if (ImGui.collapsingHeader(tr("extras"))) {
+            var known = Set.of("slot","oldSlot","newSlot","propId","newPropId","offsetX","offsetY","offsetZ",
+                    "rotationX","rotationY","rotationZ","targetX","targetY","targetZ","arcHeight","flightTime");
+            params.entrySet().stream().filter(entry -> !known.contains(entry.getKey())).sorted(Map.Entry.comparingByKey())
+                    .forEach(entry -> ImGui.text(entry.getKey()+": "+entry.getValue()));
+        }
+        if (ImGui.button(tr("apply")+"##propEventApply")) {
+            var edit = session;
+            try { error = edit.commit() ? "" : tr("cancelled"); session = null; }
+            catch (RuntimeException invalid) { error = invalid.getMessage(); }
+        }
+        ImGui.sameLine();
+        if (ImGui.button(tr("cancel")+"##propEventCancel")) { if (session != null) session.cancel(); session = null; error = ""; }
+        if (error != null && !error.isEmpty()) ImGui.textWrapped(error);
+        return false;
     }
-
-    @Override
-    public boolean renderProperties(EntityActionClip clip) {
-        if (clip == null) {
-            ImGui.text("（无片段）");
-            return false;
-        }
-
-        AtomicBoolean changed = new AtomicBoolean(false);
-
-        UITheme.title(TITLE);
-
-        // ========== 基础信息 ==========
-        if (ImGui.collapsingHeader("⏱ 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
-            UITheme.beginGroup("时间范围");
-            ImGui.text(String.format("开始: %.2fs", clip.getStartTime()));
-            ImGui.text(String.format("结束: %.2fs", clip.getEndTime()));
-            ImGui.text(String.format("时长: %.2fs", clip.getLength()));
-            UITheme.endGroup();
-        }
-
-        // ========== 动作类型 ==========
-        if (ImGui.collapsingHeader("⚡ 动作类型", ImGuiTreeNodeFlags.DefaultOpen)) {
-            EntityActionClip.ActionType[] actionTypes = EntityActionClip.ActionType.values();
-            String[] actionLabels = new String[actionTypes.length];
-            for (int i = 0; i < actionTypes.length; i++) {
-                actionLabels[i] = actionTypes[i].getDisplayName();
-                if (actionTypes[i] == clip.getActionType()) {
-                    actionTypeIndex.set(i);
-                }
+    private void slot(Actor actor,EntityActionClip.ActionType type,Map<String,Object> params,String key,boolean optional) {
+        String current = params.get(key) instanceof String s ? s : "";
+        if (!optional && !params.containsKey(key)) { current = ActorPropSlot.MAIN_HAND.name(); params.put(key,current); }
+        String label = current.isEmpty() ? tr("none") : current;
+        try { label = tr("slot_"+ActorPropSlot.valueOf(current).name()); } catch (IllegalArgumentException ignored) {}
+        if (ImGui.beginCombo(tr(key)+"##propEvent"+key,label)) {
+            if (optional && ImGui.selectable(tr("none"),current.isEmpty())) params.remove(key);
+            for (var slot : ActorPropSlot.values()) {
+                ImGui.beginDisabled(!PropEventParameters.supportsSlot(actor,slot,type));
+                if (ImGui.selectable(tr("slot_"+slot.name()),current.equals(slot.name()))) params.put(key,slot.name());
+                ImGui.endDisabled();
             }
-
-            if (ImGui.combo("动作类型", actionTypeIndex, actionLabels)) {
-                clip.setActionType(actionTypes[actionTypeIndex.get()]);
-                changed.set(true);
-            }
+            ImGui.endCombo();
         }
-
-        // ========== 触发设置 ==========
-        if (ImGui.collapsingHeader("🔔 触发设置")) {
-            triggerOnceBoolean.set(clip.isTriggerOnce());
-            if (ImGui.checkbox("只触发一次", triggerOnceBoolean)) {
-                clip.setTriggerOnce(triggerOnceBoolean.get());
-                changed.set(true);
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("如果启用，动作只在片段开始时触发一次");
-            }
+    }
+    private void prop(Map<String,Object> params,String key) {
+        var entries = PropRegistry.getInstance().getAll().stream().sorted(Comparator.comparing(PropDescriptor::getId)).toList();
+        if (!params.containsKey(key) && !entries.isEmpty()) params.put(key,entries.getFirst().getId());
+        String current = params.get(key) instanceof String s ? s : "";
+        String label = PropRegistry.getInstance().get(current).map(PropDescriptor::getDisplayName).orElse(current);
+        if (ImGui.beginCombo(tr(key)+"##propEvent"+key,label)) {
+            for (var item : entries) if (ImGui.selectable(item.getDisplayName()+"##"+item.getId(),item.getId().equals(current))) params.put(key,item.getId());
+            ImGui.endCombo();
         }
-
-        // ========== 参数 ==========
-        Map<String, Object> params = clip.getParams();
-        if (!params.isEmpty()) {
-            if (ImGui.collapsingHeader("📋 参数")) {
-                for (Map.Entry<String, Object> entry : params.entrySet()) {
-                    ImGui.text(entry.getKey() + ": " + entry.getValue());
-                }
-            }
-        }
-
-        return changed.get();
+    }
+    private void vector(Map<String,Object> params,String prefix,String label,float fallback) {
+        float[] values = new float[3]; String[] axes = {"X","Y","Z"};
+        for (int i=0;i<3;i++) values[i] = value(params,prefix+axes[i],fallback);
+        float[] before = values.clone();
+        boolean changed = ImGui.inputFloat3(label+"##propEvent"+prefix,values);
+        for (int i=0;i<3;i++) if (changed && Float.compare(before[i],values[i]) != 0) params.put(prefix+axes[i],values[i]);
+        if (prefix.equals("target")) for (int i=0;i<3;i++) params.putIfAbsent(prefix+axes[i],values[i]);
+    }
+    private void number(Map<String,Object> params,String key,String label,float fallback) {
+        var value = new ImFloat(value(params,key,fallback));
+        if (ImGui.inputFloat(label+"##propEvent"+key,value)) params.put(key,value.get());
+    }
+    private float value(Map<String,Object> params,String key,float fallback) {
+        return params.get(key) instanceof Number value ? value.floatValue() : fallback;
     }
 }
-

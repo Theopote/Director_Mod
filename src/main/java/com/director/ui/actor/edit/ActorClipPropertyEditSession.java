@@ -3,6 +3,7 @@ package com.director.ui.actor.edit;
 import com.director.actor.ActorRegistryManager;
 import com.director.actor.ActorBehaviorCapabilities;
 import com.director.actor.ActorType;
+import com.director.actor.prop.PropEventParameters;
 import com.director.actor.action.ActorActionType;
 import com.director.actor.rig.ActorRigProfile;
 import com.director.timeline.model.*;
@@ -62,6 +63,25 @@ public final class ActorClipPropertyEditSession {
                 throw new IllegalArgumentException("关系参数无效");
         }
     }
+    private record Event(EntityActionClip.ActionType type, boolean once, Map<String,Object> params) implements State {
+        public void apply(EntityClip clip) {
+            var c = (EntityActionClip) clip;
+            var copied = PropEventParameters.copy(params,false);
+            c.setActionType(type); c.setTriggerOnce(once); c.getParams().clear(); c.getParams().putAll(copied);
+        }
+        public void validate() { PropEventParameters.validate(type,params); }
+    }
+    private record Spawn(Vector3f position, float yaw, float pitch, boolean visible, float start, float end) implements State {
+        public void apply(EntityClip clip) {
+            var c = (EntitySpawnClip) clip; c.setPosition(position.x,position.y,position.z);
+            c.setYawDeg(yaw); c.setPitchDeg(pitch); c.setVisibleOnSpawn(visible); c.setTimeRange(start,end);
+        }
+        public void validate() {
+            if (!position.isFinite() || !Float.isFinite(yaw) || !Float.isFinite(pitch) || pitch < -90 || pitch > 90
+                    || !Float.isFinite(start) || start < 0 || !Float.isFinite(end) || end-start < .1f-1e-5f)
+                throw new IllegalArgumentException("出生位置、朝向或时间范围无效");
+        }
+    }
     private record Key(EntityClipKeyframe identity, float time, TimelineInterpolation interpolation,
                        Vector3f position, Vector3f rotation, Vector3f scale, EntityKeyframe.ActionType action,
                        float speed, boolean loop, float visibility, boolean active, String name,
@@ -103,7 +123,9 @@ public final class ActorClipPropertyEditSession {
         if (source instanceof EntityTransformClip) draft = new EntityTransformClip(source.getName(), common.start, common.end);
         else if (source instanceof EntityLookAtClip) draft = new EntityLookAtClip(source.getName(), common.start, common.end);
         else if (source instanceof ActorActionClip) draft = new ActorActionClip(source.getName(), common.start, common.end);
-        else draft = new ActorRelationClip(source.getName(), common.start, common.end);
+        else if (source instanceof ActorRelationClip) draft = new ActorRelationClip(source.getName(), common.start, common.end);
+        else if (source instanceof EntityActionClip) draft = new EntityActionClip(source.getName(), common.start, common.end);
+        else draft = new EntitySpawnClip(source.getName(), common.start, common.end);
         before.apply(draft);
         if (!isCurrent(model, source)) throw new IllegalArgumentException("请暂停播放并选择可编辑的演员片段");
     }
@@ -139,7 +161,9 @@ public final class ActorClipPropertyEditSession {
         finished = true; return true;
     }
     private void apply(State expected, State next, boolean forward) {
-        Common expectedCommon = expected instanceof Action a ? new Common(common.name, a.start, a.end, common.muted, common.weight, common.keys) : common;
+        float expectedStart = expected instanceof Action a ? a.start : expected instanceof Spawn s ? s.start : common.start;
+        float expectedEnd = expected instanceof Action a ? a.end : expected instanceof Spawn s ? s.end : common.end;
+        Common expectedCommon = new Common(common.name,expectedStart,expectedEnd,common.muted,common.weight,common.keys);
         if (!validBinding() || !expectedCommon.equals(Common.capture(source)) || !expected.equals(capture(source)))
             throw new IllegalArgumentException("片段目标或源数据已变化，无法应用属性修改");
         validateBehavior(next, expected, forward);
@@ -153,6 +177,8 @@ public final class ActorClipPropertyEditSession {
         if (clip instanceof EntityLookAtClip c) return new Look(c.getMode(), new Vector3f(c.getWorldPoint()), c.getTargetEntityUuid(), c.getStrength());
         if (clip instanceof ActorActionClip c) return new Action(c.getActionType(), c.getIntensity(), c.isLoop(), c.getStartTime(), c.getEndTime());
         if (clip instanceof ActorRelationClip c) return new Relation(c.getTargetActorId(), c.getRelationType(), c.getDistance(), c.getAngle(), c.getHeightOffset(), c.isMaintainLookAt());
+        if (clip instanceof EntityActionClip c) return new Event(c.getActionType(),c.isTriggerOnce(),PropEventParameters.copy(c.getParams(),true));
+        if (clip instanceof EntitySpawnClip c) return new Spawn(new Vector3f(c.getPosition()),c.getYawDeg(),c.getPitchDeg(),c.isVisibleOnSpawn(),c.getStartTime(),c.getEndTime());
         throw new IllegalArgumentException("不支持此片段类型");
     }
     private void validateBehavior(State next, State expected, boolean forward) {
@@ -164,6 +190,14 @@ public final class ActorClipPropertyEditSession {
                 for (var other : payload.getClips()) if (other != source && other instanceof ActorActionClip && !other.isMuted()
                         && other.getEndTime() > a.start && other.getStartTime() < a.end)
                     throw new IllegalArgumentException("动作时间范围与已有主动作重叠");
+        } else if (next instanceof Event e) {
+            if (forward) PropEventParameters.validateActor(ActorRegistryManager.getInstance().getActor(actor).orElse(null),e.type,e.params);
+        } else if (next instanceof Spawn s) {
+            var old = (Spawn) expected;
+            if (s.start != old.start || s.end != old.end)
+                for (var other : payload.getClips()) if (other != source && other instanceof EntitySpawnClip && !other.isMuted()
+                        && other.getEndTime() > s.start && other.getStartTime() < s.end)
+                    throw new IllegalArgumentException("出生片段时间范围与已有出生片段重叠");
         } else if (next instanceof Relation r) {
             if (forward && !ActorBehaviorCapabilities.supportsRelation(r.type))
                 throw new IllegalArgumentException("此关系尚未实现，请选择可用关系类型");
