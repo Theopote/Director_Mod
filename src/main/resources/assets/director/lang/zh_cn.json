@@ -2249,5 +2249,11 @@
   "gui.director.actor.keys.paste": "粘贴到播放头",
   "gui.director.actor.keys.selected_count": "已选 %s 个资产关键帧",
   "gui.director.actor.keys.paste_hint": "以最早复制键为原点，粘贴到当前片段的播放头资产时间；共享引用同步变化。冲突或越界会整体拒绝。",
-  "gui.director.actor.keys.rejected": "操作未提交：请检查源键、目标冲突、时长和骨架兼容性。"
+  "gui.director.actor.keys.rejected": "操作未提交：请检查源键、目标冲突、时长和骨架兼容性。",
+  "gui.director.actor.keys.time_range": "资产时间范围：%s–%s 秒",
+  "gui.director.actor.keys.interpolation": "插值：%s",
+  "gui.director.actor.keys.mixed": "混合",
+  "gui.director.actor.keys.mode.step": "保持",
+  "gui.director.actor.keys.mode.linear": "线性",
+  "gui.director.actor.keys.mode.smooth": "平滑"
 }

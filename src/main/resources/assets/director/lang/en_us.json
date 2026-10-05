@@ -2249,5 +2249,11 @@
   "gui.director.actor.keys.paste": "Paste at playhead",
   "gui.director.actor.keys.selected_count": "%s asset keys selected",
   "gui.director.actor.keys.paste_hint": "The earliest copied key starts at the current clip asset time. Shared references change together. Collisions or out-of-range keys reject the whole paste.",
-  "gui.director.actor.keys.rejected": "No changes submitted. Check source keys, collisions, duration and rig compatibility."
+  "gui.director.actor.keys.rejected": "No changes submitted. Check source keys, collisions, duration and rig compatibility.",
+  "gui.director.actor.keys.time_range": "Asset time range: %s–%s s",
+  "gui.director.actor.keys.interpolation": "Interpolation: %s",
+  "gui.director.actor.keys.mixed": "Mixed",
+  "gui.director.actor.keys.mode.step": "Step",
+  "gui.director.actor.keys.mode.linear": "Linear",
+  "gui.director.actor.keys.mode.smooth": "Smooth"
 }

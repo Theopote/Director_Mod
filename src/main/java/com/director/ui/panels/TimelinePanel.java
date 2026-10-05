@@ -310,13 +310,14 @@ public class TimelinePanel extends AbstractPanel
      * 是否有进行中的时间线交互（拖动片段、框选等），供 ShortcutDispatcher 路由 Esc。
      */
     public boolean isInteractionActive() {
-        return interactionManager.isInteracting();
+        return interactionManager.isInteracting() || renderer.isActorKeyInteractionActive();
     }
 
     /**
      * 取消进行中的时间线交互（Esc 快捷键）。
      */
     public void cancelInteraction() {
+        renderer.cancelActorKeyInteraction();
         interactionManager.cancelInteraction();
     }
 
@@ -1248,6 +1249,7 @@ public class TimelinePanel extends AbstractPanel
      * 剪切选中的片段（快捷键，供 Facade 调用）
      */
     public void cutSelected() {
+        if(renderer.handleActorKeyCommand("cut")) return;
         TimelineClip selectedClip = model.getSelectedClip();
         if (selectedClip == null) return;
 
@@ -1262,6 +1264,7 @@ public class TimelinePanel extends AbstractPanel
      * 复制选中的片段（快捷键，供 Facade 调用）
      */
     public void copySelected() {
+        if(renderer.handleActorKeyCommand("copy")) return;
         TimelineClip selectedClip = model.getSelectedClip();
         if (selectedClip == null) return;
 
@@ -1272,6 +1275,7 @@ public class TimelinePanel extends AbstractPanel
      * 粘贴片段（快捷键，供 Facade 调用）
      */
     public void paste() {
+        if(renderer.handleActorKeyCommand("paste")) return;
         clipboard.paste(model);
         markDataChanged();
     }
@@ -1280,6 +1284,7 @@ public class TimelinePanel extends AbstractPanel
      * 删除选中的项（公共方法，供 Facade 调用）
      */
     public void deleteSelected() {
+        if(renderer.handleActorKeyCommand("delete")) return;
         java.util.List<Object> items = model.getSelectedItems();
         if (items == null || items.isEmpty()) {
             return;

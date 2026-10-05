@@ -34,6 +34,7 @@ public final class ActorBoneTimelineRows {
     private float dragStart, dragEnd, dragSpeed;
     private Object dragSource;
     private final Map<ActorAnimationAuthoringService.Key, KeyHit> selectedKeys = new LinkedHashMap<>();
+    private boolean keyFocus;
     private TimelineTrack selectedOwner;
     private EntityAnimationClip selectedReference;
     private AnimationAsset selectedAsset;
@@ -44,10 +45,13 @@ public final class ActorBoneTimelineRows {
     }
     private void selectKey(KeyHit hit, boolean additive) {
         if(selectedOwner!=hit.track() || selectedReference!=hit.clip() || selectedAsset!=hit.asset()) selectedKeys.clear();
-        selectedOwner=hit.track(); selectedReference=hit.clip(); selectedAsset=hit.asset();
+        focusReference(hit.track(),hit.clip(),hit.asset());
         var key=key(hit.bone(),hit.channel(),hit.assetTime());
         if(additive && selectedKeys.containsKey(key)) selectedKeys.remove(key);
         else { if(!additive && !selectedKeys.containsKey(key)) selectedKeys.clear(); selectedKeys.put(key,hit); }
+    }
+    void focusReference(TimelineTrack owner,EntityAnimationClip reference,AnimationAsset asset) {
+        keyFocus=true; selectedOwner=owner; selectedReference=reference; selectedAsset=asset;
     }
     private float dragDelta() {
         return ActorKeyframeDrag.groupDelta(dragKeys.keySet().stream().map(ActorAnimationAuthoringService.Key::time).toList(),
@@ -113,6 +117,55 @@ public final class ActorBoneTimelineRows {
     private long pendingRevision, pendingSelectionRevision, pendingSettingsRevision;
 
     private boolean actionMenu;
+    public boolean handleKeyCommand(TimelineModel model,String action) {
+        // Once keys own focus, rejection must never fall through to deleting their clip.
+        if(!keyFocus || selectedReference==null || model.getSelectedClip()!=selectedReference.getTimelineClip()) return false;
+        executeKeyCommand(model,action); return true;
+    }
+    private boolean executeKeyCommand(TimelineModel model,String action) {
+        var wrapper=model.getSelectedClip();
+        var context=wrapper instanceof com.director.timeline.model.entity.EntityTimelineClip entity
+                && entity.getEntityClip() instanceof EntityAnimationClip animation
+                ? ActorAnimationEditContext.capture(model,entity.getParentTrack(),animation):null;
+        if(context==null || !context.isCurrent() || dragging!=null || marquee!=null
+                || ActorBonePropertiesPanel.hasNumericDraft() || ActorBoneGizmoController.getInstance().isDragging()) return false;
+        boolean same=selectedOwner==context.track() && selectedReference==context.clip() && selectedAsset==context.asset();
+        var clipboard=com.director.ui.actor.pose.ActorKeyframeClipboard.getInstance();
+        if(action.equals("copy")) return same && clipboard.copy(context.asset(),selectedKeys.keySet());
+        if(action.equals("cut") && (!same || !clipboard.copy(context.asset(),selectedKeys.keySet()))) return false;
+        if(action.equals("delete") || action.equals("cut")) {
+            if(!same || !ActorAnimationAuthoringService.delete(context,selectedKeys.keySet())) return false;
+            selectedKeys.clear(); return true;
+        }
+        if(!action.equals("paste")) return false;
+        var pasted=clipboard.at(context.asset(),context.assetTime(),(context.end()-context.start())*Math.max(.01f,context.speed()));
+        if(!ActorAnimationAuthoringService.paste(context,pasted)) return false;
+        selectedKeys.clear(); keyFocus=true; selectedOwner=context.track(); selectedReference=context.clip(); selectedAsset=context.asset();
+        for(var key:pasted) {
+            var hit=new KeyHit(context.track(),key.boneId(),0,0,context.start()+key.time()/Math.max(.01f,context.speed()),
+                    context.asset(),context.clip(),context.asset().findBoneTrack(key.boneId()).orElseThrow(),key.channel().ordinal(),key.time());
+            selectedKeys.put(key(key.boneId(),key.channel().ordinal(),key.time()),hit);
+        }
+        return true;
+    }
+    public boolean isKeyInteractionActive() { return dragging!=null || marquee!=null; }
+    public void cancelKeyInteraction() { dragging=null; marquee=null; }
+    private void renderSelectedKeyProperties() {
+        if(selectedKeys.isEmpty()) return;
+        float first=Float.POSITIVE_INFINITY,last=Float.NEGATIVE_INFINITY;
+        var modes=new LinkedHashSet<InterpolationMode>();
+        for(var entry:selectedKeys.entrySet()) {
+            first=Math.min(first,entry.getKey().time()); last=Math.max(last,entry.getKey().time());
+            if(source(entry.getValue()) instanceof ChannelKeyframe<?> frame) modes.add(frame.interpolation());
+        }
+        ImGui.text(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.time_range",first,last));
+        ImGui.text(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.interpolation",
+                modes.size()==1?tr("mode."+modes.iterator().next().name().toLowerCase(Locale.ROOT)):tr("mixed")));
+        if(selectedKeys.size()==1) {
+            var hit=selectedKeys.values().iterator().next();
+            ImGui.text(hit.bone()+" · "+tr("channel."+hit.channel()));
+        }
+    }
     private boolean renderKeyActions(TimelineModel model) {
         var wrapper=model.getSelectedClip();
         var context=wrapper instanceof com.director.timeline.model.entity.EntityTimelineClip entity
@@ -123,6 +176,7 @@ public final class ActorBoneTimelineRows {
         boolean hasSelection=target && selectedOwner==context.track() && selectedReference==context.clip()
                 && selectedAsset==context.asset() && !selectedKeys.isEmpty();
         ImGui.text(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.selected_count",selectedKeys.size()));
+        renderSelectedKeyProperties();
         ImGui.beginDisabled(!hasSelection);
         boolean copy=ImGui.button(tr("copy")); ImGui.sameLine();
         boolean delete=ImGui.button(tr("delete")); ImGui.endDisabled();
@@ -132,23 +186,8 @@ public final class ActorBoneTimelineRows {
         ImGui.beginDisabled(!target || pasted.isEmpty());
         boolean paste=ImGui.button(tr("paste")); ImGui.endDisabled();
         ImGui.textWrapped(tr("paste_hint"));
-        boolean changed=false;
-        if(copy) changed=clipboard.copy(context.asset(),selectedKeys.keySet());
-        if(delete) {
-            changed=ActorAnimationAuthoringService.delete(context,selectedKeys.keySet());
-            if(changed) selectedKeys.clear();
-        }
-        if(paste) {
-            changed=ActorAnimationAuthoringService.paste(context,pasted);
-            if(changed) {
-                selectedKeys.clear(); selectedOwner=context.track(); selectedReference=context.clip(); selectedAsset=context.asset();
-                for(var key:pasted) {
-                    var hit=new KeyHit(context.track(),key.boneId(),0,0,context.start()+key.time()/Math.max(.01f,context.speed()),
-                            context.asset(),context.clip(),context.asset().findBoneTrack(key.boneId()).orElseThrow(),key.channel().ordinal(),key.time());
-                    selectedKeys.put(key(key.boneId(),key.channel().ordinal(),key.time()),hit);
-                }
-            }
-        }
+        boolean changed=copy?executeKeyCommand(model,"copy"):delete?executeKeyCommand(model,"delete"):
+                paste?executeKeyCommand(model,"paste"):false;
         if(changed) { actionMenu=false; pendingKeys=List.of(); ImGui.closeCurrentPopup(); }
         else if(delete || paste || copy) ImGui.textWrapped(tr("rejected"));
         ImGui.separator(); return changed;
@@ -369,8 +408,9 @@ public final class ActorBoneTimelineRows {
         int owner = layout.ownerAt(contentY);
         if (owner < 0) return false;
         var track = model.getTrackAt(owner);
-        if (!supports(track)) return false;
+        if (!supports(track)) { keyFocus=false; return false; }
         float local = contentY - layout.trackTop(owner);
+        if(local<height) keyFocus=false;
         if (local < height && mx < Math.min(contentX, x + 26)) {
             if (ImGui.isMouseClicked(ImGuiMouseButton.Left) && !expanded.remove(track)) expanded.add(track);
             return true;
@@ -385,7 +425,7 @@ public final class ActorBoneTimelineRows {
             var actorId = track.getActorTrackPayload().getActorRef().getActorId();
             boolean additive=mx>=contentX && ImGui.getIO().getKeyCtrl();
             ActorSelectionHub.selectBone(actorId, rig.bone(bone).id(), mx<contentX && ImGui.getIO().getKeyCtrl());
-            if(mx<contentX) selectedKeys.clear();
+            if(mx<contentX) { keyFocus=false; selectedKeys.clear(); }
             model.selectItem(track, false);
             if (mx >= contentX) {
                 var points = new ArrayList<ActorKeyframeHitCandidates.Point<KeyHit>>();
@@ -444,6 +484,7 @@ public final class ActorBoneTimelineRows {
                                 frozen.add(new PendingKey(hit,context,source(hit)));
                             float rowsTop=Math.max(top,top+layout.trackTop(owner)+height+gap-scrollY);
                             float rowsBottom=Math.min(top+viewportHeight,top+layout.trackTop(owner)+height+gap+rig.boneCount()*CHILD_HEIGHT-scrollY);
+                            focusReference(track,animation,context.asset());
                             if(rowsTop<rowsBottom) marquee=new Marquee(context,ActorBoneSelectionController.getInstance().getRevision(),
                                     com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision(),mx,my,
                                     contentX,right,rowsTop,rowsBottom,additive && selectedReference==animation,

@@ -105,6 +105,10 @@ public class TimelineRenderer {
                 x, contentX, right, top, height, scrollY, TRACK_HEIGHT, TRACK_GAP, math.getPixelsPerSecond(),math);
     }
 
+    public boolean handleActorKeyCommand(String action) { return actorBoneRows.handleKeyCommand(model,action); }
+    public boolean isActorKeyInteractionActive() { return actorBoneRows.isKeyInteractionActive(); }
+    public void cancelActorKeyInteraction() { actorBoneRows.cancelKeyInteraction(); }
+
     // ======= 拆分后的渲染组件（v9.0 重构） =======
     private final TimelineDividerHandler dividerHandler;
     private final TimelineRulerRenderer rulerRenderer;
