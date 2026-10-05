@@ -240,4 +240,19 @@ class ActorAnimationAuthoringServiceTest {
         assertTrue(asset.findBoneTrack("root").orElseThrow().translation().findAt(1).isPresent());
     }
 
+    @Test void batchMoveCanOccupyVacatedSelectedKeysAndUndoInOneStep() {
+        var root=asset.getOrCreateBoneTrack("root").translation();
+        root.put(1,new Vector3f(1),InterpolationMode.STEP);
+        root.put(2,new Vector3f(2),InterpolationMode.LINEAR);
+        var head=asset.getOrCreateBoneTrack("head").rotation();
+        head.put(1,new Quaternionf().rotateX(.3f),InterpolationMode.SMOOTH);
+        assertTrue(ActorAnimationAuthoringService.move(context,List.of(key("root",TRANSLATION,1),
+                key("root",TRANSLATION,2),key("head",ROTATION,1)),1));
+        assertEquals(new Vector3f(1),root.findAt(2).orElseThrow().value());
+        assertEquals(new Vector3f(2),root.findAt(3).orElseThrow().value());
+        assertTrue(head.findAt(2).isPresent()); assertEquals(1,history.getUndoSize());
+        assertTrue(history.undo()); assertEquals(new Vector3f(1),root.findAt(1).orElseThrow().value());
+        assertTrue(head.findAt(1).isPresent()); assertFalse(history.undo());
+    }
+
 }

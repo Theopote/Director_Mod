@@ -2239,5 +2239,7 @@
   "gui.director.actor.keys.choose_hint": "列表显示场景时间 / 资产时间。选择引用后可拖动；同一引用的密集关键帧请放大时间线。右键可重新选择。",
   "gui.director.actor.keys.channel.0": "位置",
   "gui.director.actor.keys.channel.1": "旋转",
-  "gui.director.actor.keys.channel.2": "缩放"
+  "gui.director.actor.keys.channel.2": "缩放",
+  "gui.director.actor.keys.selection_hint": "Ctrl 点击多选；拖动已选关键帧整体移动。右键选择引用；共享资产影响全部引用。",
+  "gui.director.actor.keys.drag_group": "移动 %s 个关键帧 · 资产时间偏移 %ss。共享引用同步变化；Esc 取消。"
 }
