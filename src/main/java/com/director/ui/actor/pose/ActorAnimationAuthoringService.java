@@ -76,6 +76,25 @@ public final class ActorAnimationAuthoringService {
         return draft.commit(context, "Delete actor keyframes");
     }
 
+    /** Change outgoing interpolation only; no new keys, time shifts or value changes. */
+    public static boolean setInterpolation(ActorAnimationEditContext context, Collection<Key> keys,
+                                           InterpolationMode mode) {
+        if(context==null || !context.isCurrent() || keys==null || keys.isEmpty() || mode==null) return false;
+        Draft draft=new Draft(context.asset());
+        boolean changed=false;
+        for(var key:new LinkedHashSet<>(keys)) {
+            if(!valid(context.asset(),key)) return false;
+            var track=draft.track(key.boneId());
+            var existing=frame(track,key);
+            if(existing==null) return false;
+            if(existing.interpolation()!=mode) {
+                changed=true;
+                put(track,new Key(key.boneId(),key.channel(),existing.time()),existing.value(),mode);
+            }
+        }
+        return changed && draft.commit(context,"Change actor keyframe interpolation");
+    }
+
     public static boolean move(ActorAnimationEditContext context, Collection<Key> keys, float delta) {
         if (context == null || !context.isCurrent() || keys == null || keys.isEmpty()
                 || !Float.isFinite(delta) || Math.abs(delta) <= EPSILON) return false;

@@ -186,8 +186,9 @@ public final class ActorBoneTimelineRows {
         ImGui.beginDisabled(!target || pasted.isEmpty());
         boolean paste=ImGui.button(tr("paste")); ImGui.endDisabled();
         ImGui.textWrapped(tr("paste_hint"));
-        boolean changed=copy?executeKeyCommand(model,"copy"):delete?executeKeyCommand(model,"delete"):
-                paste?executeKeyCommand(model,"paste"):false;
+        boolean interpolationChanged=com.director.ui.actor.pose.ActorKeyframeInterpolationPanel.render(context,selectedKeys.keySet(),hasSelection);
+        boolean changed=interpolationChanged || (copy?executeKeyCommand(model,"copy"):delete?executeKeyCommand(model,"delete"):
+                paste?executeKeyCommand(model,"paste"):false);
         if(changed) { actionMenu=false; pendingKeys=List.of(); ImGui.closeCurrentPopup(); }
         else if(delete || paste || copy) ImGui.textWrapped(tr("rejected"));
         ImGui.separator(); return changed;

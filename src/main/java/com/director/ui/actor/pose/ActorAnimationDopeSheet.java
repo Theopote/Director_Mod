@@ -183,6 +183,7 @@ public final class ActorAnimationDopeSheet {
             }
             ImGui.endDisabled();
         }
+        if(!selection.isEmpty()) ActorKeyframeInterpolationPanel.render(renderContext,assetKeys(),canWrite());
         if (keyClipboard.size()>0) {
             ImGui.beginDisabled(!canWrite() || !keyClipboard.compatible(asset));
             if (ImGui.smallButton(Icons.CLIPBOARD + " 粘贴到播放头##dopePaste")) {

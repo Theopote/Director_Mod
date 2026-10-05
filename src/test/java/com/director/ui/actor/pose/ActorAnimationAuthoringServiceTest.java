@@ -268,4 +268,54 @@ class ActorAnimationAuthoringServiceTest {
         assertEquals(0,history.getUndoSize());
     }
 
+    @Test void mixedInterpolationEditsOnlyModesAndUsesOneUndoRedo() {
+        var keys=seedMixed();
+        var root=asset.findBoneTrack("root").orElseThrow(); var head=asset.findBoneTrack("head").orElseThrow();
+        var originalRotation=new Quaternionf(head.rotation().findAt(1).orElseThrow().value());
+        var selection=new ArrayList<>(keys); selection.add(keys.getFirst());
+        assertTrue(ActorAnimationAuthoringService.setInterpolation(context,selection,InterpolationMode.LINEAR));
+        assertEquals(1,history.getUndoSize()); assertEquals(1,root.translation().keyframes().size());
+        assertEquals(new Vector3f(1,2,3),root.translation().findAt(1).orElseThrow().value());
+        assertEquals(originalRotation,head.rotation().findAt(1).orElseThrow().value());
+        assertEquals(new Vector3f(2),head.scale().findAt(1).orElseThrow().value());
+        assertEquals(InterpolationMode.LINEAR,root.translation().findAt(1).orElseThrow().interpolation());
+        assertEquals(InterpolationMode.LINEAR,head.rotation().findAt(1).orElseThrow().interpolation());
+        assertTrue(history.undo()); assertFalse(history.undo());
+        assertEquals(InterpolationMode.STEP,root.translation().findAt(1).orElseThrow().interpolation());
+        assertEquals(InterpolationMode.SMOOTH,head.rotation().findAt(1).orElseThrow().interpolation());
+        assertTrue(history.redo()); assertEquals(InterpolationMode.LINEAR,head.rotation().findAt(1).orElseThrow().interpolation());
+    }
+    @Test void interpolationNoOpAndInvalidMixedSelectionProduceNoHistory() {
+        var keys=seedMixed();
+        assertFalse(ActorAnimationAuthoringService.setInterpolation(context,List.of(keys.getFirst()),InterpolationMode.STEP));
+        var invalid=new ArrayList<>(keys); invalid.add(key("body",ROTATION,2));
+        assertFalse(ActorAnimationAuthoringService.setInterpolation(context,invalid,InterpolationMode.LINEAR));
+        assertTrue(asset.findBoneTrack("body").isEmpty());
+        assertEquals(InterpolationMode.STEP,asset.findBoneTrack("root").orElseThrow().translation().findAt(1).orElseThrow().interpolation());
+        assertFalse(ActorAnimationAuthoringService.setInterpolation(context,keys,null));
+        assertFalse(ActorAnimationAuthoringService.setInterpolation(context,List.of(),InterpolationMode.LINEAR));
+        assertEquals(0,history.getUndoSize());
+    }
+    @Test void interpolationUsesExistingExactTimeAndRefusesStaleOrReadOnlyContext() {
+        var keys=seedMixed();
+        assertTrue(ActorAnimationAuthoringService.setInterpolation(context,List.of(key("root",TRANSLATION,1.000001f)),InterpolationMode.SMOOTH));
+        assertEquals(1f,asset.findBoneTrack("root").orElseThrow().translation().keyframes().getFirst().time());
+        assertTrue(history.undo()); track.setLocked(true);
+        assertFalse(ActorAnimationAuthoringService.setInterpolation(context,keys,InterpolationMode.LINEAR));
+        track.setLocked(false); model.setCurrentTime(2); model.setCurrentTime(1);
+        assertFalse(ActorAnimationAuthoringService.setInterpolation(context,keys,InterpolationMode.LINEAR));
+        assertEquals(0,history.getUndoSize());
+    }
+    @Test void interpolationUndoRefusesExternalModeChangeWithoutPartialRollback() {
+        var keys=seedMixed();
+        assertTrue(ActorAnimationAuthoringService.setInterpolation(context,keys,InterpolationMode.LINEAR));
+        var head=asset.findBoneTrack("head").orElseThrow();
+        var frame=head.rotation().findAt(1).orElseThrow();
+        head.rotation().put(1,frame.value(),InterpolationMode.STEP);
+        assertThrows(IllegalArgumentException.class,history::undo);
+        assertEquals(InterpolationMode.LINEAR,asset.findBoneTrack("root").orElseThrow().translation().findAt(1).orElseThrow().interpolation());
+        assertEquals(InterpolationMode.STEP,head.rotation().findAt(1).orElseThrow().interpolation());
+        assertEquals(1,history.getUndoSize());
+    }
+
 }

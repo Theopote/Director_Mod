@@ -2255,5 +2255,7 @@
   "gui.director.actor.keys.mixed": "Mixed",
   "gui.director.actor.keys.mode.step": "Step",
   "gui.director.actor.keys.mode.linear": "Linear",
-  "gui.director.actor.keys.mode.smooth": "Smooth"
+  "gui.director.actor.keys.mode.smooth": "Smooth",
+  "gui.director.actor.keys.edit_interpolation": "Selected key interpolation",
+  "gui.director.actor.keys.interpolation_hint": "Changes the transition from each selected key to the next: step, linear or smooth. Key times and pose values stay unchanged. All shared references update."
 }

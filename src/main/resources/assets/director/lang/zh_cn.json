@@ -2255,5 +2255,7 @@
   "gui.director.actor.keys.mixed": "混合",
   "gui.director.actor.keys.mode.step": "保持",
   "gui.director.actor.keys.mode.linear": "线性",
-  "gui.director.actor.keys.mode.smooth": "平滑"
+  "gui.director.actor.keys.mode.smooth": "平滑",
+  "gui.director.actor.keys.edit_interpolation": "选中键插值",
+  "gui.director.actor.keys.interpolation_hint": "修改选中键到下一键的过渡：保持、线性或平滑。不会移动键或修改姿态值；共享引用同步变化。"
 }
