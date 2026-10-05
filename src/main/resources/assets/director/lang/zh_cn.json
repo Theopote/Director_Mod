@@ -2257,5 +2257,10 @@
   "gui.director.actor.keys.mode.linear": "线性",
   "gui.director.actor.keys.mode.smooth": "平滑",
   "gui.director.actor.keys.edit_interpolation": "选中键插值",
-  "gui.director.actor.keys.interpolation_hint": "修改选中键到下一键的过渡：保持、线性或平滑。不会移动键或修改姿态值；共享引用同步变化。"
+  "gui.director.actor.keys.interpolation_hint": "修改选中键到下一键的过渡：保持、线性或平滑。不会移动键或修改姿态值；共享引用同步变化。",
+  "gui.director.actor.keys.absolute_time": "资产时间（秒）",
+  "gui.director.actor.keys.time_offset": "资产时间偏移（秒）",
+  "gui.director.actor.keys.apply_time": "应用时间",
+  "gui.director.actor.keys.cancel_time": "取消时间编辑",
+  "gui.director.actor.keys.time_hint": "单键设置绝对资产时间；多键使用统一偏移。越界或碰撞会整批拒绝，循环片段暂不支持数值移动。"
 }

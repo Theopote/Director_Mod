@@ -2257,5 +2257,10 @@
   "gui.director.actor.keys.mode.linear": "Linear",
   "gui.director.actor.keys.mode.smooth": "Smooth",
   "gui.director.actor.keys.edit_interpolation": "Selected key interpolation",
-  "gui.director.actor.keys.interpolation_hint": "Changes the transition from each selected key to the next: step, linear or smooth. Key times and pose values stay unchanged. All shared references update."
+  "gui.director.actor.keys.interpolation_hint": "Changes the transition from each selected key to the next: step, linear or smooth. Key times and pose values stay unchanged. All shared references update.",
+  "gui.director.actor.keys.absolute_time": "Asset time (s)",
+  "gui.director.actor.keys.time_offset": "Asset time offset (s)",
+  "gui.director.actor.keys.apply_time": "Apply time",
+  "gui.director.actor.keys.cancel_time": "Cancel time edit",
+  "gui.director.actor.keys.time_hint": "Set absolute asset time for one key, or a shared offset for multiple keys. Bounds or collisions reject the whole edit. Repeating clips do not support numeric moves yet."
 }

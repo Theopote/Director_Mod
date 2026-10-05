@@ -318,4 +318,49 @@ class ActorAnimationAuthoringServiceTest {
         assertEquals(1,history.getUndoSize());
     }
 
+    @Test void numericTimeUsesAbsoluteSingleKeyAndUniformMixedOffset() {
+        var keys=seedMixed();
+        var single=new ActorKeyframeTimeDraft(context,List.of(keys.getFirst()));
+        assertEquals(1f,single.delta(2)); assertTrue(single.apply(2)); assertEquals(1,history.getUndoSize());
+        assertTrue(history.undo());
+        var multiple=new ActorKeyframeTimeDraft(context,keys);
+        assertEquals(.5f,multiple.delta(.5f)); assertTrue(multiple.apply(.5f));
+        assertTrue(asset.findBoneTrack("head").orElseThrow().rotation().findAt(1.5f).isPresent());
+        assertEquals(InterpolationMode.STEP,asset.findBoneTrack("root").orElseThrow().translation().findAt(1.5f).orElseThrow().interpolation());
+        assertEquals(1,history.getUndoSize()); assertTrue(history.undo());
+    }
+    @Test void numericTimeRejectsTrimBoundsCollisionAndNonFiniteWithoutHistory() {
+        var keys=seedMixed(); clip.setTimeRange(0,1.25f);
+        var target=ActorAnimationEditContext.capture(model,track,clip);
+        assertFalse(ActorAnimationAuthoringService.moveTime(target,keys,.5f));
+        assertFalse(ActorAnimationAuthoringService.moveTime(target,keys,-2));
+        assertFalse(ActorAnimationAuthoringService.moveTime(target,keys,Float.NaN));
+        clip.setTimeRange(0,15); target=ActorAnimationEditContext.capture(model,track,clip);
+        asset.findBoneTrack("head").orElseThrow().scale().put(2,new Vector3f(3),InterpolationMode.LINEAR);
+        assertFalse(ActorAnimationAuthoringService.moveTime(target,keys,1));
+        assertTrue(asset.findBoneTrack("root").orElseThrow().translation().findAt(1).isPresent());
+        assertEquals(0,history.getUndoSize());
+    }
+    @Test void numericTimeDraftRejectsSourceSelectionAndTimeRoundTrips() {
+        var keys=seedMixed(); var draft=new ActorKeyframeTimeDraft(context,keys);
+        assertTrue(draft.isCurrent());
+        asset.findBoneTrack("head").orElseThrow().scale().put(1,new Vector3f(4),InterpolationMode.LINEAR);
+        assertFalse(draft.isCurrent()); assertFalse(draft.apply(.5f));
+        draft=new ActorKeyframeTimeDraft(context,keys);
+        var settings=ActorAnimationAuthoringSettings.getInstance(); boolean old=settings.isAutoKeyframe();
+        settings.setAutoKeyframe(!old); settings.setAutoKeyframe(old); assertFalse(draft.isCurrent());
+        draft=new ActorKeyframeTimeDraft(context,keys);
+        model.setCurrentTime(2); model.setCurrentTime(1); assertFalse(draft.isCurrent());
+        assertEquals(0,history.getUndoSize());
+    }
+
+    @Test void numericTimeRejectsRepeatingReferencesAndNoOpWithoutHistory() {
+        var keys=seedMixed();
+        assertFalse(ActorAnimationAuthoringService.moveTime(context,List.of(keys.getFirst()),1));
+        clip.setLoop(true); asset.setLoopMode(AnimationLoopMode.PING_PONG);
+        var repeating=ActorAnimationEditContext.capture(model,track,clip);
+        assertFalse(ActorAnimationAuthoringService.moveTime(repeating,keys,.5f));
+        assertEquals(0,history.getUndoSize());
+    }
+
 }

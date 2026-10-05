@@ -95,6 +95,20 @@ public final class ActorAnimationAuthoringService {
         return changed && draft.commit(context,"Change actor keyframe interpolation");
     }
 
+    public static boolean moveTime(ActorAnimationEditContext context, Collection<Key> keys, float value) {
+        if(context==null || !context.isCurrent() || keys==null || keys.isEmpty() || !Float.isFinite(value)
+                || (context.loop() && context.loopMode()!=AnimationLoopMode.ONCE)) return false;
+        var distinct=new LinkedHashSet<>(keys);
+        if(distinct.stream().anyMatch(Objects::isNull)) return false;
+        float delta=distinct.size()==1?value-distinct.iterator().next().time():value;
+        double limit=Math.min(context.duration(),(context.end()-context.start())*(double)Math.max(.01f,context.speed()));
+        for(var key:distinct) {
+            double destination=key.time()+(double)delta;
+            if(!Double.isFinite(destination) || destination<0 || destination>limit) return false;
+        }
+        return move(context,distinct,delta);
+    }
+
     public static boolean move(ActorAnimationEditContext context, Collection<Key> keys, float delta) {
         if (context == null || !context.isCurrent() || keys == null || keys.isEmpty()
                 || !Float.isFinite(delta) || Math.abs(delta) <= EPSILON) return false;

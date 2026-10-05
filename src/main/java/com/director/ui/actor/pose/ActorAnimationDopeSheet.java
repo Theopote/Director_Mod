@@ -26,6 +26,7 @@ import java.util.UUID;
 public final class ActorAnimationDopeSheet {
     private static String selectedAssetId;
     private static final ActorKeyframeClipboard keyClipboard=ActorKeyframeClipboard.getInstance();
+    private static final ActorKeyframeTimePanel timePanel=new ActorKeyframeTimePanel();
     private static ActorAnimationEditContext renderContext;
     private static ActorAnimationEditContext interactionContext;
     private static SelectionContext selectionContext;
@@ -183,7 +184,15 @@ public final class ActorAnimationDopeSheet {
             }
             ImGui.endDisabled();
         }
-        if(!selection.isEmpty()) ActorKeyframeInterpolationPanel.render(renderContext,assetKeys(),canWrite());
+        if(!selection.isEmpty()) {
+            Float delta=timePanel.render(renderContext,assetKeys(),canWrite());
+            if(delta!=null) {
+                var old=new ArrayList<>(selection); selection.clear();
+                for(var key:old) selection.add(new KeyId(key.boneId(),key.channel(),key.time()+delta));
+                timePanel.cancel();
+            }
+            ActorKeyframeInterpolationPanel.render(renderContext,assetKeys(),canWrite());
+        } else timePanel.cancel();
         if (keyClipboard.size()>0) {
             ImGui.beginDisabled(!canWrite() || !keyClipboard.compatible(asset));
             if (ImGui.smallButton(Icons.CLIPBOARD + " 粘贴到播放头##dopePaste")) {

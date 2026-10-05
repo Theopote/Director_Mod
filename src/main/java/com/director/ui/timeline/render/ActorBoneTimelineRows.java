@@ -117,6 +117,7 @@ public final class ActorBoneTimelineRows {
     private long pendingRevision, pendingSelectionRevision, pendingSettingsRevision;
 
     private boolean actionMenu;
+    private final com.director.ui.actor.pose.ActorKeyframeTimePanel timePanel=new com.director.ui.actor.pose.ActorKeyframeTimePanel();
     public boolean handleKeyCommand(TimelineModel model,String action) {
         // Once keys own focus, rejection must never fall through to deleting their clip.
         if(!keyFocus || selectedReference==null || model.getSelectedClip()!=selectedReference.getTimelineClip()) return false;
@@ -186,6 +187,16 @@ public final class ActorBoneTimelineRows {
         ImGui.beginDisabled(!target || pasted.isEmpty());
         boolean paste=ImGui.button(tr("paste")); ImGui.endDisabled();
         ImGui.textWrapped(tr("paste_hint"));
+        Float numericDelta=timePanel.render(context,selectedKeys.keySet(),hasSelection);
+        if(numericDelta!=null) {
+            var previous=new ArrayList<>(selectedKeys.values()); selectedKeys.clear();
+            for(var old:previous) {
+                var hit=new KeyHit(old.track(),old.bone(),old.x(),old.y(),old.time()+numericDelta/Math.max(.01f,context.speed()),
+                        old.asset(),old.clip(),old.boneTrack(),old.channel(),old.assetTime()+numericDelta);
+                selectedKeys.put(key(hit.bone(),hit.channel(),hit.assetTime()),hit);
+            }
+            timePanel.cancel(); actionMenu=false; pendingKeys=List.of(); ImGui.closeCurrentPopup(); return true;
+        }
         boolean interpolationChanged=com.director.ui.actor.pose.ActorKeyframeInterpolationPanel.render(context,selectedKeys.keySet(),hasSelection);
         boolean changed=interpolationChanged || (copy?executeKeyCommand(model,"copy"):delete?executeKeyCommand(model,"delete"):
                 paste?executeKeyCommand(model,"paste"):false);
@@ -194,7 +205,7 @@ public final class ActorBoneTimelineRows {
         ImGui.separator(); return changed;
     }
     private boolean renderCandidates(TimelineModel model) {
-        if (pendingKeys.isEmpty() && !actionMenu) return false;
+        if (pendingKeys.isEmpty() && !actionMenu) { timePanel.cancel(); return false; }
         boolean current = pendingModel == model && pendingRevision == model.getActorEditContextRevision()
                 && pendingSelectionRevision == ActorBoneSelectionController.getInstance().getRevision()
                 && pendingSettingsRevision == com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision();
@@ -226,7 +237,7 @@ public final class ActorBoneTimelineRows {
             } finally { ImGui.endPopup(); }
             return true;
         }
-        actionMenu=false; pendingKeys=List.of(); return false;
+        timePanel.cancel(); actionMenu=false; pendingKeys=List.of(); return false;
     }
     private static String tr(String key) {
         return net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys."+key);
