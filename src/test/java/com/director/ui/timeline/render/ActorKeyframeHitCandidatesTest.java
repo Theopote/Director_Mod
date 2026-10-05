@@ -22,4 +22,16 @@ class ActorKeyframeHitCandidatesTest {
         assertTrue(ActorKeyframeHitCandidates.near(List.of(p("key",0,0)),Float.NaN,0,6).isEmpty());
         assertTrue(ActorKeyframeHitCandidates.near(List.of(p("key",0,0)),0,0,-1).isEmpty());
     }
+    @Test void rectangleWorksInBothDirectionsAndIncludesEdges() {
+        var points=List.of(p("topLeft",0,0),p("bottomRight",10,10),p("middle",5,5),p("outside",11,5));
+        assertEquals(List.of("topLeft","bottomRight","middle"),ActorKeyframeHitCandidates.rectangle(points,10,10,0,0));
+        assertEquals(ActorKeyframeHitCandidates.rectangle(points,0,0,10,10),ActorKeyframeHitCandidates.rectangle(points,10,10,0,0));
+    }
+    @Test void rectangleRetainsDenseKeysAndDeduplicatesRepeatedProjections() {
+        var points=List.of(p("key1",5,5),p("key2",5,5),p("key1",6,5),p("invalid",Float.NaN,5));
+        assertEquals(List.of("key1","key2"),ActorKeyframeHitCandidates.rectangle(points,0,0,10,10));
+        assertTrue(ActorKeyframeHitCandidates.rectangle(points,Float.NaN,0,10,10).isEmpty());
+        assertTrue(ActorKeyframeHitCandidates.rectangle(points,20,20,30,30).isEmpty());
+    }
+
 }

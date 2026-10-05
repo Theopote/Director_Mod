@@ -3,7 +3,6 @@ package com.director.ui.timeline.render;
 import com.director.actor.ActorRegistryManager;
 import com.director.actor.animation.asset.*;
 import com.director.timeline.model.entity.EntityAnimationClip;
-import com.director.actor.rig.HumanoidRigProfile;
 import com.director.actor.rig.skeleton.HumanoidRig;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
@@ -53,6 +52,57 @@ public final class ActorBoneTimelineRows {
     private float dragDelta() {
         return ActorKeyframeDrag.groupDelta(dragKeys.keySet().stream().map(ActorAnimationAuthoringService.Key::time).toList(),
                 ImGui.getMousePosX()-dragMouseX,dragPixelsPerSecond,dragSpeed,dragging.asset().duration(),dragEnd-dragStart);
+    }
+    private record Marquee(ActorAnimationEditContext context, long selectionRevision, long settingsRevision,
+            float x, float y, float left, float right, float top, float bottom, boolean additive,
+            List<Float> viewport, List<TimelineTrack> owners, List<PendingKey> candidates) {}
+    private Marquee marquee;
+    private static List<Float> viewport(float left,float right,float top,float height,float scrollY,TimelineRenderMath math) {
+        return List.of(left,right,top,height,scrollY,math.getPixelsPerSecond(),math.timeToX(0),math.getRowLayout().totalHeight());
+    }
+    public boolean updateMarquee(TimelineModel model,float left,float right,float top,float height,float scrollY,TimelineRenderMath math) {
+        if(marquee==null) return false;
+        var box=marquee;
+        if(box.context().model()!=model || !box.context().isBound()
+                || box.context().contextRevision()!=model.getActorEditContextRevision()
+                || box.selectionRevision()!=ActorBoneSelectionController.getInstance().getRevision()
+                || box.settingsRevision()!=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision()
+                || !box.owners().equals(model.getAllTracks())
+                || !expanded.contains(box.context().track())
+                || !box.viewport().equals(viewport(left,right,top,height,scrollY,math))
+                || ActorBonePropertiesPanel.hasNumericDraft() || ActorBoneGizmoController.getInstance().isDragging()
+                || ImGui.isKeyPressed(ImGuiKey.Escape) || !isCanvasWindowHovered()) {
+            marquee=null; return true;
+        }
+        float mx=Math.clamp(ImGui.getMousePosX(),box.left(),box.right());
+        float my=Math.clamp(ImGui.getMousePosY(),box.top(),box.bottom());
+        boolean active=Math.hypot(mx-box.x(),my-box.y())>=4;
+        var points=new ArrayList<ActorKeyframeHitCandidates.Point<PendingKey>>();
+        for(var candidate:box.candidates()) points.add(new ActorKeyframeHitCandidates.Point<>(candidate,candidate.hit().x(),candidate.hit().y()));
+        var inside=active?ActorKeyframeHitCandidates.rectangle(points,box.x(),box.y(),mx,my):List.<PendingKey>of();
+        if(active) {
+            var draw=ImGui.getWindowDrawList();
+            draw.pushClipRect(box.left(),box.top(),box.right(),box.bottom(),true);
+            try {
+                draw.addRectFilled(Math.min(mx,box.x()),Math.min(my,box.y()),Math.max(mx,box.x()),Math.max(my,box.y()),TimelineColors.rgba(80,160,230,40));
+                draw.addRect(Math.min(mx,box.x()),Math.min(my,box.y()),Math.max(mx,box.x()),Math.max(my,box.y()),TimelineColors.rgba(100,190,255,220));
+                for(var candidate:inside) draw.addCircle(candidate.hit().x(),candidate.hit().y(),5,TimelineColors.COLOR_TEXT_LIGHT);
+            } finally { draw.popClipRect(); }
+        }
+        ImGui.setTooltip(tr("marquee_hint"));
+        if(ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
+            marquee=null;
+            // Validate the whole rectangle before changing the transient selection.
+            if(inside.stream().anyMatch(k -> k.hit().asset().findBoneTrack(k.hit().bone()).orElse(null)!=k.hit().boneTrack()
+                    || !Objects.equals(source(k.hit()),k.source()))) return true;
+            if(!box.additive()) selectedKeys.clear();
+            for(var candidate:inside) {
+                var hit=candidate.hit();
+                selectedOwner=hit.track(); selectedReference=hit.clip(); selectedAsset=hit.asset();
+                selectedKeys.put(key(hit.bone(),hit.channel(),hit.assetTime()),hit);
+            }
+        } else if(!ImGui.isMouseDown(ImGuiMouseButton.Left)) marquee=null;
+        return true;
     }
     private ActorAnimationEditContext dragContext;
     private long dragSelectionRevision, dragSettingsRevision;
@@ -268,7 +318,7 @@ public final class ActorBoneTimelineRows {
     /** Consume only a new click; ongoing timeline drags must still receive updates/releases. */
     public boolean handleClick(TimelineModel model, TimelineRowLayout layout, float x, float contentX,
                                float right, float top, float viewportHeight, float scrollY, float height, float gap,
-                               float pixelsPerSecond) {
+                               float pixelsPerSecond, TimelineRenderMath math) {
         if (!isCanvasWindowHovered() || (!ImGui.isMouseClicked(ImGuiMouseButton.Left)
                 && !ImGui.isMouseClicked(ImGuiMouseButton.Right))) return false;
         float mx = ImGui.getMousePosX(), my = ImGui.getMousePosY();
@@ -338,7 +388,28 @@ public final class ActorBoneTimelineRows {
                         dragSpeed = closest.clip().getSpeed();
                         dragSource = source(closest);
                     }
-                } else if(!rightClick && !additive) selectedKeys.clear();
+                } else if(!rightClick) {
+                    if(preferredClip instanceof com.director.timeline.model.entity.EntityTimelineClip wrapper
+                            && wrapper.getParentTrack()==track && wrapper.getEntityClip() instanceof EntityAnimationClip animation) {
+                        model.setSelectedClip(wrapper);
+                        var context=ActorAnimationEditContext.capture(model,track,animation);
+                        if(context!=null && context.isBound() && !ActorBonePropertiesPanel.hasNumericDraft()
+                                && !ActorBoneGizmoController.getInstance().isDragging()) {
+                            var frozen=new ArrayList<PendingKey>();
+                            for(var hit:keyHits) if(hit.track()==track && hit.clip()==animation)
+                                frozen.add(new PendingKey(hit,context,source(hit)));
+                            float rowsTop=Math.max(top,top+layout.trackTop(owner)+height+gap-scrollY);
+                            float rowsBottom=Math.min(top+viewportHeight,top+layout.trackTop(owner)+height+gap+rig.boneCount()*CHILD_HEIGHT-scrollY);
+                            if(rowsTop<rowsBottom) marquee=new Marquee(context,ActorBoneSelectionController.getInstance().getRevision(),
+                                    com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision(),mx,my,
+                                    contentX,right,rowsTop,rowsBottom,additive && selectedReference==animation,
+                                    viewport(contentX,right,top,viewportHeight,scrollY,math),List.copyOf(model.getAllTracks()),List.copyOf(frozen));
+                        }
+                    } else {
+                        if(!additive) selectedKeys.clear();
+                        ImGui.setTooltip(tr("marquee_reference"));
+                    }
+                }
             }
         }
         return true;

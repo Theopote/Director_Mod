@@ -2241,5 +2241,7 @@
   "gui.director.actor.keys.channel.1": "Rotation",
   "gui.director.actor.keys.channel.2": "Scale",
   "gui.director.actor.keys.selection_hint": "Ctrl-click to toggle keys; drag a selected key to move the group. Right-click to choose a reference. Shared assets affect all references.",
-  "gui.director.actor.keys.drag_group": "Move %s keys · asset time offset %ss. All shared references change; Esc cancels."
+  "gui.director.actor.keys.drag_group": "Move %s keys · asset time offset %ss. All shared references change; Esc cancels.",
+  "gui.director.actor.keys.marquee_hint": "Select bone keys in the current clip. Ctrl adds; Esc cancels. Scrolling or zooming cancels this rectangle.",
+  "gui.director.actor.keys.marquee_reference": "Select an animation clip or keyframe reference first, then drag from empty space in its bone rows."
 }
