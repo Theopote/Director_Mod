@@ -2234,5 +2234,10 @@
   "gui.director.actor.tools.look_hint": "Use the target marker to edit gaze. Use Rotate to turn the whole actor.",
   "gui.director.actor.tools.rotate_hint": "Drag red/green/blue rings to rotate around X/Y/Z. Use the green Y ring to turn; Pose or Look at edits the head. Esc cancels; release commits.",
   "gui.director.actor.tools.scale_hint": "Drag an axis cube to scale one axis or a plane to scale two. Drag the center right to enlarge uniformly, left to shrink. Esc cancels; release commits.",
-  "gui.director.actor.authoring.numeric_asset_target": "Select the animation asset target for numeric editing and keying. For quick poses, use the bone Gizmo or pose clip properties."
+  "gui.director.actor.authoring.numeric_asset_target": "Select the animation asset target for numeric editing and keying. For quick poses, use the bone Gizmo or pose clip properties.",
+  "gui.director.actor.keys.choose": "Choose a keyframe reference",
+  "gui.director.actor.keys.choose_hint": "Scene time / asset time. Choose a reference to drag; zoom in for dense keys. Right-click to choose again.",
+  "gui.director.actor.keys.channel.0": "Position",
+  "gui.director.actor.keys.channel.1": "Rotation",
+  "gui.director.actor.keys.channel.2": "Scale"
 }

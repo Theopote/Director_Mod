@@ -36,6 +36,48 @@ public final class ActorBoneTimelineRows {
     private Object dragSource;
     private ActorAnimationEditContext dragContext;
     private long dragSelectionRevision, dragSettingsRevision;
+    private static final String KEY_POPUP = "ActorKeyCandidates";
+    private record PendingKey(KeyHit hit, ActorAnimationEditContext context, Object source) {}
+    private List<PendingKey> pendingKeys = List.of();
+    private TimelineModel pendingModel;
+    private long pendingRevision, pendingSelectionRevision, pendingSettingsRevision;
+
+    private boolean renderCandidates(TimelineModel model) {
+        if (pendingKeys.isEmpty()) return false;
+        boolean current = pendingModel == model && pendingRevision == model.getActorEditContextRevision()
+                && pendingSelectionRevision == ActorBoneSelectionController.getInstance().getRevision()
+                && pendingSettingsRevision == com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision();
+        if (ImGui.beginPopup(KEY_POPUP)) {
+            try {
+                if (!current || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+                    ImGui.closeCurrentPopup(); pendingKeys = List.of(); return true;
+                }
+                ImGui.textWrapped(tr("choose"));
+                int index=0;
+                for (var candidate : pendingKeys) {
+                    var hit=candidate.hit();
+                    boolean valid=candidate.context()!=null && candidate.context().isBound()
+                            && hit.asset().findBoneTrack(hit.bone()).orElse(null)==hit.boneTrack()
+                            && Objects.equals(source(hit),candidate.source());
+                    ImGui.beginDisabled(!valid);
+                    String label=hit.clip().getName()+" · "+hit.asset().name()+" · "+tr("channel."+hit.channel())
+                            +String.format(" · %.3fs / %.3fs###key%d",hit.time(),hit.assetTime(),index++);
+                    boolean chosen=ImGui.selectable(label);
+                    ImGui.endDisabled();
+                    if (chosen) {
+                        model.setSelectedClip(hit.clip().getTimelineClip()); model.setCurrentTime(hit.time());
+                        pendingKeys=List.of(); ImGui.closeCurrentPopup(); break;
+                    }
+                }
+                ImGui.textWrapped(tr("choose_hint"));
+            } finally { ImGui.endPopup(); }
+            return true;
+        }
+        pendingKeys=List.of(); return false;
+    }
+    private static String tr(String key) {
+        return net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys."+key);
+    }
 
     private static Object source(KeyHit hit) {
         return switch (hit.channel()) {
@@ -47,6 +89,7 @@ public final class ActorBoneTimelineRows {
 
     /** Preview only while held; the underlying asset changes once, on release. */
     public boolean updateDrag(TimelineModel model) {
+        if (renderCandidates(model)) return true;
         if (dragging == null) return false;
         var hit = dragging;
         if (dragContext == null || dragContext.model() != model || !dragContext.isCurrent()
@@ -178,13 +221,12 @@ public final class ActorBoneTimelineRows {
                                 clip.getStartTime(), clip.getEndTime(), animation.getSpeed(),
                                 math.xToTime(left), math.xToTime(right))) {
                             float px = math.timeToX(time);
-                            if (!pixels.add(Math.round(px))) continue;
-                            draw.addCircleFilled(px, cy, 3, colors[channel]);
+                            if (pixels.add(Math.round(px))) draw.addCircleFilled(px, cy, 3, colors[channel]);
                             keyHits.add(new KeyHit(track, bone, px, cy, time, asset, animation, boneTrack, channel, key.time()));
                             if (isCanvasWindowHovered() && Math.abs(ImGui.getMousePosX() - px) < 4
                                     && Math.abs(ImGui.getMousePosY() - cy) < 4) {
                                 ImGui.setTooltip(asset.name() + " · " + new String[]{"位置", "旋转", "缩放"}[channel]
-                                        + String.format(" · %.3fs\n点击定位；非循环片段可拖动。共享资产影响全部引用。", time));
+                                        + String.format(" · %.3fs\n点击定位；非循环片段可拖动。右键选择重叠引用。共享资产影响全部引用。", time));
                             }
                         }
                     }
@@ -215,25 +257,32 @@ public final class ActorBoneTimelineRows {
         int bone = (int) ((local - height - gap) / CHILD_HEIGHT);
         var rig = rigFor(track);
         if (bone >= rig.boneCount()) return false;
-        if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
-            var preferredClip = model.getSelectedClip();
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Left) || ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
+            var preferredClip=model.getSelectedClip();
+            boolean rightClick=ImGui.isMouseClicked(ImGuiMouseButton.Right);
             var actorId = track.getActorTrackPayload().getActorRef().getActorId();
             ActorSelectionHub.selectBone(actorId, rig.bone(bone).id(), ImGui.getIO().getKeyCtrl());
             model.selectItem(track, false);
             if (mx >= contentX) {
-                KeyHit closest = null;
-                float distance = 36f;
+                var points = new ArrayList<ActorKeyframeHitCandidates.Point<KeyHit>>();
                 for (var hit : keyHits) {
-                    if (hit.track() != track || !hit.bone().equals(rig.bone(bone).id())) continue;
-                    float d = (mx - hit.x()) * (mx - hit.x()) + (my - hit.y()) * (my - hit.y());
-                    boolean preferred = hit.clip().getTimelineClip() == preferredClip;
-                    boolean oldPreferred = closest != null && closest.clip().getTimelineClip() == preferredClip;
-                    if (d < distance || (closest != null && Float.compare(d, distance) == 0
-                            && ((preferred && !oldPreferred) || (preferred == oldPreferred
-                            && hit.clip().getStartTime() > closest.clip().getStartTime())))) {
-                        closest = hit; distance = d;
-                    }
+                    if (hit.track() == track && hit.bone().equals(rig.bone(bone).id()))
+                        points.add(new ActorKeyframeHitCandidates.Point<>(hit,hit.x(),hit.y()));
                 }
+                var candidates=ActorKeyframeHitCandidates.near(points,mx,my,6);
+                var preferred=candidates.stream().filter(hit -> hit.clip().getTimelineClip()==preferredClip).toList();
+                if (!rightClick && preferred.size()==1) candidates=preferred;
+                if (candidates.size()>1 || (rightClick && !candidates.isEmpty())) {
+                    var pending=new ArrayList<PendingKey>();
+                    for(var hit:candidates) pending.add(new PendingKey(hit,
+                            ActorAnimationEditContext.capture(model,track,hit.clip()),source(hit)));
+                    pendingKeys=List.copyOf(pending); pendingModel=model;
+                    pendingRevision=model.getActorEditContextRevision();
+                    pendingSelectionRevision=ActorBoneSelectionController.getInstance().getRevision();
+                    pendingSettingsRevision=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision();
+                    dragging=null; ImGui.openPopup(KEY_POPUP); return true;
+                }
+                KeyHit closest=candidates.isEmpty()?null:candidates.getFirst();
                 if (closest != null) {
                     model.setSelectedClip(closest.clip().getTimelineClip());
                     model.setCurrentTime(closest.time());
