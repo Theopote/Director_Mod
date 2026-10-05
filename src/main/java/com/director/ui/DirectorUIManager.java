@@ -987,6 +987,7 @@ public class DirectorUIManager {
             return;
         }
 
+        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
         logInfo("开始释放UI Manager资源");
 
         // 用于跟踪清理过程中的错误

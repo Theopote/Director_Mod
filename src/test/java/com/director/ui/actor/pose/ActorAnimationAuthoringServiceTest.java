@@ -410,4 +410,16 @@ class ActorAnimationAuthoringServiceTest {
         assertEquals(new Vector3f(4),asset.findBoneTrack("head").orElseThrow().scale().findAt(1).orElseThrow().value());
     }
 
+    @Test void lifecycleCleanupDropsDraftsButPreservesSelectionClipboardAndAsset() {
+        var keys=seedMixed(); model.setSelectedClip(clip.getTimelineClip());
+        var target=ActorAnimationEditContext.capture(model,track,clip);
+        var selection=ActorKeyframeSelection.getInstance(); selection.replace(model,track,clip,asset,keys,true);
+        ActorKeyframeClipboard.getInstance().copy(asset,keys);
+        var panel=new ActorKeyframeTimePanel(); panel.beginDraft(target,keys); assertTrue(panel.hasDraft());
+        ActorAnimationEditingLifecycle.cancelTransientWork(); ActorAnimationEditingLifecycle.cancelTransientWork();
+        assertFalse(panel.hasDraft()); assertEquals(keys,selection.snapshot(model).keys());
+        assertEquals(3,ActorKeyframeClipboard.getInstance().size()); assertEquals(0,history.getUndoSize());
+        assertTrue(asset.findBoneTrack("root").orElseThrow().translation().findAt(1).isPresent());
+    }
+
 }

@@ -333,6 +333,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      * 用于“切换世界”这类场景：让 UI 从干净状态开始，然后再选择性加载该世界的存档。
      */
     private void resetInMemoryToDefaults() {
+        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
         actorEditContextRevision++;
         playing = false;
         scrubbing = false;

@@ -26,6 +26,11 @@ public abstract class AbstractPanel implements IPanel {
     
     private boolean visible = true;
     private boolean initialized = false;
+    private boolean contentWasRendered;
+    protected void onContentUnavailable() {}
+    private void notifyContentUnavailable() {
+        if(contentWasRendered) { contentWasRendered=false; onContentUnavailable(); }
+    }
 
     // 面板隐藏状态管理
     private boolean hidden = false;
@@ -45,6 +50,7 @@ public abstract class AbstractPanel implements IPanel {
     @Override
     public final void render() {
         if (!shouldRenderWindow()) {
+            notifyContentUnavailable();
             return;
         }
 
@@ -87,7 +93,7 @@ public abstract class AbstractPanel implements IPanel {
             updateDockedStateCache();
             if (windowStarted) {
                 renderWindowContent(renderContent, renderPlaceholder);
-            }
+            } else notifyContentUnavailable();
         } finally {
             endWindow();
         }
@@ -151,8 +157,10 @@ public abstract class AbstractPanel implements IPanel {
             }
 
             if (!renderContent || renderPlaceholder || hidden) {
+                notifyContentUnavailable();
                 renderHiddenPlaceholder();
             } else {
+                contentWasRendered=true;
                 doRender();
             }
         } catch (Exception e) {
@@ -174,6 +182,7 @@ public abstract class AbstractPanel implements IPanel {
 
     private void renderCustomWindowContent() {
         try {
+            contentWasRendered=true;
             doRender();
         } catch (Exception e) {
             logger.error("[{}] 特殊面板渲染错误: {}", getPanelName(), e.getMessage(), e);
@@ -207,6 +216,7 @@ public abstract class AbstractPanel implements IPanel {
     
     @Override
     public void setVisible(boolean visible) {
+        if(!visible) notifyContentUnavailable();
         boolean newHidden = !visible && shouldReserveDockSpaceWhenHidden();
         if (this.visible != visible || this.hidden != newHidden) {
             this.visible = visible;
@@ -239,6 +249,7 @@ public abstract class AbstractPanel implements IPanel {
      * @param hidden 是否隐藏
      */
     public void setHidden(boolean hidden) {
+        if(hidden) notifyContentUnavailable();
         this.hidden = hidden;
         if (hidden && visible) {
             visible = false;

@@ -278,6 +278,7 @@ public final class ToolRegistry {
     public void clearNonSelectionActiveTool() {
         EditorTool prev = getToolById(activeNonSelectionToolId);
         activeNonSelectionToolId = null;
+        if(prev!=null) com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
         if (prev instanceof ToolLifecycle lifecycle) {
             try {
                 lifecycle.onDeactivate();
@@ -371,6 +372,8 @@ public final class ToolRegistry {
 
         // 切换前停用旧的 non-selection
         EditorTool prev = getToolById(activeNonSelectionToolId);
+        if(prev==null || !Objects.equals(prev.getId(),tool.getId()))
+            com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
         if (prev instanceof ToolLifecycle prevLifecycle) {
             try {
                 prevLifecycle.onDeactivate();

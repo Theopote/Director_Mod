@@ -28,6 +28,7 @@ public final class ActorPoseTool extends AbstractActorTool implements ToolLifecy
 
     @Override
     public void onDeactivate() {
+        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
         ActorBoneGizmoController.getInstance().deactivate();
         ActorBoneSelectionController.getInstance().deactivate();
     }

@@ -24,6 +24,12 @@ public final class ActorBoneTimelineRows {
     private static final Set<ActorBoneTimelineRows> instances=Collections.newSetFromMap(new WeakHashMap<>());
     public ActorBoneTimelineRows() { instances.add(this); }
     public static void cancelAllKeyInteractions() { for(var rows:new ArrayList<>(instances)) rows.cancelKeyInteraction(); }
+    public static void closeAllTransientEditors() {
+        for(var rows:new ArrayList<>(instances)) {
+            rows.cancelKeyInteraction(); rows.timePanel.cancel();
+            rows.actionMenu=false; rows.pendingKeys=List.of(); rows.pendingModel=null;
+        }
+    }
     public static final float CHILD_HEIGHT = 24f;
     private final Set<TimelineTrack> expanded = Collections.newSetFromMap(new IdentityHashMap<>());
     private final Set<TimelineTrack> supported = Collections.newSetFromMap(new IdentityHashMap<>());

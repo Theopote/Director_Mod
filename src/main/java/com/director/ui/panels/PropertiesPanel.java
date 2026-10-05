@@ -545,7 +545,13 @@ public class PropertiesPanel extends AbstractPanel {
     // ==================== 生命周期 ====================
     
     @Override
+    protected void onContentUnavailable() {
+        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
+    }
+
+    @Override
     public void dispose() {
+        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
         // 移除监听器
         DirectorServices.get().uiSelection().removeSelectionChangedListener(this::onSelectionChanged);
         super.dispose();

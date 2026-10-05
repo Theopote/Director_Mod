@@ -7,16 +7,22 @@ import imgui.flag.ImGuiWindowFlags;
 
 /** Timeline-hosted animation detail view; shares the existing asset and bone selection models. */
 public final class ActorTimelineAnimationPanel {
+    private static boolean detailVisible;
+    private static void hideDetail() {
+        if(detailVisible) { detailVisible=false; ActorAnimationEditingLifecycle.cancelTransientWork(); }
+    }
     private ActorTimelineAnimationPanel() {}
 
     public static void render(TimelineModel model) {
-        if (model == null) return;
-        if (!ImGui.collapsingHeader("演员骨骼动画##timelineActorAnimation")) return;
+        if (model == null) { hideDetail(); return; }
+        if (!ImGui.collapsingHeader("演员骨骼动画##timelineActorAnimation")) { hideDetail(); return; }
         float available = ImGui.getContentRegionAvailY();
         if (available < 100f) {
+            hideDetail();
             ImGui.textDisabled("请增大时间线面板以显示骨骼编辑区域。");
             return;
         }
+        detailVisible=true;
         ImGui.beginChild("##TimelineActorAnimationDetail", 0f,
                 Math.min(320f, available * 0.5f), true, ImGuiWindowFlags.None);
         try {

@@ -350,7 +350,13 @@ public class TimelinePanel extends AbstractPanel
      * 在 UI 关闭时调用，静默取消所有交互，不触发摄像机回调
      */
     @Override
+    protected void onContentUnavailable() {
+        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
+    }
+
+    @Override
     public void dispose() {
+        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
         if (disposed) {
             return;
         }
