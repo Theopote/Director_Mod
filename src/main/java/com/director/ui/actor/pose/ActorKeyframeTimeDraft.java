@@ -9,6 +9,7 @@ public final class ActorKeyframeTimeDraft {
     private final ActorAnimationEditContext context;
     private final List<ActorAnimationAuthoringService.Key> keys;
     private final Map<ActorAnimationAuthoringService.Key,Source> sources=new LinkedHashMap<>();
+    private final long keySelectionRevision=ActorKeyframeSelection.getInstance().revision();
     private final long selectionRevision=ActorBoneSelectionController.getInstance().getRevision();
     private final long settingsRevision=ActorAnimationAuthoringSettings.getInstance().getRevision();
     public ActorKeyframeTimeDraft(ActorAnimationEditContext context,Collection<ActorAnimationAuthoringService.Key> keys) {
@@ -26,7 +27,7 @@ public final class ActorKeyframeTimeDraft {
         return new Source(track,frame);
     }
     public boolean isCurrent() {
-        return context!=null && context.isCurrent() && !keys.isEmpty()
+        return keySelectionRevision==ActorKeyframeSelection.getInstance().revision() && context!=null && context.isCurrent() && !keys.isEmpty()
                 && selectionRevision==ActorBoneSelectionController.getInstance().getRevision()
                 && settingsRevision==ActorAnimationAuthoringSettings.getInstance().getRevision()
                 && sources.entrySet().stream().allMatch(e -> e.getValue().frame()!=null && e.getValue().equals(source(e.getKey())));

@@ -1,7 +1,6 @@
 package com.director.ui.actor.pose;
 
 import com.director.actor.animation.asset.AnimationAsset;
-import com.director.actor.animation.asset.AnimationAssetLibrary;
 import com.director.actor.animation.asset.BoneTrack;
 import com.director.actor.animation.asset.ChannelKeyframe;
 import com.director.timeline.model.TimelineModel;
@@ -65,7 +64,19 @@ public final class ActorAnimationDopeSheet {
 
     private ActorAnimationDopeSheet() {}
 
+    private static long observedSelectionRevision=-1;
+    private static List<ActorAnimationAuthoringService.Key> importedKeys=List.of();
     public static void render(TimelineModel model, UUID actorId) {
+        try { renderInternal(model,actorId); }
+        finally {
+            if(renderContext!=null && !assetKeys().equals(importedKeys)
+                    && model.getSelectedClip()==renderContext.clip().getTimelineClip()) {
+                ActorKeyframeSelection.getInstance().replace(model,renderContext.track(),renderContext.clip(),renderContext.asset(),assetKeys(),true);
+                observedSelectionRevision=ActorKeyframeSelection.getInstance().revision();
+            }
+        }
+    }
+    private static void renderInternal(TimelineModel model, UUID actorId) {
         if (!com.director.actor.rig.ActorRigCompatibility.editable(actorId)) {
             clearSelection();
             selectionContext = null;
@@ -83,6 +94,17 @@ public final class ActorAnimationDopeSheet {
             interactionContext = null;
             selectionContext = next;
         }
+        var shared=ActorKeyframeSelection.getInstance().snapshot(model);
+        if(observedSelectionRevision!=ActorKeyframeSelection.getInstance().revision()) {
+            dragCandidate=marqueeCandidate=false; interactionContext=null; timePanel.cancel();
+        }
+        observedSelectionRevision=ActorKeyframeSelection.getInstance().revision();
+        selection.clear(); selectedAssetId=null;
+        if(shared!=null && renderContext!=null && shared.owner()==renderContext.track() && shared.clip()==clip && shared.asset()==asset) {
+            for(var key:shared.keys()) selection.add(new KeyId(key.boneId(),Channel.valueOf(key.channel().name()),key.time()));
+            if(!selection.isEmpty()) selectedAssetId=asset.id();
+        }
+        importedKeys=assetKeys();
         if (asset == null) {
             ImGui.textDisabled(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.authoring.unavailable"));
             return;
@@ -302,6 +324,8 @@ public final class ActorAnimationDopeSheet {
         float mx = ImGui.getMousePosX();
         float my = ImGui.getMousePosY();
         if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
+            model.setSelectedClip(clip.getTimelineClip());
+            renderContext=ActorAnimationEditContext.capture(model,renderContext.track(),clip);
             KeyId hit = hitKey(rows, mx, my, y, timeX, timeWidth, rulerHeight, rowHeight,
                     keyRadius, pixelsPerSecond, viewStartTime);
             interactionStartX = interactionCurrentX = mx;
@@ -432,7 +456,7 @@ public final class ActorAnimationDopeSheet {
         float wheel = ImGui.getIO().getMouseWheel();
         if (Math.abs(wheel) < 0.01f) return;
         if (ImGui.getIO().getKeyCtrl()) {
-            float anchor = Math.max(0f, Math.min(1f, (ImGui.getMousePosX() - timeX) / timeWidth));
+            float anchor = Math.clamp((ImGui.getMousePosX() - timeX) / timeWidth, 0f, 1f);
             zoomView(view, duration, view.zoom * (wheel > 0f ? 1.25f : 0.8f), anchor);
         } else if (ImGui.getIO().getKeyShift()) {
             view.startTime -= wheel * visibleDuration(duration, view.zoom) * 0.1f;
@@ -445,7 +469,7 @@ public final class ActorAnimationDopeSheet {
     }
 
     static float zoomedStart(float oldStart, float duration, float oldZoom, float newZoom, float anchor) {
-        float safeAnchor = Math.max(0f, Math.min(1f, anchor));
+        float safeAnchor = Math.clamp(anchor, 0f, 1f);
         float pivot = oldStart + visibleDuration(duration, oldZoom) * safeAnchor;
         float result = pivot - visibleDuration(duration, newZoom) * safeAnchor;
         float max = Math.max(0f, duration - visibleDuration(duration, newZoom));
@@ -453,16 +477,16 @@ public final class ActorAnimationDopeSheet {
     }
 
     private static void zoomView(ViewState view, float duration, float newZoom, float anchor) {
-        float clampedZoom = Math.max(1f, Math.min(50f, newZoom));
+        float clampedZoom = Math.clamp(newZoom, 1f, 50f);
         view.startTime = zoomedStart(view.startTime, duration, view.zoom, clampedZoom, anchor);
         view.zoom = clampedZoom;
         clampView(view, duration);
     }
 
     private static void clampView(ViewState view, float duration) {
-        view.zoom = Math.max(1f, Math.min(50f, view.zoom));
+        view.zoom = Math.clamp(view.zoom, 1f, 50f);
         float max = Math.max(0f, duration - visibleDuration(duration, view.zoom));
-        view.startTime = Math.max(0f, Math.min(max, view.startTime));
+        view.startTime = Math.clamp(view.startTime, 0f, max);
     }
 
     private static float toTimelineTime(EntityAnimationClip clip, float localTime) {
@@ -470,6 +494,8 @@ public final class ActorAnimationDopeSheet {
     }
 
     private static void select(String assetId, KeyId key, boolean additive) {
+        renderContext.model().setSelectedClip(renderContext.clip().getTimelineClip());
+        renderContext=ActorAnimationEditContext.capture(renderContext.model(),renderContext.track(),renderContext.clip());
         if (!Objects.equals(selectedAssetId, assetId) || !additive) selection.clear();
         selectedAssetId = assetId;
         if (additive && selection.contains(key)) selection.remove(key); else selection.add(key);

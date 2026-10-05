@@ -100,7 +100,7 @@ public final class ActorAnimationAuthoringService {
                 || (context.loop() && context.loopMode()!=AnimationLoopMode.ONCE)) return false;
         var distinct=new LinkedHashSet<>(keys);
         if(distinct.stream().anyMatch(Objects::isNull)) return false;
-        float delta=distinct.size()==1?value-distinct.iterator().next().time():value;
+        float delta=distinct.size()==1?value- distinct.getFirst().time():value;
         double limit=Math.min(context.duration(),(context.end()-context.start())*(double)Math.max(.01f,context.speed()));
         for(var key:distinct) {
             double destination=key.time()+(double)delta;

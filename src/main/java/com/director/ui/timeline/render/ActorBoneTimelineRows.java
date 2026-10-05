@@ -34,6 +34,23 @@ public final class ActorBoneTimelineRows {
     private float dragStart, dragEnd, dragSpeed;
     private Object dragSource;
     private final Map<ActorAnimationAuthoringService.Key, KeyHit> selectedKeys = new LinkedHashMap<>();
+    private final com.director.ui.actor.pose.ActorKeyframeSelection sharedSelection=com.director.ui.actor.pose.ActorKeyframeSelection.getInstance();
+    private void importSelection(TimelineModel model) {
+        var state=sharedSelection.snapshot(model);
+        if(state==null) { selectedKeys.clear(); keyFocus=false; return; }
+        selectedOwner=state.owner(); selectedReference=state.clip(); selectedAsset=state.asset(); keyFocus=state.focused();
+        selectedKeys.clear();
+        for(var k:state.keys()) {
+            var hit=new KeyHit(selectedOwner,k.boneId(),0,0,selectedReference.getStartTime()+k.time()/Math.max(.01f,selectedReference.getSpeed()),
+                    selectedAsset,selectedReference,selectedAsset.findBoneTrack(k.boneId()).orElseThrow(),k.channel().ordinal(),k.time());
+            selectedKeys.put(k,hit);
+        }
+    }
+    private void publishSelection(TimelineModel model) {
+        if(selectedOwner!=null && selectedReference!=null && selectedAsset!=null
+                && model.getSelectedClip()==selectedReference.getTimelineClip())
+            sharedSelection.replace(model,selectedOwner,selectedReference,selectedAsset,selectedKeys.keySet(),keyFocus);
+    }
     private boolean keyFocus;
     private TimelineTrack selectedOwner;
     private EntityAnimationClip selectedReference;
@@ -57,7 +74,7 @@ public final class ActorBoneTimelineRows {
         return ActorKeyframeDrag.groupDelta(dragKeys.keySet().stream().map(ActorAnimationAuthoringService.Key::time).toList(),
                 ImGui.getMousePosX()-dragMouseX,dragPixelsPerSecond,dragSpeed,dragging.asset().duration(),dragEnd-dragStart);
     }
-    private record Marquee(ActorAnimationEditContext context, long selectionRevision, long settingsRevision,
+    private record Marquee(ActorAnimationEditContext context, long selectionRevision, long settingsRevision, long sharedRevision,
             float x, float y, float left, float right, float top, float bottom, boolean additive,
             List<Float> viewport, List<TimelineTrack> owners, List<PendingKey> candidates) {}
     private Marquee marquee;
@@ -65,10 +82,14 @@ public final class ActorBoneTimelineRows {
         return List.of(left,right,top,height,scrollY,math.getPixelsPerSecond(),math.timeToX(0),math.getRowLayout().totalHeight());
     }
     public boolean updateMarquee(TimelineModel model,float left,float right,float top,float height,float scrollY,TimelineRenderMath math) {
+        try { return updateMarqueeInternal(model,left,right,top,height,scrollY,math); } finally { publishSelection(model); }
+    }
+    private boolean updateMarqueeInternal(TimelineModel model,float left,float right,float top,float height,float scrollY,TimelineRenderMath math) {
         if(marquee==null) return false;
         var box=marquee;
         if(box.context().model()!=model || !box.context().isBound()
                 || box.context().contextRevision()!=model.getActorEditContextRevision()
+                || box.sharedRevision()!=sharedSelection.revision()
                 || box.selectionRevision()!=ActorBoneSelectionController.getInstance().getRevision()
                 || box.settingsRevision()!=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision()
                 || !box.owners().equals(model.getAllTracks())
@@ -109,19 +130,20 @@ public final class ActorBoneTimelineRows {
         return true;
     }
     private ActorAnimationEditContext dragContext;
-    private long dragSelectionRevision, dragSettingsRevision;
+    private long dragSelectionRevision, dragSettingsRevision, dragSharedRevision;
     private static final String KEY_POPUP = "ActorKeyCandidates";
     private record PendingKey(KeyHit hit, ActorAnimationEditContext context, Object source) {}
     private List<PendingKey> pendingKeys = List.of();
     private TimelineModel pendingModel;
-    private long pendingRevision, pendingSelectionRevision, pendingSettingsRevision;
+    private long pendingRevision, pendingSelectionRevision, pendingSettingsRevision, pendingSharedRevision;
 
     private boolean actionMenu;
     private final com.director.ui.actor.pose.ActorKeyframeTimePanel timePanel=new com.director.ui.actor.pose.ActorKeyframeTimePanel();
     public boolean handleKeyCommand(TimelineModel model,String action) {
+        importSelection(model);
         // Once keys own focus, rejection must never fall through to deleting their clip.
         if(!keyFocus || selectedReference==null || model.getSelectedClip()!=selectedReference.getTimelineClip()) return false;
-        executeKeyCommand(model,action); return true;
+        try { executeKeyCommand(model,action); return true; } finally { publishSelection(model); }
     }
     private boolean executeKeyCommand(TimelineModel model,String action) {
         var wrapper=model.getSelectedClip();
@@ -161,7 +183,7 @@ public final class ActorBoneTimelineRows {
         }
         ImGui.text(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.time_range",first,last));
         ImGui.text(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.interpolation",
-                modes.size()==1?tr("mode."+modes.iterator().next().name().toLowerCase(Locale.ROOT)):tr("mixed")));
+                modes.size()==1?tr("mode."+ modes.getFirst().name().toLowerCase(Locale.ROOT)):tr("mixed")));
         if(selectedKeys.size()==1) {
             var hit=selectedKeys.values().iterator().next();
             ImGui.text(hit.bone()+" · "+tr("channel."+hit.channel()));
@@ -191,15 +213,20 @@ public final class ActorBoneTimelineRows {
         if(numericDelta!=null) {
             var previous=new ArrayList<>(selectedKeys.values()); selectedKeys.clear();
             for(var old:previous) {
-                var hit=new KeyHit(old.track(),old.bone(),old.x(),old.y(),old.time()+numericDelta/Math.max(.01f,context.speed()),
-                        old.asset(),old.clip(),old.boneTrack(),old.channel(),old.assetTime()+numericDelta);
-                selectedKeys.put(key(hit.bone(),hit.channel(),hit.assetTime()),hit);
+                KeyHit hit= null;
+                if (context != null) {
+                    hit = new KeyHit(old.track(),old.bone(),old.x(),old.y(),old.time()+numericDelta/Math.max(.01f,context.speed()),
+                            old.asset(),old.clip(),old.boneTrack(),old.channel(),old.assetTime()+numericDelta);
+                }
+                if (hit != null) {
+                    selectedKeys.put(key(hit.bone(),hit.channel(),hit.assetTime()),hit);
+                }
             }
             timePanel.cancel(); actionMenu=false; pendingKeys=List.of(); ImGui.closeCurrentPopup(); return true;
         }
         boolean interpolationChanged=com.director.ui.actor.pose.ActorKeyframeInterpolationPanel.render(context,selectedKeys.keySet(),hasSelection);
         boolean changed=interpolationChanged || (copy?executeKeyCommand(model,"copy"):delete?executeKeyCommand(model,"delete"):
-                paste?executeKeyCommand(model,"paste"):false);
+                paste && executeKeyCommand(model, "paste"));
         if(changed) { actionMenu=false; pendingKeys=List.of(); ImGui.closeCurrentPopup(); }
         else if(delete || paste || copy) ImGui.textWrapped(tr("rejected"));
         ImGui.separator(); return changed;
@@ -208,7 +235,8 @@ public final class ActorBoneTimelineRows {
         if (pendingKeys.isEmpty() && !actionMenu) { timePanel.cancel(); return false; }
         boolean current = pendingModel == model && pendingRevision == model.getActorEditContextRevision()
                 && pendingSelectionRevision == ActorBoneSelectionController.getInstance().getRevision()
-                && pendingSettingsRevision == com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision();
+                && pendingSettingsRevision == com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision()
+                && pendingSharedRevision==sharedSelection.revision();
         if (ImGui.beginPopup(KEY_POPUP)) {
             try {
                 if (!current || ImGui.isKeyPressed(ImGuiKey.Escape)) {
@@ -253,10 +281,14 @@ public final class ActorBoneTimelineRows {
 
     /** Preview only while held; the underlying asset changes once, on release. */
     public boolean updateDrag(TimelineModel model) {
+        try { return updateDragInternal(model); } finally { publishSelection(model); }
+    }
+    private boolean updateDragInternal(TimelineModel model) {
         if (renderCandidates(model)) return true;
         if (dragging == null) return false;
         var hit = dragging;
         if (dragContext == null || dragContext.model() != model || !dragContext.isCurrent()
+                || dragSharedRevision!=sharedSelection.revision()
                 || dragSelectionRevision != ActorBoneSelectionController.getInstance().getRevision()
                 || dragSettingsRevision != com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision()
                 || dragKeys.values().stream().anyMatch(k -> k.context()==null || !k.context().isBound()
@@ -300,6 +332,7 @@ public final class ActorBoneTimelineRows {
     }
 
     public TimelineRowLayout prepare(TimelineModel model, float height, float gap) {
+        importSelection(model);
         keyHits.clear();
         var tracks = model.getAllTracks();
         if(selectedOwner!=null && (model.getSelectedClip()!=selectedReference.getTimelineClip()
@@ -412,6 +445,11 @@ public final class ActorBoneTimelineRows {
     public boolean handleClick(TimelineModel model, TimelineRowLayout layout, float x, float contentX,
                                float right, float top, float viewportHeight, float scrollY, float height, float gap,
                                float pixelsPerSecond, TimelineRenderMath math) {
+        try { return handleClickInternal(model,layout,x,contentX,right,top,viewportHeight,scrollY,height,gap,pixelsPerSecond,math); }
+        finally { publishSelection(model); }
+    }
+    private boolean handleClickInternal(TimelineModel model,TimelineRowLayout layout,float x,float contentX,
+            float right,float top,float viewportHeight,float scrollY,float height,float gap,float pixelsPerSecond,TimelineRenderMath math) {
         if (!isCanvasWindowHovered() || (!ImGui.isMouseClicked(ImGuiMouseButton.Left)
                 && !ImGui.isMouseClicked(ImGuiMouseButton.Right))) return false;
         float mx = ImGui.getMousePosX(), my = ImGui.getMousePosY();
@@ -453,6 +491,8 @@ public final class ActorBoneTimelineRows {
                     var pending=new ArrayList<PendingKey>();
                     for(var hit:candidates) pending.add(new PendingKey(hit,
                             ActorAnimationEditContext.capture(model,track,hit.clip()),source(hit)));
+                    publishSelection(model);
+                    pendingSharedRevision=sharedSelection.revision();
                     pendingKeys=List.copyOf(pending); pendingModel=model;
                     pendingRevision=model.getActorEditContextRevision();
                     pendingSelectionRevision=ActorBoneSelectionController.getInstance().getRevision();
@@ -468,6 +508,8 @@ public final class ActorBoneTimelineRows {
                     model.setCurrentTime(closest.time());
                     if (!additive && !model.isPlaying() && !track.isLocked() && !ActorBonePropertiesPanel.hasNumericDraft()
                             && !ActorBoneGizmoController.getInstance().isDragging() && (!closest.clip().isLoop() || closest.asset().loopMode() == AnimationLoopMode.ONCE)) {
+                        publishSelection(model);
+                        dragSharedRevision=sharedSelection.revision();
                         dragContext = ActorAnimationEditContext.capture(model, track, closest.clip());
                         if (dragContext == null || !dragContext.isCurrent()) return true;
                         dragSelectionRevision = ActorBoneSelectionController.getInstance().getRevision();
@@ -484,7 +526,7 @@ public final class ActorBoneTimelineRows {
                         dragSpeed = closest.clip().getSpeed();
                         dragSource = source(closest);
                     }
-                } else if(!rightClick) {
+                } else {
                     if(preferredClip instanceof com.director.timeline.model.entity.EntityTimelineClip wrapper
                             && wrapper.getParentTrack()==track && wrapper.getEntityClip() instanceof EntityAnimationClip animation) {
                         model.setSelectedClip(wrapper);
@@ -497,8 +539,9 @@ public final class ActorBoneTimelineRows {
                             float rowsTop=Math.max(top,top+layout.trackTop(owner)+height+gap-scrollY);
                             float rowsBottom=Math.min(top+viewportHeight,top+layout.trackTop(owner)+height+gap+rig.boneCount()*CHILD_HEIGHT-scrollY);
                             focusReference(track,animation,context.asset());
+                            publishSelection(model);
                             if(rowsTop<rowsBottom) marquee=new Marquee(context,ActorBoneSelectionController.getInstance().getRevision(),
-                                    com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision(),mx,my,
+                                    com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision(),sharedSelection.revision(),mx,my,
                                     contentX,right,rowsTop,rowsBottom,additive && selectedReference==animation,
                                     viewport(contentX,right,top,viewportHeight,scrollY,math),List.copyOf(model.getAllTracks()),List.copyOf(frozen));
                         }

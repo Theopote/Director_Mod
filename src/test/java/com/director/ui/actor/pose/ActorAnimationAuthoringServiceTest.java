@@ -363,4 +363,36 @@ class ActorAnimationAuthoringServiceTest {
         assertEquals(0,history.getUndoSize());
     }
 
+    @Test void sharedSelectionDeduplicatesScopesAndPrunesDeletedKeys() {
+        var keys=seedMixed(); var selection=ActorKeyframeSelection.getInstance(); model.setSelectedClip(clip.getTimelineClip());
+        var repeated=new ArrayList<>(keys); repeated.add(keys.getFirst());
+        selection.replace(model,track,clip,asset,repeated,true);
+        var state=selection.snapshot(model); assertEquals(keys,state.keys()); long revision=state.revision();
+        selection.replace(model,track,clip,asset,repeated,true); assertEquals(revision,selection.revision());
+        var anotherModel=new TimelineModel(new TimelineViewportState()); assertNull(selection.snapshot(anotherModel));
+        assertEquals(keys,selection.snapshot(model).keys());
+        asset.findBoneTrack("head").orElseThrow().scale().removeAt(1);
+        assertEquals(2,selection.snapshot(model).keys().size()); assertTrue(selection.revision()>revision);
+        model.selectItem(track,false); assertNull(selection.snapshot(model));
+    }
+    @Test void sharedSelectionRejectsReplacementAssetAndChangedReference() {
+        var keys=seedMixed(); var selection=ActorKeyframeSelection.getInstance(); model.setSelectedClip(clip.getTimelineClip());
+        selection.replace(model,track,clip,asset,keys,true);
+        var other=new EntityAnimationClip("Same asset",0,15); other.setAnimationId(asset.id());
+        track.getActorTrackPayload().addClip(other); track.addClip(new EntityTimelineClip(other,track.getActorTrackPayload().getColorRgba()));
+        model.setSelectedClip(other.getTimelineClip()); assertNull(selection.snapshot(model));
+        model.setSelectedClip(clip.getTimelineClip()); selection.replace(model,track,clip,asset,keys,true);
+        AnimationAssetLibrary.getInstance().register(new AnimationAsset(asset.id(),"Replacement",HumanoidRig.DEFINITION,5,AnimationLoopMode.ONCE));
+        assertNull(selection.snapshot(model));
+    }
+    @Test void sharedSelectionChangesInvalidatePendingNumericDraft() {
+        var keys=seedMixed(); var selection=ActorKeyframeSelection.getInstance(); model.setSelectedClip(clip.getTimelineClip());
+        var target=ActorAnimationEditContext.capture(model,track,clip);
+        selection.replace(model,track,clip,asset,keys,true);
+        var draft=new ActorKeyframeTimeDraft(target,keys); assertTrue(draft.isCurrent());
+        selection.replace(model,track,clip,asset,List.of(keys.getFirst()),true);
+        selection.replace(model,track,clip,asset,keys,true);
+        assertFalse(draft.isCurrent()); assertFalse(draft.apply(.5f)); assertEquals(0,history.getUndoSize());
+    }
+
 }

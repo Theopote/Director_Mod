@@ -38,7 +38,7 @@ class ActorKeyframeShortcutTest {
         TimelineCommandBridge.bind(null); ActorRegistryManager.setRegistry(null); AnimationAssetLibrary.getInstance().remove(asset.id());
     }
     @Test void focusedPasteThenDeleteTargetsKeysAndLeavesClipIntact() {
-        rows.focusReference(track,clip,asset);
+        ActorKeyframeSelection.getInstance().replace(model,track,clip,asset,List.of(),true);
         assertTrue(rows.handleKeyCommand(model,"paste")); assertEquals(1,history.getUndoSize());
         assertTrue(asset.findBoneTrack("root").orElseThrow().translation().findAt(2).isPresent());
         assertTrue(rows.handleKeyCommand(model,"delete")); assertEquals(2,history.getUndoSize());
@@ -46,23 +46,33 @@ class ActorKeyframeShortcutTest {
         assertTrue(history.undo()); assertTrue(asset.findBoneTrack("root").orElseThrow().translation().findAt(2).isPresent());
     }
     @Test void rejectedAndEmptyKeyCommandsConsumeWithoutClipFallback() {
-        rows.focusReference(track,clip,asset); track.setLocked(true);
+        ActorKeyframeSelection.getInstance().replace(model,track,clip,asset,List.of(),true); track.setLocked(true);
         assertTrue(rows.handleKeyCommand(model,"delete")); assertTrue(rows.handleKeyCommand(model,"paste"));
         track.setLocked(false); assertTrue(rows.handleKeyCommand(model,"delete"));
         assertEquals(0,history.getUndoSize()); assertTrue(track.getClips().contains(clip.getTimelineClip()));
     }
     @Test void noKeyFocusOrChangedClipFallsThroughToNormalRouting() {
-        assertFalse(rows.handleKeyCommand(model,"delete")); rows.focusReference(track,clip,asset);
+        assertFalse(rows.handleKeyCommand(model,"delete")); ActorKeyframeSelection.getInstance().replace(model,track,clip,asset,List.of(),true);
         model.selectItem(track,false); assertFalse(rows.handleKeyCommand(model,"delete"));
     }
     @Test void cutCopiesKeysAndDeletesThemWithOneUndo() {
-        rows.focusReference(track,clip,asset); assertTrue(rows.handleKeyCommand(model,"paste"));
+        ActorKeyframeSelection.getInstance().replace(model,track,clip,asset,List.of(),true); assertTrue(rows.handleKeyCommand(model,"paste"));
         int before=history.getUndoSize(); assertTrue(rows.handleKeyCommand(model,"cut"));
         assertEquals(before+1,history.getUndoSize());
         assertEquals(new Vector3f(2),ActorKeyframeClipboard.getInstance().at(asset,4,5).getFirst().value());
         assertTrue(asset.findBoneTrack("root").orElseThrow().translation().findAt(2).isEmpty());
         assertTrue(history.undo()); assertTrue(asset.findBoneTrack("root").orElseThrow().translation().findAt(2).isPresent());
         assertTrue(track.getClips().contains(clip.getTimelineClip()));
+    }
+
+    @Test void selectionPublishedByAnotherViewDrivesTimelineCommands() {
+        var selected=new ActorAnimationAuthoringService.Key("root",ActorAnimationAuthoringService.Channel.TRANSLATION,1);
+        ActorKeyframeSelection.getInstance().replace(model,track,clip,asset,List.of(selected),true);
+        assertTrue(rows.handleKeyCommand(model,"copy"));
+        assertTrue(rows.handleKeyCommand(model,"delete"));
+        assertTrue(asset.findBoneTrack("root").orElseThrow().translation().findAt(1).isEmpty());
+        assertTrue(ActorKeyframeSelection.getInstance().snapshot(model).keys().isEmpty());
+        assertTrue(track.getClips().contains(clip.getTimelineClip())); assertEquals(1,history.getUndoSize());
     }
 
 }
