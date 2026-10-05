@@ -31,6 +31,10 @@ public final class ActorAnimationDopeSheet {
     private static SelectionContext selectionContext;
     private static Map<KeyId, Object> interactionSource = Map.of();
     private record SelectionContext(TimelineModel model, UUID actorId, EntityAnimationClip clip, AnimationAsset asset) {}
+    public static boolean isKeyInteractionActive() { return dragCandidate || marqueeCandidate; }
+    public static void cancelKeyInteraction() {
+        dragCandidate=marqueeCandidate=false; interactionContext=null; interactionSource=Map.of();
+    }
     private static boolean canWrite() {
         return renderContext != null && renderContext.isCurrent()
                 && !ActorBoneGizmoController.getInstance().isDragging() && !ActorBonePropertiesPanel.hasNumericDraft();
@@ -175,7 +179,7 @@ public final class ActorAnimationDopeSheet {
         float localFrame = Math.max(0.01f, clip.getSpeed()) / Math.max(1f, model.getFrameRate());
         if (selectedCount > 0) {
             ImGui.textDisabled("已选择 " + selectedCount + " 个关键帧（Ctrl+点击多选）");
-            ImGui.beginDisabled(!canWrite());
+            ImGui.beginDisabled(!canWrite() || isKeyInteractionActive());
             if (ImGui.smallButton(Icons.ARROW_LEFT + " 1帧##dopePrevious")) {
                 if (withinDuration(-localFrame, asset.duration())
                         && moveSelection(-localFrame)) {
@@ -195,7 +199,7 @@ public final class ActorAnimationDopeSheet {
             ImGui.endDisabled();
             if (ImGui.smallButton(Icons.COPY + " 复制##dopeCopy")) copySelection(asset);
             ImGui.sameLine();
-            ImGui.beginDisabled(!canWrite());
+            ImGui.beginDisabled(!canWrite() || isKeyInteractionActive());
             if (ImGui.smallButton(Icons.FLIP_HORIZONTAL + " 镜像##dopeMirrorSelected")) {
                 mirrorAt(model, clip, asset, selection.stream().map(KeyId::time).distinct().toList());
             }
@@ -207,16 +211,16 @@ public final class ActorAnimationDopeSheet {
             ImGui.endDisabled();
         }
         if(!selection.isEmpty()) {
-            Float delta=timePanel.render(renderContext,assetKeys(),canWrite());
+            Float delta=timePanel.render(renderContext,assetKeys(),canWrite() && !isKeyInteractionActive());
             if(delta!=null) {
                 var old=new ArrayList<>(selection); selection.clear();
                 for(var key:old) selection.add(new KeyId(key.boneId(),key.channel(),key.time()+delta));
                 timePanel.cancel();
             }
-            ActorKeyframeInterpolationPanel.render(renderContext,assetKeys(),canWrite());
+            ActorKeyframeInterpolationPanel.render(renderContext,assetKeys(),canWrite() && !isKeyInteractionActive());
         } else timePanel.cancel();
         if (keyClipboard.size()>0) {
-            ImGui.beginDisabled(!canWrite() || !keyClipboard.compatible(asset));
+            ImGui.beginDisabled(!canWrite() || isKeyInteractionActive() || !keyClipboard.compatible(asset));
             if (ImGui.smallButton(Icons.CLIPBOARD + " 粘贴到播放头##dopePaste")) {
                 float localTime = renderContext.assetTime();
                 pasteAt(model, asset, Math.min(asset.duration(), localTime));
@@ -225,7 +229,7 @@ public final class ActorAnimationDopeSheet {
             ImGui.sameLine();
             ImGui.textDisabled(keyClipboard.size() + " 个");
         }
-        ImGui.beginDisabled(!canWrite());
+        ImGui.beginDisabled(!canWrite() || isKeyInteractionActive());
         if (selectedCount == 0 && ImGui.smallButton(Icons.FLIP_HORIZONTAL + " 镜像播放头姿态##dopeMirrorPlayhead")) {
             float localTime = renderContext.assetTime();
             mirrorAt(model, clip, asset, List.of(Math.min(asset.duration(), localTime)));
@@ -323,7 +327,10 @@ public final class ActorAnimationDopeSheet {
                                           boolean hovered, ImDrawList draw) {
         float mx = ImGui.getMousePosX();
         float my = ImGui.getMousePosY();
-        if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
+        if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Left)
+                && !ActorBoneGizmoController.getInstance().isDragging() && !ActorBonePropertiesPanel.hasNumericDraft()) {
+            com.director.ui.timeline.render.ActorBoneTimelineRows.cancelAllKeyInteractions();
+            ActorKeyframeTimePanel.cancelAll();
             model.setSelectedClip(clip.getTimelineClip());
             renderContext=ActorAnimationEditContext.capture(model,renderContext.track(),clip);
             KeyId hit = hitKey(rows, mx, my, y, timeX, timeWidth, rulerHeight, rowHeight,
@@ -343,15 +350,15 @@ public final class ActorAnimationDopeSheet {
                 interactionSource = selectedFrames(asset);
             } else {
                 dragCandidate = false;
-                marqueeCandidate = true;
+                marqueeCandidate = canWrite();
+                interactionContext=renderContext;
             }
         }
         if (!Objects.equals(interactionAssetId, asset.id())) return;
-        if (dragCandidate && (interactionContext == null || !interactionContext.isCurrent()
-                || !canWrite() || !interactionSource.equals(selectedFrames(asset))
+        if ((dragCandidate || marqueeCandidate) && (interactionContext == null || !interactionContext.isCurrent()
+                || !canWrite() || (dragCandidate && !interactionSource.equals(selectedFrames(asset)))
                 || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape))) {
-            dragCandidate = false;
-            interactionContext = null;
+            cancelKeyInteraction();
         }
         if (ImGui.isMouseDown(ImGuiMouseButton.Left) && (dragCandidate || marqueeCandidate)) {
             interactionCurrentX = mx;
@@ -381,6 +388,7 @@ public final class ActorAnimationDopeSheet {
             draw.addRect(x1, y1, x2, y2, TimelineColors.rgba(80, 160, 255, 190), 2f, 0, 1.5f);
         }
         if (ImGui.isMouseReleased(ImGuiMouseButton.Left) && (dragCandidate || marqueeCandidate)) {
+            if(!hovered) { cancelKeyInteraction(); return; }
             if (dragCandidate && activated) finishDrag(model, clip, asset, pixelsPerSecond, dx);
             else if (marqueeCandidate && activated) finishMarquee(asset, rows, y, timeX, rulerHeight,
                     rowHeight, pixelsPerSecond, viewStartTime);

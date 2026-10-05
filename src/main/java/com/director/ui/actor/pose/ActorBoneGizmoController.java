@@ -177,6 +177,9 @@ public final class ActorBoneGizmoController {
         TimelineModel model = resolveModel();
         if (actorTrack == null || model == null || timelineTrack == null || timelineTrack.isLocked() || model.isPlaying()) return;
 
+        com.director.ui.timeline.render.ActorBoneTimelineRows.cancelAllKeyInteractions();
+        ActorAnimationDopeSheet.cancelKeyInteraction();
+        ActorKeyframeTimePanel.cancelAll();
         ActorBonePropertiesPanel.cancelNumericDraft();
         float time = model.getCurrentTime();
         gestureModel = model;

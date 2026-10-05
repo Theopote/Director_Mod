@@ -21,6 +21,9 @@ import java.util.*;
 
 /** View-only expansion state, scoped to one timeline renderer. */
 public final class ActorBoneTimelineRows {
+    private static final Set<ActorBoneTimelineRows> instances=Collections.newSetFromMap(new WeakHashMap<>());
+    public ActorBoneTimelineRows() { instances.add(this); }
+    public static void cancelAllKeyInteractions() { for(var rows:new ArrayList<>(instances)) rows.cancelKeyInteraction(); }
     public static final float CHILD_HEIGHT = 24f;
     private final Set<TimelineTrack> expanded = Collections.newSetFromMap(new IdentityHashMap<>());
     private final Set<TimelineTrack> supported = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -151,6 +154,7 @@ public final class ActorBoneTimelineRows {
                 && entity.getEntityClip() instanceof EntityAnimationClip animation
                 ? ActorAnimationEditContext.capture(model,entity.getParentTrack(),animation):null;
         if(context==null || !context.isCurrent() || dragging!=null || marquee!=null
+                || com.director.ui.actor.pose.ActorAnimationDopeSheet.isKeyInteractionActive()
                 || ActorBonePropertiesPanel.hasNumericDraft() || ActorBoneGizmoController.getInstance().isDragging()) return false;
         boolean same=selectedOwner==context.track() && selectedReference==context.clip() && selectedAsset==context.asset();
         var clipboard=com.director.ui.actor.pose.ActorKeyframeClipboard.getInstance();
@@ -508,6 +512,9 @@ public final class ActorBoneTimelineRows {
                     model.setCurrentTime(closest.time());
                     if (!additive && !model.isPlaying() && !track.isLocked() && !ActorBonePropertiesPanel.hasNumericDraft()
                             && !ActorBoneGizmoController.getInstance().isDragging() && (!closest.clip().isLoop() || closest.asset().loopMode() == AnimationLoopMode.ONCE)) {
+                        cancelAllKeyInteractions();
+                        com.director.ui.actor.pose.ActorAnimationDopeSheet.cancelKeyInteraction();
+                        com.director.ui.actor.pose.ActorKeyframeTimePanel.cancelAll();
                         publishSelection(model);
                         dragSharedRevision=sharedSelection.revision();
                         dragContext = ActorAnimationEditContext.capture(model, track, closest.clip());
@@ -539,6 +546,9 @@ public final class ActorBoneTimelineRows {
                             float rowsTop=Math.max(top,top+layout.trackTop(owner)+height+gap-scrollY);
                             float rowsBottom=Math.min(top+viewportHeight,top+layout.trackTop(owner)+height+gap+rig.boneCount()*CHILD_HEIGHT-scrollY);
                             focusReference(track,animation,context.asset());
+                            cancelAllKeyInteractions();
+                            com.director.ui.actor.pose.ActorAnimationDopeSheet.cancelKeyInteraction();
+                            com.director.ui.actor.pose.ActorKeyframeTimePanel.cancelAll();
                             publishSelection(model);
                             if(rowsTop<rowsBottom) marquee=new Marquee(context,ActorBoneSelectionController.getInstance().getRevision(),
                                     com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision(),sharedSelection.revision(),mx,my,

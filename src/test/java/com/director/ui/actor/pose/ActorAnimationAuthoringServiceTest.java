@@ -395,4 +395,19 @@ class ActorAnimationAuthoringServiceTest {
         assertFalse(draft.isCurrent()); assertFalse(draft.apply(.5f)); assertEquals(0,history.getUndoSize());
     }
 
+    @Test void numericTimeEditorsCancelOtherDraftsAndGlobalCancelPreservesAsset() {
+        var keys=seedMixed(); var first=new ActorKeyframeTimePanel(); var second=new ActorKeyframeTimePanel();
+        first.beginDraft(context,keys); assertTrue(first.hasDraft());
+        second.beginDraft(context,keys); assertFalse(first.hasDraft()); assertTrue(second.hasDraft());
+        ActorKeyframeTimePanel.cancelAll(); assertFalse(second.hasDraft());
+        assertTrue(asset.findBoneTrack("root").orElseThrow().translation().findAt(1).isPresent());
+        assertEquals(0,history.getUndoSize());
+    }
+    @Test void pendingTimePanelDropsInvalidSourceWithoutMutation() {
+        var keys=seedMixed(); var panel=new ActorKeyframeTimePanel(); panel.beginDraft(context,keys);
+        asset.findBoneTrack("head").orElseThrow().scale().put(1,new Vector3f(4),InterpolationMode.LINEAR);
+        assertFalse(panel.hasDraft()); assertEquals(0,history.getUndoSize());
+        assertEquals(new Vector3f(4),asset.findBoneTrack("head").orElseThrow().scale().findAt(1).orElseThrow().value());
+    }
+
 }

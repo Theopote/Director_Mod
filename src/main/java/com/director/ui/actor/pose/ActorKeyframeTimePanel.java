@@ -7,12 +7,25 @@ import java.util.*;
 
 /** Explicit Apply/Cancel, independently scoped to each editor view. */
 public final class ActorKeyframeTimePanel {
+    private static final Set<ActorKeyframeTimePanel> instances=Collections.newSetFromMap(new WeakHashMap<>());
+    public ActorKeyframeTimePanel() { instances.add(this); }
+    public static void cancelAll() { for(var panel:new ArrayList<>(instances)) panel.cancel(); }
     private ActorKeyframeTimeDraft draft;
     private final ImFloat value=new ImFloat();
     private List<ActorAnimationAuthoringService.Key> shown=List.of();
     private ActorAnimationEditContext shownContext;
     private boolean rejected;
     public void cancel() { draft=null; shownContext=null; shown=List.of(); rejected=false; }
+    public boolean hasDraft() {
+        if(draft!=null && !draft.isCurrent()) cancel();
+        return draft!=null;
+    }
+    void beginDraft(ActorAnimationEditContext context,Collection<ActorAnimationAuthoringService.Key> keys) {
+        com.director.ui.timeline.render.ActorBoneTimelineRows.cancelAllKeyInteractions();
+        ActorAnimationDopeSheet.cancelKeyInteraction();
+        for(var other:new ArrayList<>(instances)) if(other!=this) other.cancel();
+        draft=new ActorKeyframeTimeDraft(context,keys);
+    }
     private static String tr(String key) { return net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys."+key); }
     public Float render(ActorAnimationEditContext context,Collection<ActorAnimationAuthoringService.Key> selection,boolean enabled) {
         var keys=new ArrayList<>(new LinkedHashSet<>(selection));
@@ -27,7 +40,9 @@ public final class ActorKeyframeTimePanel {
         Float moved=null;
         try {
             if(ImGui.inputFloat(tr(keys.size()==1?"absolute_time":"time_offset"),value,.01f,.1f,"%.4f")) {
-                if(draft==null) draft=new ActorKeyframeTimeDraft(context,keys);
+                if(draft==null) {
+                    beginDraft(context,keys);
+                }
                 rejected=false;
             }
             ImGui.beginDisabled(draft==null || Math.abs(draft.delta(value.get()))<=1.0e-5f);

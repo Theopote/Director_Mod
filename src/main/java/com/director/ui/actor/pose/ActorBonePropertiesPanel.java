@@ -114,7 +114,10 @@ public final class ActorBonePropertiesPanel {
         if (bone.capabilities().rotation() && !(HumanoidTopology.matches(asset.rig()) && HumanoidRig.ROOT.equals(boneId))
                 && ImGui.inputFloat3("旋转 XYZ（度）##boneR", draft.rotation, "%.2f")) changed |= RigPose.ROTATION;
         if (bone.capabilities().scale() && ImGui.inputFloat3("缩放 XYZ##boneS", draft.scale, "%.3f")) changed |= RigPose.SCALE;
-        if (changed != 0) { draft.markChannelsChanged(changed); message = ""; }
+        if (changed != 0) {
+            com.director.ui.timeline.render.ActorBoneTimelineRows.cancelAllKeyInteractions();
+            ActorAnimationDopeSheet.cancelKeyInteraction(); ActorKeyframeTimePanel.cancelAll();
+            draft.markChannelsChanged(changed); message = ""; }
         var mode = ActorAnimationAuthoringSettings.getInstance().getInterpolation();
         if (draft.isDirty()) {
             if (!draft.isValid()) ImGui.textWrapped("请输入有限数值，且缩放必须大于零。");
