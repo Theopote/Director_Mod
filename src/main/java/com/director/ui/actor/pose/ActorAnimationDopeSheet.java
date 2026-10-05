@@ -34,7 +34,7 @@ public final class ActorAnimationDopeSheet {
     private record SelectionContext(TimelineModel model, UUID actorId, EntityAnimationClip clip, AnimationAsset asset) {}
     public static boolean isKeyInteractionActive() { return dragCandidate || marqueeCandidate; }
     public static void cancelKeyInteraction() {
-        dragCandidate=marqueeCandidate=false; interactionContext=null; interactionSource=Map.of();
+        dragCandidate=marqueeCandidate=false; interactionContext=null; interactionSource=Map.of(); interactionViewport=null;
     }
     private static boolean canWrite() {
         return renderContext != null && renderContext.isCurrent()
@@ -66,6 +66,7 @@ public final class ActorAnimationDopeSheet {
     private static float interactionCurrentY;
     private static String interactionAssetId;
     private static float interactionFrameRate;
+    private static ActorDopeSheetViewport interactionViewport;
     private static final Map<String, ViewState> views = new HashMap<>();
 
     private ActorAnimationDopeSheet() {}
@@ -303,6 +304,8 @@ public final class ActorAnimationDopeSheet {
                         case SCALE -> " · S";
                         case ROTATION -> " · R";
                     });
+            draw.pushClipRect(timeX,y,timeX+timeWidth,y+height,true);
+            try {
             for (float frameTime : frameTimes(row)) {
                 float kx = timeX + (frameTime - view.startTime) * pixelsPerSecond;
                 if (kx < timeX - keyRadius || kx > timeX + timeWidth + keyRadius) continue;
@@ -314,6 +317,7 @@ public final class ActorAnimationDopeSheet {
                         : TimelineColors.rgba(100, 175, 255, 255);
                 draw.addRectFilled(kx - keyRadius, cy - keyRadius, kx + keyRadius, cy + keyRadius, color, 1f);
             }
+            } finally { draw.popClipRect(); }
         }
 
         float playheadLocal = renderContext.assetTime();
@@ -333,6 +337,8 @@ public final class ActorAnimationDopeSheet {
                                           boolean hovered, ImDrawList draw) {
         float mx = ImGui.getMousePosX();
         float my = ImGui.getMousePosY();
+        var viewport=new ActorDopeSheetViewport(x,y,timeX,timeWidth,rulerHeight+rows.size()*rowHeight,
+                pixelsPerSecond,viewStartTime,model.getFrameRate(),rows);
         if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Left)
                 && !ActorBoneGizmoController.getInstance().isDragging() && !ActorBonePropertiesPanel.hasNumericDraft()) {
             com.director.ui.timeline.render.ActorBoneTimelineRows.cancelAllKeyInteractions();
@@ -346,6 +352,7 @@ public final class ActorAnimationDopeSheet {
             interactionAdditive = ImGui.getIO().getKeyCtrl();
             interactionAssetId = asset.id();
             interactionFrameRate=model.getFrameRate();
+            interactionViewport=viewport;
             if (hit != null) {
                 boolean alreadySelected = Objects.equals(selectedAssetId, asset.id()) && selection.contains(hit);
                 if (!alreadySelected || interactionAdditive) select(asset.id(), hit, interactionAdditive);
@@ -362,18 +369,24 @@ public final class ActorAnimationDopeSheet {
             }
         }
         if (!Objects.equals(interactionAssetId, asset.id())) return;
+        if((dragCandidate || marqueeCandidate) && !ImGui.isMouseDown(ImGuiMouseButton.Left)
+                && !ImGui.isMouseReleased(ImGuiMouseButton.Left)) cancelKeyInteraction();
         if ((dragCandidate || marqueeCandidate) && (interactionContext == null || !interactionContext.isCurrent()
-                || !canWrite() || model.getFrameRate()!=interactionFrameRate || (dragCandidate && !interactionSource.equals(selectedFrames(asset)))
+                || !canWrite() || interactionViewport==null || !interactionViewport.matches(viewport)
+                || model.getFrameRate()!=interactionFrameRate || (dragCandidate && !interactionSource.equals(selectedFrames(asset)))
                 || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape))) {
             cancelKeyInteraction();
         }
-        if (ImGui.isMouseDown(ImGuiMouseButton.Left) && (dragCandidate || marqueeCandidate)) {
+        if ((ImGui.isMouseDown(ImGuiMouseButton.Left) || ImGui.isMouseReleased(ImGuiMouseButton.Left))
+                && (dragCandidate || marqueeCandidate)) {
             interactionCurrentX = mx;
             interactionCurrentY = my;
         }
         float dx = interactionCurrentX - interactionStartX;
         float dy = interactionCurrentY - interactionStartY;
         boolean activated = dx * dx + dy * dy >= 16f;
+        draw.pushClipRect(timeX,y,timeX+timeWidth,y+rulerHeight+rows.size()*rowHeight,true);
+        try {
         if (dragCandidate && activated) {
             float localFrame = frameStep(clip.getSpeed(),model.getFrameRate());
             float delta = snapDragDelta(dx, pixelsPerSecond, localFrame);
@@ -394,6 +407,7 @@ public final class ActorAnimationDopeSheet {
             draw.addRectFilled(x1, y1, x2, y2, TimelineColors.rgba(80, 160, 255, 35), 2f);
             draw.addRect(x1, y1, x2, y2, TimelineColors.rgba(80, 160, 255, 190), 2f, 0, 1.5f);
         }
+        } finally { draw.popClipRect(); }
         if (ImGui.isMouseReleased(ImGuiMouseButton.Left) && (dragCandidate || marqueeCandidate)) {
             if(!hovered) { cancelKeyInteraction(); return; }
             if (dragCandidate && activated) finishDrag(model, clip, asset, pixelsPerSecond, dx);
