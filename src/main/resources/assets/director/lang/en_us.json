@@ -2243,5 +2243,11 @@
   "gui.director.actor.keys.selection_hint": "Ctrl-click to toggle keys; drag a selected key to move the group. Right-click to choose a reference. Shared assets affect all references.",
   "gui.director.actor.keys.drag_group": "Move %s keys · asset time offset %ss. All shared references change; Esc cancels.",
   "gui.director.actor.keys.marquee_hint": "Select bone keys in the current clip. Ctrl adds; Esc cancels. Scrolling or zooming cancels this rectangle.",
-  "gui.director.actor.keys.marquee_reference": "Select an animation clip or keyframe reference first, then drag from empty space in its bone rows."
+  "gui.director.actor.keys.marquee_reference": "Select an animation clip or keyframe reference first, then drag from empty space in its bone rows.",
+  "gui.director.actor.keys.copy": "Copy selected keys",
+  "gui.director.actor.keys.delete": "Delete selected keys",
+  "gui.director.actor.keys.paste": "Paste at playhead",
+  "gui.director.actor.keys.selected_count": "%s asset keys selected",
+  "gui.director.actor.keys.paste_hint": "The earliest copied key starts at the current clip asset time. Shared references change together. Collisions or out-of-range keys reject the whole paste.",
+  "gui.director.actor.keys.rejected": "No changes submitted. Check source keys, collisions, duration and rig compatibility."
 }

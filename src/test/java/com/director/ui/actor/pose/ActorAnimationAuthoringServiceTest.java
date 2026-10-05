@@ -255,4 +255,17 @@ class ActorAnimationAuthoringServiceTest {
         assertTrue(head.findAt(1).isPresent()); assertFalse(history.undo());
     }
 
+    @Test void sharedClipboardPasteUsesOneUndoAndRejectsWholeMixedCollision() {
+        var keys=seedMixed(); var clipboard=new ActorKeyframeClipboard();
+        assertTrue(clipboard.copy(asset,keys));
+        var pasted=clipboard.at(asset,2,5);
+        assertTrue(ActorAnimationAuthoringService.paste(context,pasted)); assertEquals(1,history.getUndoSize());
+        assertTrue(history.undo());
+        asset.findBoneTrack("head").orElseThrow().scale().put(2,new Vector3f(4),InterpolationMode.LINEAR);
+        assertFalse(ActorAnimationAuthoringService.paste(context,pasted));
+        assertTrue(asset.findBoneTrack("root").orElseThrow().translation().findAt(2).isEmpty());
+        assertTrue(asset.findBoneTrack("head").orElseThrow().rotation().findAt(2).isEmpty());
+        assertEquals(0,history.getUndoSize());
+    }
+
 }

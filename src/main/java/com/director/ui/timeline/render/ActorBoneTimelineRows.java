@@ -112,16 +112,58 @@ public final class ActorBoneTimelineRows {
     private TimelineModel pendingModel;
     private long pendingRevision, pendingSelectionRevision, pendingSettingsRevision;
 
+    private boolean actionMenu;
+    private boolean renderKeyActions(TimelineModel model) {
+        var wrapper=model.getSelectedClip();
+        var context=wrapper instanceof com.director.timeline.model.entity.EntityTimelineClip entity
+                && entity.getEntityClip() instanceof EntityAnimationClip animation
+                ? ActorAnimationEditContext.capture(model,entity.getParentTrack(),animation):null;
+        boolean target=context!=null && context.isCurrent() && !ActorBonePropertiesPanel.hasNumericDraft()
+                && !ActorBoneGizmoController.getInstance().isDragging();
+        boolean hasSelection=target && selectedOwner==context.track() && selectedReference==context.clip()
+                && selectedAsset==context.asset() && !selectedKeys.isEmpty();
+        ImGui.text(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.selected_count",selectedKeys.size()));
+        ImGui.beginDisabled(!hasSelection);
+        boolean copy=ImGui.button(tr("copy")); ImGui.sameLine();
+        boolean delete=ImGui.button(tr("delete")); ImGui.endDisabled();
+        var clipboard=com.director.ui.actor.pose.ActorKeyframeClipboard.getInstance();
+        var pasted=target?clipboard.at(context.asset(),context.assetTime(),
+                (context.end()-context.start())*Math.max(.01f,context.speed())):List.<ActorAnimationAuthoringService.Paste>of();
+        ImGui.beginDisabled(!target || pasted.isEmpty());
+        boolean paste=ImGui.button(tr("paste")); ImGui.endDisabled();
+        ImGui.textWrapped(tr("paste_hint"));
+        boolean changed=false;
+        if(copy) changed=clipboard.copy(context.asset(),selectedKeys.keySet());
+        if(delete) {
+            changed=ActorAnimationAuthoringService.delete(context,selectedKeys.keySet());
+            if(changed) selectedKeys.clear();
+        }
+        if(paste) {
+            changed=ActorAnimationAuthoringService.paste(context,pasted);
+            if(changed) {
+                selectedKeys.clear(); selectedOwner=context.track(); selectedReference=context.clip(); selectedAsset=context.asset();
+                for(var key:pasted) {
+                    var hit=new KeyHit(context.track(),key.boneId(),0,0,context.start()+key.time()/Math.max(.01f,context.speed()),
+                            context.asset(),context.clip(),context.asset().findBoneTrack(key.boneId()).orElseThrow(),key.channel().ordinal(),key.time());
+                    selectedKeys.put(key(key.boneId(),key.channel().ordinal(),key.time()),hit);
+                }
+            }
+        }
+        if(changed) { actionMenu=false; pendingKeys=List.of(); ImGui.closeCurrentPopup(); }
+        else if(delete || paste || copy) ImGui.textWrapped(tr("rejected"));
+        ImGui.separator(); return changed;
+    }
     private boolean renderCandidates(TimelineModel model) {
-        if (pendingKeys.isEmpty()) return false;
+        if (pendingKeys.isEmpty() && !actionMenu) return false;
         boolean current = pendingModel == model && pendingRevision == model.getActorEditContextRevision()
                 && pendingSelectionRevision == ActorBoneSelectionController.getInstance().getRevision()
                 && pendingSettingsRevision == com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision();
         if (ImGui.beginPopup(KEY_POPUP)) {
             try {
                 if (!current || ImGui.isKeyPressed(ImGuiKey.Escape)) {
-                    ImGui.closeCurrentPopup(); pendingKeys = List.of(); return true;
+                    ImGui.closeCurrentPopup(); actionMenu=false; pendingKeys = List.of(); return true;
                 }
+                if(renderKeyActions(model)) return true;
                 ImGui.textWrapped(tr("choose"));
                 int index=0;
                 for (var candidate : pendingKeys) {
@@ -137,14 +179,14 @@ public final class ActorBoneTimelineRows {
                     if (chosen) {
                         selectKey(hit,pendingAdditive);
                         model.setSelectedClip(hit.clip().getTimelineClip()); model.setCurrentTime(hit.time());
-                        pendingKeys=List.of(); ImGui.closeCurrentPopup(); break;
+                        pendingKeys=List.of(); actionMenu=false; ImGui.closeCurrentPopup(); break;
                     }
                 }
                 ImGui.textWrapped(tr("choose_hint"));
             } finally { ImGui.endPopup(); }
             return true;
         }
-        pendingKeys=List.of(); return false;
+        actionMenu=false; pendingKeys=List.of(); return false;
     }
     private static String tr(String key) {
         return net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys."+key);
@@ -354,7 +396,8 @@ public final class ActorBoneTimelineRows {
                 var candidates=ActorKeyframeHitCandidates.near(points,mx,my,6);
                 var preferred=candidates.stream().filter(hit -> hit.clip().getTimelineClip()==preferredClip).toList();
                 if (!rightClick && preferred.size()==1) candidates=preferred;
-                if (candidates.size()>1 || (rightClick && !candidates.isEmpty())) {
+                if (candidates.size()>1 || rightClick) {
+                    if(rightClick && preferredClip!=null && preferredClip.getParentTrack()==track) model.setSelectedClip(preferredClip);
                     var pending=new ArrayList<PendingKey>();
                     for(var hit:candidates) pending.add(new PendingKey(hit,
                             ActorAnimationEditContext.capture(model,track,hit.clip()),source(hit)));
@@ -362,6 +405,7 @@ public final class ActorBoneTimelineRows {
                     pendingRevision=model.getActorEditContextRevision();
                     pendingSelectionRevision=ActorBoneSelectionController.getInstance().getRevision();
                     pendingSettingsRevision=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision();
+                    actionMenu=true;
                     pendingAdditive=additive;
                     dragging=null; ImGui.openPopup(KEY_POPUP); return true;
                 }

@@ -12,7 +12,6 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiMouseButton;
 import org.joml.Quaternionf;
-import org.joml.Vector3f;
 
 import java.util.Map;
 import java.util.ArrayList;
@@ -26,7 +25,7 @@ import java.util.UUID;
 /** Compact dope sheet for the active rig animation on the selected actor. */
 public final class ActorAnimationDopeSheet {
     private static String selectedAssetId;
-    private static String clipboardRigId;
+    private static final ActorKeyframeClipboard keyClipboard=ActorKeyframeClipboard.getInstance();
     private static ActorAnimationEditContext renderContext;
     private static ActorAnimationEditContext interactionContext;
     private static SelectionContext selectionContext;
@@ -53,9 +52,6 @@ public final class ActorAnimationDopeSheet {
         return result;
     }
     private static final Set<KeyId> selection = new LinkedHashSet<>();
-    private static final List<CopiedKey> clipboard = new ArrayList<>();
-    private static final List<CopiedTranslationKey> translationClipboard = new ArrayList<>();
-    private static final List<CopiedScaleKey> scaleClipboard = new ArrayList<>();
     private static boolean dragCandidate;
     private static boolean marqueeCandidate;
     private static boolean interactionAdditive;
@@ -187,15 +183,15 @@ public final class ActorAnimationDopeSheet {
             }
             ImGui.endDisabled();
         }
-        if (!clipboard.isEmpty() || !translationClipboard.isEmpty() || !scaleClipboard.isEmpty()) {
-            ImGui.beginDisabled(!canWrite() || !Objects.equals(clipboardRigId, asset.rigId()));
+        if (keyClipboard.size()>0) {
+            ImGui.beginDisabled(!canWrite() || !keyClipboard.compatible(asset));
             if (ImGui.smallButton(Icons.CLIPBOARD + " 粘贴到播放头##dopePaste")) {
                 float localTime = renderContext.assetTime();
                 pasteAt(model, asset, Math.min(asset.duration(), localTime));
             }
             ImGui.endDisabled();
             ImGui.sameLine();
-            ImGui.textDisabled((clipboard.size() + translationClipboard.size() + scaleClipboard.size()) + " 个");
+            ImGui.textDisabled(keyClipboard.size() + " 个");
         }
         ImGui.beginDisabled(!canWrite());
         if (selectedCount == 0 && ImGui.smallButton(Icons.FLIP_HORIZONTAL + " 镜像播放头姿态##dopeMirrorPlayhead")) {
@@ -509,47 +505,15 @@ public final class ActorAnimationDopeSheet {
     }
 
     private static void copySelection(AnimationAsset asset) {
-        clipboardRigId = asset.rigId();
-        clipboard.clear();
-        translationClipboard.clear();
-        scaleClipboard.clear();
-        if (selection.isEmpty()) return;
-        float origin = selection.stream().map(KeyId::time).min(Float::compare).orElse(0f);
-        for (KeyId key : selection) asset.findBoneTrack(key.boneId()).ifPresent(track -> {
-            if (key.channel() == Channel.ROTATION) track.rotation().findAt(key.time()).ifPresent(frame -> clipboard.add(
-                    new CopiedKey(key.boneId(), frame.time() - origin, frame.value(), frame.interpolation())));
-            else if (key.channel() == Channel.TRANSLATION) track.translation().findAt(key.time()).ifPresent(frame -> translationClipboard.add(
-                    new CopiedTranslationKey(key.boneId(), frame.time() - origin, frame.value(), frame.interpolation())));
-            else track.scale().findAt(key.time()).ifPresent(frame -> scaleClipboard.add(
-                    new CopiedScaleKey(key.boneId(), frame.time() - origin, frame.value(), frame.interpolation())));
-        });
+        keyClipboard.copy(asset,assetKeys());
     }
 
     private static void pasteAt(TimelineModel model, AnimationAsset asset, float origin) {
-        if (!Objects.equals(clipboardRigId, asset.rigId())) return;
-        List<ActorAnimationAuthoringService.Paste> keys = new ArrayList<>();
-        Set<KeyId> ids = new LinkedHashSet<>();
-        for (CopiedKey copied : clipboard) {
-            float time = origin + copied.offset();
-            keys.add(new ActorAnimationAuthoringService.Paste(copied.boneId(), ActorAnimationAuthoringService.Channel.ROTATION,
-                    time, copied.value(), copied.interpolation()));
-            ids.add(new KeyId(copied.boneId(), Channel.ROTATION, time));
-        }
-        for (CopiedTranslationKey copied : translationClipboard) {
-            float time = origin + copied.offset();
-            keys.add(new ActorAnimationAuthoringService.Paste(copied.boneId(), ActorAnimationAuthoringService.Channel.TRANSLATION,
-                    time, copied.value(), copied.interpolation()));
-            ids.add(new KeyId(copied.boneId(), Channel.TRANSLATION, time));
-        }
-        for (CopiedScaleKey copied : scaleClipboard) {
-            float time = origin + copied.offset();
-            keys.add(new ActorAnimationAuthoringService.Paste(copied.boneId(), ActorAnimationAuthoringService.Channel.SCALE,
-                    time, copied.value(), copied.interpolation()));
-            ids.add(new KeyId(copied.boneId(), Channel.SCALE, time));
-        }
+        float limit=Math.min(asset.duration(),(renderContext.end()-renderContext.start())*Math.max(.01f,renderContext.speed()));
+        var keys=keyClipboard.at(asset,origin,limit);
         if (canWrite() && ActorAnimationAuthoringService.paste(renderContext, keys)) {
-            selectedAssetId = asset.id();
-            selection.clear(); selection.addAll(ids);
+            selectedAssetId=asset.id(); selection.clear();
+            for(var key:keys) selection.add(new KeyId(key.boneId(),Channel.valueOf(key.channel().name()),key.time()));
         }
     }
 
@@ -586,20 +550,6 @@ public final class ActorAnimationDopeSheet {
     private static final class ViewState {
         private float zoom = 1f;
         private float startTime;
-    }
-    private record CopiedKey(String boneId, float offset, Quaternionf value,
-                             com.director.actor.animation.asset.InterpolationMode interpolation) {
-        private CopiedKey {
-            value = new Quaternionf(value);
-        }
-    }
-    private record CopiedTranslationKey(String boneId, float offset, Vector3f value,
-                                        com.director.actor.animation.asset.InterpolationMode interpolation) {
-        private CopiedTranslationKey { value = new Vector3f(value); }
-    }
-    private record CopiedScaleKey(String boneId, float offset, Vector3f value,
-                                  com.director.actor.animation.asset.InterpolationMode interpolation) {
-        private CopiedScaleKey { value = new Vector3f(value); }
     }
 
 }

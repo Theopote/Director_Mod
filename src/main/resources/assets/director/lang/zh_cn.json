@@ -2243,5 +2243,11 @@
   "gui.director.actor.keys.selection_hint": "Ctrl 点击多选；拖动已选关键帧整体移动。右键选择引用；共享资产影响全部引用。",
   "gui.director.actor.keys.drag_group": "移动 %s 个关键帧 · 资产时间偏移 %ss。共享引用同步变化；Esc 取消。",
   "gui.director.actor.keys.marquee_hint": "框选当前片段的骨骼关键帧；Ctrl 追加，Esc 取消。滚动或缩放会取消本次框选。",
-  "gui.director.actor.keys.marquee_reference": "请先选中动画片段或关键帧引用，再从骨骼子行的空白处拖动框选。"
+  "gui.director.actor.keys.marquee_reference": "请先选中动画片段或关键帧引用，再从骨骼子行的空白处拖动框选。",
+  "gui.director.actor.keys.copy": "复制选中键",
+  "gui.director.actor.keys.delete": "删除选中键",
+  "gui.director.actor.keys.paste": "粘贴到播放头",
+  "gui.director.actor.keys.selected_count": "已选 %s 个资产关键帧",
+  "gui.director.actor.keys.paste_hint": "以最早复制键为原点，粘贴到当前片段的播放头资产时间；共享引用同步变化。冲突或越界会整体拒绝。",
+  "gui.director.actor.keys.rejected": "操作未提交：请检查源键、目标冲突、时长和骨架兼容性。"
 }
