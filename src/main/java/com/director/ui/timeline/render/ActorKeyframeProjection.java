@@ -32,6 +32,19 @@ public final class ActorKeyframeProjection {
         return new ArrayList<>(result);
     }
 
+    /** Seek to the nearest actual occurrence, independent of zoom-out display decimation. */
+    public static java.util.Optional<Float> nearest(float key,float duration,AnimationLoopMode mode,
+            float start,float end,float speed,float current) {
+        if(!Float.isFinite(current) || !Float.isFinite(start) || !Float.isFinite(end) || start>end) return java.util.Optional.empty();
+        float anchor=Math.clamp(current,start,end);
+        double period=(mode==AnimationLoopMode.PING_PONG?2.0:1.0)*duration/Math.max(.01f,speed);
+        float lo=start,hi=end;
+        if(mode!=null && mode!=AnimationLoopMode.ONCE && Double.isFinite(period) && period>0) {
+            lo=(float)Math.max(start,anchor-period*2); hi=(float)Math.min(end,anchor+period*2);
+        }
+        return times(key,duration,mode,start,end,speed,lo,hi).stream()
+                .min(java.util.Comparator.<Float>comparingDouble(t -> Math.abs((double)t-current)).thenComparingDouble(t -> t));
+    }
     private static void add(TreeSet<Float> result, double phase, double period, float start,
                             double rate, double lo, double hi) {
         double first = Math.max(0, Math.ceil(((lo - start) * rate - phase) / period));

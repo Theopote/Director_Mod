@@ -35,4 +35,17 @@ class ActorKeyframeProjectionTest {
         assertTrue(ActorKeyframeProjection.times(target,4,AnimationLoopMode.ONCE,0,.5f,1,0,30).isEmpty());
     }
 
+    @Test void nearestSeekStaysInCurrentLoopAndHandlesReversePass() {
+        assertEquals(17f,ActorKeyframeProjection.nearest(2,4,AnimationLoopMode.LOOP,10,30,2,17.2f).orElseThrow());
+        assertEquals(7f,ActorKeyframeProjection.nearest(1,4,AnimationLoopMode.PING_PONG,0,20,1,6.9f).orElseThrow());
+        assertEquals(1f,ActorKeyframeProjection.nearest(1,4,AnimationLoopMode.LOOP,0,10,1,3).orElseThrow());
+        assertTrue(ActorKeyframeProjection.nearest(4,4,AnimationLoopMode.LOOP,0,20,1,10).isEmpty());
+    }
+    @Test void nearestSeekRespectsTrimAndIsNotLimitedByDenseDisplayCap() {
+        assertTrue(ActorKeyframeProjection.nearest(4,4,AnimationLoopMode.ONCE,10,11,2,10).isEmpty());
+        assertEquals(11f,ActorKeyframeProjection.nearest(2,4,AnimationLoopMode.ONCE,10,20,2,19).orElseThrow());
+        assertEquals(99997f,ActorKeyframeProjection.nearest(1,4,AnimationLoopMode.LOOP,0,100000,1,99999).orElseThrow());
+        assertTrue(ActorKeyframeProjection.nearest(1,4,AnimationLoopMode.ONCE,0,10,1,Float.NaN).isEmpty());
+    }
+
 }

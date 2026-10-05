@@ -2262,5 +2262,7 @@
   "gui.director.actor.keys.time_offset": "Asset time offset (s)",
   "gui.director.actor.keys.apply_time": "Apply time",
   "gui.director.actor.keys.cancel_time": "Cancel time edit",
-  "gui.director.actor.keys.time_hint": "Set absolute asset time for one key, or a shared offset for multiple keys. Bounds or collisions reject the whole edit. Repeating clips do not support numeric moves yet."
+  "gui.director.actor.keys.time_hint": "Set absolute asset time for one key, or a shared offset for multiple keys. Bounds or collisions reject the whole edit. Repeating clips do not support numeric moves yet.",
+  "gui.director.actor.keys.time_mapping": "Scene %ss · Asset %ss · Speed %s",
+  "gui.director.actor.keys.loop_seek_hint": "Loop keys seek to the nearest occurrence. Time dragging and frame nudging are disabled for repeats. Keys outside the trimmed reference do not move the playhead."
 }

@@ -2262,5 +2262,7 @@
   "gui.director.actor.keys.time_offset": "资产时间偏移（秒）",
   "gui.director.actor.keys.apply_time": "应用时间",
   "gui.director.actor.keys.cancel_time": "取消时间编辑",
-  "gui.director.actor.keys.time_hint": "单键设置绝对资产时间；多键使用统一偏移。越界或碰撞会整批拒绝，循环片段暂不支持数值移动。"
+  "gui.director.actor.keys.time_hint": "单键设置绝对资产时间；多键使用统一偏移。越界或碰撞会整批拒绝，循环片段暂不支持数值移动。",
+  "gui.director.actor.keys.time_mapping": "场景时间 %ss · 资产时间 %ss · 速度 %s",
+  "gui.director.actor.keys.loop_seek_hint": "循环键定位到播放头附近的实际周期；时间拖动和逐帧移动暂不开放。裁切范围外的键不会跳转播放头。"
 }

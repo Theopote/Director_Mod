@@ -265,4 +265,12 @@ class ActorAnimationKeyframeEditingTest {
     private static void assertQuaternionEquivalent(Quaternionf expected, Quaternionf actual) {
         assertEquals(1f, Math.abs(expected.dot(actual)), 1.0e-5f);
     }
+    @Test void frameStepMapsOneSceneFrameThroughClipSpeedAndRejectsInvalidGrid() {
+        assertEquals(2f/30,ActorAnimationDopeSheet.frameStep(2,30),1e-6f);
+        assertEquals(.5f/60,ActorAnimationDopeSheet.frameStep(.5f,60),1e-6f);
+        assertEquals(0,ActorAnimationDopeSheet.frameStep(1,Float.NaN));
+        assertEquals(0,ActorAnimationDopeSheet.snapDragDelta(10,Float.NaN,.1f));
+        assertEquals(0,ActorAnimationDopeSheet.snapDragDelta(10,100,Float.POSITIVE_INFINITY));
+    }
+
 }

@@ -1,6 +1,7 @@
 package com.director.ui.actor.pose;
 
 import com.director.actor.animation.asset.AnimationAsset;
+import com.director.actor.animation.asset.AnimationAssetLibrary;
 import com.director.actor.animation.asset.BoneTrack;
 import com.director.actor.animation.asset.ChannelKeyframe;
 import com.director.timeline.model.TimelineModel;
@@ -64,6 +65,7 @@ public final class ActorAnimationDopeSheet {
     private static float interactionCurrentX;
     private static float interactionCurrentY;
     private static String interactionAssetId;
+    private static float interactionFrameRate;
     private static final Map<String, ViewState> views = new HashMap<>();
 
     private ActorAnimationDopeSheet() {}
@@ -121,6 +123,10 @@ public final class ActorAnimationDopeSheet {
             ImGui.textDisabled("旋转骨骼后将在这里显示关键帧");
         }
 
+        ImGui.textDisabled(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.time_mapping",
+                model.getCurrentTime(),renderContext.assetTime(),clip.getSpeed()));
+        if(clip.isLoop() && asset.loopMode()!=com.director.actor.animation.asset.AnimationLoopMode.ONCE)
+            ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.loop_seek_hint"));
         renderCanvas(model, clip, asset);
 
         for (Map.Entry<String, BoneTrack> entry : asset.boneTracks().entrySet()) {
@@ -132,7 +138,7 @@ public final class ActorAnimationDopeSheet {
                     if (ImGui.selectable(String.format("%s %.3fs  [%s]##dopeTranslation:%s:%s:%f",
                             Icons.KEYFRAME, frame.time(), frame.interpolation(), asset.id(), entry.getKey(), frame.time()), selected)) {
                         select(asset.id(), key, ImGui.getIO().getKeyCtrl());
-                        model.setCurrentTime(toTimelineTime(clip, frame.time()));
+                        seekToKey(model,clip,frame.time());
                     }
                 }
                 ImGui.treePop();
@@ -148,7 +154,7 @@ public final class ActorAnimationDopeSheet {
                     if (ImGui.selectable(String.format("%s %.3fs  [%s]##dopeScale:%s:%s:%f",
                             Icons.KEYFRAME, frame.time(), frame.interpolation(), asset.id(), entry.getKey(), frame.time()), selected)) {
                         select(asset.id(), key, ImGui.getIO().getKeyCtrl());
-                        model.setCurrentTime(toTimelineTime(clip, frame.time()));
+                        seekToKey(model,clip,frame.time());
                     }
                 }
                 ImGui.treePop();
@@ -166,7 +172,7 @@ public final class ActorAnimationDopeSheet {
                             Icons.KEYFRAME, frame.time(), frame.interpolation(), asset.id(), boneId, frame.time());
                     if (ImGui.selectable(label, selected)) {
                         select(asset.id(), key, ImGui.getIO().getKeyCtrl());
-                        model.setCurrentTime(toTimelineTime(clip, frame.time()));
+                        seekToKey(model,clip,frame.time());
                     }
                 }
                 ImGui.treePop();
@@ -176,10 +182,10 @@ public final class ActorAnimationDopeSheet {
         renderContext = ActorAnimationEditContext.capture(model, renderContext.track(), clip);
         pruneSelection(asset);
         int selectedCount = selection.size();
-        float localFrame = Math.max(0.01f, clip.getSpeed()) / Math.max(1f, model.getFrameRate());
+        float localFrame = frameStep(clip.getSpeed(),model.getFrameRate());
         if (selectedCount > 0) {
             ImGui.textDisabled("已选择 " + selectedCount + " 个关键帧（Ctrl+点击多选）");
-            ImGui.beginDisabled(!canWrite() || isKeyInteractionActive());
+            ImGui.beginDisabled(!canMove() || isKeyInteractionActive());
             if (ImGui.smallButton(Icons.ARROW_LEFT + " 1帧##dopePrevious")) {
                 if (withinDuration(-localFrame, asset.duration())
                         && moveSelection(-localFrame)) {
@@ -339,12 +345,13 @@ public final class ActorAnimationDopeSheet {
             interactionStartY = interactionCurrentY = my;
             interactionAdditive = ImGui.getIO().getKeyCtrl();
             interactionAssetId = asset.id();
+            interactionFrameRate=model.getFrameRate();
             if (hit != null) {
                 boolean alreadySelected = Objects.equals(selectedAssetId, asset.id()) && selection.contains(hit);
                 if (!alreadySelected || interactionAdditive) select(asset.id(), hit, interactionAdditive);
-                dragCandidate = canWrite();
+                dragCandidate = canMove();
                 marqueeCandidate = false;
-                model.setCurrentTime(toTimelineTime(clip, hit.time()));
+                seekToKey(model,clip,hit.time());
                 renderContext = ActorAnimationEditContext.capture(model, renderContext.track(), clip);
                 interactionContext = renderContext;
                 interactionSource = selectedFrames(asset);
@@ -356,7 +363,7 @@ public final class ActorAnimationDopeSheet {
         }
         if (!Objects.equals(interactionAssetId, asset.id())) return;
         if ((dragCandidate || marqueeCandidate) && (interactionContext == null || !interactionContext.isCurrent()
-                || !canWrite() || (dragCandidate && !interactionSource.equals(selectedFrames(asset)))
+                || !canWrite() || model.getFrameRate()!=interactionFrameRate || (dragCandidate && !interactionSource.equals(selectedFrames(asset)))
                 || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape))) {
             cancelKeyInteraction();
         }
@@ -368,7 +375,7 @@ public final class ActorAnimationDopeSheet {
         float dy = interactionCurrentY - interactionStartY;
         boolean activated = dx * dx + dy * dy >= 16f;
         if (dragCandidate && activated) {
-            float localFrame = Math.max(0.01f, clip.getSpeed()) / Math.max(1f, model.getFrameRate());
+            float localFrame = frameStep(clip.getSpeed(),model.getFrameRate());
             float delta = snapDragDelta(dx, pixelsPerSecond, localFrame);
             for (KeyId key : selection) {
                 float ghostX = timeX + (key.time() + delta - viewStartTime) * pixelsPerSecond;
@@ -401,7 +408,7 @@ public final class ActorAnimationDopeSheet {
 
     private static void finishDrag(TimelineModel model, EntityAnimationClip clip, AnimationAsset asset,
                                    float pixelsPerSecond, float dx) {
-        float localFrame = Math.max(0.01f, clip.getSpeed()) / Math.max(1f, model.getFrameRate());
+        float localFrame = frameStep(clip.getSpeed(),model.getFrameRate());
         float delta = snapDragDelta(dx, pixelsPerSecond, localFrame);
         if (withinDuration(delta, asset.duration())
                 && moveSelection(delta)) {
@@ -453,9 +460,16 @@ public final class ActorAnimationDopeSheet {
         return -1;
     }
 
+    static float frameStep(float speed,float frameRate) {
+        if(!Float.isFinite(speed) || !Float.isFinite(frameRate) || frameRate<=0) return 0;
+        return Math.max(.01f,speed)/frameRate;
+    }
     static float snapDragDelta(float pixelDelta, float pixelsPerSecond, float localFrame) {
-        if (!Float.isFinite(pixelDelta) || pixelsPerSecond <= 0f || localFrame <= 0f) return 0f;
-        return Math.round((pixelDelta / pixelsPerSecond) / localFrame) * localFrame;
+        if (!Float.isFinite(pixelDelta) || !Float.isFinite(pixelsPerSecond) || !Float.isFinite(localFrame)
+                || pixelsPerSecond <= 0f || localFrame <= 0f) return 0f;
+        double result=Math.floor(pixelDelta/(double)pixelsPerSecond/localFrame+.5)*localFrame;
+        float delta=(float)result;
+        return Float.isFinite(delta)?delta:0;
     }
 
     private static void handleNavigation(ViewState view, float duration, boolean hovered,
@@ -497,8 +511,15 @@ public final class ActorAnimationDopeSheet {
         view.startTime = Math.clamp(view.startTime, 0f, max);
     }
 
-    private static float toTimelineTime(EntityAnimationClip clip, float localTime) {
-        return clip.getStartTime() + localTime / Math.max(0.01f, clip.getSpeed());
+    private static void seekToKey(TimelineModel model,EntityAnimationClip clip,float localTime) {
+        var asset=AnimationAssetLibrary.getInstance().find(clip.getAnimationId()).orElse(null);
+        if(asset==null) return;
+        var mode=clip.isLoop()?asset.loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE;
+        com.director.ui.timeline.render.ActorKeyframeProjection.nearest(localTime,asset.duration(),mode,
+                clip.getStartTime(),clip.getEndTime(),clip.getSpeed(),model.getCurrentTime()).ifPresent(model::setCurrentTime);
+    }
+    private static boolean canMove() {
+        return canWrite() && (!renderContext.loop() || renderContext.loopMode()==com.director.actor.animation.asset.AnimationLoopMode.ONCE);
     }
 
     private static void select(String assetId, KeyId key, boolean additive) {
@@ -525,11 +546,15 @@ public final class ActorAnimationDopeSheet {
     }
 
     private static boolean moveSelection(float delta) {
-        return canWrite() && ActorAnimationAuthoringService.move(
-                interactionContext != null && dragCandidate ? interactionContext : renderContext, assetKeys(), delta);
+        var target=interactionContext!=null && dragCandidate?interactionContext:renderContext;
+        var keys=assetKeys();
+        return canMove() && ActorAnimationAuthoringService.moveTime(target,keys,
+                keys.size()==1?keys.getFirst().time()+delta:delta);
     }
 
     private static boolean withinDuration(float delta, float duration) {
+        if(!canMove()) return false;
+        duration=Math.min(duration,(renderContext.end()-renderContext.start())*Math.max(.01f,renderContext.speed()));
         for (KeyId key : selection) {
             float target = key.time() + delta;
             if (target < 0f || target > duration) return false;
@@ -545,7 +570,7 @@ public final class ActorAnimationDopeSheet {
     }
 
     private static void seekToFirst(TimelineModel model, EntityAnimationClip clip) {
-        if (!selection.isEmpty()) model.setCurrentTime(toTimelineTime(clip, selection.iterator().next().time()));
+        if (!selection.isEmpty()) seekToKey(model,clip,selection.iterator().next().time());
     }
 
     private static void copySelection(AnimationAsset asset) {
