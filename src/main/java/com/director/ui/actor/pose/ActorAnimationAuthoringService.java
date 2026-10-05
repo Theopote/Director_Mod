@@ -61,7 +61,7 @@ public final class ActorAnimationAuthoringService {
             changed |= existing == null || !existing.value().equals(key.value()) || existing.interpolation() != mode;
             put(target, destination, key.value(), mode);
         }
-        return changed && draft.commit(context, description);
+        return changed && draft.commit(context, description,overwrite?null:destinations);
     }
 
     public static boolean delete(ActorAnimationEditContext context, Collection<Key> keys) {
@@ -73,7 +73,7 @@ public final class ActorAnimationAuthoringService {
             if (frame(target, key) == null) return false;
             channel(target, key.channel()).removeAt(key.time());
         }
-        return draft.commit(context, "Delete actor keyframes");
+        return draft.commit(context, "Delete actor keyframes",List.of());
     }
 
     /** Change outgoing interpolation only; no new keys, time shifts or value changes. */
@@ -131,7 +131,7 @@ public final class ActorAnimationAuthoringService {
         for (Key key : source) channel(draft.track(key.boneId()), key.channel()).removeAt(key.time());
         for (Paste paste : moved) put(draft.track(paste.boneId()),
                 new Key(paste.boneId(), paste.channel(), paste.time()), paste.value(), paste.interpolation());
-        return draft.commit(context, "Move actor keyframes");
+        return draft.commit(context, "Move actor keyframes",moved.stream().map(p -> new Key(p.boneId(),p.channel(),p.time())).toList());
     }
 
     public static boolean mirror(ActorAnimationEditContext context, Collection<Float> times, InterpolationMode mode) {
@@ -240,19 +240,38 @@ public final class ActorAnimationAuthoringService {
                     throw new IllegalArgumentException("Bone keyframes changed; refusing to overwrite them");
             }
         }
-        boolean commit(ActorAnimationEditContext context, String description) {
+        private void restoreSelection(ActorAnimationEditContext context,List<Key> keys) {
+            var selection=ActorKeyframeSelection.getInstance();
+            var current=selection.snapshot(context.model());
+            if(current!=null && current.focused() && current.owner()==context.track()
+                    && current.clip()==context.clip() && current.asset()==asset)
+                selection.replace(context.model(),context.track(),context.clip(),asset,keys,true);
+        }
+        boolean commit(ActorAnimationEditContext context, String description) { return commit(context,description,null); }
+        boolean commit(ActorAnimationEditContext context, String description,Collection<Key> selectedAfter) {
             if (!context.isCurrent()) return false;
+            var selection=ActorKeyframeSelection.getInstance();
+            var selectedBefore=selection.snapshot(context.model());
+            boolean ownsSelection=selectedBefore!=null && selectedBefore.owner()==context.track()
+                    && selectedBefore.clip()==context.clip() && selectedBefore.asset()==asset && selectedBefore.focused();
+            var beforeKeys=ownsSelection?selectedBefore.keys():List.<Key>of();
+            var afterKeys=selectedAfter==null?beforeKeys:List.copyOf(selectedAfter);
+            boolean[] initial={true};
             Map<String, BoneTrack> targets = new LinkedHashMap<>();
             after.forEach((id, value) -> targets.put(id, original.get(id) == null ? new BoneTrack() : original.get(id)));
             TimelineCommandBridge.execute(new StateChangeCommand(context.model(), description,
-                    () -> { requireCommandSource(context,after,targets); before.forEach((id, value) -> {
+                    () -> { requireCommandSource(context,after,targets);
+                        ActorAnimationEditingLifecycle.cancelTransientWork();
+                        before.forEach((id, value) -> {
                         if (original.get(id) == null) asset.removeBoneTrack(id);
                         else { copyInto(value, targets.get(id)); asset.attachBoneTrack(id, targets.get(id)); }
-                    }); },
-                    () -> { requireCommandSource(context,before,original); after.forEach((id, value) -> {
+                    }); if(ownsSelection) restoreSelection(context,beforeKeys); },
+                    () -> { requireCommandSource(context,before,original);
+                        if(!initial[0]) ActorAnimationEditingLifecycle.cancelTransientWork();
+                        after.forEach((id, value) -> {
                         copyInto(value, targets.get(id));
                         asset.attachBoneTrack(id, targets.get(id));
-                    }); }));
+                    }); if(ownsSelection) restoreSelection(context,afterKeys); initial[0]=false; }));
             return true;
         }
     }

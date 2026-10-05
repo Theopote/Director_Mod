@@ -422,4 +422,42 @@ class ActorAnimationAuthoringServiceTest {
         assertTrue(asset.findBoneTrack("root").orElseThrow().translation().findAt(1).isPresent());
     }
 
+    @Test void moveHistoryRestoresSharedSelectionAtBeforeAndAfterTimes() {
+        var keys=seedMixed(); model.setSelectedClip(clip.getTimelineClip());
+        var target=ActorAnimationEditContext.capture(model,track,clip); var selection=ActorKeyframeSelection.getInstance();
+        selection.replace(model,track,clip,asset,keys,true);
+        assertTrue(ActorAnimationAuthoringService.move(target,keys,.5f));
+        var moved=keys.stream().map(k -> key(k.boneId(),k.channel(),k.time()+.5f)).toList();
+        assertEquals(moved,selection.snapshot(model).keys());
+        assertTrue(history.undo()); assertEquals(keys,selection.snapshot(model).keys());
+        assertTrue(history.redo()); assertEquals(moved,selection.snapshot(model).keys());
+    }
+    @Test void deleteAndPasteHistoryRestoreSelectionsAndInterpolationHistoryKeepsKeys() {
+        var keys=seedMixed(); model.setSelectedClip(clip.getTimelineClip());
+        var target=ActorAnimationEditContext.capture(model,track,clip); var selection=ActorKeyframeSelection.getInstance();
+        selection.replace(model,track,clip,asset,keys,true);
+        assertTrue(ActorAnimationAuthoringService.delete(target,keys)); assertTrue(selection.snapshot(model).keys().isEmpty());
+        assertTrue(history.undo()); assertEquals(keys,selection.snapshot(model).keys());
+        var clipboard=new ActorKeyframeClipboard(); assertTrue(clipboard.copy(asset,keys));
+        assertTrue(ActorAnimationAuthoringService.paste(target,clipboard.at(asset,2,5)));
+        assertEquals(List.of(2f,2f,2f),selection.snapshot(model).keys().stream().map(ActorAnimationAuthoringService.Key::time).toList());
+        assertTrue(history.undo()); assertEquals(keys,selection.snapshot(model).keys());
+        assertTrue(ActorAnimationAuthoringService.setInterpolation(target,keys,InterpolationMode.LINEAR));
+        assertEquals(keys,selection.snapshot(model).keys()); assertTrue(history.undo()); assertEquals(keys,selection.snapshot(model).keys());
+    }
+    @Test void historyDoesNotStealSelectionFromAnotherReferenceOrAlterItOnFailure() {
+        var keys=seedMixed(); model.setSelectedClip(clip.getTimelineClip()); var selection=ActorKeyframeSelection.getInstance();
+        selection.replace(model,track,clip,asset,keys,true);
+        var target=ActorAnimationEditContext.capture(model,track,clip);
+        assertTrue(ActorAnimationAuthoringService.move(target,keys,.5f));
+        var other=new EntityAnimationClip("Other",0,15); other.setAnimationId(asset.id());
+        track.getActorTrackPayload().addClip(other); track.addClip(new EntityTimelineClip(other,track.getActorTrackPayload().getColorRgba()));
+        model.setSelectedClip(other.getTimelineClip()); selection.replace(model,track,other,asset,List.of(),true);
+        assertTrue(history.undo()); assertSame(other,selection.snapshot(model).clip()); assertTrue(selection.snapshot(model).keys().isEmpty());
+        assertTrue(history.redo());
+        asset.findBoneTrack("head").orElseThrow().scale().put(3,new Vector3f(4),InterpolationMode.LINEAR);
+        var revision=selection.revision(); assertThrows(IllegalArgumentException.class,history::undo);
+        assertEquals(revision,selection.revision()); assertSame(other.getTimelineClip(),model.getSelectedClip());
+    }
+
 }
