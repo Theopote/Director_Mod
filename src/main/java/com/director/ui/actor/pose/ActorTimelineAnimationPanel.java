@@ -1,14 +1,16 @@
 package com.director.ui.actor.pose;
 
 import com.director.timeline.model.TimelineModel;
-import com.director.ui.actor.selection.ActorSelectionHub;
+import net.minecraft.client.resource.language.I18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 
 /** Timeline-hosted animation detail view; shares the existing asset and bone selection models. */
 public final class ActorTimelineAnimationPanel {
     private static boolean detailVisible;
+    private static ActorAnimationDetailTarget previousTarget;
     private static void hideDetail() {
+        previousTarget=null;
         if(detailVisible) { detailVisible=false; ActorAnimationEditingLifecycle.cancelTransientWork(); }
     }
     private ActorTimelineAnimationPanel() {}
@@ -26,31 +28,39 @@ public final class ActorTimelineAnimationPanel {
         ImGui.beginChild("##TimelineActorAnimationDetail", 0f,
                 Math.min(320f, available * 0.5f), true, ImGuiWindowFlags.None);
         try {
-            var selectedId = ActorSelectionHub.getSelectedActorId();
-            boolean hasActor = false;
-            for (var track : model.getAllTracks()) {
-                var payload = track.getActorTrackPayload();
-                if (payload == null || payload.getActorRef() == null || payload.getActorRef().getActorId() == null) continue;
-                hasActor = true;
-                var actorId = payload.getActorRef().getActorId();
-                if (ImGui.selectable(track.getName() + "##animationActor:" + actorId,
-                        actorId.equals(selectedId))) {
-                    ActorSelectionHub.selectActor(actorId);
-                    selectedId = actorId;
+            var target=ActorAnimationDetailTarget.resolve(model);
+            if(previousTarget!=null && (previousTarget.track()!=target.track()
+                    || !java.util.Objects.equals(previousTarget.actorId(),target.actorId())
+                    || previousTarget.actor()!=target.actor() || previousTarget.clip()!=target.clip()
+                    || previousTarget.asset()!=target.asset() || previousTarget.status()!=target.status()))
+                ActorAnimationEditingLifecycle.cancelTransientWork();
+            previousTarget=target;
+            if(target.track()!=null) {
+                ImGui.textWrapped(I18n.translate("gui.director.actor.detail.target",
+                        target.actor()==null ? "?" : target.actor().getName(),target.track().getName()));
+            }
+            if(target.clip()!=null) ImGui.textWrapped(I18n.translate("gui.director.actor.detail.reference",
+                    target.clip().getName(),target.clip().getAnimationId()));
+            if(target.asset()!=null) {
+                var context=ActorAnimationEditContext.capture(model,target.track(),target.clip());
+                ImGui.textDisabled(I18n.translate("gui.director.actor.detail.time",
+                        model.getCurrentTime(),context.assetTime()));
+                int references=ActorAnimationAssetEditing.referenceCount(model,target.asset().id());
+                if(references>1) ImGui.textWrapped(I18n.translate("gui.director.actor.detail.shared",references));
+            }
+            if(target.status()!=ActorAnimationDetailTarget.Status.READY)
+                ImGui.textWrapped(I18n.translate("gui.director.actor.detail."+target.status().name().toLowerCase(java.util.Locale.ROOT)));
+            if(target.status()==ActorAnimationDetailTarget.Status.READY
+                    || target.status()==ActorAnimationDetailTarget.Status.READ_ONLY) {
+                var context=ActorAnimationEditContext.resolve(model,target.actorId());
+                // Muted references must not expose another overlapping reference's editors.
+                if(context!=null && context.clip()==target.clip()) {
+                    ImGui.separator();
+                    if(target.status()==ActorAnimationDetailTarget.Status.READY)
+                        ActorBonePropertiesPanel.renderInTimeline(model,target.actorId());
+                    ActorAnimationDopeSheet.render(model,target.actorId());
                 }
             }
-            if (!hasActor) {
-                ImGui.textWrapped("先创建演员轨道，再在这里选择演员并编辑身体部位。");
-                return;
-            }
-            if (selectedId == null) {
-                ImGui.textDisabled("请选择一个演员。");
-                return;
-            }
-            ImGui.separator();
-            ImGui.textWrapped("主时间线编排动作片段；下方编辑播放头处的动画资产。Ctrl+点击骨骼可多选部位。");
-            ActorBonePropertiesPanel.renderInTimeline(model, selectedId);
-            ActorAnimationDopeSheet.render(model, selectedId);
         } finally {
             ImGui.endChild();
         }

@@ -2264,5 +2264,19 @@
   "gui.director.actor.keys.cancel_time": "取消时间编辑",
   "gui.director.actor.keys.time_hint": "单键设置绝对资产时间；多键使用统一偏移。越界或碰撞会整批拒绝，循环片段暂不支持数值移动。",
   "gui.director.actor.keys.time_mapping": "场景时间 %ss · 资产时间 %ss · 速度 %s",
-  "gui.director.actor.keys.loop_seek_hint": "循环键定位到播放头附近的实际周期；时间拖动和逐帧移动暂不开放。裁切范围外的键不会跳转播放头。"
+  "gui.director.actor.keys.loop_seek_hint": "循环键定位到播放头附近的实际周期；时间拖动和逐帧移动暂不开放。裁切范围外的键不会跳转播放头。",
+  "gui.director.actor.detail.target": "演员：%s · 轨道：%s",
+  "gui.director.actor.detail.reference": "动画引用：%s · 资产：%s",
+  "gui.director.actor.detail.time": "场景时间：%.3f 秒 · 资产时间：%.3f 秒",
+  "gui.director.actor.detail.shared": "此资产有 %d 个引用；编辑关键帧会影响这些引用。",
+  "gui.director.actor.detail.select": "请选择演员轨道或该轨道上的动画片段。",
+  "gui.director.actor.detail.ambiguous": "当前选择包含多个轨道，请明确选择一个演员轨道或动画引用。",
+  "gui.director.actor.detail.unbound": "此轨道尚未绑定演员，请在轨道属性中绑定。",
+  "gui.director.actor.detail.missing_actor": "绑定的演员不存在，请检查轨道引用。",
+  "gui.director.actor.detail.unsupported_rig": "此演员尚无可编辑骨架；请使用其支持的移动、注视与行为片段。",
+  "gui.director.actor.detail.no_animation": "播放头处没有动画引用。可在动画资产面板显式创建或绑定动画。",
+  "gui.director.actor.detail.missing_asset": "动画资产不存在，请检查引用或重新导入资产。",
+  "gui.director.actor.detail.incompatible": "动画骨架与演员不兼容，请选择匹配的资产。",
+  "gui.director.actor.detail.outside": "播放头位于所选动画引用之外；移动到片段内即可编辑。",
+  "gui.director.actor.detail.read_only": "当前为只读状态：请检查锁定、禁用、播放或拖动播放头状态。"
 }

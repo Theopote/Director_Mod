@@ -2264,5 +2264,19 @@
   "gui.director.actor.keys.cancel_time": "Cancel time edit",
   "gui.director.actor.keys.time_hint": "Set absolute asset time for one key, or a shared offset for multiple keys. Bounds or collisions reject the whole edit. Repeating clips do not support numeric moves yet.",
   "gui.director.actor.keys.time_mapping": "Scene %ss · Asset %ss · Speed %s",
-  "gui.director.actor.keys.loop_seek_hint": "Loop keys seek to the nearest occurrence. Time dragging and frame nudging are disabled for repeats. Keys outside the trimmed reference do not move the playhead."
+  "gui.director.actor.keys.loop_seek_hint": "Loop keys seek to the nearest occurrence. Time dragging and frame nudging are disabled for repeats. Keys outside the trimmed reference do not move the playhead.",
+  "gui.director.actor.detail.target": "Actor: %s · Track: %s",
+  "gui.director.actor.detail.reference": "Animation reference: %s · Asset: %s",
+  "gui.director.actor.detail.time": "Scene time: %.3f s · Asset time: %.3f s",
+  "gui.director.actor.detail.shared": "This asset has %d references; keyframe edits affect these references.",
+  "gui.director.actor.detail.select": "Select an actor track or an animation reference on it.",
+  "gui.director.actor.detail.ambiguous": "Multiple tracks are selected. Select one actor track or animation reference.",
+  "gui.director.actor.detail.unbound": "This track has no actor binding. Bind an actor in track properties.",
+  "gui.director.actor.detail.missing_actor": "The bound actor is missing. Check the track reference.",
+  "gui.director.actor.detail.unsupported_rig": "This actor has no editable rig. Use its supported movement, look and behavior clips.",
+  "gui.director.actor.detail.no_animation": "No animation reference at the playhead. Create or attach one explicitly in the animation asset panel.",
+  "gui.director.actor.detail.missing_asset": "The animation asset is missing. Check the reference or import the asset again.",
+  "gui.director.actor.detail.incompatible": "The animation rig is incompatible with this actor. Choose a matching asset.",
+  "gui.director.actor.detail.outside": "The playhead is outside the selected animation reference. Move inside it to edit.",
+  "gui.director.actor.detail.read_only": "Read only: check locks, muted states, playback or playhead scrubbing."
 }
