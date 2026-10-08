@@ -12,7 +12,7 @@ import java.util.*;
 final class ActorRootTimelineRows {
     private com.director.ui.actor.pose.ActorRootKeyframeTimeSession drag;
     private float dragMouseX, previewTime;
-    private TimelineRenderMath dragMath;
+    private float dragPixelsPerSecond;
     boolean isDragging() { return drag != null; }
     void cancel() { if (drag != null) drag.cancel(); drag = null; }
     boolean updateDrag(TimelineModel model) {
@@ -20,7 +20,7 @@ final class ActorRootTimelineRows {
         if (drag.model() != model || !drag.isCurrent() || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)
                 || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
                 || com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()) { cancel(); return true; }
-        float delta = (ImGui.getMousePosX() - dragMouseX) / Math.max(1, dragMath.getPixelsPerSecond());
+        float delta = (ImGui.getMousePosX() - dragMouseX) / Math.max(1, dragPixelsPerSecond);
         float target = drag.originalTime() + delta;
         if (model.isSnapToGridEnabled() && !ImGui.getIO().getKeyAlt()) target = model.snapToGrid(target);
         previewTime = Math.max(drag.start(), Math.min(drag.end(), target));
@@ -42,10 +42,10 @@ final class ActorRootTimelineRows {
     private final Set<EntityClipKeyframe> selected = new LinkedHashSet<>();
     void clearFocus() { selected.clear(); focusModel = null; focusOwner = null; focusClip = null; focusKey = null; }
     void focus(TimelineModel model, TimelineTrack owner, EntityClip clip, EntityClipKeyframe key) {
-        select(model, owner, clip, key, false);
+        clearFocus(); select(model, owner, clip, key, false);
     }
     void select(TimelineModel model, TimelineTrack owner, EntityClip clip, EntityClipKeyframe key, boolean additive) {
-        if (!additive || focusModel != model || focusOwner != owner || focusClip != clip) selected.clear();
+        if ((!additive && !selected.contains(key)) || focusModel != model || focusOwner != owner || focusClip != clip) selected.clear();
         focusModel = model; focusOwner = owner; focusClip = clip; focusKey = key;
         if (additive && selected.contains(key)) selected.remove(key); else selected.add(key);
     }
@@ -96,7 +96,7 @@ final class ActorRootTimelineRows {
             draw.pushClipRect(left, y, right, y + height, true);
             try {
                 for (var clip : clips(track)) for (var key : clip.getKeyframes()) {
-                    float kx = math.timeToX(drag != null && drag.key() == key && drag.clip() == clip ? previewTime : key.getTime()), ky = y + height / 2;
+                    float kx = math.timeToX(drag != null && drag.contains(key) && drag.clip() == clip ? drag.previewTime(key, previewTime) : key.getTime()), ky = y + height / 2;
                     if (kx < left - 6 || kx > right + 6) continue;
                     int color = clip.isMuted() || track.isMuted() ? TimelineColors.rgba(110,110,110,255)
                             : (focusModel == model && focusClip == clip && model.getSelectedClip() == clip.getTimelineClip() && selected.contains(key) || selectedAt(model,clip,key)) ? TimelineColors.rgba(255,255,255,255) : colors[row];
@@ -131,8 +131,8 @@ final class ActorRootTimelineRows {
             if (!ImGui.getIO().getKeyCtrl()
                     && com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, track, hit.clip())) {
                 try {
-                    drag = new com.director.ui.actor.pose.ActorRootKeyframeTimeSession(model, track, hit.clip(), hit.key());
-                    dragMouseX = mouseX; dragMath = math; previewTime = hit.key().getTime();
+                    drag = new com.director.ui.actor.pose.ActorRootKeyframeTimeSession(model, track, hit.clip(), hit.key(), selected);
+                    dragMouseX = mouseX; dragPixelsPerSecond = math.getPixelsPerSecond(); previewTime = hit.key().getTime();
                 } catch (IllegalArgumentException unavailable) { cancel(); }
             }
         }

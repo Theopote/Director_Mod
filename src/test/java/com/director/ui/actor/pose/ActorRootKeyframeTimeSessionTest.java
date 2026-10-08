@@ -25,6 +25,25 @@ class ActorRootKeyframeTimeSessionTest {
     }
     @AfterEach void cleanup() { TimelineCommandBridge.bind(null); ActorRegistryManager.setRegistry(null); }
     ActorRootKeyframeTimeSession session() { return new ActorRootKeyframeTimeSession(model, owner, clip, key); }
+    @Test void groupMoveAllowsVacatedTimesAndRestoresWholeGroupInOneCommand() {
+        var draft = new ActorRootKeyframeTimeSession(model, owner, clip, key, java.util.List.of(key, other));
+        assertEquals(0, draft.start()); assertEquals(3, draft.end());
+        assertEquals(5, draft.previewTime(other, 3)); assertEquals(4, other.getTime());
+        assertTrue(draft.commit(3)); assertEquals(3, key.getTime()); assertEquals(5, other.getTime());
+        assertEquals(1, history.getUndoSize()); assertTrue(history.undo());
+        assertEquals(2, key.getTime()); assertEquals(4, other.getTime()); assertTrue(history.redo());
+        assertEquals(3, key.getTime()); assertEquals(5, other.getTime());
+    }
+    @Test void groupOverflowAndCollisionRejectAllFrames() {
+        var stationary = new EntityClipKeyframe(3); clip.addKeyframe(stationary);
+        assertFalse(new ActorRootKeyframeTimeSession(model, owner, clip, key, java.util.List.of(key, other)).commit(3));
+        assertEquals(2, key.getTime()); assertEquals(4, other.getTime());
+        assertFalse(new ActorRootKeyframeTimeSession(model, owner, clip, key, java.util.List.of(key, other)).commit(4));
+        assertEquals(0, history.getUndoSize());
+        clip.removeKeyframe(stationary.getId());
+        assertTrue(new ActorRootKeyframeTimeSession(model, owner, clip, other, java.util.List.of(key, other)).commit(2));
+        assertEquals(0, key.getTime()); assertEquals(2, other.getTime());
+    }
     @Test void moveIsOneCommandAndRestoresTimeAndWrapperKeys() {
         var draft = session(); assertEquals(2, key.getTime()); assertEquals(0, history.getUndoSize());
         assertTrue(draft.commit(3)); assertEquals(3, key.getTime()); assertEquals(3, model.getCurrentTime());

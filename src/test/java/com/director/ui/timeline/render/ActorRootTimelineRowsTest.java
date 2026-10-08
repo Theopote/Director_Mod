@@ -55,6 +55,7 @@ class ActorRootTimelineRowsTest {
         com.director.ui.timeline.commands.TimelineCommandBridge.bind(history);
         var rows = new ActorRootTimelineRows(); rows.focus(model, track, clip, a);
         rows.select(model, track, clip, b, true);
+        rows.select(model, track, clip, a, false); // Pressing a selected key keeps the drag group.
         assertTrue(rows.handleKeyCommand(model, "delete")); assertTrue(clip.getKeyframes().isEmpty());
         assertEquals(1, history.getUndoSize()); assertTrue(history.undo());
         rows.select(model, track, clip, b, true);

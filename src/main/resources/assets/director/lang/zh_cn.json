@@ -1,5 +1,5 @@
 {
-  "gui.director.actor.root_rows.selection_hint": "单击选择；Ctrl 单击增选/取消。同一整体帧在三行同步选中。多选支持复制、剪切和删除，粘贴保留时间间隔。",
+  "gui.director.actor.root_rows.selection_hint": "单击选择；Ctrl 单击增选/取消。拖动已选帧移动整组，单击未选帧重新选择。三行共享整体帧；粘贴保留时间间隔。",
   "key.director.open_ui": "打开 Director",
   "key.category.director.general": "Director",
 
