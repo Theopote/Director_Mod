@@ -159,27 +159,9 @@ public final class ActorLookAtVisualizer {
      * @return 目标点世界坐标，如果无法解析则返回 null
      */
     private Vec3d resolveTargetPoint(EntityLookAtClip clip) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.gameRenderer == null) {
-            return null;
-        }
-
-        return switch (clip.getMode()) {
-            case WORLD_POINT -> new Vec3d(
-                    clip.getWorldPoint().x,
-                    clip.getWorldPoint().y,
-                    clip.getWorldPoint().z
-            );
-            case CAMERA -> {
-                var camera = client.gameRenderer.getCamera();
-                if (camera != null) {
-                    yield camera.getPos();
-                }
-                yield null;
-            }
-            case ENTITY_UUID -> // TODO: 未来实现实体目标
-                    null;
-        };
+        return com.director.actor.runtime.ActorLookAtTargetResolver.resolveClient(
+                clip.getMode().name(), clip.getWorldPoint(), clip.getTargetEntityUuid(),
+                com.director.ui.actor.selection.ActorSelectionHub.getSelectedActorId());
     }
 
     /**

@@ -198,6 +198,9 @@ public final class ActorRuntimeController {
             rt.update(time);
         }
 
+        // Resolve gaze only after every actor has its current-time root position.
+        for (TrackRuntime rt : runtimes.values()) rt.updateGaze();
+
         // 更新投掷物（每帧更新，使用 deltaTime）
         projectileManager.update(deltaTime);
     }
@@ -673,7 +676,6 @@ public final class ActorRuntimeController {
 
             // === RigProfile：应用动作语义到 Runtime 表现 ===
             applyRigProfile(s, deltaTime);
-            if (s.lookAtEnabled && !gizmoDragging) applyLookAt(entity,s);
             entity.lastYaw=entity.getYaw(); entity.lastPitch=entity.getPitch();
             if(entity instanceof net.minecraft.entity.LivingEntity living) {
                 living.lastBodyYaw=living.bodyYaw; living.lastHeadYaw=living.headYaw;
@@ -981,21 +983,26 @@ public final class ActorRuntimeController {
          * @param entity PreviewActorEntity
          * @param s EntitySample
          */
+        void updateGaze() {
+            if (ownerTrack.isMuted() || actor == null || !spawned || lastSample == null
+                    || !lastSample.lookAtEnabled || lastSample.visibility <= .01f) return;
+            var gizmo = com.director.ui.actor.gizmo.ActorGizmoController.getInstance();
+            if (gizmo.isDragging() && actor.getActorId().equals(com.director.ui.actor.selection.ActorSelectionHub.getSelectedActorId())) return;
+            var entity = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
+            if (entity == null) return;
+            applyLookAt(entity, lastSample);
+            entity.lastPitch = entity.getPitch();
+            if (entity instanceof net.minecraft.entity.LivingEntity living) living.lastHeadYaw = living.headYaw;
+            var props = propRuntimes.get(actor.getActorId());
+            if (props != null) props.update();
+        }
+
         private void applyLookAt(Entity entity, EntitySample s) {
-            // 获取实体当前位置
-            Vec3d pos = new Vec3d(
-                    entity.getX(),
-                    entity.getY(),
-                    entity.getZ()
-            );
-            
-            // 获取目标位置（从 EntitySample）
-            Vec3d target = new Vec3d(
-                    s.lookAtPoint.x,
-                    s.lookAtPoint.y,
-                    s.lookAtPoint.z
-            );
-            
+            Vec3d pos = entity.getEyePos();
+            Vec3d target = ActorLookAtTargetResolver.resolveClient(s.lookAtMode, s.lookAtPoint,
+                    s.lookAtEntityUuid, actor.getActorId());
+            if (target == null) return;
+
             Vec3d dir = target.subtract(pos);
             double length = dir.length();
             

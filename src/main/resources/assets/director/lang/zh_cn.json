@@ -2296,5 +2296,7 @@
   "gui.director.actor.player_model.default": "默认",
   "gui.director.actor.player_model.wide": "宽臂（Steve）",
   "gui.director.actor.player_model.slim": "窄臂（Alex）",
-  "gui.director.actor.player_model.hint": "导入 PNG 皮肤后，请按皮肤布局选择宽臂或窄臂。默认会将导入皮肤按宽臂显示。"
+  "gui.director.actor.player_model.hint": "导入 PNG 皮肤后，请按皮肤布局选择宽臂或窄臂。默认会将导入皮肤按宽臂显示。",
+  "gui.director.actor.look_at.target_actor": "目标演员",
+  "gui.director.actor.look_at.choose_actor": "选择项目演员"
 }

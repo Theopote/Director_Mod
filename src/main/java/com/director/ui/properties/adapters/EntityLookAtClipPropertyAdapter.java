@@ -56,6 +56,22 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
             } else {
                 ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.NO_TARGET_ENTITY));
             }
+            if (clip.getMode() == EntityLookAtClip.TargetMode.ENTITY_UUID) {
+                var registry = com.director.actor.ActorRegistryManager.getInstance();
+                String label = registry.getActor(clip.getTargetEntityUuid()).map(com.director.actor.Actor::getName)
+                        .orElse(ActorPropertyAdapterI18n.tr("gui.director.actor.look_at.choose_actor"));
+                if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr("gui.director.actor.look_at.target_actor"), label)) {
+                    for (var actor : registry.getAllActors()) {
+                        if (ImGui.selectable(actor.getName() + "##gazeActor" + actor.getActorId(),
+                                actor.getActorId().equals(clip.getTargetEntityUuid()))) {
+                            clip.setTargetEntityUuid(actor.getActorId());
+                            entityUuid.set(actor.getActorId().toString());
+                            gesture.requestCommit();
+                        }
+                    }
+                    ImGui.endCombo();
+                }
+            }
             ImGui.inputText(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.entity_uuid") + "##lookClipEntityUuid", entityUuid);
             if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.apply_entity") + "##lookClipApplyEntity")) {
                 try {
