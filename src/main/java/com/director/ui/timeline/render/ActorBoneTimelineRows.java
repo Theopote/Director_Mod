@@ -295,7 +295,7 @@ public final class ActorBoneTimelineRows {
 
     /** Preview only while held; the underlying asset changes once, on release. */
     public boolean updateDrag(TimelineModel model) {
-        try { if (rootRows.updateDrag(model)) return true; return updateDragInternal(model); } finally { publishSelection(model); }
+        try { if (rootRows.renderMenu(model)) return true; if (rootRows.updateDrag(model)) return true; return updateDragInternal(model); } finally { publishSelection(model); }
     }
     private boolean updateDragInternal(TimelineModel model) {
         if (renderCandidates(model)) return true;

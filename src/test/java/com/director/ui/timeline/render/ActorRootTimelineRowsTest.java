@@ -88,10 +88,12 @@ class ActorRootTimelineRowsTest {
         com.director.ui.timeline.commands.TimelineCommandBridge.bind(history);
         var rows = new ActorRootTimelineRows(); rows.focus(model, track, spawn, key);
         track.setLocked(true); assertTrue(rows.handleKeyCommand(model, "delete"));
+        assertEquals("readonly", rows.rejection());
         assertEquals(1, spawn.getKeyframes().size()); assertEquals(0, history.getUndoSize());
         track.setLocked(false); assertTrue(rows.handleKeyCommand(model, "delete"));
         assertTrue(spawn.getKeyframes().isEmpty()); assertEquals(1, track.getClips().size());
         assertTrue(rows.handleKeyCommand(model, "delete")); assertEquals(1, history.getUndoSize());
+        assertEquals("no_selection", rows.rejection());
         assertTrue(history.undo()); assertEquals(java.util.List.of(key), spawn.getKeyframes());
         assertTrue(rows.handleKeyCommand(model, "copy"));
         key.setPosition(8, 0, 0);

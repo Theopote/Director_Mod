@@ -11,10 +11,14 @@ import java.util.*;
 /** Root TRS rows are a view of one shared key, not three independent keys. */
 final class ActorRootTimelineRows {
     private com.director.ui.actor.pose.ActorRootKeyframeTimeSession drag;
+    private boolean menuRequested;
+    private long menuRevision;
+    private String rejection;
+    private static final String POPUP = "ActorRootKeyActions";
     private float dragMouseX, previewTime;
     private float dragPixelsPerSecond;
     boolean isDragging() { return drag != null || marquee != null; }
-    void cancel() { if (drag != null) drag.cancel(); drag = null; marquee = null; }
+    void cancel() { if (drag != null) drag.cancel(); drag = null; marquee = null; menuRequested = false; }
     boolean updateDrag(TimelineModel model) {
         if (drag == null) return false;
         if (drag.model() != model || !drag.isCurrent() || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)
@@ -116,19 +120,67 @@ final class ActorRootTimelineRows {
                 || !model.getAllTracks().contains(focusOwner)) { clearFocus(); return false; }
         // Key focus must never fall through to operations on the actor reference.
         if (isDragging()) return true;
+        execute(model, action);
+        return true;
+    }
+    boolean execute(TimelineModel model, String action) {
+        rejection = null;
+        if (focusModel != model || focusClip == null || model.getSelectedClip() != focusClip.getTimelineClip()
+                || !model.getAllTracks().contains(focusOwner) || isDragging()) { rejection = "unavailable"; return false; }
         boolean live = !selected.isEmpty() && focusClip.getKeyframes().containsAll(selected);
-        if (action.equals("copy") && live) clipboard.copy(focusClip, selected);
-        if (action.equals("cut") && live
-                && com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, focusOwner, focusClip)
-                && clipboard.copy(focusClip, selected))
-            com.director.ui.actor.pose.ActorRootKeyframeClipboard.delete(model, focusOwner, focusClip, selected);
-        if (action.equals("delete") && live)
-            com.director.ui.actor.pose.ActorRootKeyframeClipboard.delete(model, focusOwner, focusClip, selected);
+        if (!action.equals("paste") && !live) { rejection = "no_selection"; return false; }
+        if (action.equals("copy")) return clipboard.copy(focusClip, selected);
+        if (!com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, focusOwner, focusClip)) {
+            rejection = "readonly"; return false;
+        }
+        if (action.equals("delete") || action.equals("cut")) {
+            if (action.equals("cut") && !clipboard.copy(focusClip, selected)) return false;
+            return com.director.ui.actor.pose.ActorRootKeyframeClipboard.delete(model, focusOwner, focusClip, selected);
+        }
         if (action.equals("paste")) {
             var pasted = clipboard.pasteAll(model, focusOwner, focusClip);
-            if (!pasted.isEmpty()) { selected.clear(); selected.addAll(pasted); focusKey = pasted.getFirst(); }
+            if (!pasted.isEmpty()) { selected.clear(); selected.addAll(pasted); focusKey = pasted.getFirst(); return true; }
+            rejection = "paste_rejected";
         }
-        return true;
+        return false;
+    }
+    String rejection() { return rejection; }
+    boolean renderMenu(TimelineModel model) {
+        if (!menuRequested) {
+            if (ImGui.beginPopup(POPUP)) {
+                try { ImGui.closeCurrentPopup(); } finally { ImGui.endPopup(); }
+                return true;
+            }
+            return false;
+        }
+        if (ImGui.beginPopup(POPUP)) {
+            try {
+                if (model != focusModel || menuRevision != model.getActorEditContextRevision()
+                        || model.getSelectedClip() != focusClip.getTimelineClip() || !model.getAllTracks().contains(focusOwner)
+                        || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) {
+                    menuRequested = false; ImGui.closeCurrentPopup(); return true;
+                }
+                ImGui.text(tr("menu_title"));
+                var live = selected.stream().filter(focusClip.getKeyframes()::contains).toList();
+                ImGui.text(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.root_rows.selected_count", live.size()));
+                if (!live.isEmpty()) {
+                    float first = live.stream().map(EntityClipKeyframe::getTime).min(Float::compare).orElse(0f);
+                    float last = live.stream().map(EntityClipKeyframe::getTime).max(Float::compare).orElse(0f);
+                    ImGui.text(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.root_rows.time_range", first, last));
+                }
+                ImGui.separator();
+                for (String action : List.of("copy", "cut", "delete", "paste")) {
+                    if (ImGui.button(tr(action))) {
+                        if (execute(model, action)) { menuRequested = false; ImGui.closeCurrentPopup(); }
+                    }
+                }
+                if (rejection != null) ImGui.textWrapped(tr(rejection));
+                ImGui.textWrapped(tr("whole_key_hint"));
+            } finally { ImGui.endPopup(); }
+            return true;
+        }
+        if (!ImGui.isPopupOpen(POPUP)) menuRequested = false;
+        return false;
     }
     static final int COUNT = 3;
     record Hit(EntityClip clip, EntityClipKeyframe key, float x) {}
@@ -171,8 +223,8 @@ final class ActorRootTimelineRows {
     }
     boolean click(TimelineModel model, TimelineTrack track, float mouseX, float left, int row, TimelineRenderMath math) {
         if (row < 0 || row >= COUNT) return false;
-        // Consume right clicks on root rows; they must not reach bone or clip menus.
-        if (!ImGui.isMouseClicked(ImGuiMouseButton.Left)) return true;
+        boolean rightClick = ImGui.isMouseClicked(ImGuiMouseButton.Right);
+        if (!ImGui.isMouseClicked(ImGuiMouseButton.Left) && !rightClick) return true;
         var preferred = model.getSelectedClip();
         List<Hit> hits = new ArrayList<>();
         if (mouseX >= left) for (var clip : clips(track)) for (var key : clip.getKeyframes()) {
@@ -189,14 +241,21 @@ final class ActorRootTimelineRows {
             var hit = hits.getFirst();
             model.setSelectedClip(hit.clip().getTimelineClip()); model.setCurrentTime(hit.key().getTime());
             DirectorServices.get().uiSelection().setCurrentSelection(hit.clip().getTimelineClip());
-            select(model, track, hit.clip(), hit.key(), ImGui.getIO().getKeyCtrl());
-            if (!ImGui.getIO().getKeyCtrl()
+            select(model, track, hit.clip(), hit.key(), !rightClick && ImGui.getIO().getKeyCtrl());
+            if (!rightClick && !ImGui.getIO().getKeyCtrl()
                     && com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, track, hit.clip())) {
                 try {
                     drag = new com.director.ui.actor.pose.ActorRootKeyframeTimeSession(model, track, hit.clip(), hit.key(), selected);
                     dragMouseX = mouseX; dragPixelsPerSecond = math.getPixelsPerSecond(); previewTime = hit.key().getTime();
                 } catch (IllegalArgumentException unavailable) { cancel(); }
             }
+        }
+        if (rightClick && model.getSelectedClip() instanceof EntityTimelineClip wrapper
+                && wrapper.getParentTrack() == track && clips(track).contains(wrapper.getEntityClip())) {
+            if (focusModel != model || focusClip != wrapper.getEntityClip()) clearFocus();
+            focusModel = model; focusOwner = track; focusClip = wrapper.getEntityClip();
+            cancel(); rejection = null; menuRevision = model.getActorEditContextRevision();
+            menuRequested = true; ImGui.openPopup(POPUP);
         }
         return true;
     }
