@@ -520,6 +520,12 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.textWrapped("现有动画与目标类型不兼容，请先移除动画引用，再更换演员类型。");
         }
         ImGui.textWrapped(com.director.actor.rig.ActorRigCompatibility.explanation(actor));
+        var capabilities=com.director.actor.ActorCapabilities.of(actor);
+        ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.capabilities.summary",
+                capabilities.actions().size(),capabilities.editableBones()
+                    ? net.minecraft.client.resource.language.I18n.translate("gui.director.actor.capabilities.available")
+                    : net.minecraft.client.resource.language.I18n.translate("gui.director.actor.capabilities.unavailable"),
+                capabilities.propSlots().size()));
 
         // ---- Custom rig binding (only relevant for ActorType.CUSTOM) ----
         if (actor.getType() == ActorType.CUSTOM) {
@@ -1074,6 +1080,17 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         if (actorTracks.isEmpty()) {
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NOT_USED_IN_TIMELINE));
+            ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.binding.hint"));
+            ImGui.beginDisabled(timeline.isPlaying() || timeline.isScrubbing());
+            if(ImGui.smallButton(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.binding.create"))) {
+                try {
+                    com.director.ui.actor.ActorTrackBindingEditing.create(timeline,actor);
+                    ActorSelectionHub.selectActor(actor.getActorId());
+                } catch(IllegalStateException | IllegalArgumentException failure) {
+                    LOGGER.warn("Cannot bind actor track: {}",failure.getMessage());
+                }
+            }
+            ImGui.endDisabled();
             ImGui.sameLine();
             if (ImGui.smallButton(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_ACTOR) + "##unused")) {
                 openDeleteConfirm(actor.getActorId());
@@ -1362,7 +1379,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTION_BRUSH), UITheme.DarkTheme.TEXT);
 
         ActorActionType currentBrush = ActionBrushState.get();
-        if (currentBrush != null && (actor.getRigProfile() == null || !actor.getRigProfile().supports(currentBrush)))
+        if (currentBrush != null && !com.director.actor.ActorCapabilities.of(actor).supports(currentBrush))
             ImGui.textWrapped("当前笔刷不适用于此演员，请选择下方支持的动作。");
         String currentLabel = currentBrush != null
                 ? ActorPropertyAdapterI18n.actionSemanticLabel(currentBrush)
@@ -1370,7 +1387,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
 
         if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CURRENT_BRUSH), currentLabel)) {
             for (ActorActionType type : ActorActionType.values()) {
-                if (actor.getRigProfile() == null || !actor.getRigProfile().supports(type)) continue;
+                if (!com.director.actor.ActorCapabilities.of(actor).supports(type)) continue;
                 boolean selected = type == currentBrush;
                 if (ImGui.selectable(ActorPropertyAdapterI18n.actionSemanticLabel(type), selected)) {
                     ActionBrushState.set(type);

@@ -97,20 +97,17 @@ public final class ActorSelectionHub {
             return;
         }
 
-        // 1️⃣ 找到对应的 ActorTrack
-        TimelineTrack track = findActorTrackByActorId(model, actorId);
-        if (track == null) {
-            // Actor 存在，但当前 Timeline 没有使用它
-            LOGGER.debug("[ActorSelectionHub] 未找到 Actor {} 对应的 ActorTrack，清空选择", actorId);
-            clearSelection();
-            return;
+        var actor=com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
+        if(!com.director.actor.ActorCapabilities.of(actor).selectable()) { clearSelection(); return; }
+        if(!java.util.Objects.equals(currentActorId,actorId))
+            com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
+        TimelineTrack track=ActorSelectionTarget.resolve(model,actorId);
+        if(track==null) model.clearSelection();
+        else {
+            // Preserve an explicit reference when selecting a bone on the same actor.
+            var clip=model.getSelectedClip();
+            if(clip==null || clip.getParentTrack()!=track) model.selectItem(track,false);
         }
-
-        // 2️⃣ Timeline：选中 Track
-        // 注意：TimelineInteractionHandler 没有单例，由 TimelinePanel 持有
-        // 为了保持解耦，这里直接使用 model.selectItem()
-        // 如果未来需要更复杂的选中逻辑，可以通过服务注入 TimelineInteractionHandler
-        model.selectItem(track, false); // false = 单选模式，清空后选中
 
         // ⭐ 明确清除方块选区（Actor 选择不应该有方块选区）
         // 必须在 SelectionManager.selectActor() 之前清除，避免干扰
@@ -131,7 +128,13 @@ public final class ActorSelectionHub {
                 com.director.ui.actor.lookat.ActorLookAtGizmoController.getInstance();
         com.director.ui.actor.pose.ActorBoneSelectionController boneSelection =
                 com.director.ui.actor.pose.ActorBoneSelectionController.getInstance();
-        if (boneSelection.isActive()) {
+        if (track==null || !com.director.actor.ActorCapabilities.of(actor).editableBones()) {
+            boneSelection.deactivate();
+        }
+        if (track==null) {
+            gizmoController.clearTarget();
+            lookAtController.clearTarget();
+        } else if (boneSelection.isActive()) {
             boneSelection.synchronizeActor(actorId);
             gizmoController.clearTarget();
             lookAtController.clearTarget();
@@ -147,7 +150,7 @@ public final class ActorSelectionHub {
         // 6️⃣ 更新当前选中的 Actor ID（供 Visualizer 使用）
         currentActorId = actorId;
 
-        LOGGER.debug("[ActorSelectionHub] 已选中 Actor: {} (Track: {})", actorId, track.getName());
+        LOGGER.debug("[ActorSelectionHub] 已选中 Actor: {} (Track: {})", actorId, track==null ? "unbound or ambiguous" : track.getName());
     }
 
     /**
@@ -159,6 +162,8 @@ public final class ActorSelectionHub {
     public static void selectBone(UUID actorId, String boneId, boolean additive) {
         com.director.ui.actor.pose.ActorBonePropertiesPanel.cancelNumericDraft();
         if (actorId == null || boneId == null) return;
+        var actor=com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
+        if(!com.director.actor.ActorCapabilities.of(actor).editableBones()) return;
         var selection = com.director.ui.actor.pose.ActorBoneSelectionController.getInstance();
         com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().deactivate();
         selectActor(actorId);
@@ -288,34 +293,4 @@ public final class ActorSelectionHub {
      * @param actorId Actor ID
      * @return TimelineTrack，如果未找到则返回 null
      */
-    private static TimelineTrack findActorTrackByActorId(TimelineModel model, UUID actorId) {
-        if (model == null || actorId == null) {
-            return null;
-        }
-
-        for (TimelineTrack track : model.getTracks()) {
-            if (track == null || track.getType() != TrackType.ACTOR) {
-                continue;
-            }
-
-            // 使用 getActorTrackPayload() 获取 ActorTrack
-            ActorTrack actorTrack = track.getActorTrackPayload();
-            if (actorTrack == null) {
-                continue;
-            }
-
-            // 通过 ActorRef 获取 Actor ID
-            ActorRef ref = actorTrack.getActorRef();
-            if (ref == null) {
-                continue;
-            }
-
-            if (Objects.equals(ref.getActorId(), actorId)) {
-                return track;
-            }
-        }
-
-        return null;
-    }
-
 }

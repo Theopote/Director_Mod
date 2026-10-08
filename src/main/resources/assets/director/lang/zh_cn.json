@@ -2278,5 +2278,10 @@
   "gui.director.actor.detail.missing_asset": "动画资产不存在，请检查引用或重新导入资产。",
   "gui.director.actor.detail.incompatible": "动画骨架与演员不兼容，请选择匹配的资产。",
   "gui.director.actor.detail.outside": "播放头位于所选动画引用之外；移动到片段内即可编辑。",
-  "gui.director.actor.detail.read_only": "当前为只读状态：请检查锁定、禁用、播放或拖动播放头状态。"
+  "gui.director.actor.detail.read_only": "当前为只读状态：请检查锁定、禁用、播放或拖动播放头状态。",
+  "gui.director.actor.capabilities.summary": "支持 %d 种行为 · 骨骼关键帧：%s · 支持 %d 个道具挂点",
+  "gui.director.actor.capabilities.available": "可用",
+  "gui.director.actor.capabilities.unavailable": "不可用",
+  "gui.director.actor.binding.hint": "此演员尚未绑定轨道，可以查看实例属性。创建空轨道后再显式添加出生和行为片段。",
+  "gui.director.actor.binding.create": "创建演员轨道"
 }

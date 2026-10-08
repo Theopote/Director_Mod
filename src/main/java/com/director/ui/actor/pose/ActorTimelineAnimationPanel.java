@@ -43,8 +43,10 @@ public final class ActorTimelineAnimationPanel {
                     target.clip().getName(),target.clip().getAnimationId()));
             if(target.asset()!=null) {
                 var context=ActorAnimationEditContext.capture(model,target.track(),target.clip());
-                ImGui.textDisabled(I18n.translate("gui.director.actor.detail.time",
-                        model.getCurrentTime(),context.assetTime()));
+                if (context != null) {
+                    ImGui.textDisabled(I18n.translate("gui.director.actor.detail.time",
+                            model.getCurrentTime(),context.assetTime()));
+                }
                 int references=ActorAnimationAssetEditing.referenceCount(model,target.asset().id());
                 if(references>1) ImGui.textWrapped(I18n.translate("gui.director.actor.detail.shared",references));
             }

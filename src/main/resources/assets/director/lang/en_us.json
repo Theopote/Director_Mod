@@ -2278,5 +2278,10 @@
   "gui.director.actor.detail.missing_asset": "The animation asset is missing. Check the reference or import the asset again.",
   "gui.director.actor.detail.incompatible": "The animation rig is incompatible with this actor. Choose a matching asset.",
   "gui.director.actor.detail.outside": "The playhead is outside the selected animation reference. Move inside it to edit.",
-  "gui.director.actor.detail.read_only": "Read only: check locks, muted states, playback or playhead scrubbing."
+  "gui.director.actor.detail.read_only": "Read only: check locks, muted states, playback or playhead scrubbing.",
+  "gui.director.actor.capabilities.summary": "%d behaviors · Bone keyframes: %s · %d prop sockets",
+  "gui.director.actor.capabilities.available": "Available",
+  "gui.director.actor.capabilities.unavailable": "Unavailable",
+  "gui.director.actor.binding.hint": "This actor has no track. You can inspect its properties. Create an empty track, then explicitly add spawn and behavior clips.",
+  "gui.director.actor.binding.create": "Create actor track"
 }

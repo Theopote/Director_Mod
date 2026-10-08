@@ -112,7 +112,7 @@ public final class ActorGroupTimelineCommandService {
                     : track == null || track.getActorTrackPayload() == null ? SkipReason.NO_TRACK
                     : track.isLocked() ? SkipReason.LOCKED
                     : id.equals(source) ? SkipReason.SOURCE_ACTOR
-                    : action != null && (actor.getRigProfile() == null || !actor.getRigProfile().supports(action))
+                    : action != null && !com.director.actor.ActorCapabilities.of(actor).supports(action)
                             ? SkipReason.UNSUPPORTED_ACTION : null;
             if (reason == null) eligible.add(id); else skipped.add(new SkippedMember(id, reason));
         }

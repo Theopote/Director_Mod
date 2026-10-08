@@ -55,7 +55,7 @@ public final class ActorUsageQuery {
             return result;
         }
 
-        for (TimelineTrack track : timeline.getTracks()) {
+        for (TimelineTrack track : timeline.getAllTracks()) {
             if (track == null) {
                 continue;
             }
@@ -98,7 +98,7 @@ public final class ActorUsageQuery {
             return result;
         }
 
-        for (TimelineTrack track : timeline.getTracks()) {
+        for (TimelineTrack track : timeline.getAllTracks()) {
             if (track == null) {
                 continue;
             }

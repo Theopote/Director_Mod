@@ -62,8 +62,8 @@ public final class ActorSelectorPanel {
             ImGui.pushID(actor.getActorId().toString());
 
             String displayText = actor.getName() + "  (" + ActorPropertyAdapterI18n.actorTypeLabel(actor.getType()) + ")";
-            if (ImGui.selectable(displayText, false)) {
-                // TODO: select actor details or linked track
+            if (ImGui.selectable(displayText, actor.getActorId().equals(com.director.ui.actor.selection.ActorSelectionHub.getSelectedActorId()))) {
+                com.director.ui.actor.selection.ActorSelectionHub.selectActor(actor.getActorId());
             }
 
             if (ImGui.beginPopupContextItem("ActorContextMenu")) {

@@ -56,10 +56,9 @@ public final class ActorTrackClipAuthoringService {
         if (actor == null) return null;
         ActorActionType action = actionType == null ? ActorActionType.IDLE : actionType;
         if (kind == ActorTrackClipKind.ACTION
-                && (actor.getRigProfile() == null || !actor.getRigProfile().supports(action))) return null;
+                && !com.director.actor.ActorCapabilities.of(actor).supports(action)) return null;
         if (kind == ActorTrackClipKind.POSE
-                && com.director.actor.rig.ActorRigCompatibility.resolveRig(actor)
-                    .filter(com.director.actor.rig.skeleton.HumanoidTopology::matches).isEmpty()) return null;
+                && !com.director.actor.ActorCapabilities.of(actor).humanoidPose()) return null;
         if (!Float.isFinite(model.getCurrentTime())) return null;
         float start = Math.max(0.0f, model.getCurrentTime());
         EntityClip clip = switch (kind) {
