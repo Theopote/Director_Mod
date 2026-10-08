@@ -31,8 +31,6 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
     
     // 记录删除 Track 后，Actor 是否还在其他地方被使用
     private UUID orphanedActorId = null; // 如果删除 Track 后 Actor 未被使用，记录其 ID
-    private Actor removedActor;
-    private boolean removedActorFromRegistry;
 
     public DeleteTrackCommand(TimelineModel model, TimelineTrack track, List<TimelineTrack> trackList) {
         super(model, "track_deleted");
@@ -46,8 +44,7 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
             LOGGER.warn("[Timeline] 删除轨道失败：track 或 trackList 为 null");
             return;
         }
-        removedActor = null;
-        removedActorFromRegistry = false;
+        orphanedActorId = null;
         
         // 如果是 ActorTrack，检查删除后 Actor 是否还在其他地方被使用
         if (track.getType() == TrackType.ACTOR) {
@@ -79,7 +76,7 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
                 ChangeKeyframeInterpolationCommand.clearInterpolationsForClip(clip);
             }
             trackList.remove(removedIndex);
-            removeActorIfOrphaned();
+            // Removing an animation owner must not delete the project actor instance.
             LOGGER.info("[Timeline] 删除轨道，索引: {}", removedIndex);
         } else {
             LOGGER.warn("[Timeline] 删除轨道失败：轨道不在列表中");
@@ -94,92 +91,9 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
         }
         if (removedIndex >= 0 && removedIndex <= trackList.size()) {
             trackList.add(removedIndex, track);
-            restoreActorIfNeeded();
+
             LOGGER.info("[Timeline] 恢复轨道到索引: {}", removedIndex);
         }
-    }
-
-    /**
-     * 检查并删除孤立的演员
-     * <p>如果删除轨道后，该演员没有任何轨道和片段了，则从注册表中删除该演员
-     */
-    private void removeActorIfOrphaned() {
-        if (track == null || track.getType() != TrackType.ACTOR || model == null) {
-            return;
-        }
-
-        ActorTrack actorTrack = track.getActorTrackPayload();
-        if (actorTrack == null) {
-            return;
-        }
-
-        ActorRef actorRef = actorTrack.getActorRef();
-        if (actorRef == null) {
-            return;
-        }
-
-        UUID actorId = actorRef.getActorId();
-
-        // 检查该演员是否还有任何轨道和片段（不限于 SpawnClip）
-        if (hasAnyClip(model, actorId)) {
-            return;
-        }
-
-        // 如果没有轨道和片段了，删除该演员
-        ActorRegistry registry = ActorRegistryManager.getInstance();
-        registry.getActor(actorId).ifPresent(actor -> {
-            removedActor = actor;
-            removedActorFromRegistry = registry.removeActor(actorId);
-            
-            // 清理 Minecraft 世界中的预览实体
-            ActorPreviewManager.getInstance().removePreview(actorId);
-            
-            // 如果删除的是当前选中的演员，清除选择（包括方块选区）
-            com.director.ui.actor.selection.ActorSelectionHub.clearSelection();
-            
-            LOGGER.info("[DeleteTrackCommand] 演员 {} 的所有轨道已删除，已从注册表中移除，预览实体和选区已清理", actor.getName());
-        });
-    }
-
-    private void restoreActorIfNeeded() {
-        if (!removedActorFromRegistry || removedActor == null) {
-            return;
-        }
-        ActorRegistry registry = ActorRegistryManager.getInstance();
-        registry.registerActor(removedActor);
-    }
-
-    /**
-     * 检查指定演员是否还有任何轨道和片段
-     * 
-     * @param model TimelineModel
-     * @param actorId 演员ID
-     * @return 如果还有轨道和片段则返回 true
-     */
-    private boolean hasAnyClip(TimelineModel model, UUID actorId) {
-        if (model == null || actorId == null) {
-            return false;
-        }
-
-        // 遍历所有轨道，查找该演员的轨道
-        for (TimelineTrack t : model.getTracks()) {
-            if (t == null || t.getType() != TrackType.ACTOR) {
-                continue;
-            }
-            ActorTrack actorTrack = t.getActorTrackPayload();
-            if (actorTrack == null) {
-                continue;
-            }
-            ActorRef ref = actorTrack.getActorRef();
-            // 找到该演员的轨道，检查是否还有片段
-            if (ref != null && actorId.equals(ref.getActorId())) {
-                if (actorTrack.hasClips()) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     @Override

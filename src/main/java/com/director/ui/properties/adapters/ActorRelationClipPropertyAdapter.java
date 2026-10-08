@@ -98,7 +98,7 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
                 float[] angle = {clip.getAngle()};
                 if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.ANGLE) + "##relationAngle",
                         angle, -180.0f, 180.0f,
-                        ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DEGREE_FMT))) {
+                        "%.1f deg")) {
                     clip.setAngle(angle[0]);
                     changed = true;
                 }

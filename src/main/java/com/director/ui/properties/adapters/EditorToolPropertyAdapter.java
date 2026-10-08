@@ -263,7 +263,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     private void degreeSlider(String label, ImFloat value) {
         float[] arr = { value.get() };
         if (ImGui.sliderFloat(label, arr, -90.0f, 90.0f,
-                ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DEGREE_FMT))) {
+                "%.1f deg")) {
             value.set(arr[0]);
         }
     }

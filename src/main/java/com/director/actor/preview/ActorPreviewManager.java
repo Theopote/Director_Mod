@@ -51,6 +51,14 @@ public final class ActorPreviewManager {
 
     /** Entity ID 到 Actor ID 的反向映射（用于点击检测） */
     private final Map<Integer, UUID> entityToActor = new HashMap<>();
+    private final java.util.Map<Entity, org.joml.Vector3f> rootScales = new java.util.WeakHashMap<>();
+    public void setRootScale(Entity entity, org.joml.Vector3f scale) {
+        if(entity!=null && scale!=null && scale.isFinite()) rootScales.put(entity,new org.joml.Vector3f(scale));
+    }
+    public org.joml.Vector3f rootScale(Entity entity) {
+        return new org.joml.Vector3f(rootScales.getOrDefault(entity,new org.joml.Vector3f(1)));
+    }
+
 
     private ActorPreviewManager() {
     }

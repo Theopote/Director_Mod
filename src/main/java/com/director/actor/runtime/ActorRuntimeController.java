@@ -632,6 +632,8 @@ public final class ActorRuntimeController {
             boolean gizmoDragging = actorId != null
                     && com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
                     && actorId.equals(com.director.ui.actor.gizmo.ActorGizmoController.getInstance().getTargetActorId());
+            var liveScale=com.director.ui.actor.gizmo.ActorGizmoController.getInstance().previewScale(actorId);
+            ActorPreviewManager.getInstance().setRootScale(entity,liveScale==null ? s.scale : liveScale);
             if (entity instanceof com.director.actor.preview.PreviewActorEntity previewEntity) {
                 var scaleDraft = com.director.ui.actor.gizmo.ActorGizmoController.getInstance().previewScale(actorId);
                 previewEntity.setActorTransformScale(scaleDraft == null ? s.scale : scaleDraft);
@@ -642,6 +644,8 @@ public final class ActorRuntimeController {
 
             // === Transform ===
             if (!gizmoDragging) {
+                entity.setBodyYaw(s.rotation.x);
+                entity.setHeadYaw(s.rotation.x);
                 entity.refreshPositionAndAngles(
                         s.position.x,
                         s.position.y,
@@ -656,15 +660,14 @@ public final class ActorRuntimeController {
             if (lookDraft != null && s.lookAtEnabled) {
                 s.lookAtPoint.set((float) lookDraft.x, (float) lookDraft.y, (float) lookDraft.z);
             }
-            if (s.lookAtEnabled && !gizmoDragging) {
-                applyLookAt(entity, s);
-            }
+
 
             // === State ===
             applyState(entity, s);
 
             // === RigProfile：应用动作语义到 Runtime 表现 ===
             applyRigProfile(s, deltaTime);
+            if (s.lookAtEnabled && !gizmoDragging) applyLookAt(entity,s);
 
             // === Action（一次性触发）===
             applyActionEvents(s, prev);
@@ -996,22 +999,24 @@ public final class ActorRuntimeController {
             float yaw = (float) (Math.atan2(dir.z, dir.x) * 180 / Math.PI) - 90;
             float pitch = (float) (-Math.asin(dir.y) * 180 / Math.PI);
 
-            // 使用 lookAtStrength 进行插值
-            float currentYaw = entity.getYaw();
-            float currentPitch = entity.getPitch();
-
-            entity.setYaw(lerp(currentYaw, yaw, s.lookAtStrength));
-            entity.setPitch(lerp(currentPitch, pitch, s.lookAtStrength));
-
-            // 同时更新 ActorRuntime 的 headYaw 和 headPitch（供 RigProfile / Renderer 使用）
-            if (entity instanceof com.director.actor.preview.PreviewActorEntity previewEntity) {
-                com.director.actor.runtime.ActorRuntime runtime = previewEntity.getActorRuntime();
-                if (runtime != null) {
-                    // 转换为弧度
-                    runtime.setHeadYaw((float) Math.toRadians(yaw - currentYaw));
-                    runtime.setHeadPitch((float) Math.toRadians(pitch - currentPitch));
+            float strength=Math.max(0f,Math.min(1f,s.lookAtStrength));
+            if(!Float.isFinite(strength) || !Float.isFinite(yaw) || !Float.isFinite(pitch)) return;
+            // Gaze changes the head, never the actor root or armor-stand base plate.
+            float relativeYaw=net.minecraft.util.math.MathHelper.wrapDegrees(yaw-s.rotation.x)*strength;
+            float headPitch=pitch*strength;
+            entity.setHeadYaw(s.rotation.x+relativeYaw);
+            if(entity instanceof com.director.actor.preview.PreviewActorEntity preview) {
+                var pose=preview.getFinalRigPose();
+                if(pose!=null && pose.rig().findBoneIndex("head")>=0) {
+                    var head=pose.localTransform("head");
+                    pose.setLocalTransform(pose.rig().requireBoneIndex("head"),
+                        new com.director.actor.rig.skeleton.BoneTransform(head.translation(),
+                            new org.joml.Quaternionf().rotationYXZ((float)Math.toRadians(-relativeYaw),
+                                (float)Math.toRadians(headPitch),0),head.scale()),
+                        com.director.actor.rig.skeleton.RigPose.ROTATION);
+                    preview.setFinalRigPose(pose);
                 }
-            }
+            } else entity.setPitch(headPitch);
         }
 
         /**

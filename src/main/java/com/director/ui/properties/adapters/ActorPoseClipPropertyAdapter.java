@@ -121,7 +121,7 @@ public final class ActorPoseClipPropertyAdapter implements IPropertyAdapter<Acto
     private boolean radSlider(String label, float radians, FloatSetter setter) {
         float[] degrees = {(float) Math.toDegrees(radians)};
         boolean changed = ImGui.sliderFloat(label, degrees, -90.0f, 90.0f,
-                ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DEGREE_FMT));
+                "%.1f deg");
         if (changed) setter.set((float) Math.toRadians(degrees[0]));
         gesture.observe(label,changed);
         return changed;
