@@ -135,7 +135,7 @@ public final class RuntimeProp {
             return;
         }
 
-        if (!(actor instanceof com.director.actor.preview.PreviewActorEntity preview)) {
+        if (!(actor instanceof com.director.actor.preview.ActorPosePreview preview)) {
             worldPosition = null; worldTransform = null; return;
         }
         var pose = preview.getFinalRigPose();

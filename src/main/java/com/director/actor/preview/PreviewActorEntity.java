@@ -42,7 +42,7 @@ import net.minecraft.util.math.Vec3d;
  * @author Director Team
  * @version 1.0
  */
-public class PreviewActorEntity extends ArmorStandEntity {
+public class PreviewActorEntity extends ArmorStandEntity implements ActorPosePreview {
 
     /** ActorRuntime（身体控制参数，由 Renderer 读取） */
     private ActorRuntime actorRuntime;

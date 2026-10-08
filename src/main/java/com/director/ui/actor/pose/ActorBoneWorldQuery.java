@@ -1,7 +1,7 @@
 package com.director.ui.actor.pose;
 
 import com.director.actor.preview.ActorPreviewManager;
-import com.director.actor.preview.PreviewActorEntity;
+import com.director.actor.preview.ActorPosePreview;
 import com.director.actor.rig.skeleton.RigPose;
 import com.director.actor.rig.skeleton.RigWorldPose;
 import org.joml.Matrix4f;
@@ -14,7 +14,7 @@ public final class ActorBoneWorldQuery {
 
     public static RigWorldPose resolve(UUID actorId) {
         if (!com.director.actor.rig.ActorRigCompatibility.editable(actorId)) return null;
-        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity entity)) {
+        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview entity)) {
             return null;
         }
         RigPose pose = entity.getFinalRigPose();

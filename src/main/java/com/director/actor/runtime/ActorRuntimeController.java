@@ -381,7 +381,7 @@ public final class ActorRuntimeController {
                     applySample(entity, sample, lastSample, deltaTime);
                     
                     // 5️⃣ 将 ActorRuntime 传递给 PreviewEntity（供 Renderer 使用）
-                    if (entity instanceof com.director.actor.preview.PreviewActorEntity previewEntity) {
+                    if (entity instanceof com.director.actor.preview.ActorPosePreview previewEntity) {
                         previewEntity.setActorRuntime(actorRuntime);
                     }
                     
@@ -634,7 +634,7 @@ public final class ActorRuntimeController {
                     && actorId.equals(com.director.ui.actor.gizmo.ActorGizmoController.getInstance().getTargetActorId());
             var liveScale=com.director.ui.actor.gizmo.ActorGizmoController.getInstance().previewScale(actorId);
             ActorPreviewManager.getInstance().setRootScale(entity,liveScale==null ? s.scale : liveScale);
-            if (entity instanceof com.director.actor.preview.PreviewActorEntity previewEntity) {
+            if (entity instanceof com.director.actor.preview.ActorPosePreview previewEntity) {
                 var scaleDraft = com.director.ui.actor.gizmo.ActorGizmoController.getInstance().previewScale(actorId);
                 previewEntity.setActorTransformScale(scaleDraft == null ? s.scale : scaleDraft);
             }
@@ -662,12 +662,22 @@ public final class ActorRuntimeController {
             }
 
 
+            // Runtime samples already interpolate in scene time. Vanilla tick interpolation
+            // must not blend against stale previous angles on client-only actors.
+            entity.lastYaw=entity.getYaw(); entity.lastPitch=entity.getPitch();
+            if(entity instanceof net.minecraft.entity.LivingEntity living) {
+                living.lastBodyYaw=living.bodyYaw; living.lastHeadYaw=living.headYaw;
+            }
             // === State ===
             applyState(entity, s);
 
             // === RigProfile：应用动作语义到 Runtime 表现 ===
             applyRigProfile(s, deltaTime);
             if (s.lookAtEnabled && !gizmoDragging) applyLookAt(entity,s);
+            entity.lastYaw=entity.getYaw(); entity.lastPitch=entity.getPitch();
+            if(entity instanceof net.minecraft.entity.LivingEntity living) {
+                living.lastBodyYaw=living.bodyYaw; living.lastHeadYaw=living.headYaw;
+            }
 
             // === Action（一次性触发）===
             applyActionEvents(s, prev);
@@ -690,7 +700,7 @@ public final class ActorRuntimeController {
             var rig = com.director.actor.rig.skeleton.RigDefinitions.find(model.rigId()).orElse(null);
             if (rig == null) return;
             com.director.actor.rig.skeleton.RigPose pose = null;
-            if (entity instanceof com.director.actor.preview.PreviewActorEntity preview) {
+            if (entity instanceof com.director.actor.preview.ActorPosePreview preview) {
                 var current = preview.getFinalRigPose();
                 if (current != null && current.rig().boneCount() == rig.boneCount()) pose = current;
                 entity.setInvisible(true); // 宿主 ArmorStand 仅作锦点，真正外观由 cuboid 提供
@@ -759,11 +769,11 @@ public final class ActorRuntimeController {
                 applyRigPoseOverrides(finalRigPose, s);
                 applyPoseToRuntime(rigPose.pose);
                 Entity preview = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
-                if (preview instanceof com.director.actor.preview.PreviewActorEntity previewEntity) {
+                if (preview instanceof com.director.actor.preview.ActorPosePreview previewEntity) {
                     boolean boneDragging = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
                             && actor.getActorId().equals(com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().getActorId());
                     if (!boneDragging) {
-                        applyRootAnimationOffset(previewEntity, finalRigPose,s);
+                        applyRootAnimationOffset((Entity)previewEntity, finalRigPose,s);
                         previewEntity.setFinalRigPose(finalRigPose);
                     }
                 }
@@ -790,7 +800,7 @@ public final class ActorRuntimeController {
 
             // 6️⃣ 将最终姿态传递给 PreviewEntity（供 Renderer 使用）
             Entity entity = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
-            if (entity instanceof com.director.actor.preview.PreviewActorEntity previewEntity) {
+            if (entity instanceof com.director.actor.preview.ActorPosePreview previewEntity) {
                 boolean boneDragging = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
                         && actor.getActorId().equals(com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().getActorId());
                 if (!boneDragging) {
@@ -1005,7 +1015,7 @@ public final class ActorRuntimeController {
             float relativeYaw=net.minecraft.util.math.MathHelper.wrapDegrees(yaw-s.rotation.x)*strength;
             float headPitch=pitch*strength;
             entity.setHeadYaw(s.rotation.x+relativeYaw);
-            if(entity instanceof com.director.actor.preview.PreviewActorEntity preview) {
+            if(entity instanceof com.director.actor.preview.ActorPosePreview preview) {
                 var pose=preview.getFinalRigPose();
                 if(pose!=null && pose.rig().findBoneIndex("head")>=0) {
                     var head=pose.localTransform("head");

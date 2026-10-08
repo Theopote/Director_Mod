@@ -662,7 +662,7 @@ public final class ActorGizmoController {
                         to.x, to.y);
             }
             case SCALE -> {
-                if (preview instanceof com.director.actor.preview.PreviewActorEntity previewEntity)
+                if (preview instanceof com.director.actor.preview.ActorPosePreview previewEntity)
                     previewEntity.setActorTransformScale(editingClip.getToScale());
             }
             default -> {
@@ -733,7 +733,7 @@ public final class ActorGizmoController {
                 var sample = new EntityClipSampler(actorTrack).sampleAt(model.getCurrentTime());
                 if (sample != null && sample.enabled) {
                     preview.refreshPositionAndAngles(sample.position.x, sample.position.y, sample.position.z, sample.rotation.x, sample.rotation.y);
-                    if (preview instanceof com.director.actor.preview.PreviewActorEntity previewEntity)
+                    if (preview instanceof com.director.actor.preview.ActorPosePreview previewEntity)
                         previewEntity.setActorTransformScale(sample.scale);
                 } else if (originalPosition != null && originalRotation != null) {
                     preview.refreshPositionAndAngles(originalPosition.x, originalPosition.y, originalPosition.z,

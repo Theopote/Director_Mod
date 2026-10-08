@@ -253,6 +253,12 @@ public final class ActorPlacementController {
                 cameraSample.yaw(),
                 cameraSample.pitch()
         );
+        previewEntity.setBodyYaw(cameraSample.yaw()); previewEntity.setHeadYaw(cameraSample.yaw());
+        previewEntity.lastYaw=previewEntity.getYaw(); previewEntity.lastPitch=previewEntity.getPitch();
+        if(previewEntity instanceof net.minecraft.entity.LivingEntity living) {
+            living.lastBodyYaw=living.bodyYaw; living.lastHeadYaw=living.headYaw;
+        }
+
     }
 
     /**

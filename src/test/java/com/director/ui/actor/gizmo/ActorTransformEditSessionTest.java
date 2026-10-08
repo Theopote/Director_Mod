@@ -10,6 +10,18 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorTransformEditSessionTest {
+    @Test void repeatedTransformsAtSameTimeReuseOneClipAndNeverCreateAnotherTrack() {
+        var first=new ActorTransformEditSession(model,track,null);
+        first.arm(); first.draft().setToPos(2,3,4); var clip=first.commit();
+        assertNotNull(clip);
+        var second=new ActorTransformEditSession(model,track,
+                ActorTransformEditSession.resolveSource(track.getActorTrackPayload(),model.getCurrentTime()));
+        second.arm(); second.draft().setToRot(45,0,0); assertSame(clip,second.commit());
+        assertEquals(1,model.getAllTracks().size());
+        assertEquals(1,track.getClips().size()); assertEquals(1,track.getActorTrackPayload().getClips().size());
+        assertTrue(history.undo()); assertEquals(0,clip.getToRot().x);
+        assertTrue(history.undo()); assertTrue(track.getClips().isEmpty());
+    }
     TimelineModel model;
     TimelineTrack track;
     TimelineCommandHistory history;

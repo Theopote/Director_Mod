@@ -29,6 +29,8 @@
     "LivingEntityRendererMixin",
     "ActorScaleRendererMixin",
     "ArmorStandRendererMixin",
+    "PlayerActorRendererMixin",
+    "PlayerActorModelMixin",
     "ArmorStandArmorModelMixin",
     "ArmorStandEntityRenderStateMixin",
     "accessor.GameRendererAccessor",

@@ -215,7 +215,8 @@ public final class ActorPreviewManager {
                 return null;
             }
 
-            Entity entity = type == EntityType.ARMOR_STAND
+            Entity entity = actor.getType()==ActorType.PLAYER ? new PreviewPlayerActorEntity(world,actor)
+                    : type == EntityType.ARMOR_STAND
                     ? new PreviewActorEntity(EntityType.ARMOR_STAND, world)
                     : type.create(world, SpawnReason.COMMAND);
             if (entity == null) {
@@ -262,7 +263,7 @@ public final class ActorPreviewManager {
         }
 
         return switch (type) {
-            case PLAYER -> EntityType.ARMOR_STAND;
+            case PLAYER -> EntityType.PLAYER;
             case VILLAGER -> EntityType.VILLAGER;
             // CUSTOM 演员用 ARMOR_STAND 作为骨架驱动锚点：人形拓扑骨架直接复用其渲染，
             // 非人形拓扑自定义模型则由 CustomModelPreviewRenderer 在锚点位置叠加方块显示实体。

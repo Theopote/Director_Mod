@@ -7,7 +7,7 @@ import com.director.actor.animation.asset.AnimationLoopMode;
 import com.director.actor.animation.asset.BoneTrack;
 import com.director.actor.animation.asset.ChannelKeyframe;
 import com.director.actor.preview.ActorPreviewManager;
-import com.director.actor.preview.PreviewActorEntity;
+import com.director.actor.preview.ActorPosePreview;
 import com.director.actor.rig.Pose;
 import com.director.actor.rig.skeleton.BoneTransform;
 import com.director.actor.rig.skeleton.HumanoidRig;
@@ -192,7 +192,7 @@ public final class ActorBoneGizmoController {
         gestureTarget = settings.getEditTarget();
         gestureInterpolation = settings.getInterpolation();
         changed = false;
-        if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview) {
+        if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview) {
             previewBefore = preview.getFinalRigPose();
             legacyPreviewBefore = preview.getFinalPose() == null ? null : preview.getFinalPose().copy();
             previewPositionBefore = new Vec3d(preview.getX(), preview.getY(), preview.getZ());
@@ -323,7 +323,7 @@ public final class ActorBoneGizmoController {
     public void cancelDraft() {
         if ((dragging || pending) && gestureModel==resolveModel()
                 && Float.compare(gestureTime,gestureModel.getCurrentTime())==0) {
-            if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview) {
+            if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview) {
                 if (legacyPreviewBefore != null) preview.setFinalPose(legacyPreviewBefore);
                 preview.setFinalRigPose(previewBefore);
                 if (previewPositionBefore != null) preview.refreshPositionAndAngles(
@@ -408,7 +408,7 @@ public final class ActorBoneGizmoController {
         if (activeBoneMode == GizmoMode.TRANSLATE) {
             beforeTranslationKey = original.translation().findAt(animationKeyTime).orElse(null);
             animationBaseTranslation = resolveAnimationBaseTranslation(editingAsset, animationKeyTime);
-            if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview) {
+            if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview) {
                 animationActorBasePosition = new Vec3d(preview.getX(), preview.getY(), preview.getZ()).subtract(
                         animationBaseTranslation.x, animationBaseTranslation.y, animationBaseTranslation.z);
             }
@@ -429,7 +429,7 @@ public final class ActorBoneGizmoController {
         if (asset.findBoneTrack(boneId).filter(track -> !track.rotation().isEmpty()).isPresent()) {
             return asset.sample(keyTime, AnimationLoopMode.ONCE).localTransform(boneId).rotation();
         }
-        if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview) {
+        if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview) {
             RigPose pose = preview.getFinalRigPose();
             if (pose != null && pose.rig().id().equals(asset.rigId())) return pose.localTransform(boneId).rotation();
         }
@@ -440,7 +440,7 @@ public final class ActorBoneGizmoController {
         if (asset.findBoneTrack(boneId).filter(track -> !track.translation().isEmpty()).isPresent()) {
             return asset.sample(keyTime, AnimationLoopMode.ONCE).localTransform(boneId).translation();
         }
-        if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview) {
+        if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview) {
             RigPose pose = preview.getFinalRigPose();
             if (pose != null && pose.rig().id().equals(asset.rigId())) return pose.localTransform(boneId).translation();
         }
@@ -476,7 +476,7 @@ public final class ActorBoneGizmoController {
     }
 
     private void applyLiveRigPreview(Quaternionf rotation) {
-        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview)) return;
+        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview)) return;
         RigPose pose = preview.getFinalRigPose();
         if (pose == null || !pose.rig().id().equals(editingAsset.rigId())) pose = editingAsset.sample(animationKeyTime, AnimationLoopMode.ONCE);
         BoneTransform current = pose.localTransform(boneId);
@@ -485,7 +485,7 @@ public final class ActorBoneGizmoController {
     }
 
     private void applyLiveRigTranslation(Vector3f translation) {
-        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview)) return;
+        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview)) return;
         RigPose pose = preview.getFinalRigPose();
         if (pose == null || !pose.rig().id().equals(editingAsset.rigId())) pose = editingAsset.sample(animationKeyTime, AnimationLoopMode.ONCE);
         BoneTransform current = pose.localTransform(boneId);
@@ -499,7 +499,7 @@ public final class ActorBoneGizmoController {
     }
 
     private void applyLiveRigScale(Vector3f scale) {
-        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview)) return;
+        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview)) return;
         RigPose pose = preview.getFinalRigPose();
         if (pose == null || !pose.rig().id().equals(editingAsset.rigId())) pose = editingAsset.sample(animationKeyTime, AnimationLoopMode.ONCE);
         BoneTransform current = pose.localTransform(boneId);
@@ -587,14 +587,14 @@ public final class ActorBoneGizmoController {
     }
 
     private void seedFromPreview(ActorPoseClip clip) {
-        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview)) return;
+        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview)) return;
         Pose pose = preview.getFinalPose();
         if (pose == null) return;
         PoseClipState.fromPose(pose).applyValues(clip);
     }
 
     private void applyLivePreview(Axis axis, float value) {
-        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview)) return;
+        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview)) return;
         Pose current = preview.getFinalPose();
         if (current == null) current = new Pose(); else current = current.copy();
         BonePoseChannelMapper.write(current, boneId, axis, value);
