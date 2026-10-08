@@ -241,43 +241,7 @@ public final class ActorSelectorPanel {
     }
 
     private void deleteActor(Actor actor) {
-        if (actor == null) {
-            return;
-        }
-
-        try {
-            removeActorTracksForActor(actor.getActorId());
-            actorRegistry.removeActor(actor.getActorId());
-            timelineModel.markDirty();
-            LOGGER.info("[ActorSelector] 已删除 Actor: {} ({})", actor.getName(), actor.getType());
-        } catch (Exception e) {
-            LOGGER.error("[ActorSelector] 删除 Actor 失败", e);
-        }
-    }
-
-    private void removeActorTracksForActor(java.util.UUID actorId) {
-        if (actorId == null || timelineModel == null) {
-            return;
-        }
-
-        java.util.List<com.director.timeline.model.TimelineTrack> tracksToRemove = new java.util.ArrayList<>();
-
-        for (com.director.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
-            if (track.getType() == com.director.timeline.model.TrackType.ACTOR) {
-                com.director.timeline.model.entity.ActorTrack actorTrack = track.getActorTrackPayload();
-                if (actorTrack != null) {
-                    com.director.actor.ActorRef ref = actorTrack.getActorRef();
-                    if (ref != null && actorId.equals(ref.getActorId())) {
-                        tracksToRemove.add(track);
-                    }
-                }
-            }
-        }
-
-        for (com.director.timeline.model.TimelineTrack track : tracksToRemove) {
-            timelineModel.removeTrack(track);
-            LOGGER.debug("[ActorSelector] 已移除关联的 ActorTrack: {}", track.getName());
-        }
+        if (actor != null) ActorDeletionService.delete(timelineModel, actorRegistry, actor.getActorId());
     }
 
     private void updateActorTrackDisplayName(Actor actor) {

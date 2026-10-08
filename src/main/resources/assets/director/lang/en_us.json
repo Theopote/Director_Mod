@@ -1529,7 +1529,7 @@
   "gui.director.properties.adapter.actor.project.popup_delete": "Delete Actor",
   "gui.director.properties.adapter.actor.project.delete_confirm": "Are you sure you want to delete this actor?",
   "gui.director.properties.adapter.actor.project.delete_actor_fmt": "Actor: %s (%s)",
-  "gui.director.properties.adapter.actor.project.delete_undo_warning": "This action cannot be undone.",
+  "gui.director.properties.adapter.actor.project.delete_undo_warning": "Deletes the actor and associated tracks. Undo restores them.",
   "gui.director.properties.adapter.actor.project.action_brush": "🎨 Action Brush",
   "gui.director.properties.adapter.actor.project.current_brush": "Current Brush",
   "gui.director.properties.adapter.actor.project.brush_tooltip": "Choose the current paint action\nDrag on the actor track in the timeline to create ActionClips",

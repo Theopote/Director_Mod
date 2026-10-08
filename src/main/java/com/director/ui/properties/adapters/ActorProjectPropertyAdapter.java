@@ -1295,64 +1295,15 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     }
     
     /**
-     * 删除演员（同时删除该演员在演员轨道上的所有片段）
-     * <p>根据逻辑：在演员面板列表中的演员，一定在演员轨道上有对应的演员片段
-     * <p>删除演员时，应该同时删除该演员对应的轨道和所有片段
+     * Explicit instance deletion uses one history command, including unused actors.
+     * Skin assets are retained so undo can restore the original appearance.
      */
     private void deleteActor(ActorRegistry actorRegistry, UUID actorId) {
-        if (actorId == null) {
-            return;
-        }
-        
-        var timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (timelineModel == null) {
-            LOGGER.warn("[ActorProjectPropertyAdapter] TimelineModel 未初始化，无法删除轨道");
-            // 即使没有 TimelineModel，也尝试删除演员
-            actorRegistry.removeActor(actorId);
-            return;
-        }
-        
-        // 1️⃣ 查找使用该演员的所有轨道
-        List<TimelineTrack> tracksToRemove = ActorUsageQuery.findTimelineTracksUsingActor(
-                timelineModel, 
-                actorId
-        );
-        
-        // 2️⃣ 删除所有关联的轨道（这会自动删除轨道上的所有片段）
-        for (TimelineTrack track : tracksToRemove) {
-            timelineModel.removeTrack(track);
-            LOGGER.debug("[ActorProjectPropertyAdapter] 已删除关联的轨道: {}", track.getName());
-        }
-        
-        // 3️⃣ 清理 Minecraft 世界中的预览实体
-        ActorPreviewManager.getInstance().removePreview(actorId);
-        
-        // 4️⃣ 从 ActorRegistry 删除演员
-        boolean removed = actorRegistry.removeActor(actorId);
-        
-        if (removed) {
-            // 删除关联的皮肤文件与纹理
-            try {
-                ActorSkinStorage.deleteSkin(actorId);
-                ActorSkinTextureManager.invalidate(actorId);
-            } catch (Exception e) {
-                LOGGER.warn("[ActorProjectPropertyAdapter] 清理演员皮肤资源失败: {}", actorId, e);
-            }
-            // 如果删除的是当前选中的 Actor，清空选择
-            if (actorId.equals(selectedActorId)) {
-                selectedActorId = null;
-            }
-            
-            // 清空全局 Selection（包括方块选区）
-            ActorSelectionHub.clearSelection();
-
-            // 标记需要保存（通过 TimelineModel）
-            timelineModel.markDirty();
-            
-            LOGGER.info("[ActorProjectPropertyAdapter] 已删除演员 {} 及其所有轨道、片段、预览实体和选区", actorId);
-        }
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        com.director.ui.actor.ActorDeletionService.delete(model, actorRegistry, actorId);
+        if (actorId != null && !actorRegistry.contains(actorId) && actorId.equals(selectedActorId)) selectedActorId = null;
     }
-    
+
     // =========================================================
     // Action Brush Selector
     // =========================================================

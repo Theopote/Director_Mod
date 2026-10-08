@@ -101,6 +101,17 @@ public final class ActorRegistry {
      * @param actorId 演员ID
      * @return 如果包含则返回 true
      */
+    /** Reorder existing identities; does not create, delete, or alter group membership. */
+    public void reorderActors(List<Actor> order) {
+        Map<UUID, Actor> reordered = new LinkedHashMap<>();
+        for (Actor actor : order) {
+            if (actors.get(actor.getActorId()) == actor) reordered.put(actor.getActorId(), actor);
+        }
+        actors.forEach(reordered::putIfAbsent);
+        actors.clear();
+        actors.putAll(reordered);
+    }
+
     public boolean contains(UUID actorId) {
         return actors.containsKey(actorId);
     }

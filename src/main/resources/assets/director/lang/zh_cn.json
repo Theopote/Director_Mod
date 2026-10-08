@@ -1529,7 +1529,7 @@
   "gui.director.properties.adapter.actor.project.popup_delete": "删除演员",
   "gui.director.properties.adapter.actor.project.delete_confirm": "确定要删除此演员吗？",
   "gui.director.properties.adapter.actor.project.delete_actor_fmt": "演员: %s (%s)",
-  "gui.director.properties.adapter.actor.project.delete_undo_warning": "此操作无法撤销。",
+  "gui.director.properties.adapter.actor.project.delete_undo_warning": "将删除演员及其关联轨道，可通过撤销恢复。",
   "gui.director.properties.adapter.actor.project.action_brush": "🎨 动作笔刷",
   "gui.director.properties.adapter.actor.project.current_brush": "当前笔刷",
   "gui.director.properties.adapter.actor.project.brush_tooltip": "选择当前绘制动作\n在时间线的演员轨道上拖拽即可创建 ActionClip",
