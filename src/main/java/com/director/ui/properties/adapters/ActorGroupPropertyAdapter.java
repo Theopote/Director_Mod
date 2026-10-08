@@ -104,6 +104,13 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
             }
         }
 
+        var projectAdapter=com.director.ui.properties.PropertyAdapterRegistry.getAdapterFor((Object)"ACTOR_PROJECT");
+        if(projectAdapter instanceof ActorProjectPropertyAdapter project) project.renderGroupCommands(group);
+        if(ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_GROUP))) {
+            ActorRegistryManager.getInstance().removeGroup(group.getGroupId());
+            com.director.core.DirectorServices.get().uiSelection().clearSelection();
+            changed=true;
+        }
         if (changed) {
             ActorRegistryManager.save();
         }

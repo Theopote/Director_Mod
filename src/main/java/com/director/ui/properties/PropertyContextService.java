@@ -67,6 +67,22 @@ public final class PropertyContextService {
         }
     }
 
+    private Object actorInspection;
+    public void inspectActorObject(Object target) {
+        if(target instanceof com.director.actor.Actor || target instanceof com.director.actor.ActorGroup) {
+            actorInspection=target; cleared=false;
+        }
+    }
+    public Object getActorInspection() {
+        var registry=com.director.actor.ActorRegistryManager.getInstance();
+        boolean valid=actorInspection instanceof com.director.actor.Actor actor
+                ? registry.getActor(actor.getActorId()).orElse(null)==actorInspection
+                : actorInspection instanceof com.director.actor.ActorGroup group
+                    && registry.getGroup(group.getGroupId()).orElse(null)==actorInspection;
+        if(!valid) actorInspection=null;
+        return actorInspection;
+    }
+
     private PropertyContextService() {}
 
     public static PropertyContextService get() {
@@ -141,6 +157,7 @@ public final class PropertyContextService {
 
     /** Toolbar / 工具激活时调用，用于复位 cleared 并更新最近交互时间戳（与 Timeline 竞争时择一） */
     public void onToolActivated(String toolId) {
+        actorInspection=null;
         lastToolInteraction = System.nanoTime();
         cleared = false;
     }
@@ -152,6 +169,7 @@ public final class PropertyContextService {
      * 传 null 表示已离开时间线选择，仅清 lastTimelinePayload。
      */
     public void onTimelineSelectionChanged(Object selection) {
+        actorInspection=null;
         if (selection == null) {
             lastTimelinePayload = null;
             return;
@@ -166,11 +184,13 @@ public final class PropertyContextService {
 
     /** 世界 / Actor / Container 选中变化时调用（预留） */
     public void onWorldSelectionChanged(Object selection) {
+        actorInspection=null;
         cleared = false;
     }
 
     /** 清空上下文，强制 NONE 直至下次 onToolActivated / onTimelineSelectionChanged / onWorldSelectionChanged */
     public void clear() {
+        actorInspection=null;
         cleared = true;
     }
 }

@@ -147,6 +147,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         if (projectView) {
             selectedActorId = ActorSelectionHub.getSelectedActorId();
+            ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.browser.hint"));
             // Actor 列表
             modified |= renderActorList(actorRegistry);
 
@@ -169,7 +170,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         // 选中的 Actor 编辑器
-        if (selectedActorId != null) {
+        if (!projectView && selectedActorId != null) {
             modified |= renderSelectedActorEditor(actorRegistry);
         }
         
@@ -246,67 +247,24 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return false;
         }
 
-        boolean modified = false;
-        for (ActorGroup group : groups) {
-            String groupLabel = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_LABEL_FMT,
-                    group.getName(), group.size());
-            if (ImGui.treeNodeEx(group.getGroupId().toString(),
-                    ImGuiTreeNodeFlags.DefaultOpen,
-                    groupLabel)) {
-                ImString name = new ImString(group.getName(), 128);
-                if (ImGui.inputText(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME) + "##groupName" + group.getGroupId(), name, ImGuiInputTextFlags.EnterReturnsTrue)) {
-                    group.setName(name.get());
-                    modified = true;
-                }
-
-                ActorGroup.FormationType[] formations = ActorGroup.FormationType.values();
-                ImInt formation = new ImInt(group.getFormationType().ordinal());
-                if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.FORMATION) + "##groupFormation" + group.getGroupId(),
-                        formation, ActorPropertyAdapterI18n.formationTypeLabels())) {
-                    group.setFormationType(formations[Math.max(0, Math.min(formation.get(), formations.length - 1))]);
-                    modified = true;
-                }
-
-                float[] spacing = { group.getFormationSpacing() };
-                if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.FORMATION_SPACING) + "##groupFormationSpacing" + group.getGroupId(),
-                        spacing, 0.1f, 12.0f, "%.1f blocks")) {
-                    group.setFormationSpacing(spacing[0]);
-                    modified = true;
-                }
-
-                ActorGroup.DelayPolicy[] delays = ActorGroup.DelayPolicy.values();
-                ImInt delay = new ImInt(group.getDelayPolicy().ordinal());
-                if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELAY) + "##groupDelay" + group.getGroupId(),
-                        delay, ActorPropertyAdapterI18n.delayPolicyLabels())) {
-                    group.setDelayPolicy(delays[Math.max(0, Math.min(delay.get(), delays.length - 1))]);
-                    modified = true;
-                }
-
-                float[] step = { group.getDelayStepSeconds() };
-                if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELAY_STEP) + "##groupDelayStep" + group.getGroupId(), step, 0.0f, 5.0f, "%.2fs")) {
-                    group.setDelayStepSeconds(step[0]);
-                    modified = true;
-                }
-
-                renderGroupActionAuthoring(group);
-                renderGroupRouteAuthoring(group);
-                renderGroupPlacement(group);
-
-                if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_GROUP) + "##deleteGroup" + group.getGroupId())) {
-                    actorRegistry.removeGroup(group.getGroupId());
-                    modified = true;
-                    ImGui.treePop();
-                    break;
-                }
-
-                ImGui.treePop();
+        for(ActorGroup group:groups) {
+            ImGui.pushID(group.getGroupId().toString());
+            String label=ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_LABEL_FMT,group.getName(),group.size());
+            boolean selected=com.director.ui.properties.PropertyContextService.get().getActorInspection()==group;
+            if(ImGui.selectable(label+"##groupRow",selected)) {
+                ActorSelectionHub.clearSelection();
+                DirectorServices.get().uiSelection().setCurrentSelection(group);
+                com.director.ui.properties.PropertyContextService.get().inspectActorObject(group);
             }
+            ImGui.popID();
         }
+        return false;
+    }
 
-        if (modified) {
-            ActorRegistryManager.save();
-        }
-        return modified;
+    public void renderGroupCommands(ActorGroup group) {
+        renderGroupActionAuthoring(group);
+        renderGroupRouteAuthoring(group);
+        renderGroupPlacement(group);
     }
 
     private void renderGroupActionAuthoring(ActorGroup group) {
@@ -836,6 +794,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         // 所有编辑入口指向同一个演员。
         ActorSelectionHub.selectActor(actor.getActorId());
         this.selectedActorId = actor.getActorId();
+        com.director.ui.properties.PropertyContextService.get().inspectActorObject(actor);
 
         LOGGER.debug("[ActorProjectPropertyAdapter] Selected actor in panel: {}", actor.getActorId());
     }

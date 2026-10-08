@@ -2290,5 +2290,6 @@
   "gui.director.actor.look_tool.cancel": "Cancel new look-at",
   "gui.director.actor.look_tool.empty": "No look-at clip. Scene clicks do not create one automatically. Create a look-at behavior first. Use Rotate to change actor orientation.",
   "gui.director.actor.look_tool.create": "New look-at behavior",
-  "gui.director.actor.look_tool.select_owner": "Bind and explicitly select an actor track first."
+  "gui.director.actor.look_tool.select_owner": "Bind and explicitly select an actor track first.",
+  "gui.director.actor.browser.hint": "Find, create and select actors or groups here. Edit detailed settings and group authoring operations in the Properties panel."
 }

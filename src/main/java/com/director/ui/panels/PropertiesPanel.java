@@ -191,6 +191,23 @@ public class PropertiesPanel extends AbstractPanel {
         // PropertyContext 仲裁：只消费 getCurrentContext / getContextTarget
         // =========================
         PropertyContextService svc = PropertyContextService.get();
+        Object actorInspection=svc.getActorInspection();
+        if(actorInspection!=null) {
+            var adapter=PropertyAdapterRegistry.getAdapterFor(null,actorInspection);
+            if(adapter!=null) {
+                try {
+                    UITheme.title(adapter.getAdapterName());
+                    if (adapter.renderProperties(actorInspection, PropertyAdapterContext.of(1f, false))) {
+                        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+                        if (model != null) model.markDirty();
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("[PropertiesPanel] 渲染演员属性时出错", e);
+                    renderErrorMessage(e);
+                }
+                return;
+            }
+        }
         PropertyContext ctx = svc.getCurrentContext();
         Object target = svc.getContextTarget();
 
