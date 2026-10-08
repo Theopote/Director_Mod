@@ -149,10 +149,10 @@ public class ActorTransformApplier extends TransformApplier {
         };
     }
 
-    private static Vec3d rotationDelta(Axis axis, double degrees) {
+    static Vec3d rotationDelta(Axis axis, double degrees) {
         return switch (axis) {
             case X -> new Vec3d(0.0, degrees, 0.0);
-            case Y -> new Vec3d(degrees, 0.0, 0.0);
+            case Y -> new Vec3d(-degrees, 0.0, 0.0);
             case Z -> new Vec3d(0.0, 0.0, degrees);
         };
     }

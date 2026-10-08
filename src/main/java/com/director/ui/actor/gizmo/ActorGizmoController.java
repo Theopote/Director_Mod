@@ -660,6 +660,11 @@ public final class ActorGizmoController {
                 preview.refreshPositionAndAngles(
                         preview.getX(), preview.getY(), preview.getZ(),
                         to.x, to.y);
+                preview.setBodyYaw(to.x); preview.setHeadYaw(to.x);
+                preview.lastYaw=to.x; preview.lastPitch=to.y;
+                if(preview instanceof net.minecraft.entity.LivingEntity living) {
+                    living.lastBodyYaw=living.bodyYaw; living.lastHeadYaw=living.headYaw;
+                }
             }
             case SCALE -> {
                 if (preview instanceof com.director.actor.preview.ActorPosePreview previewEntity)

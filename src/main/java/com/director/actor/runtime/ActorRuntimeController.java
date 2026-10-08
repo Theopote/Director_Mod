@@ -1021,7 +1021,7 @@ public final class ActorRuntimeController {
                     var head=pose.localTransform("head");
                     pose.setLocalTransform(pose.rig().requireBoneIndex("head"),
                         new com.director.actor.rig.skeleton.BoneTransform(head.translation(),
-                            new org.joml.Quaternionf().rotationYXZ((float)Math.toRadians(-relativeYaw),
+                            new org.joml.Quaternionf().rotationYXZ((float)Math.toRadians(relativeYaw),
                                 (float)Math.toRadians(headPitch),0),head.scale()),
                         com.director.actor.rig.skeleton.RigPose.ROTATION);
                     preview.setFinalRigPose(pose);
