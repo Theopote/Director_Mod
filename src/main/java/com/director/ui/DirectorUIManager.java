@@ -621,6 +621,10 @@ public class DirectorUIManager {
             panelManager.renderPanels();
 
             // 3) 全局弹窗/Overlay（不属于某个 Dock 面板）
+            var actorAdapter = com.director.ui.properties.PropertyAdapterRegistry.getAdapterFor((Object) "ACTOR_PROJECT");
+            if (actorAdapter instanceof com.director.ui.properties.adapters.ActorProjectPropertyAdapter actors) {
+                actors.renderDeleteConfirmPopup();
+            }
             VideoExportDialog.renderIfNeeded(this);
             videoExportProgressOverlay.render(this);
             

@@ -174,9 +174,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             modified |= renderSelectedActorEditor(actorRegistry);
         }
         
-        // 删除确认弹窗
-        renderDeleteConfirmPopup(actorRegistry);
-        
         return modified;
     }
     
@@ -1230,53 +1227,70 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     private void openDeleteConfirm(UUID actorId) {
         deletingActorId = actorId;
         deleteConfirmOpen = true;
-        ImGui.openPopup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.POPUP_DELETE));
     }
     
-    private void renderDeleteConfirmPopup(ActorRegistry actorRegistry) {
+    /** Render once from the global dialog layer, outside all panel and item ID scopes. */
+    public void renderDeleteConfirmPopup() {
+        ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
         if (!deleteConfirmOpen || deletingActorId == null) {
             return;
         }
         
-        String deletePopup = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.POPUP_DELETE);
+        String deletePopup = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.POPUP_DELETE)
+                + "###DirectorDeleteActorConfirm";
         if (!ImGui.isPopupOpen(deletePopup)) ImGui.openPopup(deletePopup);
-        if (ImGui.beginPopupModal(deletePopup)) {
-            Optional<Actor> actorOpt = actorRegistry.getActor(deletingActorId);
-            if (actorOpt.isEmpty()) {
-                ImGui.closeCurrentPopup();
-                deleteConfirmOpen = false;
-                deletingActorId = null;
-                ImGui.endPopup();
-                return;
-            }
+        var viewport = ImGui.getMainViewport();
+        ImGui.setNextWindowPos(viewport.getCenterX(), viewport.getCenterY(), imgui.flag.ImGuiCond.Appearing, 0.5f, 0.5f);
+        imgui.type.ImBoolean open = new imgui.type.ImBoolean(true);
+        if (ImGui.beginPopupModal(deletePopup, open, imgui.flag.ImGuiWindowFlags.AlwaysAutoResize)) {
+            try {
+                if (!open.get() || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) {
+                    ImGui.closeCurrentPopup();
+                    deleteConfirmOpen = false;
+                    deletingActorId = null;
+                    return;
+                }
+                Optional<Actor> actorOpt = actorRegistry.getActor(deletingActorId);
+                if (actorOpt.isEmpty()) {
+                    ImGui.closeCurrentPopup();
+                    deleteConfirmOpen = false;
+                    deletingActorId = null;
+                    return;
+                }
             
-            Actor actor = actorOpt.get();
+                Actor actor = actorOpt.get();
             
-            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_CONFIRM));
-            ImGui.textColored(1.0f, 0.5f, 0.5f, 1.0f,
-                    ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_ACTOR_FMT,
-                            actor.getName(), ActorPropertyAdapterI18n.actorTypeLabel(actor.getType())));
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_UNDO_WARNING));
+                ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_CONFIRM));
+                ImGui.textColored(1.0f, 0.5f, 0.5f, 1.0f,
+                        ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_ACTOR_FMT,
+                                actor.getName(), ActorPropertyAdapterI18n.actorTypeLabel(actor.getType())));
+                ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_UNDO_WARNING));
 
-            ImGui.separator();
+                ImGui.separator();
 
-            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DELETE))) {
-                deleteActor(actorRegistry, deletingActorId);
+                if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DELETE))) {
+                    deleteActor(actorRegistry, deletingActorId);
                 
-                ImGui.closeCurrentPopup();
-                deleteConfirmOpen = false;
-                deletingActorId = null;
+                    ImGui.closeCurrentPopup();
+                    deleteConfirmOpen = false;
+                    deletingActorId = null;
+                }
+            
+                ImGui.sameLine();
+            
+                if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CANCEL))) {
+                    ImGui.closeCurrentPopup();
+                    deleteConfirmOpen = false;
+                    deletingActorId = null;
+                }
+            
+            } finally {
+                ImGui.endPopup();
             }
-            
-            ImGui.sameLine();
-            
-            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CANCEL))) {
-                ImGui.closeCurrentPopup();
-                deleteConfirmOpen = false;
-                deletingActorId = null;
-            }
-            
-            ImGui.endPopup();
+        }
+        if (!open.get()) {
+            deleteConfirmOpen = false;
+            deletingActorId = null;
         }
     }
     
