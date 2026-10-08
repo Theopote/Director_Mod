@@ -78,6 +78,11 @@ public class TimelineCommandHistory {
      * @return true 表示成功撤销
      * ⭐ 性能优化：BaseTimelineCommand 已经会调用 markDirty()，这里不需要重复调用
      */
+    private static void cancelActorTransformPreview() {
+        var actor=com.director.ui.actor.gizmo.ActorGizmoController.getInstance();
+        if(actor.isDragging()) actor.cancelGizmoDrag();
+    }
+
     public boolean undo() {
         if (undoStack.isEmpty()) {
             LOGGER.debug("[Timeline] 无可撤销的命令");
@@ -86,6 +91,7 @@ public class TimelineCommandHistory {
 
         TimelineCommand command = undoStack.getLast();
         command.undo();
+        cancelActorTransformPreview();
         undoStack.removeLast();
         redoStack.add(command);
         LOGGER.info("[Timeline] 撤销命令: {}", command.getDescription());
@@ -113,6 +119,7 @@ public class TimelineCommandHistory {
 
         TimelineCommand command = redoStack.getLast();
         command.execute();
+        cancelActorTransformPreview();
         redoStack.removeLast();
         undoStack.add(command);
         LOGGER.info("[Timeline] 重做命令: {}", command.getDescription());

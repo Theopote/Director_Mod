@@ -233,6 +233,7 @@ public class GizmoManager {
      * 停用 Gizmo
      */
     public void deactivate() {
+        endDrag();
         if (context != null) {
             // ✅ BOUNDS Gizmo（用于移动选区整体）不应在停用时“体素化 box 并重建选区”，
             // 否则会把包围盒内空气也选中，改变框选工具语义。

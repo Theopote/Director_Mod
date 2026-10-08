@@ -741,6 +741,10 @@ public final class ActorGizmoController {
                 }
             }
         }
+        // The interaction controller also owns a handle drag. Discard it so it cannot
+        // continue delivering deltas after a history operation or mode switch.
+        deactivateActorTransformGizmoIfPresent();
+        ownsGizmo=false;
     }
 
     public org.joml.Vector3f previewScale(UUID actorId) {
