@@ -63,6 +63,16 @@ public class EntitySpawnClip extends EntityClip {
         this.pitchDeg = pitchDeg;
     }
 
+    private float rollDeg;
+    private final Vector3f scale = new Vector3f(1);
+    public float getRollDeg() { return rollDeg; }
+    public void setRollDeg(float value) { if (Float.isFinite(value)) rollDeg = value; }
+    public Vector3f getScale() { return scale; }
+    public void setScale(float x, float y, float z) {
+        if (Float.isFinite(x) && Float.isFinite(y) && Float.isFinite(z) && x > 0 && y > 0 && z > 0)
+            scale.set(x, y, z);
+    }
+
     public boolean isVisibleOnSpawn() {
         return visibleOnSpawn;
     }

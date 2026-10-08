@@ -39,6 +39,17 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         if (changed) clip.setYawDeg(yaw.get()); gesture.observe("yaw",changed);
         float[] pitch = {clip.getPitchDeg()}; changed = ImGui.sliderFloat(tr("pitch")+"##spawnPitch",pitch,-90,90);
         if (changed) clip.setPitchDeg(pitch[0]); gesture.observe("pitch",changed);
+        var roll = new ImFloat(clip.getRollDeg());
+        changed = ImGui.inputFloat(ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit.roll") + "##spawnRoll", roll);
+        if (changed) clip.setRollDeg(roll.get()); gesture.observe("roll", changed);
+        float[] scale = {clip.getScale().x, clip.getScale().y, clip.getScale().z};
+        changed = ImGui.inputFloat3(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.scale") + "##spawnScale", scale);
+        if (changed) {
+            if (java.util.stream.IntStream.range(0, 3).allMatch(axis -> Float.isFinite(scale[axis]) && scale[axis] >= .01f && scale[axis] <= 100))
+                clip.setScale(scale[0], scale[1], scale[2]);
+            else gesture.report(ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit.invalid_scale"));
+        }
+        gesture.observe("scale", changed);
         changed = ImGui.checkbox(tr("visible")+"##spawnVisible",clip.isVisibleOnSpawn());
         if (changed) clip.setVisibleOnSpawn(!clip.isVisibleOnSpawn()); gesture.observe("visible",changed);
         gesture.end(); return false;

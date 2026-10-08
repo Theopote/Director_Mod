@@ -18,6 +18,8 @@ public final class ActorTransformEditSession {
     private final float time;
     private final EntityTransformClip source;
     private final State before;
+    private final EntitySpawnClip initialSpawn;
+    private final SpawnState spawnBefore;
     private final List<EntityClip> sourceClips;
     private final List<KeyStamp> sourceKeys;
     private final EntityTransformClip draft;
@@ -34,6 +36,8 @@ public final class ActorTransformEditSession {
         actorId = Objects.requireNonNull(payload.getActorRef()).getActorId();
         time = model.getCurrentTime();
         this.source = source;
+        initialSpawn = source == null ? resolveInitialSpawn(payload, time) : null;
+        spawnBefore = initialSpawn == null ? null : SpawnState.of(initialSpawn);
         before = source == null ? null : State.of(source);
         sourceKeys = source == null ? List.of() : keys(source);
         sourceClips = payload.getClips();
@@ -51,6 +55,7 @@ public final class ActorTransformEditSession {
                 && payload.getActorRef() != null && Objects.equals(actorId, payload.getActorRef().getActorId())
                 && ActorRegistryManager.getInstance().getActor(actorId).isPresent()
                 && sourceClips.equals(payload.getClips())
+                && (initialSpawn == null || resolveInitialSpawn(payload, time) == initialSpawn && spawnBefore.equals(SpawnState.of(initialSpawn)))
                 && resolveSource(model, owner) == source
                 && (source == null || (!source.isMuted() && payload.getClips().contains(source)
                     && source.getTimelineClip() != null && owner.getClips().contains(source.getTimelineClip())
@@ -91,6 +96,27 @@ public final class ActorTransformEditSession {
         return active == null ? nearest : active;
     }
 
+    private static EntitySpawnClip resolveInitialSpawn(ActorTrack payload, float time) {
+        EntitySpawnClip result = null;
+        for (var clip : payload.getClips()) {
+            if (clip instanceof EntitySpawnClip spawn && !spawn.isMuted()
+                    && time >= spawn.getStartTime()
+                    && (result == null || spawn.getStartTime() >= result.getStartTime())) result = spawn;
+        }
+        return result;
+    }
+    private record SpawnState(Vector3f position, Vector3f rotation, Vector3f scale) {
+        static SpawnState of(EntitySpawnClip clip) {
+            return new SpawnState(new Vector3f(clip.getPosition()),
+                    new Vector3f(clip.getYawDeg(), clip.getPitchDeg(), clip.getRollDeg()), new Vector3f(clip.getScale()));
+        }
+        void apply(EntitySpawnClip clip) {
+            clip.setPosition(position.x, position.y, position.z);
+            clip.setYawDeg(rotation.x); clip.setPitchDeg(rotation.y); clip.setRollDeg(rotation.z);
+            clip.setScale(scale.x, scale.y, scale.z);
+        }
+    }
+
     public EntityTransformClip commit() {
         if (!isCurrent()) { cancel(); return null; }
         State after = State.of(draft);
@@ -102,6 +128,13 @@ public final class ActorTransformEditSession {
             TimelineCommandBridge.execute(new StateChangeCommand(model, "Transform actor",
                     () -> before.apply(source), () -> after.apply(source)));
             return source;
+        }
+        if (initialSpawn != null) {
+            var updated = new SpawnState(new Vector3f(after.toPos), new Vector3f(after.toRot), new Vector3f(after.toScale));
+            if (updated.equals(spawnBefore)) return null;
+            TimelineCommandBridge.execute(new StateChangeCommand(model, "Adjust actor initial transform",
+                    () -> spawnBefore.apply(initialSpawn), () -> updated.apply(initialSpawn)));
+            return draft; // Detached gesture result; no new timeline reference was created.
         }
         var wrapper = new EntityTimelineClip(draft, payload.getColorRgba());
         TimelineCommandBridge.execute(new StateChangeCommand(model, "Transform actor", () -> {

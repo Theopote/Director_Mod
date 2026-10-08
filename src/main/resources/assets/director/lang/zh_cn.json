@@ -2298,5 +2298,9 @@
   "gui.director.actor.player_model.slim": "窄臂（Alex）",
   "gui.director.actor.player_model.hint": "导入 PNG 皮肤后，请按皮肤布局选择宽臂或窄臂。默认会将导入皮肤按宽臂显示。",
   "gui.director.actor.look_at.target_actor": "目标演员",
-  "gui.director.actor.look_at.choose_actor": "选择项目演员"
+  "gui.director.actor.look_at.choose_actor": "选择项目演员",
+  "gui.director.actor.spawn_edit.roll": "翻滚角",
+  "gui.director.actor.spawn_edit.invalid_scale": "缩放倍率必须在 0.01–100 之间。",
+  "gui.director.actor.transform_edit.initial_hint": "当前没有变换动画：优先写回已有出生片段的初始状态。",
+  "gui.director.actor.transform_edit.animation_hint": "当前调整已有变换动画；含关键帧时写入播放头对应关键帧。"
 }

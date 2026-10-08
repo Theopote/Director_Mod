@@ -2298,5 +2298,9 @@
   "gui.director.actor.player_model.slim": "Slim arms (Alex)",
   "gui.director.actor.player_model.hint": "Choose the arm model matching your imported PNG. Default uses wide arms for imported skins.",
   "gui.director.actor.look_at.target_actor": "Target actor",
-  "gui.director.actor.look_at.choose_actor": "Choose a project actor"
+  "gui.director.actor.look_at.choose_actor": "Choose a project actor",
+  "gui.director.actor.spawn_edit.roll": "Roll",
+  "gui.director.actor.spawn_edit.invalid_scale": "Scale must be between 0.01 and 100.",
+  "gui.director.actor.transform_edit.initial_hint": "No transform animation: edits prefer the existing spawn initial state.",
+  "gui.director.actor.transform_edit.animation_hint": "Editing the existing transform animation; keyed clips write at the playhead."
 }

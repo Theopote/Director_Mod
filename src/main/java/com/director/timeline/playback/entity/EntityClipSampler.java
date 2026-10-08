@@ -250,7 +250,14 @@ public class EntityClipSampler {
         // Spawn Clip 只在开始时生效，但这里我们始终应用位置和旋转作为基础
         Vector3f pos = clip.getPosition();
         result.position.set(pos);
-        result.rotation.set(clip.getYawDeg(), clip.getPitchDeg(), 0f);
+        result.rotation.set(clip.getYawDeg(), clip.getPitchDeg(), clip.getRollDeg());
+        result.scale.set(clip.getScale());
+        if (applyRootKeys(result, clip.getKeyframes(), time)) {
+            var prev = findPrevKeyframe(clip.getKeyframes(), time);
+            var next = findNextKeyframe(clip.getKeyframes(), time);
+            result.speed = prev == null || next == null ? 0 : segmentSpeed(prev.getPosition(), next.getPosition(),
+                    prev.getTime(), next.getTime(), time, next.getInterpolation());
+        }
         result.visibility = clip.isVisibleOnSpawn() ? 1.0f : 0.0f;
         result.active = true;
     }
@@ -285,9 +292,8 @@ public class EntityClipSampler {
      * 应用单个 Transform Clip（位移/旋转/缩放）。
      * <p>优先级：关键帧 > fromPos/toPos 插值
      */
-    private void applyTransformClip(EntitySample result, EntityTransformClip clip, float time) {
+    private boolean applyRootKeys(EntitySample result, List<EntityClipKeyframe> keyframes, float time) {
         // ⭐ 优先使用关键帧插值
-        List<EntityClipKeyframe> keyframes = clip.getKeyframes();
         if (!keyframes.isEmpty()) {
             EntityClipKeyframe prev = findPrevKeyframe(keyframes, time);
             EntityClipKeyframe next = findNextKeyframe(keyframes, time);
@@ -320,22 +326,28 @@ public class EntityClipSampler {
                 result.scale.y = lerp(prev.getScale().y, next.getScale().y, t);
                 result.scale.z = lerp(prev.getScale().z, next.getScale().z, t);
                 
-                return; // 使用关键帧，不再使用 fromPos/toPos
+                return true;
             } else if (prev != null) {
                 // 只有前一个关键帧（在最后一个关键帧之后）
                 result.position.set(prev.getPosition());
                 result.rotation.set(prev.getRotation());
                 result.scale.set(prev.getScale());
-                return;
+                return true;
             } else if (next != null) {
                 // 只有下一个关键帧（在第一个关键帧之前）
                 result.position.set(next.getPosition());
                 result.rotation.set(next.getRotation());
                 result.scale.set(next.getScale());
-                return;
+                return true;
             }
         }
         
+        return false;
+    }
+
+    private void applyTransformClip(EntitySample result, EntityTransformClip clip, float time) {
+        if (applyRootKeys(result, clip.getKeyframes(), time)) return;
+
         // 如果没有关键帧，使用原有的 fromPos/toPos 插值
         // 计算片段内的归一化时间 [0, 1]
         float clipLength = clip.getLength();

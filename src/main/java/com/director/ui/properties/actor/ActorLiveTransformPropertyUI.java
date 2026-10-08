@@ -81,6 +81,11 @@ public final class ActorLiveTransformPropertyUI {
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SECTION_TRANSFORM),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.TIME_HINT_FMT, time));
+            if (target != null) {
+                var source = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveSource(model, target.timelineTrack());
+                ImGui.textWrapped(ActorPropertyAdapterI18n.tr(source == null
+                        ? "gui.director.actor.transform_edit.initial_hint" : "gui.director.actor.transform_edit.animation_hint"));
+            }
             ImGui.spacing();
 
             UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.POSITION));

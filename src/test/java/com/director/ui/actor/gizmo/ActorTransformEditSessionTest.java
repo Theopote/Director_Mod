@@ -46,6 +46,45 @@ class ActorTransformEditSessionTest {
         assertEquals(1, track.getClips().size());
     }
 
+    @Test void initialTransformsUpdateOnlySpawnAndUndoAllChannels() {
+        var spawn = new EntitySpawnClip("Actor", 0, 5);
+        spawn.setPosition(1, 2, 3);
+        track.getActorTrackPayload().addClip(spawn);
+        var wrapper = new EntityTimelineClip(spawn, 0); track.addClip(wrapper);
+        var edit = session(null);
+        edit.draft().setToPos(1, 2, 3); edit.arm();
+        edit.draft().setToPos(4, 5, 6); edit.draft().setToRot(90, 10, 20); edit.draft().setToScale(2, 3, 4);
+        assertNotNull(edit.commit());
+        assertEquals(java.util.List.of(wrapper), track.getClips());
+        assertEquals(java.util.List.of(spawn), track.getActorTrackPayload().getClips());
+        var sample = new com.director.timeline.playback.entity.EntityClipSampler(track.getActorTrackPayload()).sampleAt(2);
+        assertEquals(new Vector3f(4, 5, 6), sample.position);
+        assertEquals(new Vector3f(90, 10, 20), sample.rotation);
+        assertEquals(new Vector3f(2, 3, 4), sample.scale);
+        assertTrue(history.undo()); assertEquals(new Vector3f(1, 2, 3), spawn.getPosition());
+        assertEquals(0, spawn.getRollDeg()); assertEquals(new Vector3f(1), spawn.getScale());
+        assertTrue(history.redo()); assertEquals(new Vector3f(2, 3, 4), spawn.getScale());
+        assertEquals(1, track.getClips().size());
+    }
+
+    @Test void spawnTransformPersistenceAndLegacyDefaults() {
+        var spawn = new EntitySpawnClip("Actor", 0, 5);
+        spawn.setRollDeg(25); spawn.setScale(2, 3, 4);
+        track.getActorTrackPayload().addClip(spawn);
+        track.addClip(new EntityTimelineClip(spawn, 0));
+        var viewport = new TimelineViewportState();
+        var dto = com.director.timeline.persistence.TimelineModelPersistence.toDTO(model, viewport);
+        var restored = new TimelineModel(viewport); restored.setSuppressPersistenceWrites(true);
+        com.director.timeline.persistence.TimelineModelPersistence.fromDTO(dto, restored, viewport);
+        var loaded = (EntitySpawnClip) restored.getAllTracks().getFirst().getActorTrackPayload().getClips().getFirst();
+        assertEquals(25, loaded.getRollDeg()); assertEquals(new Vector3f(2, 3, 4), loaded.getScale());
+        var old = dto.tracks.getFirst().actorTrackPayload.clips.getFirst();
+        old.spawnRoll = null; old.spawnScaleX = null; old.spawnScaleY = null; old.spawnScaleZ = null;
+        com.director.timeline.persistence.TimelineModelPersistence.fromDTO(dto, restored, viewport);
+        loaded = (EntitySpawnClip) restored.getAllTracks().getFirst().getActorTrackPayload().getClips().getFirst();
+        assertEquals(0, loaded.getRollDeg()); assertEquals(new Vector3f(1), loaded.getScale());
+    }
+
     TimelineModel model;
     TimelineTrack track;
     TimelineCommandHistory history;
