@@ -22,6 +22,30 @@ class ActorTransformEditSessionTest {
         assertTrue(history.undo()); assertEquals(0,clip.getToRot().x);
         assertTrue(history.undo()); assertTrue(track.getClips().isEmpty());
     }
+    @Test void explicitlySelectedReferenceWinsOutsideItsRange() {
+        var selected = source();
+        var other = new EntityTransformClip("Other", 20, 30);
+        track.getActorTrackPayload().addClip(other);
+        track.addClip(new EntityTimelineClip(other, 0));
+        model.selectItem(selected.getTimelineClip(), false);
+        model.setCurrentTime(25);
+        assertSame(selected, ActorTransformEditSession.resolveSource(model, track));
+        var edit = session(selected);
+        edit.arm(); edit.draft().setToPos(10, 20, 30);
+        assertSame(selected, edit.commit());
+        assertEquals(2, track.getClips().size());
+        assertEquals(new Vector3f(), other.getToPos());
+    }
+
+    @Test void mutedExplicitReferenceCannotBecomeAnImplicitNewClip() {
+        var clip = source();
+        model.selectItem(clip.getTimelineClip(), false);
+        clip.setMuted(true);
+        assertSame(clip, ActorTransformEditSession.resolveSource(model, track));
+        assertThrows(IllegalArgumentException.class, () -> session(clip));
+        assertEquals(1, track.getClips().size());
+    }
+
     TimelineModel model;
     TimelineTrack track;
     TimelineCommandHistory history;
@@ -108,10 +132,10 @@ class ActorTransformEditSessionTest {
         assertNull(edit.commit()); edit = session(clip); edit.draft().setToScale(0, 1, 1); assertNull(edit.commit());
         assertEquals(new Vector3f(4,5,6), clip.getToScale()); assertEquals(0, history.getUndoSize());
     }
-    @Test void nearestExtensionUsesSameOneSecondLimitAndPrefersActiveClip() {
+    @Test void distantExistingTransformIsReusedAndActiveClipStillWins() {
         var clip = source(); model.setCurrentTime(3.5f);
         assertSame(clip, ActorTransformEditSession.resolveSource(track.getActorTrackPayload(), model.getCurrentTime()));
-        model.setCurrentTime(4); assertNull(ActorTransformEditSession.resolveSource(track.getActorTrackPayload(), 4));
+        model.setCurrentTime(4); assertSame(clip, ActorTransformEditSession.resolveSource(track.getActorTrackPayload(), 4));
         var other = new EntityTransformClip("Other", 3.25f, 5); track.getActorTrackPayload().addClip(other);
         assertSame(other, ActorTransformEditSession.resolveSource(track.getActorTrackPayload(), 4));
     }

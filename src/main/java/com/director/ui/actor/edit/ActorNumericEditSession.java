@@ -29,7 +29,7 @@ public final class ActorNumericEditSession {
         if (kind == Kind.TRANSFORM) {
             initial = new ActorTransformEditService.TransformSnapshot(new Vector3f(sample.position()),
                     new Vector3f(sample.rotation()), new Vector3f(sample.scale()));
-            var source = ActorTransformEditSession.resolveSource(track.getActorTrackPayload(), model.getCurrentTime());
+            var source = ActorTransformEditSession.resolveSource(model, track);
             transform = new ActorTransformEditSession(model, track, source); look = null;
             var draft = transform.draft();
             if (source == null) {

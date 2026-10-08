@@ -51,7 +51,7 @@ public final class ActorTransformEditSession {
                 && payload.getActorRef() != null && Objects.equals(actorId, payload.getActorRef().getActorId())
                 && ActorRegistryManager.getInstance().getActor(actorId).isPresent()
                 && sourceClips.equals(payload.getClips())
-                && resolveSource(payload, time) == source
+                && resolveSource(model, owner) == source
                 && (source == null || (!source.isMuted() && payload.getClips().contains(source)
                     && source.getTimelineClip() != null && owner.getClips().contains(source.getTimelineClip())
                     && before.matches(source) && keysAreCurrent()));
@@ -65,10 +65,20 @@ public final class ActorTransformEditSession {
     public void arm() { initial = State.of(draft); }
     public void cancel() { finished = true; }
 
+    /** An explicit transform reference remains the target even outside its time interval. */
+    public static EntityTransformClip resolveSource(TimelineModel model, TimelineTrack owner) {
+        var selected = model.getSelectedClip();
+        if (selected instanceof EntityTimelineClip wrapper && owner.getClips().contains(wrapper)
+                && wrapper.getEntityClip() instanceof EntityTransformClip transform) {
+            return transform; // Keep the target; isCurrent rejects a muted source instead of creating a replacement.
+        }
+        return resolveSource(owner.getActorTrackPayload(), model.getCurrentTime());
+    }
+
     public static EntityTransformClip resolveSource(ActorTrack payload, float time) {
         EntityTransformClip active = null;
         EntityTransformClip nearest = null;
-        float nearestDistance = 1;
+        float nearestDistance = Float.POSITIVE_INFINITY;
         for (var c : payload.getClips()) {
             if (!(c instanceof EntityTransformClip transform) || transform.isMuted()) continue;
             if (time >= transform.getStartTime() && time <= transform.getEndTime()) {

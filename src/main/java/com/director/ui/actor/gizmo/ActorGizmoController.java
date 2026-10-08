@@ -447,7 +447,7 @@ public final class ActorGizmoController {
                     targetActorId, time, sampledPos);
         }
 
-        var source = ActorTransformEditSession.resolveSource(actorTrack, time);
+        var source = ActorTransformEditSession.resolveSource(model, timelineTrack);
         boolean activeClipAtCurrentTime = source != null && time >= source.getStartTime() && time <= source.getEndTime();
         try {
             dragSession = new ActorTransformEditSession(model, timelineTrack, source);
