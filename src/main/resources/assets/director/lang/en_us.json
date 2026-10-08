@@ -2302,5 +2302,14 @@
   "gui.director.actor.spawn_edit.roll": "Roll",
   "gui.director.actor.spawn_edit.invalid_scale": "Scale must be between 0.01 and 100.",
   "gui.director.actor.transform_edit.initial_hint": "No transform animation: edits prefer the existing spawn initial state.",
-  "gui.director.actor.transform_edit.animation_hint": "Editing the existing transform animation; keyed clips write at the playhead."
+  "gui.director.actor.transform_edit.animation_hint": "Editing the existing transform animation; keyed clips write at the playhead.",
+  "gui.director.actor.root_keys.hint": "Root keys stay in this clip. Once keyed, transform tools write at the playhead. Removing all keys restores the base or endpoint animation.",
+  "gui.director.actor.root_keys.insert": "Insert key at playhead",
+  "gui.director.actor.root_keys.remove": "Remove key at playhead",
+  "gui.director.actor.root_keys.readonly": "Place the playhead inside an editable clip. Playback, locking or muting prevents key edits.",
+  "gui.director.actor.root_keys.smooth_conversion": "For an unkeyed smooth endpoint animation, first switch to linear interpolation or add keys at a boundary. Keyframes use interpolation per segment.",
+  "gui.director.actor.root_rows.position": "Root position",
+  "gui.director.actor.root_rows.rotation": "Root rotation",
+  "gui.director.actor.root_rows.scale": "Root scale",
+  "gui.director.actor.root_rows.ambiguous": "Overlapping keys: select a specific actor clip first."
 }

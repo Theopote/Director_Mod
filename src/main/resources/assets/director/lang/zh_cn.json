@@ -2302,5 +2302,14 @@
   "gui.director.actor.spawn_edit.roll": "翻滚角",
   "gui.director.actor.spawn_edit.invalid_scale": "缩放倍率必须在 0.01–100 之间。",
   "gui.director.actor.transform_edit.initial_hint": "当前没有变换动画：优先写回已有出生片段的初始状态。",
-  "gui.director.actor.transform_edit.animation_hint": "当前调整已有变换动画；含关键帧时写入播放头对应关键帧。"
+  "gui.director.actor.transform_edit.animation_hint": "当前调整已有变换动画；含关键帧时写入播放头对应关键帧。",
+  "gui.director.actor.root_keys.hint": "整体变换关键帧：写入本片段，不创建新片段。含关键帧时，移动/旋转/缩放调整会写入当前播放头；删完后恢复初始值或起止动画。",
+  "gui.director.actor.root_keys.insert": "插入当前时间关键帧",
+  "gui.director.actor.root_keys.remove": "删除当前时间关键帧",
+  "gui.director.actor.root_keys.readonly": "播放头须位于可编辑片段内；播放、锁定或禁用时不可写入。",
+  "gui.director.actor.root_keys.smooth_conversion": "平滑起止动画不能直接插入首个中间关键帧：请先改为线性插值，或在片段起点/终点建立关键帧。关键帧之间将按各段插值。",
+  "gui.director.actor.root_rows.position": "整体位置",
+  "gui.director.actor.root_rows.rotation": "整体旋转",
+  "gui.director.actor.root_rows.scale": "整体缩放",
+  "gui.director.actor.root_rows.ambiguous": "这里有重叠关键帧，请先选择具体演员片段。"
 }

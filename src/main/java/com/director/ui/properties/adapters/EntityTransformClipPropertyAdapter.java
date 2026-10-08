@@ -49,6 +49,7 @@ public class EntityTransformClipPropertyAdapter implements IPropertyAdapter<Enti
         if (clip.isFollowPath() || clip.getPathId() != null)
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.legacy_path", clip.getPathId()));
         gesture.end();
+        com.director.ui.properties.actor.ActorRootKeyframePropertyUI.render(source);
         return false; // The transaction marks the model dirty exactly once.
     }
     private void vector(String label, Vector3f target) {

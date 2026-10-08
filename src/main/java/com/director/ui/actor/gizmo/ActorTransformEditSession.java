@@ -39,7 +39,7 @@ public final class ActorTransformEditSession {
         initialSpawn = source == null ? resolveInitialSpawn(payload, time) : null;
         spawnBefore = initialSpawn == null ? null : SpawnState.of(initialSpawn);
         before = source == null ? null : State.of(source);
-        sourceKeys = source == null ? List.of() : keys(source);
+        sourceKeys = source != null ? keys(source) : initialSpawn != null ? keys(initialSpawn) : List.of();
         sourceClips = payload.getClips();
         draft = new EntityTransformClip("Transform", time, time + 1);
         if (before != null) before.apply(draft);
@@ -55,7 +55,7 @@ public final class ActorTransformEditSession {
                 && payload.getActorRef() != null && Objects.equals(actorId, payload.getActorRef().getActorId())
                 && ActorRegistryManager.getInstance().getActor(actorId).isPresent()
                 && sourceClips.equals(payload.getClips())
-                && (initialSpawn == null || resolveInitialSpawn(payload, time) == initialSpawn && spawnBefore.equals(SpawnState.of(initialSpawn)))
+                && (initialSpawn == null || resolveInitialSpawn(payload, time) == initialSpawn && spawnBefore.equals(SpawnState.of(initialSpawn)) && keysAreCurrent())
                 && resolveSource(model, owner) == source
                 && (source == null || (!source.isMuted() && payload.getClips().contains(source)
                     && source.getTimelineClip() != null && owner.getClips().contains(source.getTimelineClip())
@@ -96,7 +96,7 @@ public final class ActorTransformEditSession {
         return active == null ? nearest : active;
     }
 
-    private static EntitySpawnClip resolveInitialSpawn(ActorTrack payload, float time) {
+    public static EntitySpawnClip resolveInitialSpawn(ActorTrack payload, float time) {
         EntitySpawnClip result = null;
         for (var clip : payload.getClips()) {
             if (clip instanceof EntitySpawnClip spawn && !spawn.isMuted()
@@ -130,6 +130,11 @@ public final class ActorTransformEditSession {
             return source;
         }
         if (initialSpawn != null) {
+            if (!sourceKeys.isEmpty()) {
+                var key = com.director.ui.actor.pose.ActorRootKeyframeEditing.write(model, owner, initialSpawn,
+                        after.toPos, after.toRot, after.toScale);
+                return key == null ? null : draft;
+            }
             var updated = new SpawnState(new Vector3f(after.toPos), new Vector3f(after.toRot), new Vector3f(after.toScale));
             if (updated.equals(spawnBefore)) return null;
             TimelineCommandBridge.execute(new StateChangeCommand(model, "Adjust actor initial transform",
@@ -189,13 +194,13 @@ public final class ActorTransformEditSession {
 
     private record KeyStamp(EntityClipKeyframe key, float time, TimelineInterpolation interpolation,
                             Vector3f position, Vector3f rotation, Vector3f scale) {}
-    private static List<KeyStamp> keys(EntityTransformClip clip) {
+    private static List<KeyStamp> keys(EntityClip clip) {
         return clip.getKeyframes().stream().map(key -> new KeyStamp(key, key.getTime(), key.getInterpolation(),
                 new Vector3f(key.getPosition()), new Vector3f(key.getRotation()), new Vector3f(key.getScale()))).toList();
     }
 
     private boolean keysAreCurrent() {
-        var current = source.getKeyframes();
+        var current = (source != null ? source : initialSpawn).getKeyframes();
         if (current.size() != sourceKeys.size()) return false;
         for (int i = 0; i < current.size(); i++) {
             var key = current.get(i); var stamp = sourceKeys.get(i);

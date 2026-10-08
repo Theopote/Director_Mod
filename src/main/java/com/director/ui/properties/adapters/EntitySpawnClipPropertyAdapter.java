@@ -31,6 +31,7 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
             else gesture.report(tr("invalid_time"));
         }
         gesture.observe("duration",changed);
+        ImGui.beginDisabled(!source.getKeyframes().isEmpty());
         float[] pos = {clip.getPosition().x,clip.getPosition().y,clip.getPosition().z};
         changed = ImGui.inputFloat3(tr("position")+"##spawnPosition",pos);
         if (changed) clip.setPosition(pos[0],pos[1],pos[2]);
@@ -50,8 +51,10 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
             else gesture.report(ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit.invalid_scale"));
         }
         gesture.observe("scale", changed);
+        ImGui.endDisabled();
         changed = ImGui.checkbox(tr("visible")+"##spawnVisible",clip.isVisibleOnSpawn());
         if (changed) clip.setVisibleOnSpawn(!clip.isVisibleOnSpawn()); gesture.observe("visible",changed);
-        gesture.end(); return false;
+        gesture.end();
+        com.director.ui.properties.actor.ActorRootKeyframePropertyUI.render(source); return false;
     }
 }

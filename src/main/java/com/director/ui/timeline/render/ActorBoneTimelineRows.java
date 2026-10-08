@@ -31,6 +31,8 @@ public final class ActorBoneTimelineRows {
         }
     }
     public static final float CHILD_HEIGHT = 24f;
+    private final ActorRootTimelineRows rootRows = new ActorRootTimelineRows();
+    private TimelineModel renderModel;
     private final Set<TimelineTrack> expanded = Collections.newSetFromMap(new IdentityHashMap<>());
     private final Set<TimelineTrack> supported = Collections.newSetFromMap(new IdentityHashMap<>());
     private final Map<TimelineTrack, com.director.actor.rig.skeleton.RigDefinition> trackRigs = new IdentityHashMap<>();
@@ -342,6 +344,7 @@ public final class ActorBoneTimelineRows {
     }
 
     public TimelineRowLayout prepare(TimelineModel model, float height, float gap) {
+        renderModel = model;
         importSelection(model);
         keyHits.clear();
         var tracks = model.getAllTracks();
@@ -361,15 +364,19 @@ public final class ActorBoneTimelineRows {
             var actor = registry.getActor(payload.getActorRef().getActorId()).orElse(null);
             var rig = actor == null ? Optional.<com.director.actor.rig.skeleton.RigDefinition>empty()
                     : com.director.actor.rig.ActorRigCompatibility.resolveRig(actor);
-            if (rig.isEmpty()) continue;
+            if (actor == null || track.getType() != com.director.timeline.model.TrackType.ACTOR) continue;
             supported.add(track);
-            trackRigs.put(track, rig.get());
-            if (expanded.contains(track)) counts[i] = rig.get().boneCount();
+            if (rig.isPresent()) trackRigs.put(track, rig.get());
+            else trackRigs.remove(track);
+            if (expanded.contains(track)) counts[i] = ActorRootTimelineRows.COUNT + rig.map(r -> r.boneCount()).orElse(0);
         }
         return new TimelineRowLayout(height, gap, CHILD_HEIGHT, counts);
     }
 
     public boolean supports(TimelineTrack track) { return supported.contains(track); }
+    public void setExpanded(TimelineTrack track, boolean value) {
+        if (value) expanded.add(track); else expanded.remove(track);
+    }
 
     private com.director.actor.rig.skeleton.RigDefinition rigFor(TimelineTrack track) {
         return trackRigs.getOrDefault(track, HumanoidRig.DEFINITION);
@@ -388,10 +395,12 @@ public final class ActorBoneTimelineRows {
         if (!expanded.contains(track)) return;
         var selection = ActorBoneSelectionController.getInstance();
         var actorId = track.getActorTrackPayload().getActorRef().getActorId();
-        var rig = rigFor(track);
+        rootRows.render(draw, renderModel, track, x, contentX, right, y + height + gap, CHILD_HEIGHT, math);
+        var rig = trackRigs.get(track);
+        if (rig == null) return;
         for (int i = 0; i < rig.boneCount(); i++) {
             var bone = rig.bone(i);
-            float top = y + height + gap + i * CHILD_HEIGHT;
+            float top = y + height + gap + (ActorRootTimelineRows.COUNT + i) * CHILD_HEIGHT;
             boolean selected = actorId.equals(selection.getActorId()) && selection.isBoneSelected(bone.id());
             draw.addRectFilled(x, top, right, top + CHILD_HEIGHT,
                     selected ? TimelineColors.rgba(48, 77, 100, 255) : TimelineColors.rgba(29, 32, 37, 255));
@@ -477,8 +486,13 @@ public final class ActorBoneTimelineRows {
         }
         if (!expanded.contains(track) || local < height + gap) return false;
         int bone = (int) ((local - height - gap) / CHILD_HEIGHT);
-        var rig = rigFor(track);
-        if (bone >= rig.boneCount()) return false;
+        if (bone < ActorRootTimelineRows.COUNT) {
+            keyFocus = false;
+            return rootRows.click(model, track, mx, contentX, bone, math);
+        }
+        bone -= ActorRootTimelineRows.COUNT;
+        var rig = trackRigs.get(track);
+        if (rig == null || bone >= rig.boneCount()) return false;
         if (ImGui.isMouseClicked(ImGuiMouseButton.Left) || ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
             var preferredClip=model.getSelectedClip();
             boolean rightClick=ImGui.isMouseClicked(ImGuiMouseButton.Right);
@@ -549,8 +563,8 @@ public final class ActorBoneTimelineRows {
                             var frozen=new ArrayList<PendingKey>();
                             for(var hit:keyHits) if(hit.track()==track && hit.clip()==animation)
                                 frozen.add(new PendingKey(hit,context,source(hit)));
-                            float rowsTop=Math.max(top,top+layout.trackTop(owner)+height+gap-scrollY);
-                            float rowsBottom=Math.min(top+viewportHeight,top+layout.trackTop(owner)+height+gap+rig.boneCount()*CHILD_HEIGHT-scrollY);
+                            float rowsTop=Math.max(top,top+layout.trackTop(owner)+height+gap+ActorRootTimelineRows.COUNT*CHILD_HEIGHT-scrollY);
+                            float rowsBottom=Math.min(top+viewportHeight,top+layout.trackTop(owner)+height+gap+(ActorRootTimelineRows.COUNT+rig.boneCount())*CHILD_HEIGHT-scrollY);
                             focusReference(track,animation,context.asset());
                             cancelAllKeyInteractions();
                             com.director.ui.actor.pose.ActorAnimationDopeSheet.cancelKeyInteraction();

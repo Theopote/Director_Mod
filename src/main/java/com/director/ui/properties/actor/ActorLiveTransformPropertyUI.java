@@ -83,7 +83,9 @@ public final class ActorLiveTransformPropertyUI {
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.TIME_HINT_FMT, time));
             if (target != null) {
                 var source = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveSource(model, target.timelineTrack());
-                ImGui.textWrapped(ActorPropertyAdapterI18n.tr(source == null
+                var spawn = source == null ? com.director.ui.actor.gizmo.ActorTransformEditSession.resolveInitialSpawn(
+                        target.actorTrack(), time) : null;
+                ImGui.textWrapped(ActorPropertyAdapterI18n.tr(source == null && (spawn == null || spawn.getKeyframes().isEmpty())
                         ? "gui.director.actor.transform_edit.initial_hint" : "gui.director.actor.transform_edit.animation_hint"));
             }
             ImGui.spacing();

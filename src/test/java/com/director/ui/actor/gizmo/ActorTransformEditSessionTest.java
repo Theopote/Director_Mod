@@ -85,6 +85,20 @@ class ActorTransformEditSessionTest {
         assertEquals(0, loaded.getRollDeg()); assertEquals(new Vector3f(1), loaded.getScale());
     }
 
+    @Test void keyedSpawnGestureWritesCurrentKeyWithoutChangingBaseOrCreatingClip() {
+        var spawn = new EntitySpawnClip("Actor", 0, 5); spawn.setPosition(1, 2, 3);
+        track.getActorTrackPayload().addClip(spawn); track.addClip(new EntityTimelineClip(spawn, 0));
+        var key = com.director.ui.actor.pose.ActorRootKeyframeEditing.insert(model, track, spawn);
+        var edit = session(null);
+        edit.draft().setToPos(1, 2, 3); edit.arm(); edit.draft().setToPos(6, 2, 3);
+        assertNotNull(edit.commit());
+        assertEquals(java.util.List.of(key), spawn.getKeyframes());
+        assertEquals(new Vector3f(6, 2, 3), key.getPosition());
+        assertEquals(new Vector3f(1, 2, 3), spawn.getPosition()); assertEquals(1, track.getClips().size());
+        assertTrue(history.undo()); assertEquals(new Vector3f(1, 2, 3), key.getPosition());
+        assertTrue(history.redo()); assertEquals(new Vector3f(6, 2, 3), key.getPosition());
+    }
+
     TimelineModel model;
     TimelineTrack track;
     TimelineCommandHistory history;
