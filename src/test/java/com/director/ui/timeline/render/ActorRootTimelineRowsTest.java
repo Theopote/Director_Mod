@@ -61,6 +61,15 @@ class ActorRootTimelineRowsTest {
         assertTrue(spawn.getKeyframes().isEmpty()); assertEquals(1, track.getClips().size());
         assertTrue(rows.handleKeyCommand(model, "delete")); assertEquals(1, history.getUndoSize());
         assertTrue(history.undo()); assertEquals(java.util.List.of(key), spawn.getKeyframes());
+        assertTrue(rows.handleKeyCommand(model, "copy"));
+        key.setPosition(8, 0, 0);
+        model.setCurrentTime(3); assertTrue(rows.handleKeyCommand(model, "paste"));
+        assertEquals(2, spawn.getKeyframes().size());
+        var pasted = spawn.getKeyframes().getLast(); assertEquals(0, pasted.getPosition().x);
+        assertTrue(rows.handleKeyCommand(model, "cut")); assertEquals(java.util.List.of(key), spawn.getKeyframes());
+        assertTrue(history.undo()); assertTrue(spawn.getKeyframes().contains(pasted));
+        track.setLocked(true); assertTrue(rows.handleKeyCommand(model, "cut"));
+        assertTrue(spawn.getKeyframes().contains(pasted));
         rows.clearFocus(); assertFalse(rows.handleKeyCommand(model, "delete"));
     }
 

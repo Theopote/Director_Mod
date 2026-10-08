@@ -24,6 +24,31 @@ class ActorRootKeyframeEditingTest {
     <T extends EntityClip> T add(T clip) {
         owner.getActorTrackPayload().addClip(clip); owner.addClip(new EntityTimelineClip(clip, 0)); return clip;
     }
+    @Test void clipboardIsDetachedAndPasteIsUndoableWithoutNewReferences() {
+        var clip = add(new EntitySpawnClip("A", 0, 5));
+        var source = new EntityClipKeyframe(1, TimelineInterpolation.STEP);
+        source.setPosition(3, 4, 5); source.setDisplayName("Source"); clip.addKeyframe(source);
+        var clipboard = new ActorRootKeyframeClipboard(); assertTrue(clipboard.copy(clip, source));
+        source.setPosition(9, 9, 9); model.setCurrentTime(3);
+        var pasted = clipboard.paste(model, owner, clip); assertNotNull(pasted);
+        assertNotEquals(source.getId(), pasted.getId());
+        assertEquals(new Vector3f(3, 4, 5), pasted.getPosition());
+        assertEquals("Source", pasted.getDisplayName()); assertEquals(TimelineInterpolation.STEP, pasted.getInterpolation());
+        assertEquals(1, owner.getClips().size()); assertEquals(1, history.getUndoSize());
+        assertNull(clipboard.paste(model, owner, clip)); assertEquals(1, history.getUndoSize());
+        assertTrue(history.undo()); assertEquals(java.util.List.of(source), clip.getKeyframes());
+        assertTrue(history.redo()); assertTrue(clip.getKeyframes().contains(pasted));
+        model.setCurrentTime(4); owner.setLocked(true); assertNull(clipboard.paste(model, owner, clip));
+        owner.setLocked(false); model.setCurrentTime(6); assertNull(clipboard.paste(model, owner, clip));
+    }
+    @Test void clipboardDoesNotSilentlyConvertAnEmptyTransform() {
+        var sourceClip = add(new EntitySpawnClip("A", 0, 5));
+        var key = new EntityClipKeyframe(1); sourceClip.addKeyframe(key);
+        var clipboard = new ActorRootKeyframeClipboard(); assertTrue(clipboard.copy(sourceClip, key));
+        var target = add(new EntityTransformClip("Move", 0, 5)); model.setCurrentTime(2);
+        assertNull(clipboard.paste(model, owner, target)); assertEquals(0, history.getUndoSize());
+        assertTrue(target.getKeyframes().isEmpty());
+    }
     @Test void spawnKeysAnimateInOneClipAndRepeatedTimeReusesKey() {
         var spawn = add(new EntitySpawnClip("Actor", 0, 5));
         spawn.setPosition(1, 2, 3);

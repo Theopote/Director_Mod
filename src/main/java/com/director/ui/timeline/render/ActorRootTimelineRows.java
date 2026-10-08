@@ -34,6 +34,7 @@ final class ActorRootTimelineRows {
         } else if (!ImGui.isMouseDown(ImGuiMouseButton.Left)) cancel();
         return true;
     }
+    private final com.director.ui.actor.pose.ActorRootKeyframeClipboard clipboard = new com.director.ui.actor.pose.ActorRootKeyframeClipboard();
     private TimelineModel focusModel;
     private TimelineTrack focusOwner;
     private EntityClip focusClip;
@@ -45,10 +46,21 @@ final class ActorRootTimelineRows {
     boolean handleKeyCommand(TimelineModel model, String action) {
         if (focusModel != model || focusClip == null || model.getSelectedClip() != focusClip.getTimelineClip()
                 || !model.getAllTracks().contains(focusOwner)) { clearFocus(); return false; }
-        // Key focus must never fall through to deleting the entire actor reference.
-        if (action.equals("delete") && drag == null && focusClip.getKeyframes().contains(focusKey)
-                && Math.abs(model.getCurrentTime() - focusKey.getTime()) <= 1e-4f)
+        // Key focus must never fall through to operations on the actor reference.
+        if (drag != null) return true;
+        boolean atKey = focusClip.getKeyframes().contains(focusKey)
+                && Math.abs(model.getCurrentTime() - focusKey.getTime()) <= 1e-4f;
+        if (action.equals("copy") && atKey) clipboard.copy(focusClip, focusKey);
+        if (action.equals("cut") && atKey
+                && com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, focusOwner, focusClip)
+                && clipboard.copy(focusClip, focusKey))
             com.director.ui.actor.pose.ActorRootKeyframeEditing.remove(model, focusOwner, focusClip);
+        if (action.equals("delete") && atKey)
+            com.director.ui.actor.pose.ActorRootKeyframeEditing.remove(model, focusOwner, focusClip);
+        if (action.equals("paste")) {
+            var pasted = clipboard.paste(model, focusOwner, focusClip);
+            if (pasted != null) focusKey = pasted;
+        }
         return true;
     }
     static final int COUNT = 3;
