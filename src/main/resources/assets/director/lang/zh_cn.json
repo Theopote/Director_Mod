@@ -2291,5 +2291,10 @@
   "gui.director.actor.look_tool.empty": "当前没有注视片段。场景点击不会自动创建；请先新建注视行为。调整演员自身朝向请使用旋转工具。",
   "gui.director.actor.look_tool.create": "新建注视行为",
   "gui.director.actor.look_tool.select_owner": "请先绑定并明确选择演员轨道。",
-  "gui.director.actor.browser.hint": "在这里查找、创建和选择演员或分组。详细参数与群体编排操作在属性面板中编辑。"
+  "gui.director.actor.browser.hint": "在这里查找、创建和选择演员或分组。详细参数与群体编排操作在属性面板中编辑。",
+  "gui.director.actor.player_model": "玩家模型",
+  "gui.director.actor.player_model.default": "默认",
+  "gui.director.actor.player_model.wide": "宽臂（Steve）",
+  "gui.director.actor.player_model.slim": "窄臂（Alex）",
+  "gui.director.actor.player_model.hint": "导入 PNG 皮肤后，请按皮肤布局选择宽臂或窄臂。默认会将导入皮肤按宽臂显示。"
 }

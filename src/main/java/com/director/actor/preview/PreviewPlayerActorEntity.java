@@ -22,9 +22,15 @@ public final class PreviewPlayerActorEntity extends OtherClientPlayerEntity impl
     @Override public net.minecraft.entity.player.SkinTextures getSkin() {
         var texture=com.director.actor.skin.ActorSkinTextureManager.getOrLoad(actor.getActorId());
         var fallback=super.getSkin();
-        return texture==null ? fallback : net.minecraft.entity.player.SkinTextures.create(
-                new net.minecraft.util.AssetInfo.TextureAssetInfo(texture,texture),null,null,
-                net.minecraft.entity.player.PlayerSkinType.WIDE);
+        var model = switch (actor.getPlayerModel()) {
+            case SLIM -> net.minecraft.entity.player.PlayerSkinType.SLIM;
+            case WIDE -> net.minecraft.entity.player.PlayerSkinType.WIDE;
+            case DEFAULT -> texture == null ? fallback.model() : net.minecraft.entity.player.PlayerSkinType.WIDE;
+        };
+        return texture == null
+                ? new net.minecraft.entity.player.SkinTextures(fallback.body(), fallback.cape(), fallback.elytra(), model, fallback.secure())
+                : net.minecraft.entity.player.SkinTextures.create(
+                    new net.minecraft.util.AssetInfo.TextureAssetInfo(texture, texture), null, null, model);
     }
     @Override public void tick() {} // No vanilla movement, body control, or network interpolation.
     @Override public void tickMovement() {}

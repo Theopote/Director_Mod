@@ -685,6 +685,19 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         boolean modified = false;
         UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.SECTION), UITheme.DarkTheme.TEXT);
 
+        if (actor.getType() == ActorType.PLAYER) {
+            ImInt model = new ImInt(actor.getPlayerModel().ordinal());
+            String[] labels = {net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.default"),
+                    net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.wide"),
+                    net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.slim")};
+            if (ImGui.combo(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model"), model, labels)) {
+                actor.setPlayerModel(Actor.PlayerModel.values()[Math.max(0, Math.min(model.get(), labels.length - 1))]);
+                ActorRegistryManager.save();
+                modified = true;
+            }
+            ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.hint"));
+        }
+
         String current = actor.getSkinFileName();
         ImGui.textDisabled(current != null ? current : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.DEFAULT));
 

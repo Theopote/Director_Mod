@@ -41,6 +41,17 @@ public final class Actor {
      * 为空或 null 表示使用默认外观。
      */
     private String skinFileName;
+    public enum PlayerModel { DEFAULT, WIDE, SLIM }
+    private PlayerModel playerModel = PlayerModel.DEFAULT;
+
+    public PlayerModel getPlayerModel() {
+        return playerModel == null ? PlayerModel.DEFAULT : playerModel;
+    }
+
+    public void setPlayerModel(PlayerModel model) {
+        playerModel = model == null ? PlayerModel.DEFAULT : model;
+    }
+
 
     /**
      * 仅当 {@link #type} 为 {@link ActorType#CUSTOM} 时使用：

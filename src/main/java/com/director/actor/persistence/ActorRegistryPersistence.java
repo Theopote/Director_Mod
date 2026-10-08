@@ -116,7 +116,7 @@ public class ActorRegistryPersistence {
         }
     }
 
-    private static @NotNull JsonObject getJsonObject(ActorRegistry registry) {
+    static @NotNull JsonObject getJsonObject(ActorRegistry registry) {
         JsonObject root = new JsonObject();
         root.addProperty("version", "1.0");
         root.addProperty("actorCount", registry.size());
@@ -128,6 +128,7 @@ public class ActorRegistryPersistence {
             actorObj.addProperty("actorId", actor.getActorId().toString());
             actorObj.addProperty("name", actor.getName());
             actorObj.addProperty("type", actor.getType().name());
+            actorObj.addProperty("playerModel", actor.getPlayerModel().name());
             if (actor.getSkinFileName() != null) {
                 actorObj.addProperty("skinFileName", actor.getSkinFileName());
             }
@@ -188,109 +189,121 @@ public class ActorRegistryPersistence {
             String json = Files.readString(file);
             JsonObject root = GSON.fromJson(json, JsonObject.class);
 
-            String version = root.has("version") ? root.get("version").getAsString() : "1.0";
-            LOGGER.debug("[ActorRegistryPersistence] 加载 ActorRegistry 版本: {}", version);
-
-            if (root.has("actors")) {
-                JsonArray actorsArray = root.getAsJsonArray("actors");
-                int loadedCount = 0;
-
-                for (JsonElement element : actorsArray) {
-                    try {
-                        JsonObject actorObj = element.getAsJsonObject();
-                        UUID actorId = UUID.fromString(actorObj.get("actorId").getAsString());
-                        String name = actorObj.get("name").getAsString();
-                        String typeStr = actorObj.get("type").getAsString();
-                        ActorType type = ActorType.valueOf(typeStr);
-
-                        Actor actor = new Actor(actorId, name, type);
-                        if (actorObj.has("skinFileName")) {
-                            try {
-                                String skinFileName = actorObj.get("skinFileName").getAsString();
-                                actor.setSkinFileName(skinFileName);
-                            } catch (Exception ignored) {
-                                // 旧版本或异常字段时忽略皮肤信息，保证兼容性
-                            }
-                        }
-                        if (actorObj.has("customRigId")) {
-                            try {
-                                actor.setCustomRigId(actorObj.get("customRigId").getAsString());
-                            } catch (Exception ignored) {
-                                // 旧版本或异常字段时忽略自定义骨架绑定
-                            }
-                        }
-                        if (actorObj.has("customModelId")) {
-                            try {
-                                actor.setCustomModelId(actorObj.get("customModelId").getAsString());
-                            } catch (Exception ignored) {
-                                // 旧版本或异常字段时忽略自定义模型绑定
-                            }
-                        }
-                        registry.registerActor(actor);
-                        loadedCount++;
-
-                    } catch (Exception e) {
-                        LOGGER.warn("[ActorRegistryPersistence] 加载 Actor 失败，跳过", e);
-                    }
-                }
-
-                LOGGER.info("[ActorRegistryPersistence] 从文件加载 ActorRegistry: {} ({} 个 Actor)", file, loadedCount);
-            }
-
-            if (root.has("groups")) {
-                JsonArray groupsArray = root.getAsJsonArray("groups");
-                int loadedGroupCount = 0;
-                for (JsonElement element : groupsArray) {
-                    try {
-                        JsonObject groupObj = element.getAsJsonObject();
-                        UUID groupId = UUID.fromString(groupObj.get("groupId").getAsString());
-                        String name = groupObj.has("name") ? groupObj.get("name").getAsString() : "Actor Group";
-                        ActorGroup group = new ActorGroup(groupId, name);
-
-                        if (groupObj.has("formationType")) {
-                            try {
-                                group.setFormationType(ActorGroup.FormationType.valueOf(groupObj.get("formationType").getAsString()));
-                            } catch (Exception ignored) {
-                            }
-                        }
-                        if (groupObj.has("formationSpacing")) {
-                            group.setFormationSpacing(groupObj.get("formationSpacing").getAsFloat());
-                        }
-                        if (groupObj.has("delayPolicy")) {
-                            try {
-                                group.setDelayPolicy(ActorGroup.DelayPolicy.valueOf(groupObj.get("delayPolicy").getAsString()));
-                            } catch (Exception ignored) {
-                            }
-                        }
-                        if (groupObj.has("delayStepSeconds")) {
-                            group.setDelayStepSeconds(groupObj.get("delayStepSeconds").getAsFloat());
-                        }
-                        if (groupObj.has("actorIds")) {
-                            for (JsonElement actorIdElement : groupObj.getAsJsonArray("actorIds")) {
-                                try {
-                                    UUID actorId = UUID.fromString(actorIdElement.getAsString());
-                                    if (registry.contains(actorId)) {
-                                        group.addActor(actorId);
-                                    }
-                                } catch (Exception ignored) {
-                                }
-                            }
-                        }
-
-                        registry.registerGroup(group);
-                        loadedGroupCount++;
-                    } catch (Exception e) {
-                        LOGGER.warn("[ActorRegistryPersistence] 加载 ActorGroup 失败，跳过", e);
-                    }
-                }
-                LOGGER.info("[ActorRegistryPersistence] 从文件加载 ActorGroup: {} 个", loadedGroupCount);
-            }
+            loadFromJson(registry, root);
 
         } catch (IOException e) {
             LOGGER.error("[ActorRegistryPersistence] 加载 ActorRegistry 失败", e);
         } catch (Exception e) {
             LOGGER.error("[ActorRegistryPersistence] 解析 ActorRegistry 文件失败", e);
         }
+    }
+
+    static void loadFromJson(ActorRegistry registry, JsonObject root) {
+        String version = root.has("version") ? root.get("version").getAsString() : "1.0";
+        LOGGER.debug("[ActorRegistryPersistence] 加载 ActorRegistry 版本: {}", version);
+
+        if (root.has("actors")) {
+            JsonArray actorsArray = root.getAsJsonArray("actors");
+            int loadedCount = 0;
+
+            for (JsonElement element : actorsArray) {
+                try {
+                    JsonObject actorObj = element.getAsJsonObject();
+                    UUID actorId = UUID.fromString(actorObj.get("actorId").getAsString());
+                    String name = actorObj.get("name").getAsString();
+                    String typeStr = actorObj.get("type").getAsString();
+                    ActorType type = ActorType.valueOf(typeStr);
+
+                    Actor actor = new Actor(actorId, name, type);
+                    if (actorObj.has("playerModel") && !actorObj.get("playerModel").isJsonNull()) {
+                        try {
+                            actor.setPlayerModel(Actor.PlayerModel.valueOf(actorObj.get("playerModel").getAsString()));
+                        } catch (IllegalArgumentException | IllegalStateException ignored) {
+                            // Unknown model values retain the legacy default appearance.
+                        }
+                    }
+                    if (actorObj.has("skinFileName")) {
+                        try {
+                            String skinFileName = actorObj.get("skinFileName").getAsString();
+                            actor.setSkinFileName(skinFileName);
+                        } catch (Exception ignored) {
+                            // 旧版本或异常字段时忽略皮肤信息，保证兼容性
+                        }
+                    }
+                    if (actorObj.has("customRigId")) {
+                        try {
+                            actor.setCustomRigId(actorObj.get("customRigId").getAsString());
+                        } catch (Exception ignored) {
+                            // 旧版本或异常字段时忽略自定义骨架绑定
+                        }
+                    }
+                    if (actorObj.has("customModelId")) {
+                        try {
+                            actor.setCustomModelId(actorObj.get("customModelId").getAsString());
+                        } catch (Exception ignored) {
+                            // 旧版本或异常字段时忽略自定义模型绑定
+                        }
+                    }
+                    registry.registerActor(actor);
+                    loadedCount++;
+
+                } catch (Exception e) {
+                    LOGGER.warn("[ActorRegistryPersistence] 加载 Actor 失败，跳过", e);
+                }
+            }
+
+            LOGGER.info("[ActorRegistryPersistence] 加载 ActorRegistry: {} 个 Actor", loadedCount);
+        }
+
+        if (root.has("groups")) {
+            JsonArray groupsArray = root.getAsJsonArray("groups");
+            int loadedGroupCount = 0;
+            for (JsonElement element : groupsArray) {
+                try {
+                    JsonObject groupObj = element.getAsJsonObject();
+                    UUID groupId = UUID.fromString(groupObj.get("groupId").getAsString());
+                    String name = groupObj.has("name") ? groupObj.get("name").getAsString() : "Actor Group";
+                    ActorGroup group = new ActorGroup(groupId, name);
+
+                    if (groupObj.has("formationType")) {
+                        try {
+                            group.setFormationType(ActorGroup.FormationType.valueOf(groupObj.get("formationType").getAsString()));
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    if (groupObj.has("formationSpacing")) {
+                        group.setFormationSpacing(groupObj.get("formationSpacing").getAsFloat());
+                    }
+                    if (groupObj.has("delayPolicy")) {
+                        try {
+                            group.setDelayPolicy(ActorGroup.DelayPolicy.valueOf(groupObj.get("delayPolicy").getAsString()));
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    if (groupObj.has("delayStepSeconds")) {
+                        group.setDelayStepSeconds(groupObj.get("delayStepSeconds").getAsFloat());
+                    }
+                    if (groupObj.has("actorIds")) {
+                        for (JsonElement actorIdElement : groupObj.getAsJsonArray("actorIds")) {
+                            try {
+                                UUID actorId = UUID.fromString(actorIdElement.getAsString());
+                                if (registry.contains(actorId)) {
+                                    group.addActor(actorId);
+                                }
+                            } catch (Exception ignored) {
+                            }
+                        }
+                    }
+
+                    registry.registerGroup(group);
+                    loadedGroupCount++;
+                } catch (Exception e) {
+                    LOGGER.warn("[ActorRegistryPersistence] 加载 ActorGroup 失败，跳过", e);
+                }
+            }
+            LOGGER.info("[ActorRegistryPersistence] 从文件加载 ActorGroup: {} 个", loadedGroupCount);
+        }
+
     }
 
     /**
