@@ -68,7 +68,7 @@ public final class ActorGroupTimelineCommandService {
             if (model.findActorTrackByActorId(id).getActorTrackPayload().getActionClips().stream()
                     .anyMatch(c -> c.getStartTime() < start + Math.max(0.05f, duration) && c.getEndTime() > start)) overwritten++;
         }
-        return new Preview(members.eligible(), members.skipped(), members.problem(), overwritten);
+        return new Preview(members.eligible(), members.skipped(), null, overwritten);
     }
 
     public Preview previewRoutes(TimelineModel model, ActorGroup group, UUID sourceActorId) {
@@ -89,7 +89,7 @@ public final class ActorGroupTimelineCommandService {
             if (conflict) skipped.add(new SkippedMember(id, SkipReason.ROUTE_CONFLICT));
             else eligible.add(id);
         }
-        return new Preview(eligible, skipped, members.problem(), 0);
+        return new Preview(eligible, skipped, null, 0);
     }
 
     public Preview previewPlacement(TimelineModel model, ActorGroup group) {
@@ -135,7 +135,7 @@ public final class ActorGroupTimelineCommandService {
         if (!preview.canExecute() || !Float.isFinite(intensity)) return 0;
         float baseStart = Math.max(0, model.getCurrentTime());
         float duration = Math.max(0.05f, durationSeconds);
-        float clampedIntensity = Math.max(0, Math.min(1, intensity));
+        float clampedIntensity = Math.clamp(intensity, 0, 1);
         var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, actionType, baseStart);
         List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
         for (UUID actorId : preview.eligible()) {
@@ -174,8 +174,14 @@ public final class ActorGroupTimelineCommandService {
         for (UUID id : preview.eligible()) {
             var track = model.findActorTrackByActorId(id);
             float delay = Math.max(0, resolveTriggerTime(triggers, id, 0));
-            var copy = copyRouteClip(source, delay, computeFormationOffset(group, source, ids.indexOf(id), ids.size()));
-            var wrapper = prepareWrapper(copy, track.getActorTrackPayload().getColorRgba());
+            ActorRouteClip copy = null;
+            if (source != null) {
+                copy = copyRouteClip(source, delay, computeFormationOffset(group, source, ids.indexOf(id), ids.size()));
+            }
+            EntityTimelineClip wrapper = null;
+            if (copy != null) {
+                wrapper = prepareWrapper(copy, track.getActorTrackPayload().getColorRgba());
+            }
             changes.add(addClipChange(track, copy, wrapper));
         }
         ActorGroupEditCommand.execute(model, "Group actor routes", changes);

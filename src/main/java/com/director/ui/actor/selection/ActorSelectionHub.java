@@ -2,18 +2,13 @@ package com.director.ui.actor.selection;
 
 import com.director.core.DirectorServices;
 import com.director.actor.Actor;
-import com.director.actor.ActorRef;
 import com.director.ui.actor.gizmo.ActorGizmoController;
 import com.director.ui.selection.SelectionManager;
-import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
-import com.director.timeline.model.TrackType;
-import com.director.timeline.model.entity.ActorTrack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -157,7 +152,6 @@ public final class ActorSelectionHub {
      * 获取当前选中的 Actor ID（只读）
      * <p>供 Visualizer 等只读组件使用
      *
-     * @return 当前选中的 Actor ID，如果未选中则返回 null
      */
     public static void selectBone(UUID actorId, String boneId, boolean additive) {
         com.director.ui.actor.pose.ActorBonePropertiesPanel.cancelNumericDraft();
