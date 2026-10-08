@@ -151,6 +151,7 @@ public final class ActorBoneTimelineRows {
     private boolean actionMenu;
     private final com.director.ui.actor.pose.ActorKeyframeTimePanel timePanel=new com.director.ui.actor.pose.ActorKeyframeTimePanel();
     public boolean handleKeyCommand(TimelineModel model,String action) {
+        if (rootRows.handleKeyCommand(model, action)) return true;
         importSelection(model);
         // Once keys own focus, rejection must never fall through to deleting their clip.
         if(!keyFocus || selectedReference==null || model.getSelectedClip()!=selectedReference.getTimelineClip()) return false;
@@ -183,8 +184,8 @@ public final class ActorBoneTimelineRows {
         }
         return true;
     }
-    public boolean isKeyInteractionActive() { return dragging!=null || marquee!=null; }
-    public void cancelKeyInteraction() { dragging=null; marquee=null; }
+    public boolean isKeyInteractionActive() { return dragging!=null || marquee!=null || rootRows.isDragging(); }
+    public void cancelKeyInteraction() { dragging=null; marquee=null; rootRows.cancel(); }
     private void renderSelectedKeyProperties() {
         if(selectedKeys.isEmpty()) return;
         float first=Float.POSITIVE_INFINITY,last=Float.NEGATIVE_INFINITY;
@@ -293,7 +294,7 @@ public final class ActorBoneTimelineRows {
 
     /** Preview only while held; the underlying asset changes once, on release. */
     public boolean updateDrag(TimelineModel model) {
-        try { return updateDragInternal(model); } finally { publishSelection(model); }
+        try { if (rootRows.updateDrag(model)) return true; return updateDragInternal(model); } finally { publishSelection(model); }
     }
     private boolean updateDragInternal(TimelineModel model) {
         if (renderCandidates(model)) return true;
@@ -375,7 +376,7 @@ public final class ActorBoneTimelineRows {
 
     public boolean supports(TimelineTrack track) { return supported.contains(track); }
     public void setExpanded(TimelineTrack track, boolean value) {
-        if (value) expanded.add(track); else expanded.remove(track);
+        if (value) expanded.add(track); else { expanded.remove(track); rootRows.cancel(); }
     }
 
     private com.director.actor.rig.skeleton.RigDefinition rigFor(TimelineTrack track) {
@@ -479,7 +480,7 @@ public final class ActorBoneTimelineRows {
         var track = model.getTrackAt(owner);
         if (!supports(track)) { keyFocus=false; return false; }
         float local = contentY - layout.trackTop(owner);
-        if(local<height) keyFocus=false;
+        if(local<height) { keyFocus=false; rootRows.clearFocus(); }
         if (local < height && mx < Math.min(contentX, x + 26)) {
             if (ImGui.isMouseClicked(ImGuiMouseButton.Left) && !expanded.remove(track)) expanded.add(track);
             return true;
@@ -490,6 +491,7 @@ public final class ActorBoneTimelineRows {
             keyFocus = false;
             return rootRows.click(model, track, mx, contentX, bone, math);
         }
+        rootRows.clearFocus();
         bone -= ActorRootTimelineRows.COUNT;
         var rig = trackRigs.get(track);
         if (rig == null || bone >= rig.boneCount()) return false;

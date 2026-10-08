@@ -10,6 +10,47 @@ import java.util.*;
 
 /** Root TRS rows are a view of one shared key, not three independent keys. */
 final class ActorRootTimelineRows {
+    private com.director.ui.actor.pose.ActorRootKeyframeTimeSession drag;
+    private float dragMouseX, previewTime;
+    private TimelineRenderMath dragMath;
+    boolean isDragging() { return drag != null; }
+    void cancel() { if (drag != null) drag.cancel(); drag = null; }
+    boolean updateDrag(TimelineModel model) {
+        if (drag == null) return false;
+        if (drag.model() != model || !drag.isCurrent() || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)
+                || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
+                || com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()) { cancel(); return true; }
+        float delta = (ImGui.getMousePosX() - dragMouseX) / Math.max(1, dragMath.getPixelsPerSecond());
+        float target = drag.originalTime() + delta;
+        if (model.isSnapToGridEnabled() && !ImGui.getIO().getKeyAlt()) target = model.snapToGrid(target);
+        previewTime = Math.max(drag.start(), Math.min(drag.end(), target));
+        ImGui.setTooltip(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.root_rows.drag", previewTime));
+        if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
+            var session = drag; drag = null;
+            if (Math.abs(ImGui.getMousePosX() - dragMouseX) >= 3
+                    && ImGui.isWindowHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenBlockedByActiveItem)) {
+                if (session.commit(previewTime)) model.setCurrentTime(previewTime);
+            } else session.cancel();
+        } else if (!ImGui.isMouseDown(ImGuiMouseButton.Left)) cancel();
+        return true;
+    }
+    private TimelineModel focusModel;
+    private TimelineTrack focusOwner;
+    private EntityClip focusClip;
+    private EntityClipKeyframe focusKey;
+    void clearFocus() { focusModel = null; focusOwner = null; focusClip = null; focusKey = null; }
+    void focus(TimelineModel model, TimelineTrack owner, EntityClip clip, EntityClipKeyframe key) {
+        focusModel = model; focusOwner = owner; focusClip = clip; focusKey = key;
+    }
+    boolean handleKeyCommand(TimelineModel model, String action) {
+        if (focusModel != model || focusClip == null || model.getSelectedClip() != focusClip.getTimelineClip()
+                || !model.getAllTracks().contains(focusOwner)) { clearFocus(); return false; }
+        // Key focus must never fall through to deleting the entire actor reference.
+        if (action.equals("delete") && drag == null && focusClip.getKeyframes().contains(focusKey)
+                && Math.abs(model.getCurrentTime() - focusKey.getTime()) <= 1e-4f)
+            com.director.ui.actor.pose.ActorRootKeyframeEditing.remove(model, focusOwner, focusClip);
+        return true;
+    }
     static final int COUNT = 3;
     record Hit(EntityClip clip, EntityClipKeyframe key, float x) {}
     static List<EntityClip> clips(TimelineTrack track) {
@@ -37,7 +78,7 @@ final class ActorRootTimelineRows {
             draw.pushClipRect(left, y, right, y + height, true);
             try {
                 for (var clip : clips(track)) for (var key : clip.getKeyframes()) {
-                    float kx = math.timeToX(key.getTime()), ky = y + height / 2;
+                    float kx = math.timeToX(drag != null && drag.key() == key && drag.clip() == clip ? previewTime : key.getTime()), ky = y + height / 2;
                     if (kx < left - 6 || kx > right + 6) continue;
                     int color = clip.isMuted() || track.isMuted() ? TimelineColors.rgba(110,110,110,255)
                             : selectedAt(model,clip,key) ? TimelineColors.rgba(255,255,255,255) : colors[row];
@@ -61,10 +102,19 @@ final class ActorRootTimelineRows {
         if (hits.size() > 1) { ImGui.setTooltip(tr("ambiguous")); return true; }
         ActorSelectionHub.selectActor(track.getActorTrackPayload().getActorRef().getActorId());
         com.director.ui.actor.pose.ActorBoneSelectionController.getInstance().deactivate();
+        clearFocus();
         if (hits.size() == 1) {
             var hit = hits.getFirst();
             model.setSelectedClip(hit.clip().getTimelineClip()); model.setCurrentTime(hit.key().getTime());
             DirectorServices.get().uiSelection().setCurrentSelection(hit.clip().getTimelineClip());
+            focus(model, track, hit.clip(), hit.key());
+            if (!ImGui.getIO().getKeyCtrl()
+                    && com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, track, hit.clip())) {
+                try {
+                    drag = new com.director.ui.actor.pose.ActorRootKeyframeTimeSession(model, track, hit.clip(), hit.key());
+                    dragMouseX = mouseX; dragMath = math; previewTime = hit.key().getTime();
+                } catch (IllegalArgumentException unavailable) { cancel(); }
+            }
         }
         return true;
     }

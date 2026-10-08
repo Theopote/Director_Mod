@@ -2311,5 +2311,6 @@
   "gui.director.actor.root_rows.position": "Root position",
   "gui.director.actor.root_rows.rotation": "Root rotation",
   "gui.director.actor.root_rows.scale": "Root scale",
-  "gui.director.actor.root_rows.ambiguous": "Overlapping keys: select a specific actor clip first."
+  "gui.director.actor.root_rows.ambiguous": "Overlapping keys: select a specific actor clip first.",
+  "gui.director.actor.root_rows.drag": "Root key time: %.3f s (release to apply, Esc to cancel)"
 }

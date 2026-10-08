@@ -2311,5 +2311,6 @@
   "gui.director.actor.root_rows.position": "整体位置",
   "gui.director.actor.root_rows.rotation": "整体旋转",
   "gui.director.actor.root_rows.scale": "整体缩放",
-  "gui.director.actor.root_rows.ambiguous": "这里有重叠关键帧，请先选择具体演员片段。"
+  "gui.director.actor.root_rows.ambiguous": "这里有重叠关键帧，请先选择具体演员片段。",
+  "gui.director.actor.root_rows.drag": "整体关键帧时间：%.3f 秒（松开提交，Esc 取消）"
 }

@@ -11,7 +11,7 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorRootTimelineRowsTest {
-    @AfterEach void cleanup() { ActorRegistryManager.setRegistry(null); }
+    @AfterEach void cleanup() { ActorRegistryManager.setRegistry(null); com.director.ui.timeline.commands.TimelineCommandBridge.bind(null); }
     @Test void nonHumanoidsGetRootRowsWithoutInventedBonesOrTracks() {
         var registry = new ActorRegistry(); ActorRegistryManager.setRegistry(registry);
         var model = new TimelineModel(new TimelineViewportState()); model.setSuppressPersistenceWrites(true);
@@ -42,4 +42,26 @@ class ActorRootTimelineRowsTest {
         assertFalse(ActorRootTimelineRows.selectedAt(model, transform, key));
         model.setCurrentTime(3); assertFalse(ActorRootTimelineRows.selectedAt(model, spawn, key));
     }
+    @Test void focusedRootDeleteCannotFallThroughToItsClipEvenWhenLockedOrAlreadyDeleted() {
+        var registry = new ActorRegistry(); ActorRegistryManager.setRegistry(registry);
+        var actor = registry.createActor("A", ActorType.PLAYER);
+        var model = new TimelineModel(new TimelineViewportState()); model.setSuppressPersistenceWrites(true);
+        var track = new TimelineTrack("A", TrackType.ACTOR);
+        track.getOrCreateActorTrackPayload().setActorRef(ActorRef.of(actor)); model.addTrack(track);
+        var spawn = new EntitySpawnClip("A", 0, 5); track.getActorTrackPayload().addClip(spawn);
+        var wrapper = new EntityTimelineClip(spawn, 0); track.addClip(wrapper);
+        var key = new EntityClipKeyframe(2); spawn.addKeyframe(key);
+        model.setSelectedClip(wrapper); model.setCurrentTime(2);
+        var history = new com.director.ui.timeline.commands.TimelineCommandHistory();
+        com.director.ui.timeline.commands.TimelineCommandBridge.bind(history);
+        var rows = new ActorRootTimelineRows(); rows.focus(model, track, spawn, key);
+        track.setLocked(true); assertTrue(rows.handleKeyCommand(model, "delete"));
+        assertEquals(1, spawn.getKeyframes().size()); assertEquals(0, history.getUndoSize());
+        track.setLocked(false); assertTrue(rows.handleKeyCommand(model, "delete"));
+        assertTrue(spawn.getKeyframes().isEmpty()); assertEquals(1, track.getClips().size());
+        assertTrue(rows.handleKeyCommand(model, "delete")); assertEquals(1, history.getUndoSize());
+        assertTrue(history.undo()); assertEquals(java.util.List.of(key), spawn.getKeyframes());
+        rows.clearFocus(); assertFalse(rows.handleKeyCommand(model, "delete"));
+    }
+
 }
