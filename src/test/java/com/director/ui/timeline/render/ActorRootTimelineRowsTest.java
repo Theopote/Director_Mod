@@ -42,6 +42,18 @@ class ActorRootTimelineRowsTest {
         assertFalse(ActorRootTimelineRows.selectedAt(model, transform, key));
         model.setCurrentTime(3); assertFalse(ActorRootTimelineRows.selectedAt(model, spawn, key));
     }
+    @Test void rootRectangleDeduplicatesRowsAndWorksInBothDirectionsAfterScroll() {
+        var viewport = new TimelineRenderViewport(); viewport.setScrollX(45); viewport.setZoom(2);
+        var math = new TimelineRenderMath(viewport);
+        var a = new EntityClipKeyframe(1); var b = new EntityClipKeyframe(2);
+        var times = new java.util.LinkedHashMap<EntityClipKeyframe, Float>(); times.put(a, 1f); times.put(b, 2f);
+        float ax = math.timeToX(1), bx = math.timeToX(2), rowsTop = -10;
+        assertEquals(java.util.Set.of(a, b), ActorRootTimelineRows.rectangle(times, ax - 1, -10, bx + 1, 62, rowsTop, math));
+        assertEquals(java.util.Set.of(a, b), ActorRootTimelineRows.rectangle(times, bx + 1, 62, ax - 1, -10, rowsTop, math));
+        assertEquals(java.util.Set.of(a), ActorRootTimelineRows.rectangle(times, ax - 1, 1, ax + 1, 3, rowsTop, math));
+        assertTrue(ActorRootTimelineRows.rectangle(times, ax - 1, 63, bx + 1, 100, rowsTop, math).isEmpty());
+        assertEquals(1, a.getTime()); assertEquals(2, b.getTime());
+    }
     @Test void additiveSelectionDeletesOneGroupAndToggleDoesNotDeleteDeselectedKey() {
         var registry = new ActorRegistry(); ActorRegistryManager.setRegistry(registry);
         var actor = registry.createActor("A", ActorType.PLAYER);

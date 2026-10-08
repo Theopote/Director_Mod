@@ -96,6 +96,7 @@ public final class ActorBoneTimelineRows {
         try { return updateMarqueeInternal(model,left,right,top,height,scrollY,math); } finally { publishSelection(model); }
     }
     private boolean updateMarqueeInternal(TimelineModel model,float left,float right,float top,float height,float scrollY,TimelineRenderMath math) {
+        if (rootRows.updateMarquee(model,left,right,top,height,scrollY,math)) return true;
         if(marquee==null) return false;
         var box=marquee;
         if(box.context().model()!=model || !box.context().isBound()
@@ -482,14 +483,21 @@ public final class ActorBoneTimelineRows {
         float local = contentY - layout.trackTop(owner);
         if(local<height) { keyFocus=false; rootRows.clearFocus(); }
         if (local < height && mx < Math.min(contentX, x + 26)) {
-            if (ImGui.isMouseClicked(ImGuiMouseButton.Left) && !expanded.remove(track)) expanded.add(track);
+            if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) { rootRows.cancel(); if (!expanded.remove(track)) expanded.add(track); }
             return true;
         }
         if (!expanded.contains(track) || local < height + gap) return false;
         int bone = (int) ((local - height - gap) / CHILD_HEIGHT);
         if (bone < ActorRootTimelineRows.COUNT) {
             keyFocus = false;
-            return rootRows.click(model, track, mx, contentX, bone, math);
+            boolean consumed = rootRows.click(model, track, mx, contentX, bone, math);
+            if (ImGui.isMouseClicked(ImGuiMouseButton.Left) && mx >= contentX && !rootRows.isDragging()) {
+                boolean nearKey = ActorRootTimelineRows.clips(track).stream().flatMap(c -> c.getKeyframes().stream())
+                        .anyMatch(k -> Math.abs(math.timeToX(k.getTime()) - mx) <= 7);
+                if (!nearKey) rootRows.beginMarquee(model, track, mx, my, contentX, right, top, viewportHeight, scrollY,
+                        top + layout.trackTop(owner) + height + gap - scrollY, math, ImGui.getIO().getKeyCtrl());
+            }
+            return consumed;
         }
         rootRows.clearFocus();
         bone -= ActorRootTimelineRows.COUNT;

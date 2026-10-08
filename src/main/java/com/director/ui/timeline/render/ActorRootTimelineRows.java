@@ -13,8 +13,8 @@ final class ActorRootTimelineRows {
     private com.director.ui.actor.pose.ActorRootKeyframeTimeSession drag;
     private float dragMouseX, previewTime;
     private float dragPixelsPerSecond;
-    boolean isDragging() { return drag != null; }
-    void cancel() { if (drag != null) drag.cancel(); drag = null; }
+    boolean isDragging() { return drag != null || marquee != null; }
+    void cancel() { if (drag != null) drag.cancel(); drag = null; marquee = null; }
     boolean updateDrag(TimelineModel model) {
         if (drag == null) return false;
         if (drag.model() != model || !drag.isCurrent() || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)
@@ -32,6 +32,68 @@ final class ActorRootTimelineRows {
                 if (session.commit(previewTime)) model.setCurrentTime(previewTime);
             } else session.cancel();
         } else if (!ImGui.isMouseDown(ImGuiMouseButton.Left)) cancel();
+        return true;
+    }
+    private record Marquee(TimelineModel model, TimelineTrack owner, EntityClip clip, long revision,
+            float x, float y, float left, float right, float top, float bottom, float rowsTop,
+            boolean additive, List<Float> viewport, Map<EntityClipKeyframe, Float> times) {}
+    private Marquee marquee;
+    private static List<Float> viewport(float left, float right, float top, float height, float scroll, TimelineRenderMath math) {
+        return List.of(left, right, top, height, scroll, math.getPixelsPerSecond(), math.timeToX(0), math.getRowLayout().totalHeight());
+    }
+    static Set<EntityClipKeyframe> rectangle(Map<EntityClipKeyframe, Float> times, float x1, float y1, float x2, float y2,
+                                             float rowsTop, TimelineRenderMath math) {
+        Set<EntityClipKeyframe> result = new LinkedHashSet<>();
+        for (var entry : times.entrySet()) for (int row = 0; row < COUNT; row++) {
+            float x = math.timeToX(entry.getValue()), y = rowsTop + (row + .5f) * ActorBoneTimelineRows.CHILD_HEIGHT;
+            if (x >= Math.min(x1, x2) && x <= Math.max(x1, x2) && y >= Math.min(y1, y2) && y <= Math.max(y1, y2)) result.add(entry.getKey());
+        }
+        return result;
+    }
+    void beginMarquee(TimelineModel model, TimelineTrack track, float mx, float my, float left, float right,
+                      float top, float height, float scroll, float rowsTop, TimelineRenderMath math, boolean additive) {
+        if (!(model.getSelectedClip() instanceof EntityTimelineClip wrapper) || wrapper.getParentTrack() != track
+                || !clips(track).contains(wrapper.getEntityClip())) { ImGui.setTooltip(tr("marquee_hint")); return; }
+        var clip = wrapper.getEntityClip();
+        if (model.isPlaying() || model.isScrubbing()) return;
+        var times = new LinkedHashMap<EntityClipKeyframe, Float>();
+        clip.getKeyframes().forEach(k -> times.put(k, k.getTime()));
+        boolean keep = additive && focusModel == model && focusClip == clip;
+        focusModel = model; focusOwner = track; focusClip = clip;
+        marquee = new Marquee(model, track, clip, model.getActorEditContextRevision(), mx, my, left, right,
+                Math.max(top, rowsTop), Math.min(top + height, rowsTop + COUNT * ActorBoneTimelineRows.CHILD_HEIGHT), rowsTop,
+                keep, viewport(left, right, top, height, scroll, math), Collections.unmodifiableMap(times));
+    }
+    boolean updateMarquee(TimelineModel model, float left, float right, float top, float height, float scroll, TimelineRenderMath math) {
+        if (marquee == null) return false;
+        var box = marquee;
+        var times = new LinkedHashMap<EntityClipKeyframe, Float>(); box.clip().getKeyframes().forEach(k -> times.put(k, k.getTime()));
+        if (box.model() != model || box.revision() != model.getActorEditContextRevision()
+                || model.getSelectedClip() != box.clip().getTimelineClip() || !model.getAllTracks().contains(box.owner())
+                || !clips(box.owner()).contains(box.clip()) || !times.equals(box.times())
+                || !box.viewport().equals(viewport(left, right, top, height, scroll, math))
+                || model.isPlaying() || model.isScrubbing()
+                || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
+                || com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
+                || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)
+                || !ImGui.isWindowHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenBlockedByActiveItem)) { marquee = null; return true; }
+        float mx = Math.clamp(ImGui.getMousePosX(), box.left(), box.right());
+        float my = Math.clamp(ImGui.getMousePosY(), box.top(), box.bottom());
+        boolean active = Math.hypot(mx - box.x(), my - box.y()) >= 4;
+        var inside = active ? rectangle(times, box.x(), box.y(), mx, my, box.rowsTop(), math) : Set.<EntityClipKeyframe>of();
+        if (active) {
+            var draw = ImGui.getWindowDrawList(); draw.pushClipRect(box.left(), box.top(), box.right(), box.bottom(), true);
+            try {
+                draw.addRectFilled(Math.min(mx, box.x()), Math.min(my, box.y()), Math.max(mx, box.x()), Math.max(my, box.y()), TimelineColors.rgba(80,160,230,40));
+                draw.addRect(Math.min(mx, box.x()), Math.min(my, box.y()), Math.max(mx, box.x()), Math.max(my, box.y()), TimelineColors.rgba(100,190,255,220));
+            } finally { draw.popClipRect(); }
+        }
+        ImGui.setTooltip(tr("marquee_hint"));
+        if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
+            marquee = null;
+            if (!box.additive()) selected.clear();
+            selected.addAll(inside); focusKey = selected.isEmpty() ? null : selected.iterator().next();
+        } else if (!ImGui.isMouseDown(ImGuiMouseButton.Left)) marquee = null;
         return true;
     }
     private final com.director.ui.actor.pose.ActorRootKeyframeClipboard clipboard = new com.director.ui.actor.pose.ActorRootKeyframeClipboard();
@@ -53,7 +115,7 @@ final class ActorRootTimelineRows {
         if (focusModel != model || focusClip == null || model.getSelectedClip() != focusClip.getTimelineClip()
                 || !model.getAllTracks().contains(focusOwner)) { clearFocus(); return false; }
         // Key focus must never fall through to operations on the actor reference.
-        if (drag != null) return true;
+        if (isDragging()) return true;
         boolean live = !selected.isEmpty() && focusClip.getKeyframes().containsAll(selected);
         if (action.equals("copy") && live) clipboard.copy(focusClip, selected);
         if (action.equals("cut") && live
@@ -122,7 +184,7 @@ final class ActorRootTimelineRows {
         if (hits.size() > 1) { ImGui.setTooltip(tr("ambiguous")); return true; }
         ActorSelectionHub.selectActor(track.getActorTrackPayload().getActorRef().getActorId());
         com.director.ui.actor.pose.ActorBoneSelectionController.getInstance().deactivate();
-        if (hits.isEmpty()) clearFocus();
+        if (hits.isEmpty() && mouseX < left) clearFocus();
         if (hits.size() == 1) {
             var hit = hits.getFirst();
             model.setSelectedClip(hit.clip().getTimelineClip()); model.setCurrentTime(hit.key().getTime());

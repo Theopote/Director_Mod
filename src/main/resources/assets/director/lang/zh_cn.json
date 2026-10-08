@@ -1,4 +1,5 @@
 {
+  "gui.director.actor.root_rows.marquee_hint": "先选中演员片段，再在整体子行空白处拖动框选；Ctrl 拖动追加选择。",
   "gui.director.actor.root_rows.selection_hint": "单击选择；Ctrl 单击增选/取消。拖动已选帧移动整组，单击未选帧重新选择。三行共享整体帧；粘贴保留时间间隔。",
   "key.director.open_ui": "打开 Director",
   "key.category.director.general": "Director",

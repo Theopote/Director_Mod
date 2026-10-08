@@ -1,4 +1,5 @@
 {
+  "gui.director.actor.root_rows.marquee_hint": "Select an actor clip, then drag empty root-row space to box-select; Ctrl-drag adds keys.",
   "gui.director.actor.root_rows.selection_hint": "Click to select; Ctrl-click to toggle. Drag a selected key to move the group; click an unselected key to replace selection. All three rows share whole keys; paste keeps spacing.",
   "key.director.open_ui": "Open Director",
   "key.category.director.general": "Director",
