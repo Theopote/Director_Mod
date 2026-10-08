@@ -9,6 +9,32 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorLookAtEditSessionTest {
+    @Test void explicitlySelectedLookReferenceWinsOverOverlapEvenOutsideItsInterval() {
+        var first=create();
+        var other=new EntityLookAtClip("Other",1,10);
+        track.getActorTrackPayload().addClip(other);
+        track.addClip(new EntityTimelineClip(other,0));
+        model.setSelectedClip(first.getTimelineClip()); model.setCurrentTime(4);
+        var session=new ActorLookAtEditSession(model,track);
+        assertSame(first,session.source()); session.draft().setWorldPoint(8,9,10);
+        assertSame(first,session.commit());
+        assertEquals(2,track.getActorTrackPayload().getClips().size());
+        assertEquals(8,first.getWorldPoint().x); assertNotEquals(8,other.getWorldPoint().x);
+    }
+    @Test void explicitlySelectedMutedLookDoesNotFallBackOrCreateAnother() {
+        var first=create(); first.setMuted(true); model.setSelectedClip(first.getTimelineClip());
+        var other=new EntityLookAtClip("Other",1,10); track.getActorTrackPayload().addClip(other);
+        track.addClip(new EntityTimelineClip(other,0));
+        assertSame(first,ActorLookAtEditSession.resolveSource(model,track));
+        assertThrows(IllegalArgumentException.class,()->new ActorLookAtEditSession(model,track));
+        assertEquals(2,track.getActorTrackPayload().getClips().size());
+    }
+    @Test void pendingCreationWritesNothingAndScrubbingCancelsIt() {
+        var session=new ActorLookAtEditSession(model,track);
+        assertNull(session.source()); assertTrue(track.getClips().isEmpty());
+        model.setScrubbing(true); assertNull(session.commit());
+        assertTrue(track.getActorTrackPayload().getClips().isEmpty()); assertEquals(0,history.getUndoSize());
+    }
     TimelineModel model;
     TimelineTrack track;
     TimelineCommandHistory history;

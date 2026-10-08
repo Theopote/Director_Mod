@@ -55,6 +55,7 @@ public final class ActorLookAtGizmoController {
 
     /** 当前选中的 Actor */
     private UUID targetActorId;
+    private ActorLookAtEditSession pendingCreation;
 
     /** 上次点击时间（用于防抖） */
     private long lastClickTime = 0;
@@ -76,7 +77,7 @@ public final class ActorLookAtGizmoController {
      * @param actorId Actor ID，如果为 null 则清除目标
      */
     public void setTargetActor(UUID actorId) {
-        if (!Objects.equals(this.targetActorId, actorId)) MarkerDragController.getInstance().cancelDrag();
+        if (!Objects.equals(this.targetActorId, actorId)) { MarkerDragController.getInstance().cancelDrag(); cancelCreation(); }
         this.targetActorId = actorId;
     }
 
@@ -85,6 +86,7 @@ public final class ActorLookAtGizmoController {
      */
     public void clearTarget() {
         MarkerDragController.getInstance().cancelDrag();
+        cancelCreation();
         this.targetActorId = null;
     }
 
@@ -97,6 +99,12 @@ public final class ActorLookAtGizmoController {
      * <p>只在 LOOK_AT 模式下处理世界点击
      */
     public void update() {
+        if(pendingCreation!=null) {
+            isCreationPending();
+            var client=MinecraftClient.getInstance();
+            if(client!=null && client.getWindow()!=null && GLFW.glfwGetKey(client.getWindow().getHandle(),GLFW.GLFW_KEY_ESCAPE)==GLFW.GLFW_PRESS)
+                cancelCreation();
+        }
         // 1️⃣ 检查是否在 LOOK_AT 模式
         GizmoManager gm = GizmoManager.get();
         if (gm == null || !gm.isActive() || gm.getContext() == null) {
@@ -180,6 +188,7 @@ public final class ActorLookAtGizmoController {
      * <p>由 UI 按钮调用（例如"Look At Camera"按钮）
      */
     public void createCameraLookAtClip() {
+        if(beginEdit()==null) prepareCreation();
         editTarget(null);
     }
 
@@ -187,12 +196,36 @@ public final class ActorLookAtGizmoController {
         editTarget(worldPoint);
     }
 
+    public boolean isCreationPending() {
+        if(pendingCreation!=null && !pendingCreation.isCurrent()) cancelCreation();
+        return pendingCreation!=null;
+    }
+    public void cancelCreation() {
+        if(pendingCreation!=null) pendingCreation.cancel();
+        pendingCreation=null;
+    }
+    public boolean prepareCreation() {
+        cancelCreation();
+        var model=DirectorServices.get().containerTimeline().getTimelineModel();
+        if(model==null || targetActorId==null) return false;
+        try {
+            var owner=com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model,targetActorId);
+            var session=new ActorLookAtEditSession(model,owner);
+            if(session.source()!=null) { session.cancel(); return false; }
+            pendingCreation=session;
+            return true;
+        } catch(IllegalArgumentException | NullPointerException unavailable) { return false; }
+    }
+
     ActorLookAtEditSession beginEdit() {
         var model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null || targetActorId == null) return null;
         try {
             var owner = com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model, targetActorId);
-            return new ActorLookAtEditSession(model, owner);
+            var session=new ActorLookAtEditSession(model,owner);
+            if(session.source()!=null) return session;
+            session.cancel();
+            return null;
         } catch (IllegalArgumentException | NullPointerException failure) {
             LOGGER.debug("Look target edit unavailable: {}", failure.getMessage());
             return null;
@@ -202,13 +235,18 @@ public final class ActorLookAtGizmoController {
     private void editTarget(Vec3d point) {
         MarkerDragController.getInstance().cancelDrag();
         var session = beginEdit();
+        if(session==null && isCreationPending()) { session=pendingCreation; pendingCreation=null; }
         if (session == null) return;
+        cancelCreation();
         var clip = session.draft();
         clip.setMode(point == null ? EntityLookAtClip.TargetMode.CAMERA : EntityLookAtClip.TargetMode.WORLD_POINT);
         if (point != null) clip.setWorldPoint((float) point.x, (float) point.y, (float) point.z);
         clip.setStrength(1);
         var committed = session.commit();
-        if (committed != null) ActorLookAtSelectionContext.setActiveLookAtClip(committed);
+        if (committed != null) {
+            ActorLookAtSelectionContext.setActiveLookAtClip(committed);
+            session.model().setSelectedClip(committed.getTimelineClip());
+        }
     }
 
     // =========================================================

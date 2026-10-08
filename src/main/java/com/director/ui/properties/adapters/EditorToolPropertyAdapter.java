@@ -150,11 +150,40 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         } else if (Objects.equals(tool.getId(), ToolRegistry.ACTOR_PATH_TOOL_ID)) {
             renderActorPathToolProperties(actor);
         } else if (ToolRegistry.isActorTransformGizmoToolId(tool.getId())) {
+            if (Objects.equals(tool.getId(),ToolRegistry.ACTOR_LOOK_AT_TOOL_ID)) renderLookAtAuthoring(actor);
             if (actor != null) {
                 ActorLiveTransformPropertyUI.render(actor.getActorId());
             } else {
                 renderTransformHint();
             }
+        }
+    }
+
+    private void renderLookAtAuthoring(Actor actor) {
+        if(actor==null) return;
+        var model=DirectorServices.get().containerTimeline().getTimelineModel();
+        if(model==null) return;
+        var controller=com.director.ui.actor.lookat.ActorLookAtGizmoController.getInstance();
+        try {
+            var owner=com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model,actor.getActorId());
+            var source=com.director.ui.actor.lookat.ActorLookAtEditSession.resolveSource(model,owner);
+            boolean readOnly=model.isPlaying() || model.isScrubbing() || owner.isLocked() || owner.isMuted()
+                    || source!=null && source.isMuted();
+            if(source!=null) {
+                ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.look_tool.edit",source.getName()));
+                ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.look_tool.reuse"));
+            } else if(controller.isCreationPending()) {
+                ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.look_tool.pending"));
+                if(ImGui.button(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.look_tool.cancel"))) controller.cancelCreation();
+            } else {
+                ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.look_tool.empty"));
+                ImGui.beginDisabled(readOnly);
+                if(ImGui.button(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.look_tool.create"))) controller.prepareCreation();
+                ImGui.endDisabled();
+            }
+            if(readOnly) ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.detail.read_only"));
+        } catch(IllegalArgumentException unavailable) {
+            ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.look_tool.select_owner"));
         }
     }
 

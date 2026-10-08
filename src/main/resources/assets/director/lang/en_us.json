@@ -2283,5 +2283,12 @@
   "gui.director.actor.capabilities.available": "Available",
   "gui.director.actor.capabilities.unavailable": "Unavailable",
   "gui.director.actor.binding.hint": "This actor has no track. You can inspect its properties. Create an empty track, then explicitly add spawn and behavior clips.",
-  "gui.director.actor.binding.create": "Create actor track"
+  "gui.director.actor.binding.create": "Create actor track",
+  "gui.director.actor.look_tool.edit": "Editing look-at clip: %s",
+  "gui.director.actor.look_tool.reuse": "Click a scene target or drag the marker to edit this clip without adding another. Changes affect the entire clip.",
+  "gui.director.actor.look_tool.pending": "Choose a target: click a block surface to create one look-at clip. Escape, actor or playhead changes cancel.",
+  "gui.director.actor.look_tool.cancel": "Cancel new look-at",
+  "gui.director.actor.look_tool.empty": "No look-at clip. Scene clicks do not create one automatically. Create a look-at behavior first. Use Rotate to change actor orientation.",
+  "gui.director.actor.look_tool.create": "New look-at behavior",
+  "gui.director.actor.look_tool.select_owner": "Bind and explicitly select an actor track first."
 }

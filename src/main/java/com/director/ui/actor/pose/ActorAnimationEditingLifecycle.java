@@ -4,6 +4,7 @@ package com.director.ui.actor.pose;
 public final class ActorAnimationEditingLifecycle {
     private ActorAnimationEditingLifecycle() {}
     public static void cancelTransientWork() {
+        com.director.ui.actor.lookat.ActorLookAtGizmoController.getInstance().cancelCreation();
         com.director.ui.timeline.render.ActorBoneTimelineRows.closeAllTransientEditors();
         ActorAnimationDopeSheet.cancelKeyInteraction();
         ActorKeyframeTimePanel.cancelAll();

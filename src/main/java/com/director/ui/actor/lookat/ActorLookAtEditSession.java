@@ -28,12 +28,21 @@ public final class ActorLookAtEditSession {
         payload = Objects.requireNonNull(owner.getActorTrackPayload());
         actorId = Objects.requireNonNull(payload.getActorRef()).getActorId();
         time = model.getCurrentTime();
-        source = active(payload, time);
+        source = resolveSource(model,owner);
         before = source == null ? null : State.of(source);
         draft = new EntityLookAtClip("LookAt", source == null ? time : source.getStartTime(),
                 source == null ? time + 1 : source.getEndTime());
         if (before != null) before.apply(draft);
         if (!isCurrent()) throw new IllegalArgumentException("演员注视目标当前不可编辑");
+    }
+
+    public static EntityLookAtClip resolveSource(TimelineModel model,TimelineTrack owner) {
+        if(model==null || owner==null || owner.getActorTrackPayload()==null) return null;
+        var payload=owner.getActorTrackPayload();
+        if(model.getSelectedClip() instanceof EntityTimelineClip wrapper && wrapper.getParentTrack()==owner
+                && wrapper.getEntityClip() instanceof EntityLookAtClip look
+                && payload.getClips().contains(look) && owner.getClips().contains(wrapper)) return look;
+        return active(payload,model.getCurrentTime());
     }
 
     public static EntityLookAtClip active(ActorTrack payload, float time) {
@@ -47,15 +56,15 @@ public final class ActorLookAtEditSession {
     }
 
     public boolean isCurrent() {
-        return !finished && contextRevision == model.getActorEditContextRevision() && !model.isPlaying() && Float.isFinite(time) && time >= 0
+        return !finished && contextRevision == model.getActorEditContextRevision() && !model.isPlaying() && !model.isScrubbing() && Float.isFinite(time) && time >= 0
                 && Float.compare(time, model.getCurrentTime()) == 0
                 && model.getAllTracks().contains(owner) && owner.getType() == TrackType.ACTOR
                 && !owner.isLocked() && !owner.isMuted()
                 && owner.getActorTrackPayload() == payload && payload.getActorRef() != null
                 && Objects.equals(actorId, payload.getActorRef().getActorId())
                 && ActorRegistryManager.getInstance().getActor(actorId).isPresent()
-                && active(payload, time) == source
-                && (source == null || (before.equals(State.of(source))
+                && resolveSource(model,owner) == source
+                && (source == null || (!source.isMuted() && before.equals(State.of(source))
                     && source.getTimelineClip() != null && owner.getClips().contains(source.getTimelineClip())));
     }
 
