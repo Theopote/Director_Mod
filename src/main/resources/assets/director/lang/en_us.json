@@ -1,4 +1,5 @@
 {
+  "gui.director.actor.root_rows.selection_hint": "Click to select; Ctrl-click to toggle. All three rows share one whole key. Copy, cut and delete support multiple keys; paste keeps their spacing.",
   "key.director.open_ui": "Open Director",
   "key.category.director.general": "Director",
 

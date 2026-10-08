@@ -39,27 +39,32 @@ final class ActorRootTimelineRows {
     private TimelineTrack focusOwner;
     private EntityClip focusClip;
     private EntityClipKeyframe focusKey;
-    void clearFocus() { focusModel = null; focusOwner = null; focusClip = null; focusKey = null; }
+    private final Set<EntityClipKeyframe> selected = new LinkedHashSet<>();
+    void clearFocus() { selected.clear(); focusModel = null; focusOwner = null; focusClip = null; focusKey = null; }
     void focus(TimelineModel model, TimelineTrack owner, EntityClip clip, EntityClipKeyframe key) {
+        select(model, owner, clip, key, false);
+    }
+    void select(TimelineModel model, TimelineTrack owner, EntityClip clip, EntityClipKeyframe key, boolean additive) {
+        if (!additive || focusModel != model || focusOwner != owner || focusClip != clip) selected.clear();
         focusModel = model; focusOwner = owner; focusClip = clip; focusKey = key;
+        if (additive && selected.contains(key)) selected.remove(key); else selected.add(key);
     }
     boolean handleKeyCommand(TimelineModel model, String action) {
         if (focusModel != model || focusClip == null || model.getSelectedClip() != focusClip.getTimelineClip()
                 || !model.getAllTracks().contains(focusOwner)) { clearFocus(); return false; }
         // Key focus must never fall through to operations on the actor reference.
         if (drag != null) return true;
-        boolean atKey = focusClip.getKeyframes().contains(focusKey)
-                && Math.abs(model.getCurrentTime() - focusKey.getTime()) <= 1e-4f;
-        if (action.equals("copy") && atKey) clipboard.copy(focusClip, focusKey);
-        if (action.equals("cut") && atKey
+        boolean live = !selected.isEmpty() && focusClip.getKeyframes().containsAll(selected);
+        if (action.equals("copy") && live) clipboard.copy(focusClip, selected);
+        if (action.equals("cut") && live
                 && com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, focusOwner, focusClip)
-                && clipboard.copy(focusClip, focusKey))
-            com.director.ui.actor.pose.ActorRootKeyframeEditing.remove(model, focusOwner, focusClip);
-        if (action.equals("delete") && atKey)
-            com.director.ui.actor.pose.ActorRootKeyframeEditing.remove(model, focusOwner, focusClip);
+                && clipboard.copy(focusClip, selected))
+            com.director.ui.actor.pose.ActorRootKeyframeClipboard.delete(model, focusOwner, focusClip, selected);
+        if (action.equals("delete") && live)
+            com.director.ui.actor.pose.ActorRootKeyframeClipboard.delete(model, focusOwner, focusClip, selected);
         if (action.equals("paste")) {
-            var pasted = clipboard.paste(model, focusOwner, focusClip);
-            if (pasted != null) focusKey = pasted;
+            var pasted = clipboard.pasteAll(model, focusOwner, focusClip);
+            if (!pasted.isEmpty()) { selected.clear(); selected.addAll(pasted); focusKey = pasted.getFirst(); }
         }
         return true;
     }
@@ -77,7 +82,8 @@ final class ActorRootTimelineRows {
         return net.minecraft.client.resource.language.I18n.translate("gui.director.actor.root_rows." + key);
     }
     void render(ImDrawList draw, TimelineModel model, TimelineTrack track, float x, float left, float right,
-                float top, float height, TimelineRenderMath math) {
+                float top, TimelineRenderMath math) {
+        float height = ActorBoneTimelineRows.CHILD_HEIGHT;
         String[] labels = {tr("position"), tr("rotation"), tr("scale")};
         int[] colors = {TimelineColors.rgba(100,190,255,255), TimelineColors.rgba(255,190,90,255), TimelineColors.rgba(140,220,130,255)};
         for (int row = 0; row < COUNT; row++) {
@@ -93,8 +99,10 @@ final class ActorRootTimelineRows {
                     float kx = math.timeToX(drag != null && drag.key() == key && drag.clip() == clip ? previewTime : key.getTime()), ky = y + height / 2;
                     if (kx < left - 6 || kx > right + 6) continue;
                     int color = clip.isMuted() || track.isMuted() ? TimelineColors.rgba(110,110,110,255)
-                            : selectedAt(model,clip,key) ? TimelineColors.rgba(255,255,255,255) : colors[row];
+                            : (focusModel == model && focusClip == clip && model.getSelectedClip() == clip.getTimelineClip() && selected.contains(key) || selectedAt(model,clip,key)) ? TimelineColors.rgba(255,255,255,255) : colors[row];
                     draw.addQuadFilled(kx,ky-5,kx+5,ky,kx,ky+5,kx-5,ky,color);
+                    if (drag == null && ImGui.isWindowHovered() && Math.abs(ImGui.getMousePosX() - kx) <= 7
+                            && Math.abs(ImGui.getMousePosY() - ky) <= 7) ImGui.setTooltip(tr("selection_hint"));
                 }
             } finally { draw.popClipRect(); }
         }
@@ -114,12 +122,12 @@ final class ActorRootTimelineRows {
         if (hits.size() > 1) { ImGui.setTooltip(tr("ambiguous")); return true; }
         ActorSelectionHub.selectActor(track.getActorTrackPayload().getActorRef().getActorId());
         com.director.ui.actor.pose.ActorBoneSelectionController.getInstance().deactivate();
-        clearFocus();
+        if (hits.isEmpty()) clearFocus();
         if (hits.size() == 1) {
             var hit = hits.getFirst();
             model.setSelectedClip(hit.clip().getTimelineClip()); model.setCurrentTime(hit.key().getTime());
             DirectorServices.get().uiSelection().setCurrentSelection(hit.clip().getTimelineClip());
-            focus(model, track, hit.clip(), hit.key());
+            select(model, track, hit.clip(), hit.key(), ImGui.getIO().getKeyCtrl());
             if (!ImGui.getIO().getKeyCtrl()
                     && com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, track, hit.clip())) {
                 try {

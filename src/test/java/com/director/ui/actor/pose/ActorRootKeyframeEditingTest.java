@@ -1,7 +1,6 @@
 package com.director.ui.actor.pose;
 
 import com.director.actor.*;
-import com.director.actor.Actor;
 import com.director.timeline.model.*;
 import com.director.timeline.model.entity.*;
 import com.director.timeline.playback.entity.EntityClipSampler;
@@ -79,7 +78,9 @@ class ActorRootKeyframeEditingTest {
         clip.setFromPos(0, 0, 0); clip.setToPos(8, 0, 0); clip.setInterpolation(TimelineInterpolation.LINEAR);
         model.setCurrentTime(2);
         var key = ActorRootKeyframeEditing.insert(model, owner, clip);
-        assertEquals(3, clip.getKeyframes().size()); assertEquals(4, key.getPosition().x);
+        assertEquals(3, clip.getKeyframes().size());
+        assertNotNull(key);
+        assertEquals(4, key.getPosition().x);
         assertEquals(2, new EntityClipSampler(owner.getActorTrackPayload()).sampleAt(1).position.x);
         assertTrue(history.undo()); assertTrue(clip.getKeyframes().isEmpty());
         assertEquals(2, new EntityClipSampler(owner.getActorTrackPayload()).sampleAt(1).position.x);

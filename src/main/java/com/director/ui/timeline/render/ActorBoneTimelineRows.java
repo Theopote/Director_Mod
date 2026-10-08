@@ -396,7 +396,7 @@ public final class ActorBoneTimelineRows {
         if (!expanded.contains(track)) return;
         var selection = ActorBoneSelectionController.getInstance();
         var actorId = track.getActorTrackPayload().getActorRef().getActorId();
-        rootRows.render(draw, renderModel, track, x, contentX, right, y + height + gap, CHILD_HEIGHT, math);
+        rootRows.render(draw, renderModel, track, x, contentX, right, y + height + gap, math);
         var rig = trackRigs.get(track);
         if (rig == null) return;
         for (int i = 0; i < rig.boneCount(); i++) {

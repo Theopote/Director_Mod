@@ -42,6 +42,25 @@ class ActorRootTimelineRowsTest {
         assertFalse(ActorRootTimelineRows.selectedAt(model, transform, key));
         model.setCurrentTime(3); assertFalse(ActorRootTimelineRows.selectedAt(model, spawn, key));
     }
+    @Test void additiveSelectionDeletesOneGroupAndToggleDoesNotDeleteDeselectedKey() {
+        var registry = new ActorRegistry(); ActorRegistryManager.setRegistry(registry);
+        var actor = registry.createActor("A", ActorType.PLAYER);
+        var model = new TimelineModel(new TimelineViewportState()); model.setSuppressPersistenceWrites(true);
+        var track = new TimelineTrack("A", TrackType.ACTOR);
+        track.getOrCreateActorTrackPayload().setActorRef(ActorRef.of(actor)); model.addTrack(track);
+        var clip = new EntitySpawnClip("A", 0, 5); track.getActorTrackPayload().addClip(clip);
+        var wrapper = new EntityTimelineClip(clip, 0); track.addClip(wrapper); model.setSelectedClip(wrapper);
+        var a = new EntityClipKeyframe(1); var b = new EntityClipKeyframe(2); clip.addKeyframe(a); clip.addKeyframe(b);
+        var history = new com.director.ui.timeline.commands.TimelineCommandHistory();
+        com.director.ui.timeline.commands.TimelineCommandBridge.bind(history);
+        var rows = new ActorRootTimelineRows(); rows.focus(model, track, clip, a);
+        rows.select(model, track, clip, b, true);
+        assertTrue(rows.handleKeyCommand(model, "delete")); assertTrue(clip.getKeyframes().isEmpty());
+        assertEquals(1, history.getUndoSize()); assertTrue(history.undo());
+        rows.select(model, track, clip, b, true);
+        assertTrue(rows.handleKeyCommand(model, "delete")); assertEquals(java.util.List.of(b), clip.getKeyframes());
+        assertEquals(1, track.getClips().size());
+    }
     @Test void focusedRootDeleteCannotFallThroughToItsClipEvenWhenLockedOrAlreadyDeleted() {
         var registry = new ActorRegistry(); ActorRegistryManager.setRegistry(registry);
         var actor = registry.createActor("A", ActorType.PLAYER);
