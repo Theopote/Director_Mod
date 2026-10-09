@@ -1566,6 +1566,10 @@ public class TimelineModelPersistence {
                     }
 
                     track.setActorTrackPayload(actorTrack);
+                    // Actor payload is authoritative; generic deserialized clips cannot edit it.
+                    for(var stale:new java.util.ArrayList<>(track.getClips()))track.removeClip(stale);
+                    for(var entity:actorTrack.getClips())
+                        track.addClip(new com.director.timeline.model.entity.EntityTimelineClip(entity,actorTrack.getColorRgba()));
                 } catch (Exception e) {
                     LOGGER.error("[TimelineModelPersistence] 加载 ActorTrack payload 时发生错误: {}", e.getMessage(), e);
                 }

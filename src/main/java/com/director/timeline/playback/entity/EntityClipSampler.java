@@ -326,7 +326,7 @@ public class EntityClipSampler {
         }
 
         float localTime = time - clip.getStartTime();
-        float t = Math.max(0f, Math.min(1f, localTime / clipLength));
+        float t = Math.clamp(localTime / clipLength, 0f, 1f);
 
         // 应用插值
         TimelineInterpolation interp = clip.getInterpolation();
@@ -430,7 +430,7 @@ public class EntityClipSampler {
             float clipDuration = active.getEndTime() - active.getStartTime();
             if (clipDuration > 0.01f) {
                 float normalizedTime = (timeSeconds - active.getStartTime()) / clipDuration;
-                normalizedTime = Math.max(0.0f, Math.min(1.0f, normalizedTime));
+                normalizedTime = Math.clamp(normalizedTime, 0.0f, 1.0f);
 
                 // 检查并触发事件
                 for (com.director.timeline.model.entity.AnimationEvent event : active.getEvents()) {
@@ -647,7 +647,7 @@ public class EntityClipSampler {
     }
 
     private static float clamp01(float value) {
-        return Math.max(0f, Math.min(1f, value));
+        return Math.clamp(value, 0f, 1f);
     }
 
     private void applyActorRoute(EntitySample result, List<ActorRouteClip> clips, float timeSeconds) {

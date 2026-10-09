@@ -186,7 +186,7 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
      * @param weight 权重 [0-1]
      */
     public void setWeight(float weight) {
-        this.weight = Math.max(0.0f, Math.min(1.0f, weight));
+        this.weight = Math.clamp(weight, 0.0f, 1.0f);
     }
 
     /**

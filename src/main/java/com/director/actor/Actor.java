@@ -88,7 +88,7 @@ public final class Actor {
      */
     public Actor(UUID actorId, String name, ActorType type) {
         this.actorId = Objects.requireNonNull(actorId, "actorId");
-        this.name = (name == null || name.isBlank()) ? "Actor" : name;
+        this.name = (com.director.util.DisplayNames.clean(name) == null || com.director.util.DisplayNames.clean(name).isBlank()) ? "Actor" : com.director.util.DisplayNames.clean(name);
         this.type = type != null ? type : ActorType.CUSTOM;
         // 根据类型自动设置默认 RigProfile
         this.rigProfile = createDefaultRigProfile(type);
@@ -107,7 +107,7 @@ public final class Actor {
     }
 
     public void setName(String name) {
-        this.name = (name == null || name.isBlank()) ? this.name : name;
+        this.name = (com.director.util.DisplayNames.clean(name) == null || com.director.util.DisplayNames.clean(name).isBlank()) ? this.name : com.director.util.DisplayNames.clean(name);
     }
 
     public ActorType getType() {

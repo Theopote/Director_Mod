@@ -532,7 +532,18 @@ public class TimelinePanel extends AbstractPanel
      * 存档切换时调用：清空并加载“当前存档”的时间线数据（如无存档则保持空白）。
      */
     public void reloadForCurrentWorld() {
-        model.reloadForCurrentWorld();
+        cancelInteraction();
+        com.director.ui.actor.selection.ActorSelectionHub.clearSelection();
+        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
+        var runtime=com.director.actor.runtime.ActorRuntimeController.getInstance();
+        boolean enabled=runtime.isEnabled();
+        runtime.setEnabled(false);
+        try {
+            model.reloadForCurrentWorld();
+        } finally {
+            runtime.bind(model,com.director.actor.ActorRegistryManager.getInstance());
+            runtime.setEnabled(enabled);
+        }
         com.director.actor.model.texture.CustomModelResourceWarmup.scheduleForCurrentWorld();
     }
 
@@ -542,7 +553,8 @@ public class TimelinePanel extends AbstractPanel
      * @return 是否成功写入存档
      */
     public boolean saveNow() {
-        return model.save();
+        boolean saved=model.save();
+        return com.director.actor.ActorRegistryManager.saveImmediately() && saved;
     }
 
     /**

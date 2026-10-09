@@ -21,6 +21,7 @@ public class EntityTimelineClip extends TimelineClip {
         this.entityClip = entityClip;
         this.entityClip.setTimelineClip(this);
         super.setTimeRange(entityClip.getStartTime(), entityClip.getEndTime());
+        syncKeyframesFromEntityClip(entityClip);
     }
 
     public EntityClip getEntityClip() {

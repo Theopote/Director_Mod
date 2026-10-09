@@ -70,7 +70,7 @@ public class ActorTrack {
      * @param displayName 显示名称
      */
     public ActorTrack(String displayName) {
-        this.displayName = (displayName == null || displayName.isBlank()) ? "Actor" : displayName;
+        this.displayName = (com.director.util.DisplayNames.clean(displayName) == null || com.director.util.DisplayNames.clean(displayName).isBlank()) ? "Actor" : com.director.util.DisplayNames.clean(displayName);
     }
 
     // ========== 基础属性 ==========
@@ -117,7 +117,7 @@ public class ActorTrack {
      * @param displayName 显示名称
      */
     public void setDisplayName(String displayName) {
-        this.displayName = (displayName == null || displayName.isBlank()) ? "Actor" : displayName;
+        this.displayName = (com.director.util.DisplayNames.clean(displayName) == null || com.director.util.DisplayNames.clean(displayName).isBlank()) ? "Actor" : com.director.util.DisplayNames.clean(displayName);
     }
 
     /**

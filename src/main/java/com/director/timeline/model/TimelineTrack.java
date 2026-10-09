@@ -78,7 +78,7 @@ public class TimelineTrack {
      * 构造函数（指定轨道类型）。
      */
     public TimelineTrack(String name, TrackType type) {
-        this.name = name;
+        this.name = com.director.util.DisplayNames.clean(name);
         this.type = type != null ? type : TrackType.CONTAINER;
     }
 
@@ -210,7 +210,7 @@ public class TimelineTrack {
     }
 
     public void setName(String name) {
-        this.name = name;
+        this.name = com.director.util.DisplayNames.clean(name);
     }
 
     public List<TimelineClip> getClips() {

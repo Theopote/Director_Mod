@@ -152,6 +152,11 @@ public final class ActorRegistryManager {
         }
     }
 
+    /** Closing an editor must flush the last rename/change even inside the throttle interval. */
+    public static boolean saveImmediately() {
+        return persistNow(GLOBAL.get());
+    }
+
     private static boolean persistNow(ActorRegistry registry) {
         if (registry == null || registry.isEmpty()) {
             return true;
