@@ -1702,7 +1702,7 @@ public class TimelineClipPropertyUi {
 
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX() * 0.45f);
         if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_START_SECONDS), startBuf, 0.02f, 0.0f, animLen, "%.2f")) {
-            startBuf[0] = Math.max(0f, Math.min(startBuf[0], animLen));
+            startBuf[0] = Math.clamp(startBuf[0], 0f, animLen);
             inst.setStartOffset(startBuf[0] / animLen);
         }
         // ⭐ 性能优化：只在拖动结束时才标记为已修改
@@ -1718,7 +1718,7 @@ public class TimelineClipPropertyUi {
 
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX() * 0.45f);
         if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_DURATION_SECONDS), durBuf, 0.02f, 0.0f, animLen, "%.2f")) {
-            durBuf[0] = Math.max(0.0f, Math.min(durBuf[0], animLen));
+            durBuf[0] = Math.clamp(durBuf[0], 0.0f, animLen);
             inst.setDuration(durBuf[0] / animLen);
         }
         // ⭐ 性能优化：只在拖动结束时才标记为已修改

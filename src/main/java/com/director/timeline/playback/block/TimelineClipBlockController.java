@@ -1320,7 +1320,7 @@ public class TimelineClipBlockController {
             float animDuration = clipDuration;
             float delay = 0.0f;
             if (config != null) {
-                animDuration = Math.min(Math.max(0.05f, config.getDuration()), clipDuration);
+                animDuration = Math.clamp(config.getDuration(), 0.05f, clipDuration);
                 delay = Math.max(0.0f, config.getDelay());
                 try {
                     var seq = config.getSequenceParameters();

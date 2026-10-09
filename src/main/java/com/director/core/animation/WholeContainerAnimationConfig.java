@@ -1,9 +1,11 @@
 package com.director.core.animation;
 
+import java.io.Serial;
 import java.io.Serializable;
 
 /** Clip-local settings; switching scope preserves the per-block settings. */
 public final class WholeContainerAnimationConfig implements Serializable {
+    @Serial
     private static final long serialVersionUID = 1L;
     public enum Effect { SCALE, FLY }
     public enum Pivot { CENTER, BOTTOM_CENTER }

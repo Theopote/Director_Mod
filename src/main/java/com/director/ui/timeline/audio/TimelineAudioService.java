@@ -477,7 +477,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
                 }
                 float t = ev.getTime();
                 float u = (t - oldStartTime) / oldLen;
-                u = Math.max(0f, Math.min(1f, u));
+                u = Math.clamp(u, 0f, 1f);
                 ev.setTime(newStartTime + u * newLen);
             }
 
@@ -559,7 +559,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         for (Map.Entry<UUID, Float> e : state.originalTimesByEventId.entrySet()) {
             float t0 = e.getValue();
             float u = (t0 - state.oldStart) / oldLen;
-            u = Math.max(0f, Math.min(1f, u));
+            u = Math.clamp(u, 0f, 1f);
             state.previewTimesByEventId.put(e.getKey(), newStartTime + u * newLen);
         }
     }
@@ -1093,7 +1093,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
             }
             float t = kf.getTime();
             float u = (t - oldStartTime) / oldLen;
-            u = Math.max(0f, Math.min(1f, u));
+            u = Math.clamp(u, 0f, 1f);
             float newTime = newStartTime + u * newLen;
             audioClip.moveKeyframe(kf, newTime);
         }
@@ -1153,7 +1153,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         }
 
         float t = (time - prev.getTime()) / (next.getTime() - prev.getTime());
-        t = Math.max(0f, Math.min(1f, t));
+        t = Math.clamp(t, 0f, 1f);
         TimelineInterpolation interp = prev.getInterpolation();
         if (interp == TimelineInterpolation.STEP) {
             return prev.getVolume();
@@ -1162,7 +1162,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
             t = t * t * (3f - 2f * t);
         }
         float v = prev.getVolume() + (next.getVolume() - prev.getVolume()) * t;
-        return Math.max(0f, Math.min(1.0f, v));
+        return Math.clamp(v, 0f, 1.0f);
     }
 
     private AudioTrack findAudioTrack() {

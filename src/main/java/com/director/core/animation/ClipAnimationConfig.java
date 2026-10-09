@@ -184,7 +184,7 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
 
     public void setDuration(float duration) {
         // 下限 0.05s 防止除零；上限 300s 防止手动输入极端值导致动画卡在中间状态
-        this.duration = Math.max(0.05f, Math.min(duration, 300.0f));
+        this.duration = Math.clamp(duration, 0.05f, 300.0f);
     }
 
     public float getDelay() {
