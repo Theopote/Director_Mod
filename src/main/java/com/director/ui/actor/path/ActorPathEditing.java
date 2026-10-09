@@ -224,6 +224,29 @@ public final class ActorPathEditing {
         }));
         return wrapper;
     }
+    public static void switchPath(TimelineModel model, TimelineTrack owner, ActorRouteClip route, ActorPathDefinition path) {
+        requireEditing(model);
+        var payload = owner == null ? null : owner.getActorTrackPayload();
+        var actorId = payload == null || payload.getActorRef() == null ? null : payload.getActorRef().getActorId();
+        if (!validOwner(model, owner, payload, actorId) || route == null || route.isMuted()
+                || !payload.getClips().contains(route) || route.getTimelineClip() == null
+                || !owner.getClips().contains(route.getTimelineClip()) || path == null
+                || ActorPathLibraryManager.getPath(path.getId()) != path) throw new IllegalArgumentException("路径切换目标不可编辑");
+        var after = new Geometry(path.getWaypoints(), path.getInterpolationMode());
+        UUID beforeId = route.getSourcePathId();
+        if (path.getId().equals(beforeId)) return;
+        var before = new Geometry(route.getWaypoints(), route.getInterpolationMode());
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Switch actor path", () -> {
+            if (owner.getActorTrackPayload() != payload || !payload.getClips().contains(route)
+                    || !Objects.equals(route.getSourcePathId(), path.getId())) throw new IllegalArgumentException("路径绑定已变化");
+            before.apply(route); route.setSourcePathId(beforeId);
+        }, () -> {
+            if (owner.getActorTrackPayload() != payload || !payload.getClips().contains(route)
+                    || !Objects.equals(route.getSourcePathId(), beforeId)
+                    || ActorPathLibraryManager.getPath(path.getId()) != path) throw new IllegalArgumentException("路径绑定已变化");
+            after.apply(route); route.setSourcePathId(path.getId());
+        }));
+    }
     static boolean validOwner(TimelineModel model, TimelineTrack owner, ActorTrack payload, UUID actorId) {
         return owner != null && payload != null && actorId != null && model.getAllTracks().contains(owner)
                 && owner.getType() == TrackType.ACTOR && !owner.isLocked() && !owner.isMuted()

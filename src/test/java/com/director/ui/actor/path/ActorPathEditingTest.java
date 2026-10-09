@@ -31,6 +31,20 @@ class ActorPathEditingTest {
         var path = new ActorPathDefinition("Path"); path.setWaypoints(points); path.setInterpolationMode(mode); library.add(path); return path;
     }
     ActorRouteClip route() { return (ActorRouteClip) ActorPathEditing.attach(model, track, points, mode, "Route").getEntityClip(); }
+    @Test void switchingLegacyRouteBindsNewGeometryWithoutCreatingClipsAndCanUndo() {
+        var route = route(); var sampler = new com.director.timeline.playback.entity.EntityClipSampler(track.getActorTrackPayload());
+        var next = new ActorPathDefinition("Switch test"); next.setWaypoints(List.of(new Vector3f(),new Vector3f(0,0,8))); next.setInterpolationMode(mode);
+        var global = ActorPathLibraryManager.getInstance(); global.add(next);
+        try {
+            float end = route.getEndTime(); ActorPathEditing.switchPath(model, track, route, next);
+            assertEquals(next.getId(), route.getSourcePathId()); assertEquals(1, track.getClips().size()); assertEquals(end, route.getEndTime());
+            assertEquals(4, sampler.sampleAt(3).position.z,1e-4f);
+            next.setWaypoints(List.of(new Vector3f(),new Vector3f(0,0,12))); assertEquals(6,sampler.sampleAt(3).position.z,1e-4f);
+            history.undo(); assertNull(route.getSourcePathId()); assertEquals(2,sampler.sampleAt(3).position.x,1e-4f);
+            history.redo(); assertEquals(6,sampler.sampleAt(3).position.z,1e-4f);
+            track.setLocked(true); assertThrows(IllegalArgumentException.class, () -> ActorPathEditing.switchPath(model,track,route,next));
+        } finally { global.remove(next.getId()); }
+    }
     @Test void boundRouteFollowsLibraryGeometryWithoutChangingDurationAndUndoKeepsIdentity() {
         var path = new ActorPathDefinition("Linked test"); path.setWaypoints(points); path.setInterpolationMode(mode);
         var global = ActorPathLibraryManager.getInstance(); global.add(path);

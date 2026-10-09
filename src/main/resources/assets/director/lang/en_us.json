@@ -1,4 +1,7 @@
 {
+  "gui.director.actor.path_movement.switch": "Switch path of current route clip",
+  "gui.director.actor.path_movement.linked": "Bound path: ",
+  "gui.director.actor.path_movement.unlinked": "This route has no valid shared-path binding (possibly an old copy). Choose a path and switch to enable synchronization.",
   "gui.director.actor.route.smooth_travel": "Smooth start/stop (once-route acceleration)",
   "gui.director.actor.route.linked_hint": "This route references a library path. Select that path in the scene or library to edit it; all bound actors follow changes.",
   "gui.director.actor.route.effective_speed": "Average speed from clip duration: %.2f blocks/s",

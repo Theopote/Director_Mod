@@ -43,6 +43,9 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
             return false;
         }
 
+        var routeOwner = source.getTimelineClip() == null ? null : source.getTimelineClip().getParentTrack();
+        if (routeOwner != null && routeOwner.getActorTrackPayload() != null && routeOwner.getActorTrackPayload().getActorRef() != null)
+            com.director.ui.properties.actor.ActorPathMovementPropertyUI.render(routeOwner.getActorTrackPayload().getActorRef().getActorId());
         var model = com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
         var owner = source.getTimelineClip() == null ? null : source.getTimelineClip().getParentTrack();
         ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.movement.route_source"));
