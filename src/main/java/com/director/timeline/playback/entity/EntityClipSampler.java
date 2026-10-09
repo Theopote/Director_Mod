@@ -253,8 +253,8 @@ public class EntityClipSampler {
         result.rotation.set(clip.getYawDeg(), clip.getPitchDeg(), clip.getRollDeg());
         result.scale.set(clip.getScale());
         if (applyRootKeys(result, clip.getKeyframes(), time)) {
-            var prev = findPrevKeyframe(clip.getKeyframes(), time);
-            var next = findNextKeyframe(clip.getKeyframes(), time);
+            var prev = findPrevKeyframe(clip.getKeyframes().stream().filter(k -> k.hasChannel(EntityClipKeyframe.POSITION)).toList(), time);
+            var next = findNextKeyframe(clip.getKeyframes().stream().filter(k -> k.hasChannel(EntityClipKeyframe.POSITION)).toList(), time);
             result.speed = prev == null || next == null ? 0 : segmentSpeed(prev.getPosition(), next.getPosition(),
                     prev.getTime(), next.getTime(), time, next.getInterpolation());
         }
@@ -293,60 +293,27 @@ public class EntityClipSampler {
      * <p>优先级：关键帧 > fromPos/toPos 插值
      */
     private boolean applyRootKeys(EntitySample result, List<EntityClipKeyframe> keyframes, float time) {
-        // ⭐ 优先使用关键帧插值
-        if (!keyframes.isEmpty()) {
-            EntityClipKeyframe prev = findPrevKeyframe(keyframes, time);
-            EntityClipKeyframe next = findNextKeyframe(keyframes, time);
-            
-            if (prev != null && next != null) {
-                // 在两个关键帧之间插值
-                float t = (time - prev.getTime()) / (next.getTime() - prev.getTime());
-                t = Math.max(0f, Math.min(1f, t));
-                
-                // 使用 next 的插值类型
-                TimelineInterpolation interp = next.getInterpolation();
-                if (interp == TimelineInterpolation.SMOOTH) {
-                    t = t * t * (3f - 2f * t);
-                } else if (interp == TimelineInterpolation.STEP) {
-                    t = 0f; // 保持前一关键帧，直到时间到达下一关键帧
-                }
-                
-                // 位置插值
-                result.position.x = lerp(prev.getPosition().x, next.getPosition().x, t);
-                result.position.y = lerp(prev.getPosition().y, next.getPosition().y, t);
-                result.position.z = lerp(prev.getPosition().z, next.getPosition().z, t);
-                
-                // 旋转插值（角度插值，处理 360° 环绕）
-                result.rotation.x = lerpAngle(prev.getRotation().x, next.getRotation().x, t);
-                result.rotation.y = lerpAngle(prev.getRotation().y, next.getRotation().y, t);
-                result.rotation.z = lerpAngle(prev.getRotation().z, next.getRotation().z, t);
-                
-                // 缩放插值
-                result.scale.x = lerp(prev.getScale().x, next.getScale().x, t);
-                result.scale.y = lerp(prev.getScale().y, next.getScale().y, t);
-                result.scale.z = lerp(prev.getScale().z, next.getScale().z, t);
-                
-                return true;
-            } else if (prev != null) {
-                // 只有前一个关键帧（在最后一个关键帧之后）
-                result.position.set(prev.getPosition());
-                result.rotation.set(prev.getRotation());
-                result.scale.set(prev.getScale());
-                return true;
-            } else if (next != null) {
-                // 只有下一个关键帧（在第一个关键帧之前）
-                result.position.set(next.getPosition());
-                result.rotation.set(next.getRotation());
-                result.scale.set(next.getScale());
-                return true;
-            }
+        boolean applied = false;
+        for (int channel : new int[]{EntityClipKeyframe.POSITION, EntityClipKeyframe.ROTATION, EntityClipKeyframe.SCALE}) {
+            var keys = keyframes.stream().filter(k -> k.hasChannel(channel)).toList();
+            var prev = findPrevKeyframe(keys,time); var next = findNextKeyframe(keys,time);
+            if (prev == null && next == null) continue;
+            if (prev == null) prev = next;
+            if (next == null) next = prev;
+            float t = next.getTime() == prev.getTime() ? 0 : Math.clamp((time-prev.getTime())/(next.getTime()-prev.getTime()),0f,1f);
+            if (next.getInterpolation() == TimelineInterpolation.SMOOTH) t = t*t*(3-2*t);
+            else if (next.getInterpolation() == TimelineInterpolation.STEP) t = 0;
+            Vector3f from = channel == 1 ? prev.getPosition() : channel == 2 ? prev.getRotation() : prev.getScale();
+            Vector3f to = channel == 1 ? next.getPosition() : channel == 2 ? next.getRotation() : next.getScale();
+            Vector3f out = channel == 1 ? result.position : channel == 2 ? result.rotation : result.scale;
+            for (int axis=0; axis<3; axis++) out.setComponent(axis, channel == 2 ? lerpAngle(from.get(axis),to.get(axis),t) : lerp(from.get(axis),to.get(axis),t));
+            applied = true;
         }
-        
-        return false;
+        return applied;
     }
 
     private void applyTransformClip(EntitySample result, EntityTransformClip clip, float time) {
-        if (applyRootKeys(result, clip.getKeyframes(), time)) return;
+
 
         // 如果没有关键帧，使用原有的 fromPos/toPos 插值
         // 计算片段内的归一化时间 [0, 1]
@@ -387,6 +354,8 @@ public class EntityClipSampler {
             result.scale.y = lerp(clip.getFromScale().y, clip.getToScale().y, t);
             result.scale.z = lerp(clip.getFromScale().z, clip.getToScale().z, t);
         }
+
+        applyRootKeys(result, clip.getKeyframes(), time);
 
         // TODO: 如果 followPath 为 true 且 pathId 不为 null，使用路径系统
         // 这里先使用简单的 from/to 插值
@@ -776,7 +745,7 @@ public class EntityClipSampler {
 
     /** Derivative of the selected transform segment; never samples events or previous frames. */
     private float transformSpeed(EntityTransformClip clip, float time) {
-        var keys = clip.getKeyframes();
+        var keys = clip.getKeyframes().stream().filter(k -> k.hasChannel(EntityClipKeyframe.POSITION)).toList();
         if (!keys.isEmpty()) {
             var previous = findPrevKeyframe(keys, time);
             var next = findNextKeyframe(keys, time);

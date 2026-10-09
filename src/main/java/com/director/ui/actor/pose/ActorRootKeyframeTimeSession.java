@@ -8,9 +8,9 @@ import java.util.*;
 
 /** Detached root-key retiming. Rejects stale targets, collisions and out-of-range writes. */
 public final class ActorRootKeyframeTimeSession {
-    private record Stamp(EntityClipKeyframe key, float time, TimelineInterpolation interpolation,
+    private record Stamp(EntityClipKeyframe key, float time, TimelineInterpolation interpolation, int channels,
                          Vector3f position, Vector3f rotation, Vector3f scale) {
-        static Stamp of(EntityClipKeyframe k) { return new Stamp(k,k.getTime(),k.getInterpolation(),
+        static Stamp of(EntityClipKeyframe k) { return new Stamp(k,k.getTime(),k.getInterpolation(),k.getChannels(),
                 new Vector3f(k.getPosition()),new Vector3f(k.getRotation()),new Vector3f(k.getScale())); }
     }
     private final TimelineModel model;

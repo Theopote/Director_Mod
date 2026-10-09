@@ -69,24 +69,55 @@ public final class ActorRootKeyframeEditing {
         }));
         return key;
     }
-    /** Scale-only keys retain the spawn's authored position and orientation, never the route position. */
-    public static EntityClipKeyframe writeScale(TimelineModel model, TimelineTrack owner, EntitySpawnClip clip,
-                                                org.joml.Vector3f scale) {
-        if (!editable(model, owner, clip) || !scale.isFinite() || scale.x <= 0 || scale.y <= 0 || scale.z <= 0) return null;
-        var matches = clip.getKeyframes().stream().filter(k -> Math.abs(k.getTime()-model.getCurrentTime()) <= 1e-4f).toList();
-        if (matches.size() > 1) return null;
-        var existing = matches.isEmpty() ? null : matches.getFirst();
-        var key = existing == null ? sample(clip, model.getCurrentTime()) : existing;
-        var before = new org.joml.Vector3f(key.getScale());
-        var after = new org.joml.Vector3f(scale);
-        if (existing != null && before.equals(after)) return existing;
-        TimelineCommandBridge.execute(new StateChangeCommand(model, "Edit actor scale keyframe", () -> {
-            if (existing == null) clip.removeKeyframe(key.getId()); else key.setScale(before.x,before.y,before.z);
-        }, () -> {
-            key.setScale(after.x,after.y,after.z);
-            if (existing == null && !clip.getKeyframes().contains(key)) clip.addKeyframe(key);
+    public static EntityClipKeyframe writeScale(TimelineModel model, TimelineTrack owner, EntitySpawnClip clip, org.joml.Vector3f scale) {
+        return writeChannel(model,owner,clip,EntityClipKeyframe.SCALE,scale);
+    }
+    public static EntityClipKeyframe writeChannel(TimelineModel model, TimelineTrack owner, EntityClip clip, int channel, org.joml.Vector3f value) {
+        if (channel != 1 && channel != 2 && channel != 4) return null;
+        return writeChannels(model,owner,clip,channel,value,value,value);
+    }
+    public static EntityClipKeyframe writeChannels(TimelineModel model, TimelineTrack owner, EntityClip clip, int mask,
+            org.joml.Vector3f position,org.joml.Vector3f rotation,org.joml.Vector3f scale) {
+        if (!editable(model,owner,clip) || mask == 0 || (mask & ~7) != 0
+                || (mask&1)!=0 && !position.isFinite() || (mask&2)!=0 && !rotation.isFinite()
+                || (mask&4)!=0 && (!scale.isFinite() || scale.x<=0 || scale.y<=0 || scale.z<=0)
+                || (mask&3)!=0 && ActorMovementSource.routeOwnsInterval(model,owner)
+                || requiresLinearConversion(model,clip)) return null;
+        var matches=clip.getKeyframes().stream().filter(k -> Math.abs(k.getTime()-model.getCurrentTime())<=1e-4f).toList();
+        if(matches.size()>1) return null;
+        var existing=matches.isEmpty()?null:matches.getFirst();
+        var key=existing==null?sample(clip,model.getCurrentTime()):existing;
+        int beforeMask=existing==null?0:key.getChannels();
+        var before=key.copy();
+        var after=key.copy(); after.setChannels(beforeMask|mask);
+        if((mask&1)!=0) channelValue(after,1,position);
+        if((mask&2)!=0) channelValue(after,2,rotation);
+        if((mask&4)!=0) channelValue(after,4,scale);
+        TimelineCommandBridge.execute(new StateChangeCommand(model,"Key actor channels",()->{
+            key.setChannels(beforeMask); set(key,before.getPosition(),before.getRotation(),before.getScale());
+            if(existing==null) clip.removeKeyframe(key.getId());
+        },()->{
+            key.setChannels(after.getChannels()); set(key,after.getPosition(),after.getRotation(),after.getScale());
+            if(existing==null && !clip.getKeyframes().contains(key)) clip.addKeyframe(key);
         }));
         return key;
+    }
+    public static boolean deleteChannels(TimelineModel model,TimelineTrack owner,EntityClip clip,
+            java.util.Collection<EntityClipKeyframe> keys,int mask) {
+        if(!editable(model,owner,clip) || keys.isEmpty() || !clip.getKeyframes().containsAll(keys)) return false;
+        var before=new java.util.LinkedHashMap<EntityClipKeyframe,Integer>();
+        keys.forEach(k -> before.put(k,k.getChannels()));
+        TimelineCommandBridge.execute(new StateChangeCommand(model,"Delete actor channel keys",()->{
+            before.forEach((k,m)->{k.setChannels(m);if(!clip.getKeyframes().contains(k))clip.addKeyframe(k);});
+        },()->{
+            before.forEach((k,m)->{k.setChannels(m&~mask);if(k.getChannels()==0)clip.removeKeyframe(k.getId());});
+        })); return true;
+    }
+
+    private static void channelValue(EntityClipKeyframe key,int channel,org.joml.Vector3f value) {
+        if(channel==1) key.setPosition(value.x,value.y,value.z);
+        else if(channel==2) key.setRotation(value.x,value.y,value.z);
+        else key.setScale(value.x,value.y,value.z);
     }
 
     private static void set(EntityClipKeyframe key, org.joml.Vector3f pos, org.joml.Vector3f rot, org.joml.Vector3f scale) {

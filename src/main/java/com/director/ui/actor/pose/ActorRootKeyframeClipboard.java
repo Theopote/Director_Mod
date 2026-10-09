@@ -18,6 +18,11 @@ public final class ActorRootKeyframeClipboard {
         snapshots = ordered.stream().map(EntityClipKeyframe::copy).toList();
         return true;
     }
+    public boolean copyChannels(EntityClip clip,Collection<EntityClipKeyframe> keys,int mask) {
+        if(!copy(clip,keys))return false;
+        snapshots=snapshots.stream().filter(k -> (k.getChannels()&mask)!=0).map(k->{k.setChannels(k.getChannels()&mask);return k;}).toList();
+        return !snapshots.isEmpty();
+    }
     public EntityClipKeyframe paste(TimelineModel model, TimelineTrack owner, EntityClip clip) {
         var keys = pasteAll(model, owner, clip); return keys.isEmpty() ? null : keys.getFirst();
     }

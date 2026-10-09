@@ -408,9 +408,30 @@ public final class ActorBoneTimelineRows {
                     selected ? TimelineColors.rgba(48, 77, 100, 255) : TimelineColors.rgba(29, 32, 37, 255));
             int depth = 0;
             for (int parent = bone.parentIndex(); parent >= 0; parent = rig.bone(parent).parentIndex()) depth++;
-            draw.pushClipRect(x, top, contentX, top + CHILD_HEIGHT, true);
-            draw.addText(x + 16 + depth * 12, top + 4, TimelineColors.COLOR_TEXT_LIGHT, bone.displayName());
+            draw.pushClipRect(x, top, contentX - 24, top + CHILD_HEIGHT, true);
+            draw.addText(x + 16 + depth * 12, top + 4, TimelineColors.COLOR_TEXT_LIGHT, bone.id().equals("root") ? "模型根（局部）" : bone.displayName());
             draw.popClipRect();
+            var keyContext=ActorAnimationEditContext.resolve(renderModel,actorId);
+            var mode=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getBoneGizmoMode();
+            int channel=mode==com.director.client.gizmo.GizmoMode.TRANSLATE ? 1 : mode==com.director.client.gizmo.GizmoMode.SCALE ? 4 : 2;
+            boolean canKey=keyContext!=null && keyContext.isCurrent() && !ActorBonePropertiesPanel.hasNumericDraft()
+                    && !ActorBoneGizmoController.getInstance().isDragging()
+                    && !com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
+                    && (channel==1?bone.capabilities().translation():channel==2?bone.capabilities().rotation():bone.capabilities().scale());
+            float bx=contentX-12,by=top+CHILD_HEIGHT/2;
+            int color=canKey?TimelineColors.rgba(255,190,90,255):TimelineColors.rgba(100,100,100,255);
+            boolean hasKey=false;
+            if(keyContext!=null) {
+                var authored=keyContext.asset().findBoneTrack(bone.id()).orElse(null);
+                if(authored!=null) {
+                    var keys=channel==1?authored.translation().keyframes():channel==2?authored.rotation().keyframes():authored.scale().keyframes();
+                    hasKey=keys.stream().anyMatch(k->Math.abs(k.time()-keyContext.assetTime())<=1e-5f);
+                }
+            }
+            if(hasKey) draw.addQuadFilled(bx,by-5,bx+5,by,bx,by+5,bx-5,by,color);
+            else draw.addQuad(bx,by-5,bx+5,by,bx,by+5,bx-5,by,color);
+            if(isCanvasWindowHovered() && Math.abs(ImGui.getMousePosX()-bx)<10 && Math.abs(ImGui.getMousePosY()-by)<10)
+                ImGui.setTooltip(canKey ? "记录"+bone.displayName()+new String[]{"位置","旋转","缩放"}[channel==1?0:channel==2?1:2]+"关键帧" : "需要当前时刻可编辑的骨骼动画资源及支持的通道");
             draw.addLine(contentX, top, contentX, top + CHILD_HEIGHT, TimelineColors.COLOR_SEPARATOR_LINE);
             draw.addLine(x, top + CHILD_HEIGHT, right, top + CHILD_HEIGHT, TimelineColors.COLOR_SEPARATOR_LINE);
             renderKeys(draw, track, bone.id(), contentX, right, top, math);
@@ -509,6 +530,20 @@ public final class ActorBoneTimelineRows {
             var actorId = track.getActorTrackPayload().getActorRef().getActorId();
             boolean additive=mx>=contentX && ImGui.getIO().getKeyCtrl();
             ActorSelectionHub.selectBone(actorId, rig.bone(bone).id(), mx<contentX && ImGui.getIO().getKeyCtrl());
+            if(!rightClick && mx>=contentX-24 && mx<contentX) {
+                if(preferredClip!=null && preferredClip.getParentTrack()==track) model.setSelectedClip(preferredClip);
+                var context=ActorAnimationEditContext.resolve(model,actorId);
+                if(context!=null && context.isCurrent() && !ActorBonePropertiesPanel.hasNumericDraft()
+                        && !ActorBoneGizmoController.getInstance().isDragging()
+                        && !com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()) {
+                    var settings=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance();
+                    var mode=settings.getBoneGizmoMode();
+                    int channel=mode==com.director.client.gizmo.GizmoMode.TRANSLATE?1:mode==com.director.client.gizmo.GizmoMode.SCALE?4:2;
+                    var pose=context.asset().sample(context.assetTime(),com.director.actor.animation.asset.AnimationLoopMode.ONCE);
+                    ActorAnimationAuthoringService.keyPose(context,pose,List.of(rig.bone(bone).id()),settings.getInterpolation(),channel);
+                }
+                return true;
+            }
             if(mx<contentX) { keyFocus=false; selectedKeys.clear(); }
             model.selectItem(track, false);
             if (mx >= contentX) {

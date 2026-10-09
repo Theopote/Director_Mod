@@ -288,6 +288,7 @@ public class TimelineModelPersistence {
      * EntityClipKeyframe DTO
      */
     public static final class EntityClipKeyframeDTO {
+        public int channels;
         public String id;               // UUID
         public float time;
         public String interpolation;    // TimelineInterpolation.name()
@@ -809,6 +810,7 @@ public class TimelineModelPersistence {
                         kfdto.position = Vec3DTO.from(kf.getPosition());
                         kfdto.rotation = Vec3DTO.from(kf.getRotation());
                         kfdto.scale = Vec3DTO.from(kf.getScale());
+                        kfdto.channels = kf.getChannels();
                         kfdto.actionType = kf.getActionType() != null ? kf.getActionType().name() : null;
                         kfdto.actionSpeed = kf.getActionSpeed();
                         kfdto.actionLoop = kf.isActionLoop();
@@ -1401,6 +1403,7 @@ public class TimelineModelPersistence {
                                             if (kfdto.position != null) kf.setPosition(kfdto.position.x, kfdto.position.y, kfdto.position.z);
                                             if (kfdto.rotation != null) kf.setRotation(kfdto.rotation.x, kfdto.rotation.y, kfdto.rotation.z);
                                             if (kfdto.scale != null) kf.setScale(kfdto.scale.x, kfdto.scale.y, kfdto.scale.z);
+                                            kf.setChannels(kfdto.channels);
                                             if (kfdto.actionType != null) {
                                                 ParseUtils.setEnumIfValid(kfdto.actionType, com.director.timeline.model.entity.EntityKeyframe.ActionType.class, "ActionType", kf::setActionType);
                                             }

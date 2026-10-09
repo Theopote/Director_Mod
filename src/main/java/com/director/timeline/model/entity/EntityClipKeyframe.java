@@ -11,6 +11,12 @@ import org.joml.Vector3f;
  */
 public class EntityClipKeyframe extends ClipKeyframe {
 
+    public static final int POSITION = 1, ROTATION = 2, SCALE = 4, ALL = 7;
+    private int channels = ALL;
+    public int getChannels() { return channels; }
+    public void setChannels(int channels) { this.channels = channels & ALL; }
+    public boolean hasChannel(int channel) { return (channels & channel) != 0; }
+
     private final Vector3f position = new Vector3f();
     private final Vector3f rotation = new Vector3f();
     private final Vector3f scale = new Vector3f(1f, 1f, 1f);
@@ -130,6 +136,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
     @Override
     public EntityClipKeyframe copy() {
         EntityClipKeyframe copy = new EntityClipKeyframe(getTime(), getInterpolation());
+        copy.channels = channels;
         copy.position.set(position);
         copy.rotation.set(rotation);
         copy.scale.set(scale);

@@ -149,8 +149,8 @@ public final class ActorTransformEditSession {
         }
         if (initialSpawn != null) {
             if (!sourceKeys.isEmpty()) {
-                var key = com.director.ui.actor.pose.ActorRootKeyframeEditing.write(model, owner, initialSpawn,
-                        after.toPos, after.toRot, after.toScale);
+                int mask = (!initial.toPos.equals(after.toPos) ? 1 : 0) | (!initial.toRot.equals(after.toRot) ? 2 : 0) | (!initial.toScale.equals(after.toScale) ? 4 : 0);
+                var key = com.director.ui.actor.pose.ActorRootKeyframeEditing.writeChannels(model,owner,initialSpawn,mask,after.toPos,after.toRot,after.toScale);
                 return key == null ? null : draft;
             }
             var updated = new SpawnState(new Vector3f(after.toPos), new Vector3f(after.toRot), new Vector3f(after.toScale));
@@ -186,6 +186,9 @@ public final class ActorTransformEditSession {
         boolean positionChanged = !initial.fromPos.equals(after.fromPos) || !initial.toPos.equals(after.toPos);
         boolean rotationChanged = !initial.fromRot.equals(after.fromRot) || !initial.toRot.equals(after.toRot);
         boolean scaleChanged = !initial.fromScale.equals(after.fromScale) || !initial.toScale.equals(after.toScale);
+        int oldMask = target.getChannels();
+        int changedMask = (positionChanged ? 1 : 0) | (rotationChanged ? 2 : 0) | (scaleChanged ? 4 : 0);
+        int newMask = (existing == null ? 0 : oldMask) | changedMask;
         var position = positionChanged ? after.toPos : existing == null ? new Vector3f(sample.position) : oldPosition;
         var rotation = rotationChanged ? after.toRot : existing == null ? new Vector3f(sample.rotation) : oldRotation;
         var scale = scaleChanged ? after.toScale : existing == null ? new Vector3f(sample.scale) : oldScale;
@@ -194,10 +197,12 @@ public final class ActorTransformEditSession {
                 && before.start == after.start && before.end == after.end) return null;
         TimelineCommandBridge.execute(new StateChangeCommand(model, "Transform actor keyframe", () -> {
             before.apply(source);
+            target.setChannels(oldMask);
             if (existing == null) source.removeKeyframe(target.getId());
             else writeKey(target, oldPosition, oldRotation, oldScale);
         }, () -> {
             source.setTimeRange(after.start, after.end);
+            target.setChannels(newMask);
             writeKey(target, position, rotation, scale);
             if (existing == null && !source.getKeyframes().contains(target)) source.addKeyframe(target);
         }));
@@ -210,10 +215,10 @@ public final class ActorTransformEditSession {
         key.setScale(scale.x, scale.y, scale.z);
     }
 
-    private record KeyStamp(EntityClipKeyframe key, float time, TimelineInterpolation interpolation,
+    private record KeyStamp(EntityClipKeyframe key, float time, TimelineInterpolation interpolation, int channels,
                             Vector3f position, Vector3f rotation, Vector3f scale) {}
     private static List<KeyStamp> keys(EntityClip clip) {
-        return clip.getKeyframes().stream().map(key -> new KeyStamp(key, key.getTime(), key.getInterpolation(),
+        return clip.getKeyframes().stream().map(key -> new KeyStamp(key, key.getTime(), key.getInterpolation(), key.getChannels(),
                 new Vector3f(key.getPosition()), new Vector3f(key.getRotation()), new Vector3f(key.getScale()))).toList();
     }
 
@@ -222,7 +227,7 @@ public final class ActorTransformEditSession {
         if (current.size() != sourceKeys.size()) return false;
         for (int i = 0; i < current.size(); i++) {
             var key = current.get(i); var stamp = sourceKeys.get(i);
-            if (key != stamp.key || key.getTime() != stamp.time || key.getInterpolation() != stamp.interpolation
+            if (key != stamp.key || key.getTime() != stamp.time || key.getInterpolation() != stamp.interpolation || key.getChannels() != stamp.channels
                     || !stamp.position.equals(key.getPosition()) || !stamp.rotation.equals(key.getRotation())
                     || !stamp.scale.equals(key.getScale())) return false;
         }

@@ -16,6 +16,8 @@ final class ActorRootTimelineRows {
     private String rejection;
     private static final String POPUP = "ActorRootKeyActions";
     private float dragMouseX, previewTime;
+    private TimelineTrack channelOwner;
+    private int channelRow = -1;
     private float dragPixelsPerSecond;
     boolean isDragging() { return drag != null || marquee != null; }
     void cancel() { if (drag != null) drag.cancel(); drag = null; marquee = null; menuRequested = false; }
@@ -50,7 +52,7 @@ final class ActorRootTimelineRows {
         Set<EntityClipKeyframe> result = new LinkedHashSet<>();
         for (var entry : times.entrySet()) for (int row = 0; row < COUNT; row++) {
             float x = math.timeToX(entry.getValue()), y = rowsTop + (row + .5f) * ActorBoneTimelineRows.CHILD_HEIGHT;
-            if (x >= Math.min(x1, x2) && x <= Math.max(x1, x2) && y >= Math.min(y1, y2) && y <= Math.max(y1, y2)) result.add(entry.getKey());
+            if (entry.getKey().hasChannel(1 << row) && x >= Math.min(x1, x2) && x <= Math.max(x1, x2) && y >= Math.min(y1, y2) && y <= Math.max(y1, y2)) result.add(entry.getKey());
         }
         return result;
     }
@@ -129,13 +131,13 @@ final class ActorRootTimelineRows {
                 || !model.getAllTracks().contains(focusOwner) || isDragging()) { rejection = "unavailable"; return false; }
         boolean live = !selected.isEmpty() && focusClip.getKeyframes().containsAll(selected);
         if (!action.equals("paste") && !live) { rejection = "no_selection"; return false; }
-        if (action.equals("copy")) return clipboard.copy(focusClip, selected);
+        if (action.equals("copy")) return clipboard.copyChannels(focusClip, selected, channelRow>=0 ? 1<<channelRow : 7);
         if (!com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, focusOwner, focusClip)) {
             rejection = "readonly"; return false;
         }
         if (action.equals("delete") || action.equals("cut")) {
-            if (action.equals("cut") && !clipboard.copy(focusClip, selected)) return false;
-            return com.director.ui.actor.pose.ActorRootKeyframeClipboard.delete(model, focusOwner, focusClip, selected);
+            if (action.equals("cut") && !clipboard.copyChannels(focusClip, selected, channelRow>=0 ? 1<<channelRow : 7)) return false;
+            return com.director.ui.actor.pose.ActorRootKeyframeEditing.deleteChannels(model, focusOwner, focusClip, selected, channelRow >= 0 ? 1 << channelRow : 7);
         }
         if (action.equals("paste")) {
             var pasted = clipboard.pasteAll(model, focusOwner, focusClip);
@@ -202,14 +204,28 @@ final class ActorRootTimelineRows {
         int[] colors = {TimelineColors.rgba(100,190,255,255), TimelineColors.rgba(255,190,90,255), TimelineColors.rgba(140,220,130,255)};
         for (int row = 0; row < COUNT; row++) {
             float y = top + row * height;
-            draw.addRectFilled(x, y, right, y + height, TimelineColors.rgba(29,32,37,255));
-            draw.pushClipRect(x, y, left, y + height, true);
+            draw.addRectFilled(x, y, right, y + height, channelOwner == track && channelRow == row
+                    && Objects.equals(ActorSelectionHub.getSelectedActorId(),track.getActorTrackPayload().getActorRef().getActorId())
+                    ? TimelineColors.rgba(45,70,92,255) : TimelineColors.rgba(29,32,37,255));
+            draw.pushClipRect(x, y, left - 24, y + height, true);
             draw.addText(x + 16, y + 4, TimelineColors.COLOR_TEXT_LIGHT, labels[row]); draw.popClipRect();
+            var target = editTarget(model, track);
+            int bit = 1 << row;
+            boolean has = target != null && target.getKeyframes().stream().anyMatch(k -> k.hasChannel(bit) && Math.abs(k.getTime()-model.getCurrentTime())<=1e-4f);
+            float bx=left-12, by=y+height/2;
+            boolean allowed=target != null && com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model,track,target)
+                    && (row==2 || !com.director.ui.actor.pose.ActorMovementSource.routeOwnsInterval(model,track));
+            int bc=allowed?colors[row]:TimelineColors.rgba(100,100,100,255);
+            if(has) draw.addQuadFilled(bx,by-5,bx+5,by,bx,by+5,bx-5,by,bc);
+            else draw.addQuad(bx,by-5,bx+5,by,bx,by+5,bx-5,by,bc);
+            if(ImGui.isWindowHovered() && Math.abs(ImGui.getMousePosX()-bx)<10 && Math.abs(ImGui.getMousePosY()-by)<10)
+                ImGui.setTooltip(allowed ? (has ? "更新" : "插入") + labels[row] + "关键帧" : "当前通道不可写入关键帧");
             draw.addLine(left, y, left, y + height, TimelineColors.COLOR_SEPARATOR_LINE);
             draw.addLine(x, y + height, right, y + height, TimelineColors.COLOR_SEPARATOR_LINE);
             draw.pushClipRect(left, y, right, y + height, true);
             try {
                 for (var clip : clips(track)) for (var key : clip.getKeyframes()) {
+                    if (!key.hasChannel(1 << row)) continue;
                     float kx = math.timeToX(drag != null && drag.contains(key) && drag.clip() == clip ? drag.previewTime(key, previewTime) : key.getTime()), ky = y + height / 2;
                     if (kx < left - 6 || kx > right + 6) continue;
                     int color = clip.isMuted() || track.isMuted() ? TimelineColors.rgba(110,110,110,255)
@@ -221,6 +237,10 @@ final class ActorRootTimelineRows {
             } finally { draw.popClipRect(); }
         }
     }
+    private static EntityClip editTarget(TimelineModel model, TimelineTrack track) {
+        if (model.getSelectedClip() instanceof EntityTimelineClip wrapper && wrapper.getParentTrack()==track && clips(track).contains(wrapper.getEntityClip())) return wrapper.getEntityClip();
+        return com.director.ui.actor.gizmo.ActorTransformEditSession.resolveInitialSpawn(track.getActorTrackPayload(),model.getCurrentTime());
+    }
     boolean click(TimelineModel model, TimelineTrack track, float mouseX, float left, int row, TimelineRenderMath math) {
         if (row < 0 || row >= COUNT) return false;
         boolean rightClick = ImGui.isMouseClicked(ImGuiMouseButton.Right);
@@ -228,14 +248,33 @@ final class ActorRootTimelineRows {
         var preferred = model.getSelectedClip();
         List<Hit> hits = new ArrayList<>();
         if (mouseX >= left) for (var clip : clips(track)) for (var key : clip.getKeyframes()) {
+                    if (!key.hasChannel(1 << row)) continue;
             float x = math.timeToX(key.getTime());
             if (Math.abs(x - mouseX) <= 7) hits.add(new Hit(clip,key,x));
         }
         var preferredHits = hits.stream().filter(h -> h.clip().getTimelineClip() == preferred).toList();
         if (!preferredHits.isEmpty()) hits = new ArrayList<>(preferredHits);
         if (hits.size() > 1) { ImGui.setTooltip(tr("ambiguous")); return true; }
-        ActorSelectionHub.selectActor(track.getActorTrackPayload().getActorRef().getActorId());
         com.director.ui.actor.pose.ActorBoneSelectionController.getInstance().deactivate();
+        ActorSelectionHub.selectActor(track.getActorTrackPayload().getActorRef().getActorId());
+        var tools=com.director.ui.tools.ToolRegistry.get(); tools.initializeIfNeeded();
+        tools.activate(com.director.ui.tools.ToolRegistry.ACTOR_SELECT_TOOL_ID);
+        var gizmo=com.director.ui.actor.gizmo.ActorGizmoController.getInstance();
+        gizmo.setPreferredMode(new com.director.client.gizmo.GizmoMode[]{com.director.client.gizmo.GizmoMode.TRANSLATE,
+                com.director.client.gizmo.GizmoMode.ROTATE,com.director.client.gizmo.GizmoMode.SCALE}[row]);
+        gizmo.setTargetActor(track.getActorTrackPayload().getActorRef().getActorId());
+        channelOwner=track; channelRow=row;
+        if (!rightClick && mouseX>=left-24 && mouseX<left) {
+            var target=editTarget(model,track);
+            if(target!=null) {
+                var payload=new ActorTrack(); payload.addClip(target);
+                var sample=new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleAt(model.getCurrentTime());
+                var key=com.director.ui.actor.pose.ActorRootKeyframeEditing.writeChannel(model,track,target,1<<row,
+                        row==0?sample.position:row==1?sample.rotation:sample.scale);
+                if(key!=null) { model.setSelectedClip(target.getTimelineClip()); focus(model,track,target,key); }
+            }
+            return true;
+        }
         if (hits.isEmpty() && mouseX < left) clearFocus();
         if (hits.size() == 1) {
             var hit = hits.getFirst();
@@ -243,6 +282,7 @@ final class ActorRootTimelineRows {
             DirectorServices.get().uiSelection().setCurrentSelection(hit.clip().getTimelineClip());
             select(model, track, hit.clip(), hit.key(), !rightClick && ImGui.getIO().getKeyCtrl());
             if (!rightClick && !ImGui.getIO().getKeyCtrl()
+                    && Integer.bitCount(hit.key().getChannels()) == 1
                     && com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, track, hit.clip())) {
                 try {
                     drag = new com.director.ui.actor.pose.ActorRootKeyframeTimeSession(model, track, hit.clip(), hit.key(), selected);

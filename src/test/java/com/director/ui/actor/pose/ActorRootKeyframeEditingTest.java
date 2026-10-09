@@ -23,6 +23,26 @@ class ActorRootKeyframeEditingTest {
     <T extends EntityClip> T add(T clip) {
         owner.getActorTrackPayload().addClip(clip); owner.addClip(new EntityTimelineClip(clip, 0)); return clip;
     }
+    @Test void independentChannelsDoNotInterruptOtherCurvesAndDeleteOnlyOne() {
+        var clip=add(new EntitySpawnClip("Actor",0,5));
+        ActorRootKeyframeEditing.writeChannel(model,owner,clip,1,new Vector3f(0));
+        model.setCurrentTime(4); ActorRootKeyframeEditing.writeChannel(model,owner,clip,1,new Vector3f(8,0,0));
+        model.setCurrentTime(0); ActorRootKeyframeEditing.writeChannel(model,owner,clip,4,new Vector3f(1));
+        model.setCurrentTime(2); var scaleKey=ActorRootKeyframeEditing.writeChannel(model,owner,clip,4,new Vector3f(3));
+        var sampled=new EntityClipSampler(owner.getActorTrackPayload()).sampleAt(1);
+        assertEquals(2f,sampled.position.x,1e-6f); assertEquals(new Vector3f(2),sampled.scale);
+        assertEquals(4,scaleKey.getChannels());
+        var first=clip.getKeyframes().getFirst(); assertEquals(5,first.getChannels());
+        assertTrue(ActorRootKeyframeEditing.deleteChannels(model,owner,clip,java.util.List.of(first),4));
+        assertEquals(1,first.getChannels()); assertTrue(clip.getKeyframes().contains(first));
+        assertTrue(history.undo()); assertEquals(5,first.getChannels());
+        var dto=com.director.timeline.persistence.TimelineModelPersistence.toDTO(model,new TimelineViewportState());
+        var restored=new TimelineModel(new TimelineViewportState()); restored.setSuppressPersistenceWrites(true);
+        com.director.timeline.persistence.TimelineModelPersistence.fromDTO(dto,restored,new TimelineViewportState());
+        var loaded=restored.getAllTracks().getFirst().getActorTrackPayload().getClips().getFirst();
+        assertEquals(clip.getKeyframes().stream().map(EntityClipKeyframe::getChannels).toList(),loaded.getKeyframes().stream().map(EntityClipKeyframe::getChannels).toList());
+    }
+
     @Test void scaleKeysPreserveRouteAndSpawnPositionAndUndo() {
         var spawn=add(new EntitySpawnClip("A",0,5)); spawn.setPosition(20,2,30);
         var route=add(new ActorRouteClip("Path",0,5));
