@@ -67,9 +67,22 @@ public class AnimationSoundCollector {
         
         List<AudioEvent> events = new ArrayList<>();
         
-        if (clip == null || container == null || sequenceEntries == null || sequenceEntries.isEmpty()) {
+        if (clip == null || container == null) {
             return events;
         }
+
+        if (clip.getAnimationConfig().isWholeContainer()) {
+            // A single placement/removal sound for the assembly, rather than thousands of simultaneous sounds.
+            BlockPos pos = container.getBlocksView().stream().min(java.util.Comparator.comparingLong(BlockPos::asLong)).orElse(null);
+            if (pos == null) return events;
+            ClipAnimationConfig whole = clip.getAnimationConfig();
+            float time = Math.min(clip.getEndTime(), clip.getStartTime() + whole.getDelay() + whole.getDuration());
+            boolean exit = whole.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT;
+            BlockState state = getBlockState(container, pos);
+            events.add(new AudioEvent(clip.getLabel(), exit ? getBlockBreakSound(state) : getBlockPlaceSound(state), time));
+            return events;
+        }
+        if (sequenceEntries == null || sequenceEntries.isEmpty()) return events;
         
         float clipStart = clip.getStartTime();
         float clipDuration = clip.getLength();

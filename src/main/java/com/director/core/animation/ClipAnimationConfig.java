@@ -38,6 +38,9 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     private AnimationMode mode;
+    public enum AnimationScope { PER_BLOCK, WHOLE_CONTAINER }
+    private AnimationScope scope = AnimationScope.PER_BLOCK;
+    private WholeContainerAnimationConfig wholeContainer = new WholeContainerAnimationConfig();
     /**
      * 动画阶段：
      * - ENTER：出现片段（默认，向后兼容旧存档）
@@ -122,6 +125,8 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
         ClipAnimationConfig clone = new ClipAnimationConfig(mode, duration, delay, easing, ordering);
         clone.params.putAll(this.params);
         clone.phase = this.phase;
+        clone.scope = getScope();
+        clone.wholeContainer = getWholeContainer().copy();
         clone.sequenceMode = this.sequenceMode;
         clone.sequenceParameters = this.sequenceParameters != null ? this.sequenceParameters.copy() : new SequenceParameters();
         clone.occlusionTransparencyEnabled = this.occlusionTransparencyEnabled;
@@ -138,6 +143,27 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
 
     public AnimationMode getMode() {
         return mode;
+    }
+
+    public AnimationScope getScope() {
+        return scope != null ? scope : AnimationScope.PER_BLOCK;
+    }
+
+    public void setScope(AnimationScope scope) {
+        this.scope = scope != null ? scope : AnimationScope.PER_BLOCK;
+    }
+
+    public boolean isWholeContainer() {
+        return getScope() == AnimationScope.WHOLE_CONTAINER;
+    }
+
+    public WholeContainerAnimationConfig getWholeContainer() {
+        if (wholeContainer == null) wholeContainer = new WholeContainerAnimationConfig();
+        return wholeContainer;
+    }
+
+    public void setWholeContainer(WholeContainerAnimationConfig value) {
+        wholeContainer = value != null ? value.copy() : new WholeContainerAnimationConfig();
     }
 
     public void setMode(AnimationMode mode) {

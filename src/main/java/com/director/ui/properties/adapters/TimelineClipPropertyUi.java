@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.core.animation.ClipAnimationConfig;
+import com.director.core.animation.WholeContainerAnimationConfig;
 import com.director.core.animation.easing.EasingFunction;
 import com.director.core.animation.transform.AnimationTransformerFactory;
 import com.director.core.animation.transform.IAnimationTransformer;
@@ -340,6 +341,15 @@ public class TimelineClipPropertyUi {
             modified = true;
         }
 
+        ImInt scope = new ImInt(config.getScope().ordinal());
+        if (ImGui.combo(wholeText("scope"), scope, new String[] {wholeText("per_block"), wholeText("whole")})) {
+            config.setScope(ClipAnimationConfig.AnimationScope.values()[scope.get()]);
+            modified = true;
+        }
+        if (config.isWholeContainer()) {
+            return renderWholeContainerSettings(clip, config, policy) || modified;
+        }
+
         AnimationMode[] availableModes = policy.availableModes();
         String[] availableLabels = Arrays.stream(availableModes)
                 .map(policy::labelForMode)
@@ -569,6 +579,62 @@ public class TimelineClipPropertyUi {
             ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_RESTORE_DEFAULTS_TOOLTIP));
         }
 
+        return modified;
+    }
+
+    private static String wholeText(String key) {
+        return ClipPropertyUiI18n.tr("gui.director.properties.clip_ui.whole_animation." + key);
+    }
+
+    private boolean renderWholeContainerSettings(TimelineClip clip, ClipAnimationConfig config,
+            TimelineClipAnimationPolicy policy) {
+        boolean modified = false;
+        boolean exit = policy.phase() == ClipAnimationConfig.AnimationPhase.EXIT;
+        WholeContainerAnimationConfig settings = config.getWholeContainer();
+        ImInt effect = new ImInt(settings.getEffect().ordinal());
+        if (ImGui.combo(wholeText("effect"), effect,
+                new String[] {wholeText(exit ? "shrink" : "scale"), wholeText(exit ? "fly_out" : "fly_in")})) {
+            settings.setEffect(WholeContainerAnimationConfig.Effect.values()[effect.get()]);
+            modified = true;
+        }
+        ImGui.textWrapped(wholeText("hint"));
+        ImInt pivot = new ImInt(settings.getPivot().ordinal());
+        if (ImGui.combo(wholeText("pivot"), pivot, new String[] {wholeText("center"), wholeText("bottom_center")})) {
+            settings.setPivot(WholeContainerAnimationConfig.Pivot.values()[pivot.get()]);
+            modified = true;
+        }
+        if (settings.getEffect() == WholeContainerAnimationConfig.Effect.SCALE) {
+            float[] scale = {settings.getScale()};
+            if (ImGui.dragFloat(wholeText(exit ? "end_scale" : "start_scale"), scale, 0.01f, 0, 10, "%.2f")) {
+                settings.setScale(scale[0]);
+                modified = true;
+            }
+        } else {
+            float[] offset = {settings.getOffsetX(), settings.getOffsetY(), settings.getOffsetZ()};
+            if (ImGui.dragFloat3(wholeText(exit ? "end_offset" : "start_offset"), offset, 0.1f, -10000, 10000, "%.2f")) {
+                settings.setOffset(offset[0], offset[1], offset[2]);
+                modified = true;
+            }
+        }
+        float[] duration = {config.getDuration()};
+        if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_DURATION_SECONDS),
+                duration, 0.05f, 0.05f, Math.max(0.05f, clip.getLength()), "%.2fs")) {
+            config.setDuration(duration[0]);
+            modified = true;
+        }
+        float[] delay = {config.getDelay()};
+        if (ImGui.dragFloat(wholeText("delay"), delay, 0.05f, 0, clip.getLength(), "%.2fs")) {
+            config.setDelay(delay[0]);
+            modified = true;
+        }
+        EasingFunction easing = EasingFunction.fromString(config.getEasing());
+        easingFunctionIndex.set(easing.ordinal());
+        if (ImGui.combo("##WholeEasing", easingFunctionIndex, getEasingFunctionLabels())) {
+            easing = EasingFunction.values()[easingFunctionIndex.get()];
+            config.setEasing(easing.name());
+            modified = true;
+        }
+        renderEasingCurvePreview(easing);
         return modified;
     }
 

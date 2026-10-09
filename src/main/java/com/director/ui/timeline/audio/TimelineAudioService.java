@@ -400,6 +400,15 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
             config.setPhase(ClipAnimationConfig.AnimationPhase.EXIT);
         }
 
+        if (config.isWholeContainer()) {
+            for (AudioEvent event : AnimationSoundCollector.getInstance().collectFromClip(clip, container, List.of())) {
+                audioTrack.addEvent(event);
+                linkEventToClip(clip, event);
+            }
+            audioTrack.sortEvents();
+            return;
+        }
+
         float clipDuration = Math.max(0.05f, clip.getLength());
         float animDuration = Math.max(0.05f, Math.min(config.getDuration(), clipDuration));
         float totalDelay = Math.max(0.0f, config.getDelay());
@@ -1332,6 +1341,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         h = 31 * h + Float.floatToIntBits(clip.getEndTime());
         h = 31 * h + (cfg.getPhase() != null ? cfg.getPhase().ordinal() : 0);
         h = 31 * h + (cfg.getMode() != null ? cfg.getMode().ordinal() : 0);
+        h = 31 * h + cfg.getScope().ordinal();
         h = 31 * h + Float.floatToIntBits(cfg.getDuration());
         h = 31 * h + Float.floatToIntBits(cfg.getDelay());
         h = 31 * h + (cfg.getEasing() != null ? cfg.getEasing().hashCode() : 0);

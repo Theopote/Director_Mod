@@ -321,6 +321,8 @@ public class TimelineModelPersistence {
         /** 可见性关键帧（淡入淡出/隐藏显示等） */
         public List<VisibilityKeyframeDTO> visibilityKeyframes = new ArrayList<>();
         public String animationMode;
+        public String animationScope;
+        public com.director.core.animation.WholeContainerAnimationConfig wholeContainerAnimation;
         public float animationDuration = 2.0f;
         public float animationDelay = 0.0f;
         public String animationEasing = "Linear";
@@ -679,6 +681,8 @@ public class TimelineModelPersistence {
 
                 ClipAnimationConfig config = clip.getAnimationConfig();
                 clipDTO.animationMode = config.getMode().name();
+                clipDTO.animationScope = config.getScope().name();
+                clipDTO.wholeContainerAnimation = config.getWholeContainer().copy();
                 clipDTO.animationDuration = config.getDuration();
                 clipDTO.animationDelay = config.getDelay();
                 clipDTO.animationEasing = config.getEasing();
@@ -1157,6 +1161,12 @@ public class TimelineModelPersistence {
                     }
                 }
                 config.setDuration(clipDTO.animationDuration > 0.0f ? clipDTO.animationDuration : config.getDuration());
+                if (clipDTO.animationScope != null) {
+                    var scope = ParseUtils.enumOrNull(clipDTO.animationScope,
+                            ClipAnimationConfig.AnimationScope.class, "Clip.animationScope");
+                    config.setScope(scope);
+                }
+                config.setWholeContainer(clipDTO.wholeContainerAnimation);
                 config.setDelay(Math.max(0.0f, clipDTO.animationDelay));
                 if (clipDTO.animationEasing != null) {
                     config.setEasing(clipDTO.animationEasing);

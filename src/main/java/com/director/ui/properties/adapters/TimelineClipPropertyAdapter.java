@@ -99,7 +99,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         boolean sequenceModified = false;
         boolean animationModified = false;
 
-        if (ImGui.collapsingHeader(Icons.LAYERS + " "
+        if (!clip.getAnimationConfig().isWholeContainer() && ImGui.collapsingHeader(Icons.LAYERS + " "
                 + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_SEQUENCE),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
@@ -123,7 +123,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
                 + (effects.isEmpty()
                 ? TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER)
                 : TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER_COUNT, effects.size()));
-        if (ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (!clip.getAnimationConfig().isWholeContainer() && ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             modified |= propertyUi.renderEffectsSection(clip);
             ImGui.unindent();

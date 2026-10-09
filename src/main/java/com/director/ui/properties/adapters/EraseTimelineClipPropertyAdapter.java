@@ -88,7 +88,7 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         boolean sequenceModified = false;
         boolean animationModified = false;
 
-        if (ImGui.collapsingHeader(Icons.LAYERS + " 序列行为", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (!clip.getAnimationConfig().isWholeContainer() && ImGui.collapsingHeader(Icons.LAYERS + " 序列行为", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             sequenceModified = propertyUi.renderSequenceBehavior(clip, TimelineClipUiVariant.DEMOLITION);
             modified |= sequenceModified;
@@ -108,7 +108,7 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         if (!effects.isEmpty()) {
             effectsHeader += " (" + effects.size() + ")";
         }
-        if (ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (!clip.getAnimationConfig().isWholeContainer() && ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             modified |= propertyUi.renderEffectsSection(clip);
             ImGui.unindent();
