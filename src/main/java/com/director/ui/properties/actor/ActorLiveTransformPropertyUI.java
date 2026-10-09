@@ -61,6 +61,7 @@ public final class ActorLiveTransformPropertyUI {
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.TIMELINE_NOT_LOADED));
             return;
         }
+        ActorPathMovementPropertyUI.render(actorId);
         float time = model.getCurrentTime();
         var target = ActorTransformEditService.resolveTrack(actorId);
         boolean readOnly = model.isPlaying() || target == null || target.timelineTrack().isLocked()

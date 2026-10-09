@@ -1,4 +1,12 @@
 {
+  "gui.director.actor.path_movement.header": "Move along path",
+  "gui.director.actor.path_movement.path": "Actor path",
+  "gui.director.actor.path_movement.choose": "Choose an existing path",
+  "gui.director.actor.path_movement.empty": "The path library is empty. Draw and save a path with the actor path tool.",
+  "gui.director.actor.path_movement.apply": "Follow path from playhead",
+  "gui.director.actor.path_movement.missing": "The path no longer exists. Select again.",
+  "gui.director.actor.path_movement.place_first": "Place the actor in the scene first to create its track.",
+  "gui.director.actor.path_movement.hint": "This explicitly creates an undoable route clip using a copy of the path. Library edits do not propagate. Movement starts at the path start; a walk-to-path transition is not included.",
   "gui.director.actor.movement.route_protected": "An active route protects root TRS writes. Edit the route, or mute/retime it before authoring coordinates. Existing root keys can still be deleted.",
   "gui.director.actor.movement.route_source": "Position source: route curve and speed. Routes and coordinate keys are separate movement sources.",
   "gui.director.actor.movement.route_conflict": "Conflict: an active Transform overrides this route under existing playback rules. Mute or retime one reference to resolve it.",

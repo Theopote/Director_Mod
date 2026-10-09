@@ -539,6 +539,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ImGui.spacing();
 
         // ---- Usage Information (只读) ----
+        com.director.ui.properties.actor.ActorPathMovementPropertyUI.render(actor.getActorId());
         renderActorUsage(actor);
         com.director.ui.properties.actor.ActorRuntimeDiagnosticsUI.render(actor.getActorId());
         
