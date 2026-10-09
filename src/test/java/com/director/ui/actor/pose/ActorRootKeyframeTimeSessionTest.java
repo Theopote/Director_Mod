@@ -25,6 +25,43 @@ class ActorRootKeyframeTimeSessionTest {
     }
     @AfterEach void cleanup() { TimelineCommandBridge.bind(null); ActorRegistryManager.setRegistry(null); }
     ActorRootKeyframeTimeSession session() { return new ActorRootKeyframeTimeSession(model, owner, clip, key); }
+    @Test void scaleGroupCanUseVacatedScaleTimeWithoutMovingOtherChannels() {
+        var session=new ActorRootKeyframeTimeSession(model,owner,clip,key,java.util.List.of(key,other),4);
+        assertTrue(session.commit(3));
+        assertEquals(2,key.getTime());assertEquals(3,key.getChannels());
+        assertEquals(4,other.getTime());assertEquals(3,other.getChannels());
+        assertTrue(history.undo());assertEquals(7,key.getChannels());assertEquals(7,other.getChannels());
+    }
+    @Test void movingScaleSplitsSharedKeyAndUndoRestoresIdentity() {
+        key.setPosition(2,3,4);key.setScale(2,2,2);
+        var session=new ActorRootKeyframeTimeSession(model,owner,clip,key,java.util.List.of(key),4);
+        assertTrue(session.commit(3));
+        assertEquals(2,key.getTime());assertEquals(3,key.getChannels());
+        var moved=clip.getKeyframes().stream().filter(k->k.getTime()==3).findFirst().orElseThrow();
+        assertEquals(4,moved.getChannels());assertEquals(key.getScale(),moved.getScale());
+        assertEquals(new org.joml.Vector3f(2,3,4),key.getPosition());
+        assertEquals(1,history.getUndoSize());assertTrue(history.undo());
+        assertEquals(java.util.List.of(key,other),clip.getKeyframes());assertEquals(7,key.getChannels());
+        assertTrue(history.redo());assertTrue(clip.getKeyframes().contains(moved));
+    }
+    @Test void movingScaleMergesWithOtherChannelsButRejectsScaleCollision() {
+        key.setScale(3,4,5);other.setChannels(1);other.setPosition(7,8,9);
+        assertTrue(new ActorRootKeyframeTimeSession(model,owner,clip,key,java.util.List.of(key),4).commit(4));
+        assertEquals(5,other.getChannels());assertEquals(new org.joml.Vector3f(7,8,9),other.getPosition());
+        assertEquals(new org.joml.Vector3f(3,4,5),other.getScale());
+        assertTrue(history.undo());assertEquals(1,other.getChannels());assertEquals(7,key.getChannels());
+        other.setChannels(4);
+        assertFalse(new ActorRootKeyframeTimeSession(model,owner,clip,key,java.util.List.of(key),4).commit(4));
+        assertEquals(7,key.getChannels());assertEquals(2,key.getTime());
+    }
+    @Test void movingChannelsRejectsDifferentInterpolationAtMergeAndStaleMask() {
+        other.setChannels(1);other.setInterpolation(TimelineInterpolation.STEP);
+        assertFalse(new ActorRootKeyframeTimeSession(model,owner,clip,key,java.util.List.of(key),4).commit(4));
+        assertEquals(0,history.getUndoSize());assertEquals(7,key.getChannels());
+        var session=new ActorRootKeyframeTimeSession(model,owner,clip,key,java.util.List.of(key),4);
+        key.setChannels(1);assertFalse(session.commit(3));
+    }
+
     @Test void groupMoveAllowsVacatedTimesAndRestoresWholeGroupInOneCommand() {
         var draft = new ActorRootKeyframeTimeSession(model, owner, clip, key, java.util.List.of(key, other));
         assertEquals(0, draft.start()); assertEquals(3, draft.end());

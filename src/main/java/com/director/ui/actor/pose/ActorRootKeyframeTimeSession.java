@@ -24,15 +24,25 @@ public final class ActorRootKeyframeTimeSession {
     private final long revision;
     private final Map<EntityClipKeyframe, Float> moving;
     private boolean finished;
+    private final Map<EntityClipKeyframe,EntityClipKeyframe> movedKeys=new IdentityHashMap<>();
+    public EntityClipKeyframe movedKey(EntityClipKeyframe key) { return movedKeys.getOrDefault(key,key); }
+    private final int channels;
+    public int channels() { return channels; }
     public ActorRootKeyframeTimeSession(TimelineModel model, TimelineTrack owner, EntityClip clip, EntityClipKeyframe key) {
         this(model, owner, clip, key, List.of(key));
     }
     public ActorRootKeyframeTimeSession(TimelineModel model, TimelineTrack owner, EntityClip clip,
                                        EntityClipKeyframe key, Collection<EntityClipKeyframe> selection) {
+        this(model,owner,clip,key,selection,EntityClipKeyframe.ALL);
+    }
+    public ActorRootKeyframeTimeSession(TimelineModel model, TimelineTrack owner, EntityClip clip,
+            EntityClipKeyframe key, Collection<EntityClipKeyframe> selection, int channels) {
+        if(channels!=1 && channels!=2 && channels!=4 && channels!=7) throw new IllegalArgumentException("无效通道");
+        this.channels=channels;
         this.model = Objects.requireNonNull(model); this.owner = Objects.requireNonNull(owner);
         this.clip = Objects.requireNonNull(clip); this.key = Objects.requireNonNull(key);
         var frozen = new LinkedHashMap<EntityClipKeyframe, Float>();
-        for (var selected : Objects.requireNonNull(selection)) frozen.put(selected, selected.getTime());
+        for (var selected : Objects.requireNonNull(selection)) { if ((selected.getChannels() & channels)!=0) frozen.put(selected, selected.getTime()); }
         moving = Collections.unmodifiableMap(frozen);
         if (!moving.containsKey(key) || !clip.getKeyframes().containsAll(moving.keySet())
                 || moving.values().stream().anyMatch(t -> !Float.isFinite(t)))
@@ -70,17 +80,57 @@ public final class ActorRootKeyframeTimeSession {
         for (var entry : moving.entrySet()) {
             float target = entry.getValue() + delta;
             if (!Float.isFinite(target) || target < start || target > end
-                    || clip.getKeyframes().stream().anyMatch(k -> !moving.containsKey(k) && Math.abs(k.getTime() - target) <= 1e-4f)) invalid = true;
+                    || clip.getKeyframes().stream().anyMatch(k -> !moving.containsKey(k) && (k.getChannels() & channels)!=0 && Math.abs(k.getTime() - target) <= 1e-4f)) invalid = true;
         }
         var times = new ArrayList<>(moving.values());
         for (int i = 0; i < times.size(); i++) for (int j = i + 1; j < times.size(); j++)
             if (Math.abs((times.get(i) + delta) - (times.get(j) + delta)) <= 1e-4f) invalid = true;
         if (invalid) { cancel(); return false; }
+        if(channels!=7) return commitChannels(time,delta);
         finished = true;
         TimelineCommandBridge.execute(new StateChangeCommand(model, "Move actor root keyframe",
                 () -> { place(0); model.setCurrentTime(playhead); },
                 () -> { place(delta); model.setCurrentTime(time); }));
         return true;
+    }
+    private record Placement(EntityClipKeyframe key,EntityClipKeyframe state) {}
+    private boolean commitChannels(float time,float delta) {
+        var before=clip.getKeyframes().stream().map(k->new Placement(k,k.copy())).toList();
+        var after=new ArrayList<Placement>();
+        for(var p:before) {
+            var state=p.state().copy();
+            if(moving.containsKey(p.key())) state.setChannels(state.getChannels() & ~channels);
+            if(state.getChannels()!=0) after.add(new Placement(p.key(),state));
+        }
+        for(var entry:moving.entrySet()) {
+            var state=entry.getKey().copy(); state.setChannels(state.getChannels() & channels); state.setTime(entry.getValue()+delta);
+            var destination=after.stream().filter(p->Math.abs(p.state().getTime()-state.getTime())<=1e-4f).findFirst().orElse(null);
+            if(destination!=null) {
+                if(destination.state().getInterpolation()!=state.getInterpolation()) {cancel();return false;}
+                movedKeys.put(entry.getKey(),destination.key());
+                var merged=destination.state(); merged.setChannels(merged.getChannels()|state.getChannels());
+                if((channels&1)!=0) merged.setPosition(state.getPosition().x,state.getPosition().y,state.getPosition().z);
+                if((channels&2)!=0) merged.setRotation(state.getRotation().x,state.getRotation().y,state.getRotation().z);
+                if((channels&4)!=0) merged.setScale(state.getScale().x,state.getScale().y,state.getScale().z);
+            } else {
+                var target=(entry.getKey().getChannels() & ~channels)==0 ? entry.getKey() : state.copy();
+                after.add(new Placement(target,state));
+                movedKeys.put(entry.getKey(),target);
+            }
+        }
+        finished=true;
+        TimelineCommandBridge.execute(new StateChangeCommand(model,"Move actor channel keyframes",
+                ()->{restore(before);model.setCurrentTime(playhead);},()->{restore(after);model.setCurrentTime(time);}));
+        return true;
+    }
+    private void restore(List<Placement> placements) {
+        new ArrayList<>(clip.getKeyframes()).forEach(k->clip.removeKeyframe(k.getId()));
+        for(var p:placements) {
+            var k=p.key();var s=p.state(); k.setTime(s.getTime());k.setChannels(s.getChannels());k.setInterpolation(s.getInterpolation());
+            k.setPosition(s.getPosition().x,s.getPosition().y,s.getPosition().z);
+            k.setRotation(s.getRotation().x,s.getRotation().y,s.getRotation().z);
+            k.setScale(s.getScale().x,s.getScale().y,s.getScale().z);clip.addKeyframe(k);
+        }
     }
     private void place(float delta) {
         moving.keySet().forEach(k -> clip.removeKeyframe(k.getId()));

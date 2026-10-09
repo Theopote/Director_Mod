@@ -35,7 +35,11 @@ final class ActorRootTimelineRows {
             var session = drag; drag = null;
             if (Math.abs(ImGui.getMousePosX() - dragMouseX) >= 3
                     && ImGui.isWindowHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenBlockedByActiveItem)) {
-                if (session.commit(previewTime)) model.setCurrentTime(previewTime);
+                if (session.commit(previewTime)) {
+                    var moved=selected.stream().map(session::movedKey).toList();
+                    selected.clear();selected.addAll(moved);focusKey=session.movedKey(session.key());
+                    model.setCurrentTime(previewTime);
+                }
             } else session.cancel();
         } else if (!ImGui.isMouseDown(ImGuiMouseButton.Left)) cancel();
         return true;
@@ -226,7 +230,7 @@ final class ActorRootTimelineRows {
             try {
                 for (var clip : clips(track)) for (var key : clip.getKeyframes()) {
                     if (!key.hasChannel(1 << row)) continue;
-                    float kx = math.timeToX(drag != null && drag.contains(key) && drag.clip() == clip ? drag.previewTime(key, previewTime) : key.getTime()), ky = y + height / 2;
+                    float kx = math.timeToX(drag != null && (drag.channels() & (1<<row))!=0 && drag.contains(key) && drag.clip() == clip ? drag.previewTime(key, previewTime) : key.getTime()), ky = y + height / 2;
                     if (kx < left - 6 || kx > right + 6) continue;
                     int color = clip.isMuted() || track.isMuted() ? TimelineColors.rgba(110,110,110,255)
                             : (focusModel == model && focusClip == clip && model.getSelectedClip() == clip.getTimelineClip() && selected.contains(key) || selectedAt(model,clip,key)) ? TimelineColors.rgba(255,255,255,255) : colors[row];
@@ -282,10 +286,9 @@ final class ActorRootTimelineRows {
             DirectorServices.get().uiSelection().setCurrentSelection(hit.clip().getTimelineClip());
             select(model, track, hit.clip(), hit.key(), !rightClick && ImGui.getIO().getKeyCtrl());
             if (!rightClick && !ImGui.getIO().getKeyCtrl()
-                    && Integer.bitCount(hit.key().getChannels()) == 1
                     && com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, track, hit.clip())) {
                 try {
-                    drag = new com.director.ui.actor.pose.ActorRootKeyframeTimeSession(model, track, hit.clip(), hit.key(), selected);
+                    drag = new com.director.ui.actor.pose.ActorRootKeyframeTimeSession(model, track, hit.clip(), hit.key(), selected, 1 << row);
                     dragMouseX = mouseX; dragPixelsPerSecond = math.getPixelsPerSecond(); previewTime = hit.key().getTime();
                 } catch (IllegalArgumentException unavailable) { cancel(); }
             }
