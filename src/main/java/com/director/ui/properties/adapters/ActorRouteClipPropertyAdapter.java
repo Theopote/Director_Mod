@@ -103,13 +103,20 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SECTION_SETTINGS),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.exact_curve_hint"));
+            boolean fitDuration = clip.getLoopMode() == ActorRouteClip.LoopMode.ONCE;
+            if (fitDuration) {
+                float effectiveSpeed = com.director.timeline.playback.entity.ActorRouteSampler.computeCurveLength(
+                        clip.getWaypoints(), clip.getInterpolationMode()) / Math.max(.0001f, clip.getLength());
+                ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.route.effective_speed", effectiveSpeed));
+            }
+            ImGui.beginDisabled(fitDuration);
             float[] speed = {clip.getSpeed()};
             if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SPEED) + "##routeSpeed",
                     speed, 0.05f, 20.0f, "%.2f blocks/s")) {
                 clip.setSpeed(speed[0]);
             }
 
-            observe("speed");
+            observe("speed"); ImGui.endDisabled();
             ActorRouteClip.InterpolationMode[] interpolationModes = ActorRouteClip.InterpolationMode.values();
             ImInt interpolation = new ImInt(clip.getInterpolationMode().ordinal());
             if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.INTERPOLATION) + "##routeInterpolation",

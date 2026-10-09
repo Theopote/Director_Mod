@@ -31,6 +31,17 @@ class ActorPathEditingTest {
         var path = new ActorPathDefinition("Path"); path.setWaypoints(points); path.setInterpolationMode(mode); library.add(path); return path;
     }
     ActorRouteClip route() { return (ActorRouteClip) ActorPathEditing.attach(model, track, points, mode, "Route").getEntityClip(); }
+    @Test void onceDurationControlsSpeedAndGeometryEditingKeepsDuration() {
+        var route = route(); route.setTimeRange(2, 6);
+        var sampler = new com.director.timeline.playback.entity.EntityClipSampler(track.getActorTrackPayload());
+        assertEquals(2, sampler.sampleAt(4).position.x, 1e-4f); assertEquals(1, sampler.sampleAt(4).speed, 1e-4f);
+        route.setTimeRange(2, 4);
+        assertEquals(2, sampler.sampleAt(3).position.x, 1e-4f); assertEquals(2, sampler.sampleAt(3).speed, 1e-4f);
+        assertEquals(4, sampler.sampleAt(4).position.x, 1e-4f); assertEquals(0, sampler.sampleAt(4).speed);
+        var target = ActorPathEditing.route(model, track, route);
+        assertTrue(target.commit(List.of(new Vector3f(), new Vector3f(8,0,0)), mode));
+        assertEquals(4, route.getEndTime()); assertEquals(4, sampler.sampleAt(3).position.x, 1e-4f);
+    }
     @Test void verticalRouteUsesThreeDimensionalLengthAndNamesAreUnique() {
         var vertical = List.of(new Vector3f(0,10,0), new Vector3f(0,16,0));
         var route = (ActorRouteClip) ActorPathEditing.attach(model, track, vertical, mode, "Vertical").getEntityClip();

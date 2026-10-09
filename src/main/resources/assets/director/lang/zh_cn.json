@@ -1,4 +1,5 @@
 {
+  "gui.director.actor.route.effective_speed": "按时长计算的速度：%.2f 格/秒",
   "gui.director.actor.route.exact_curve_hint": "严格沿三维曲线移动，不投射地面、不进行地形碰撞或额外跳跃。高度由路径控制点决定；循环会从终点返回起点，往返模式会反向移动。",
   "gui.director.actor.path_movement.header": "沿路径移动",
   "gui.director.actor.path_movement.path": "演员路径",
@@ -2130,7 +2131,7 @@
   "gui.director.actor.path.save_library": "保存到路径库",
   "gui.director.actor.route.unavailable": "请先暂停播放，并选择未锁定的有效演员路线。",
   "gui.director.actor.route.duration": "片段时长（秒）",
-  "gui.director.actor.route.duration_hint": "速度控制沿路径运动的快慢；片段时长决定持续多久，可容纳多次循环。",
+  "gui.director.actor.route.duration_hint": "单次沿路：在片段时间内走完整条路径，缩短时间会加快移动；循环和往返仍按速度重复。",
   "gui.director.actor.route.cancelled": "路线目标已变化，已取消编辑。",
   "gui.director.actor.clip_inspector.title": "位移/旋转片段",
   "gui.director.actor.clip_inspector.range": "片段范围：%.2f–%.2f 秒",

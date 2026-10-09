@@ -704,17 +704,20 @@ public class EntityClipSampler {
 
         float clipLength = Math.max(0.0001f, active.getLength());
         float localTime = Math.max(0.0f, timeSeconds - active.getStartTime());
-        float routeDuration = computeRouteDuration(active);
+        float curveLength = ActorRouteSampler.computeCurveLength(points, active.getInterpolationMode());
+        boolean fit = active.getLoopMode() == ActorRouteClip.LoopMode.ONCE;
+        float effectiveSpeed = fit ? curveLength / clipLength : Math.max(0.05f, active.getSpeed());
+        float routeDuration = fit ? clipLength : computeRouteDuration(active);
         float duration = routeDuration > 0.0f ? routeDuration : clipLength;
         float travelTime = resolveRouteTime(active, localTime, duration);
-        float distance = travelTime * Math.max(0.05f, active.getSpeed());
+        float distance = travelTime * effectiveSpeed;
 
         ActorRouteSampler.RouteSample sample = ActorRouteSampler.sampleAtDistance(
                 points, distance, active.getInterpolationMode());
         result.position.set(sample.position());
         result.actionLocalTime = localTime;
-        result.speed = routeDuration <= 0f || (active.getLoopMode() == ActorRouteClip.LoopMode.ONCE
-                && localTime >= routeDuration) ? 0f : Math.max(0.05f, active.getSpeed());
+        result.speed = curveLength <= 1e-6f || routeDuration <= 0f || (active.getLoopMode() == ActorRouteClip.LoopMode.ONCE
+                && localTime >= routeDuration) ? 0f : effectiveSpeed;
         Vector3f direction = sample.direction();
         if (active.getLoopMode() == ActorRouteClip.LoopMode.PING_PONG && duration > 0f
                 && localTime % (2f * duration) >= duration) direction.negate();

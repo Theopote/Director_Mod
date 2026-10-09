@@ -83,7 +83,7 @@ public final class ActorPathEditing {
                         () -> { requirePath(library, path); requireGeometry(path, after); persistGeometry(path, before, after, save); },
                         () -> { requirePath(library, path); requireGeometry(path, before); persistGeometry(path, after, before, save); }));
             } else {
-                float newEnd = start + duration(after, speed);
+                float newEnd = loop == ActorRouteClip.LoopMode.ONCE ? end : start + duration(after, speed);
                 rejectOverlap(payload, route, start, newEnd);
                 TimelineCommandBridge.execute(new StateChangeCommand(model, "Edit actor route",
                         () -> applyRoute(after, before, newEnd, end), () -> applyRoute(before, after, end, newEnd)));

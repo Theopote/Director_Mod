@@ -223,7 +223,6 @@ public final class ActorPathController {
         editingLibraryPathId = pathId;
         editingClip = null;
         lastError = "";
-        editingTarget = null; editingLibrary = null;
         interpolationMode = path.getInterpolationMode();
         pathPoints.clear();
         for (Vector3f point : path.getWaypoints()) {
@@ -405,6 +404,7 @@ public final class ActorPathController {
                 id = created.getId();
             }
             beginNewDraft();
+            loadPathForEditing(id);
             return id;
         } catch (IllegalArgumentException | IllegalStateException failure) {
             lastError = failure.getMessage();
