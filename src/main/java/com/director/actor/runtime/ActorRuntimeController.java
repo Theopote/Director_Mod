@@ -696,7 +696,8 @@ public final class ActorRuntimeController {
 
             // Sampling is a pure function of the timeline phase, including paused/rewound frames.
             Pose base = new Pose();
-            float gaitTime = ActorRouteGait.time(s);
+            float gaitTime = actor.getType() == com.director.actor.ActorType.PLAYER
+                    ? ActorRouteGait.playerTime(s, rig.getStyle()) : ActorRouteGait.time(s);
             RigPoseResult rigPose = rig.sampleAt(actorRuntime, action, s.actionIntensity, gaitTime);
 
             // 新一代逐骨骼动画资产。存在同 ID 资产时优先使用；旧 AnimationLibrary 继续作为回退。
@@ -753,7 +754,11 @@ public final class ActorRuntimeController {
                 boolean boneDragging = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
                         && actor.getActorId().equals(com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().getActorId());
                 if (!boneDragging) {
-                    previewEntity.setFinalPose(finalPose);
+                    if (actor.getType() == com.director.actor.ActorType.PLAYER && animPose == null && !s.actionExplicit) {
+                        var contactPose = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(finalPose);
+                        ActorRouteFootContact.apply(contactPose, s);
+                        previewEntity.setFinalRigPose(contactPose);
+                    } else previewEntity.setFinalPose(finalPose);
                 }
             }
         }

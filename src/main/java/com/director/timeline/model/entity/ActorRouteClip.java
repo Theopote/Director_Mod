@@ -31,6 +31,9 @@ public final class ActorRouteClip extends EntityClip {
     private final List<Vector3f> waypoints = new ArrayList<>();
     private InterpolationMode interpolationMode = InterpolationMode.LINEAR;
     private LoopMode loopMode = LoopMode.ONCE;
+    private boolean smoothTravel;
+    public boolean isSmoothTravel() { return smoothTravel; }
+    public void setSmoothTravel(boolean value) { smoothTravel = value; }
     private float speed = 2.0f;
     private boolean alignRotationToRoute = true;
     private float jumpStart;

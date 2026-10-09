@@ -267,6 +267,7 @@ public class TimelineModelPersistence {
         public List<Vec3DTO> routeWaypoints = new ArrayList<>();
         public String routeInterpolationMode;
         public String routeLoopMode;
+        public Boolean routeSmoothTravel;
         public String routeSourcePathId;
         public Float routeSpeed;
         public Boolean routeAlignRotation;
@@ -898,6 +899,7 @@ public class TimelineModelPersistence {
                             cdto.routeInterpolationMode = rc.getInterpolationMode() != null ? rc.getInterpolationMode().name() : null;
                             cdto.routeLoopMode = rc.getLoopMode() != null ? rc.getLoopMode().name() : null;
                             cdto.routeSourcePathId = rc.getSourcePathId() == null ? null : rc.getSourcePathId().toString();
+                            cdto.routeSmoothTravel = rc.isSmoothTravel();
                             cdto.routeSpeed = rc.getSpeed();
                             cdto.routeAlignRotation = rc.isAlignRotationToRoute();
                             cdto.routeJumpStart = rc.getJumpStart();
@@ -1527,6 +1529,7 @@ public class TimelineModelPersistence {
                                             try { rc.setSourcePathId(java.util.UUID.fromString(cdto.routeSourcePathId)); }
                                             catch (IllegalArgumentException invalid) { /* Keep old geometry fallback. */ }
                                         }
+                                        if (cdto.routeSmoothTravel != null) rc.setSmoothTravel(cdto.routeSmoothTravel);
                                         if (cdto.routeSpeed != null) rc.setSpeed(cdto.routeSpeed);
                                         if (cdto.routeAlignRotation != null) rc.setAlignRotationToRoute(cdto.routeAlignRotation);
                                         if (cdto.routeJumpStart != null) rc.setJumpStart(cdto.routeJumpStart);

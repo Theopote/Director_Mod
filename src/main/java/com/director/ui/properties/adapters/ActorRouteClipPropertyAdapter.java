@@ -104,6 +104,10 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
                 ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.exact_curve_hint"));
             boolean fitDuration = clip.getLoopMode() == ActorRouteClip.LoopMode.ONCE;
+            ImGui.beginDisabled(!fitDuration);
+            if (ImGui.checkbox(ActorPropertyAdapterI18n.tr("gui.director.actor.route.smooth_travel"), clip.isSmoothTravel()))
+                clip.setSmoothTravel(!clip.isSmoothTravel());
+            observe("smoothTravel"); ImGui.endDisabled();
             if (fitDuration) {
                 float effectiveSpeed = com.director.timeline.playback.entity.ActorRouteSampler.computeCurveLength(
                         clip.getWaypoints(), clip.getInterpolationMode()) / Math.max(.0001f, clip.getLength());

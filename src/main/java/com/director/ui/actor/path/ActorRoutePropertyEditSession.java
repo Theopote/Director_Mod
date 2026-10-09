@@ -9,11 +9,11 @@ import java.util.UUID;
 public final class ActorRoutePropertyEditSession {
     private record State(ActorPathEditing.Geometry geometry, float start, float end, float speed,
                          ActorRouteClip.LoopMode loop, boolean align, float jumpStart,
-                         float jumpDuration, float jumpHeight) {
+                         float jumpDuration, float jumpHeight, boolean smoothTravel) {
         static State capture(ActorRouteClip clip) {
             return new State(new ActorPathEditing.Geometry(clip.getWaypoints(), clip.getInterpolationMode()),
                     clip.getStartTime(), clip.getEndTime(), clip.getSpeed(), clip.getLoopMode(),
-                    clip.isAlignRotationToRoute(), clip.getJumpStart(), clip.getJumpDuration(), clip.getJumpHeight());
+                    clip.isAlignRotationToRoute(), clip.getJumpStart(), clip.getJumpDuration(), clip.getJumpHeight(), clip.isSmoothTravel());
         }
         void validate() {
             if (!Float.isFinite(start) || start < 0 || !Float.isFinite(end) || end - start < .1f
@@ -27,7 +27,7 @@ public final class ActorRoutePropertyEditSession {
             if (!geometry.matches(clip.getWaypoints(), clip.getInterpolationMode())) geometry.apply(clip);
             clip.setTimeRange(start, end); clip.setSpeed(speed); clip.setLoopMode(loop);
             clip.setAlignRotationToRoute(align); clip.setJumpStart(jumpStart);
-            clip.setJumpDuration(jumpDuration); clip.setJumpHeight(jumpHeight);
+            clip.setJumpDuration(jumpDuration); clip.setJumpHeight(jumpHeight); clip.setSmoothTravel(smoothTravel);
         }
     }
     private final TimelineModel model;

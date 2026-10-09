@@ -710,14 +710,15 @@ public class EntityClipSampler {
         float routeDuration = fit ? clipLength : computeRouteDuration(active);
         float duration = routeDuration > 0.0f ? routeDuration : clipLength;
         float travelTime = resolveRouteTime(active, localTime, duration);
-        float distance = travelTime * effectiveSpeed;
+        var onceMotion = ActorRouteMotion.once(active, localTime);
+        float distance = fit ? onceMotion.distance() : travelTime * effectiveSpeed;
 
         ActorRouteSampler.RouteSample sample = ActorRouteSampler.sampleAtDistance(
                 points, distance, active.getInterpolationMode());
         result.position.set(sample.position());
         result.actionLocalTime = localTime;
         result.speed = curveLength <= 1e-6f || routeDuration <= 0f || (active.getLoopMode() == ActorRouteClip.LoopMode.ONCE
-                && localTime >= routeDuration) ? 0f : effectiveSpeed;
+                && localTime >= routeDuration) ? 0f : fit ? onceMotion.speed() : effectiveSpeed;
         Vector3f direction = sample.direction();
         if (active.getLoopMode() == ActorRouteClip.LoopMode.PING_PONG && duration > 0f
                 && localTime % (2f * duration) >= duration) direction.negate();

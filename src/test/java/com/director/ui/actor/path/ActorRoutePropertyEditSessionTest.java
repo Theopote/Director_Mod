@@ -32,12 +32,12 @@ class ActorRoutePropertyEditSessionTest {
         var edit = session();
         for (int i = 1; i <= 10; i++) edit.draft().setSpeed(i);
         edit.draft().setLoopMode(ActorRouteClip.LoopMode.PING_PONG);
-        edit.draft().setTimeRange(2, 12); edit.draft().setJumpHeight(.75f);
+        edit.draft().setTimeRange(2, 12); edit.draft().setJumpHeight(.75f); edit.draft().setSmoothTravel(true);
         assertEquals(2, route.getSpeed()); assertEquals(4, route.getEndTime()); assertEquals(0, history.getUndoSize());
         assertTrue(edit.commit()); assertEquals(1, history.getUndoSize());
-        assertEquals(12, route.getTimelineClip().getEndTime()); assertEquals(10, route.getSpeed());
-        history.undo(); assertEquals(4, route.getEndTime()); assertEquals(2, route.getSpeed()); assertEquals(0, route.getJumpHeight());
-        history.redo(); assertEquals(12, route.getEndTime()); assertEquals(.75f, route.getJumpHeight());
+        assertEquals(12, route.getTimelineClip().getEndTime()); assertEquals(10, route.getSpeed()); assertTrue(route.isSmoothTravel());
+        history.undo(); assertFalse(route.isSmoothTravel()); assertEquals(4, route.getEndTime()); assertEquals(2, route.getSpeed()); assertEquals(0, route.getJumpHeight());
+        history.redo(); assertTrue(route.isSmoothTravel()); assertEquals(12, route.getEndTime()); assertEquals(.75f, route.getJumpHeight());
     }
     @Test void noOpAndCancellationDoNotCreateCommands() {
         assertTrue(session().commit()); var edit = session(); edit.draft().setSpeed(4); edit.cancel();

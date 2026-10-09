@@ -1,6 +1,7 @@
 {
+  "gui.director.actor.route.smooth_travel": "平滑起停（单次路径加速与减速）",
   "gui.director.actor.route.linked_hint": "此路线绑定路径库资源。请用路径工具点击原路径或在路径库选择它修改；所有绑定演员会同步。",
-  "gui.director.actor.route.effective_speed": "按时长计算的速度：%.2f 格/秒",
+  "gui.director.actor.route.effective_speed": "按时长计算的平均速度：%.2f 格/秒",
   "gui.director.actor.route.exact_curve_hint": "严格沿三维曲线移动，不投射地面、不进行地形碰撞或额外跳跃。高度由路径控制点决定；循环会从终点返回起点，往返模式会反向移动。",
   "gui.director.actor.path_movement.header": "沿路径移动",
   "gui.director.actor.path_movement.path": "演员路径",
