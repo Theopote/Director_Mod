@@ -494,62 +494,8 @@ public final class ActorRuntimeController {
         }
 
         private void applyGroundRoute(UUID id, EntitySample sample, float time) {
-            var clip = sample.routeClip;
-            if (clip == null) return;
-            var terrain=terrainFor(id,sample);
-            if(terrain==null) { reportPlacement(id,time,"route",true,"路径地形或演员碰撞尺寸尚未就绪"); sample.visibility=0; sample.speed=0; EntityClipSampler.resolveAutoAction(sample); return; }
-            var world=net.minecraft.client.MinecraftClient.getInstance().world;
-            var dimensions=com.director.actor.path.ActorCollisionDimensions.forActor(actorRegistry.getActor(id).orElseThrow(),sample.scale);
-            if (groundRoute == null || groundClip != clip || groundRevision != clip.getTerrainRevision()
-                    || groundWorld != world || !dimensions.equals(groundDimensions)) {
-                groundRoute = com.director.actor.path.GroundRoute.compile(
-                        com.director.timeline.playback.entity.ActorRouteSampler.sampleCurvePositions(
-                                clip.getWaypoints(), clip.getInterpolationMode()), terrain);
-                groundClip = clip;
-                groundRevision = clip.getTerrainRevision();
-                groundWorld=world; groundDimensions=dimensions;
-            }
-            clip.setTerrainWarning(groundRoute.warning());
-            reportPlacement(id,time,"route",!groundRoute.valid(),groundRoute.warning());
-            if (!groundRoute.valid()) {
-                // No safe starting point: don't render an actor suspended in mid-air.
-                sample.visibility = 0;
-                sample.speed = 0;
-                EntityClipSampler.resolveAutoAction(sample);
-                return;
-            }
-            double local = Math.max(0, time - clip.getStartTime());
-            var motion = groundRoute.sample(local, clip.getSpeed(), clip.getLoopMode());
-            Vec3d feet = motion.position();
-            var support = terrain.floor(feet.x, feet.z, feet.y, 0.6, 1.25);
-            if (support.isEmpty()) {
-                // A changed/unloaded block must not leave the cached actor floating.
-                reportPlacement(id,time,"route",true,"当前位置地形已改变或未加载，请重新检测路径");
-                clip.setTerrainWarning("当前位置地形已改变或未加载，请重新检测路径");
-                sample.visibility = 0;
-                sample.speed = 0;
-                EntityClipSampler.resolveAutoAction(sample);
-                return;
-            }
-            feet = new Vec3d(feet.x, support.getAsDouble(), feet.z);
-            double hop = com.director.actor.path.GroundRoute.jumpOffset(local,
-                    clip.getJumpStart(), clip.getJumpDuration(), clip.getJumpHeight());
-            Vec3d airborne = feet.add(0, hop, 0);
-            if (hop > 0) {
-                boolean clear=true; int steps=(int)Math.ceil(hop/.1);
-                for(int i=1;i<=steps;i++) if(!terrain.clear(feet.add(0,hop*i/steps,0))) { clear=false; break; }
-                if(clear) feet=airborne;
-                else { clip.setTerrainWarning("跳跃上方空间不足，已保持地面位置");
-                    reportPlacement(id,time,"jump",false,"跳跃上方空间不足，已保持地面位置"); }
-            }
-            sample.position.set((float) feet.x, (float) feet.y, (float) feet.z);
-            sample.speed = motion.moving() ? clip.getSpeed() : 0;
-            if (clip.isAlignRotationToRoute()) {
-                if (motion.direction().lengthSquared() > 1e-8) sample.rotation.x =
-                        (float) Math.toDegrees(Math.atan2(-motion.direction().x, motion.direction().z));
-                sample.rotation.y = 0; // Ground actors stay upright on slopes.
-            }
-            EntityClipSampler.resolveAutoAction(sample);
+            // Authored actor paths are exact 3D curves, independent of world terrain.
+            if (sample.routeClip != null) sample.routeClip.setTerrainWarning("");
         }
 
         /**
@@ -840,20 +786,17 @@ public final class ActorRuntimeController {
         }
 
         private void restoreRelationJump(EntitySample sample,float time) {
-            if(!sample.relationEnabled || sample.routeClip==null || sample.visibility<=.01f) return;
-            double hop=com.director.actor.path.GroundRoute.jumpOffset(Math.max(0,time-sample.routeClip.getStartTime()),
-                    sample.routeClip.getJumpStart(),sample.routeClip.getJumpDuration(),sample.routeClip.getJumpHeight());
-            if(hop<=0) return;
-            var result=finalRootPlacement(new Vec3d(sample.position.x,sample.position.y,sample.position.z),
-                    new org.joml.Vector3f(),sample.rotation.x,sample,time);
-            reportPlacement(actor.getActorId(),time,"jump",result.position()==null,result.warning());
-            if(!result.warning().isEmpty()) sample.routeClip.setTerrainWarning(result.warning());
-            if(result.position()==null) { sample.visibility=0; sample.speed=0; return; }
-            var point=result.position(); sample.position.set((float)point.x,(float)point.y,(float)point.z);
+            // Route height is authored on the curve; legacy procedural hops are not applied.
         }
 
         private com.director.actor.path.ActorRelationGroundConstraint.Result finalRootPlacement(
                 Vec3d base,org.joml.Vector3f offset,float yaw,EntitySample sample,float time) {
+            if (sample.routeClip != null) {
+                var worldOffset = new org.joml.Matrix4f().rotateY((float)Math.toRadians(-yaw)).scale(sample.scale)
+                        .transformDirection(new org.joml.Vector3f(offset));
+                return new com.director.actor.path.ActorRelationGroundConstraint.Result(
+                        base.add(worldOffset.x,worldOffset.y,worldOffset.z), "");
+            }
             var terrain=terrainFor(actor.getActorId(),sample);
             if(terrain==null) { reportPlacement(actor.getActorId(),time,"root",true,"动作地形尚未就绪");
                 return new com.director.actor.path.ActorRelationGroundConstraint.Result(null,"动作地形尚未就绪"); }

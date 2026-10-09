@@ -20,6 +20,12 @@ class ActorPathControllerDraftTest {
         var member = ActorPathController.class.getDeclaredField("pathPoints"); member.setAccessible(true);
         return (List<Vec3d>) member.get(controller);
     }
+    @Test void completingSinglePointDraftCancelsWithoutCreatingPath() throws Exception {
+        var controller = controller(); points(controller).add(new Vec3d(1,2,3));
+        set(controller, "drawing", true); set(controller, "selectedAnchorIndex", 0);
+        controller.finalizePath(); assertFalse(controller.isDrawing());
+        assertEquals(0, controller.getAnchorCount()); assertEquals(-1, controller.getSelectedAnchorIndex());
+    }
     @Test void startingNewDraftClearsOldRouteBindingWithoutChangingRoute() throws Exception {
         var controller = controller(); var source = new ActorRouteClip("Old", 0, 3);
         source.setWaypoints(List.of(new Vector3f(), new Vector3f(4,0,0)));

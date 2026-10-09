@@ -31,6 +31,16 @@ class ActorPathEditingTest {
         var path = new ActorPathDefinition("Path"); path.setWaypoints(points); path.setInterpolationMode(mode); library.add(path); return path;
     }
     ActorRouteClip route() { return (ActorRouteClip) ActorPathEditing.attach(model, track, points, mode, "Route").getEntityClip(); }
+    @Test void verticalRouteUsesThreeDimensionalLengthAndNamesAreUnique() {
+        var vertical = List.of(new Vector3f(0,10,0), new Vector3f(0,16,0));
+        var route = (ActorRouteClip) ActorPathEditing.attach(model, track, vertical, mode, "Vertical").getEntityClip();
+        assertEquals(3, route.getLength(), 1e-4f);
+        var sampled = new com.director.timeline.playback.entity.EntityClipSampler(track.getActorTrackPayload()).sampleAt(3);
+        assertEquals(12, sampled.position.y, 1e-4f); assertEquals(2, sampled.speed, 1e-4f);
+        var a = ActorPathEditing.saveNew(model, library, vertical, mode, saves::incrementAndGet);
+        var b = ActorPathEditing.saveNew(model, library, vertical, mode, saves::incrementAndGet);
+        assertNotEquals(a.getName(), b.getName()); assertNotEquals(a.getId(), b.getId());
+    }
     @Test void libraryGeometryIsCopiedAndCommittedOnceWithUndo() {
         var path = path(); var target = ActorPathEditing.library(model, library, path, saves::incrementAndGet);
         var draft = List.of(new Vector3f(1,2,3), new Vector3f(8,2,3));

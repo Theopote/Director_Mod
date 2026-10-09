@@ -231,7 +231,7 @@ public final class ActorPathEditing {
             throw new IllegalArgumentException("请先暂停时间线再编辑路径");
     }
     private static float duration(Geometry geometry, float speed) {
-        float duration = Math.max(.1f, ActorRouteSampler.computeGroundCurveLength(geometry.points, geometry.mode) / Math.max(.05f, speed));
+        float duration = Math.max(.1f, ActorRouteSampler.computeCurveLength(geometry.points, geometry.mode) / Math.max(.05f, speed));
         if (!Float.isFinite(duration)) throw new IllegalArgumentException("路径长度超出有效范围");
         return duration;
     }

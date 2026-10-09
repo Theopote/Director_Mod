@@ -102,29 +102,7 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
         if (ImGui.collapsingHeader(Icons.SETTINGS + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SECTION_SETTINGS),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textWrapped("地面移动：路径高度自动贴合地形；陡坎、断路和空间不足会阻止前进。");
-            ImGui.textWrapped("路径线表示规划方向，播放时会投影到可站立地面。");
-            if (ImGui.button("重新检测地形##routeTerrain")) { source.refreshTerrain(); session.cancel(); session = null; return false; }
-            if (!source.getTerrainWarning().isEmpty()) ImGui.textWrapped(source.getTerrainWarning());
-            float[] jumpHeight = {clip.getJumpHeight()};
-            if (ImGui.sliderFloat("跳跃高度##routeHopHeight", jumpHeight, 0f, 1.25f, "%.2f blocks")) {
-                clip.setJumpHeight(jumpHeight[0]);
-            }
-            observe("jumpHeight");
-            if (clip.getJumpHeight() > 0) {
-                imgui.type.ImFloat jumpStart = new imgui.type.ImFloat(clip.getJumpStart());
-                if (ImGui.inputFloat("起跳时间（片段内）##routeHopStart", jumpStart)) {
-                    if (Float.isFinite(jumpStart.get())) clip.setJumpStart(jumpStart.get());
-                }
-                observe("jumpStart");
-                float[] jumpDuration = {clip.getJumpDuration()};
-                if (ImGui.sliderFloat("腾空时长##routeHopDuration", jumpDuration, 0.1f, 0.8f, "%.2f s")) {
-                    clip.setJumpDuration(jumpDuration[0]);
-                }
-                observe("jumpDuration");
-                ImGui.textWrapped("每个路径片段起跳一次；当前支持地面上的短跳，不跨越断路或高墙。");
-            }
-
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.exact_curve_hint"));
             float[] speed = {clip.getSpeed()};
             if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SPEED) + "##routeSpeed",
                     speed, 0.05f, 20.0f, "%.2f blocks/s")) {
@@ -153,6 +131,7 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
                 clip.setAlignRotationToRoute(!align);
             }
             observe("align");
+
         }
 
         if (ImGui.collapsingHeader(Icons.PIN + " "

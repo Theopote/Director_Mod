@@ -336,6 +336,10 @@ public final class ActorPathController {
     }
 
     private void handleLeftClick() {
+        if (drawing && editingTarget == null) {
+            if (pathPoints.size() >= 2) completeCurrentPath(); else beginNewDraft();
+            return;
+        }
         DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
         if (ray == null) {
             return;
@@ -386,7 +390,8 @@ public final class ActorPathController {
 
     private UUID completeCurrentPath() {
         cancelAnchorDrag();
-        if (isEditingLocked() || pathPoints.size() < 2) return null;
+        if (pathPoints.size() < 2) { if (editingTarget == null) beginNewDraft(); return null; }
+        if (isEditingLocked()) return null;
         var model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) return null;
         try {
