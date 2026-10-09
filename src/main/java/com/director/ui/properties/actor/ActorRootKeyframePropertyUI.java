@@ -21,7 +21,8 @@ public final class ActorRootKeyframePropertyUI {
                 && !com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging();
         ImGui.beginDisabled(!editable);
         boolean conversionBlocked = ActorRootKeyframeEditing.requiresLinearConversion(model, clip);
-        ImGui.beginDisabled(conversionBlocked);
+        boolean route = com.director.ui.actor.pose.ActorMovementSource.routeOwnsInterval(model, owner);
+        ImGui.beginDisabled(conversionBlocked || route);
         if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.root_keys.insert")))
             ActorRootKeyframeEditing.insert(model, owner, clip);
         ImGui.endDisabled();
@@ -31,6 +32,7 @@ public final class ActorRootKeyframePropertyUI {
         if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.root_keys.remove")))
             ActorRootKeyframeEditing.remove(model, owner, clip);
         ImGui.endDisabled(); ImGui.endDisabled();
+        if (route) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.movement.route_protected"));
         if (conversionBlocked) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.root_keys.smooth_conversion"));
         if (!editable) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.root_keys.readonly"));
     }

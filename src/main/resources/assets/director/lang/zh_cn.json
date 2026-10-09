@@ -1,4 +1,7 @@
 {
+  "gui.director.actor.movement.route_protected": "当前时间有有效路径移动：整体TRS写入暂不可用。请编辑路径；若要改用坐标关键帧，请先禁用或调整路径时间范围。现有整体帧仍可删除。",
+  "gui.director.actor.movement.route_source": "位置来源：路径曲线与速度。路径形状和坐标关键帧是两种不同的移动来源。",
+  "gui.director.actor.movement.route_conflict": "冲突：当前时间存在Transform，按现有播放规则它会覆盖路径。请禁用或调整其中一个引用的时间范围；本次不会自动改动旧动画。",
   "gui.director.actor.root_rows.menu_title": "整体关键帧",
   "gui.director.actor.root_rows.selected_count": "已选 %d 帧",
   "gui.director.actor.root_rows.time_range": "时间范围：%.3f–%.3f 秒",

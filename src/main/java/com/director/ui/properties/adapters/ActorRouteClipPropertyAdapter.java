@@ -44,6 +44,10 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
         }
 
         var model = com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
+        var owner = source.getTimelineClip() == null ? null : source.getTimelineClip().getParentTrack();
+        ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.movement.route_source"));
+        if (model != null && com.director.ui.actor.pose.ActorMovementSource.transformOverridesRoute(owner, model.getCurrentTime()))
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.movement.route_conflict"));
         int frame = ImGui.getFrameCount();
         if (session != null && (frame != lastFrame + 1 || !session.isCurrent(model, source))) {
             session.cancel(); session = null;

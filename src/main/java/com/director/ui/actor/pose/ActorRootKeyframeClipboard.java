@@ -22,7 +22,7 @@ public final class ActorRootKeyframeClipboard {
         var keys = pasteAll(model, owner, clip); return keys.isEmpty() ? null : keys.getFirst();
     }
     public List<EntityClipKeyframe> pasteAll(TimelineModel model, TimelineTrack owner, EntityClip clip) {
-        if (snapshots.isEmpty() || !ActorRootKeyframeEditing.editable(model, owner, clip)) return List.of();
+        if (snapshots.isEmpty() || !ActorRootKeyframeEditing.editable(model, owner, clip) || ActorMovementSource.routeOwnsInterval(model, owner)) return List.of();
         if (clip instanceof EntityTransformClip && clip.getKeyframes().isEmpty()) return List.of();
         float offset = model.getCurrentTime() - snapshots.getFirst().getTime();
         List<EntityClipKeyframe> added = new ArrayList<>();

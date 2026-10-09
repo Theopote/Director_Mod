@@ -1,4 +1,7 @@
 {
+  "gui.director.actor.movement.route_protected": "An active route protects root TRS writes. Edit the route, or mute/retime it before authoring coordinates. Existing root keys can still be deleted.",
+  "gui.director.actor.movement.route_source": "Position source: route curve and speed. Routes and coordinate keys are separate movement sources.",
+  "gui.director.actor.movement.route_conflict": "Conflict: an active Transform overrides this route under existing playback rules. Mute or retime one reference to resolve it.",
   "gui.director.actor.root_rows.menu_title": "Root keyframes",
   "gui.director.actor.root_rows.selected_count": "%d keys selected",
   "gui.director.actor.root_rows.time_range": "Time range: %.3f–%.3f s",

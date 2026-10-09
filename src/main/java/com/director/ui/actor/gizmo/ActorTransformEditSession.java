@@ -51,7 +51,8 @@ public final class ActorTransformEditSession {
         return !finished && contextRevision == model.getActorEditContextRevision() && !model.isPlaying() && Float.isFinite(time) && time >= 0
                 && Float.compare(time, model.getCurrentTime()) == 0
                 && model.getAllTracks().contains(owner) && owner.getType() == TrackType.ACTOR
-                && !owner.isLocked() && !owner.isMuted() && owner.getActorTrackPayload() == payload
+                && !owner.isLocked() && !owner.isMuted()
+                && !com.director.ui.actor.pose.ActorMovementSource.routeOwnsInterval(model, owner) && owner.getActorTrackPayload() == payload
                 && payload.getActorRef() != null && Objects.equals(actorId, payload.getActorRef().getActorId())
                 && ActorRegistryManager.getInstance().getActor(actorId).isPresent()
                 && sourceClips.equals(payload.getClips())

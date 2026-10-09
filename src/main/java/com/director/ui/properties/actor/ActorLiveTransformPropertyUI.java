@@ -88,6 +88,9 @@ public final class ActorLiveTransformPropertyUI {
                 ImGui.textWrapped(ActorPropertyAdapterI18n.tr(source == null && (spawn == null || spawn.getKeyframes().isEmpty())
                         ? "gui.director.actor.transform_edit.initial_hint" : "gui.director.actor.transform_edit.animation_hint"));
             }
+            boolean routeProtected = target != null && com.director.ui.actor.pose.ActorMovementSource.routeOwnsInterval(model, target.timelineTrack());
+            if (routeProtected) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.movement.route_protected"));
+            ImGui.beginDisabled(routeProtected);
             ImGui.spacing();
 
             UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.POSITION));
@@ -106,7 +109,7 @@ public final class ActorLiveTransformPropertyUI {
             inputFloat("X##actorLiveScaleX", scaleX);
             inputFloat("Y##actorLiveScaleY", scaleY);
             inputFloat("Z##actorLiveScaleZ", scaleZ);
-            UITheme.endGroup();
+            UITheme.endGroup(); ImGui.endDisabled();
         }
 
         if (ImGui.collapsingHeader(Icons.TARGET + " "

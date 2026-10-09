@@ -28,7 +28,7 @@ public final class ActorRootKeyframeEditing {
                 && model.getCurrentTime() < clip.getEndTime() - 1e-4f;
     }
     public static EntityClipKeyframe insert(TimelineModel model, TimelineTrack owner, EntityClip clip) {
-        if (!editable(model, owner, clip)) return null;
+        if (!editable(model, owner, clip) || ActorMovementSource.routeOwnsInterval(model, owner)) return null;
         float time = model.getCurrentTime();
         if (requiresLinearConversion(model, clip)) return null;
         var matching = clip.getKeyframes().stream().filter(k -> Math.abs(k.getTime() - time) <= 1e-4f).toList();
@@ -49,7 +49,7 @@ public final class ActorRootKeyframeEditing {
     }
     public static EntityClipKeyframe write(TimelineModel model, TimelineTrack owner, EntityClip clip,
                                           org.joml.Vector3f position, org.joml.Vector3f rotation, org.joml.Vector3f scale) {
-        if (!editable(model, owner, clip) || !position.isFinite() || !rotation.isFinite() || !scale.isFinite()
+        if (!editable(model, owner, clip) || ActorMovementSource.routeOwnsInterval(model, owner) || !position.isFinite() || !rotation.isFinite() || !scale.isFinite()
                 || scale.x <= 0 || scale.y <= 0 || scale.z <= 0) return null;
         var matches = clip.getKeyframes().stream().filter(k -> Math.abs(k.getTime() - model.getCurrentTime()) <= 1e-4f).toList();
         if (matches.size() > 1) return null;
