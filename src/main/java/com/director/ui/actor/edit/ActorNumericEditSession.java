@@ -113,5 +113,5 @@ public final class ActorNumericEditSession {
         }
         finished = true;
     }
-    private static float clamp(float value) { return Math.max(.01f, Math.min(100, value)); }
+    private static float clamp(float value) { return Math.clamp(value, .01f, 100); }
 }

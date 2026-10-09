@@ -99,6 +99,46 @@ class ActorTransformEditSessionTest {
         assertTrue(history.redo()); assertEquals(new Vector3f(6, 2, 3), key.getPosition());
     }
 
+    private EntitySpawnClip pathActor() {
+        var spawn=new EntitySpawnClip("Actor",0,5); spawn.setPosition(20,2,30);
+        track.getActorTrackPayload().addClip(spawn); track.addClip(new EntityTimelineClip(spawn,0));
+        var route=new ActorRouteClip("Path",0,5); route.addWaypoint(0,0,0); route.addWaypoint(10,0,0);
+        track.getActorTrackPayload().addClip(route); track.addClip(new EntityTimelineClip(route,0));
+        return spawn;
+    }
+    @Test void pathScaleGestureChangesOnlyScaleAndUndoKeepsRoute() {
+        var spawn=pathActor();
+        assertThrows(IllegalArgumentException.class,()->session(null));
+        var edit=new ActorTransformEditSession(model,track,null,true);
+        edit.arm(); edit.draft().setToScale(2,3,4); edit.draft().setToPos(99,99,99);
+        assertNotNull(edit.commit());
+        assertEquals(new Vector3f(20,2,30),spawn.getPosition());
+        assertEquals(new Vector3f(2,3,4),spawn.getScale());
+        assertEquals(2,track.getClips().size()); assertEquals(1,history.getUndoSize());
+        assertTrue(history.undo()); assertEquals(new Vector3f(1),spawn.getScale());
+        assertTrue(history.redo()); assertEquals(new Vector3f(2,3,4),spawn.getScale());
+    }
+    @Test void pathScaleGestureWritesKeyAndCancelDoesNotWrite() {
+        var spawn=pathActor();
+        com.director.ui.actor.pose.ActorRootKeyframeEditing.writeScale(model,track,spawn,new Vector3f(1));
+        model.setCurrentTime(4);
+        var edit=new ActorTransformEditSession(model,track,null,true); edit.arm(); edit.draft().setToScale(3,3,3);
+        assertNotNull(edit.commit()); assertEquals(2,spawn.getKeyframes().size());
+        var sampled=new com.director.timeline.playback.entity.EntityClipSampler(track.getActorTrackPayload()).sampleAt(3);
+        assertEquals(new Vector3f(2),sampled.scale); assertNotNull(sampled.routeClip);
+        var cancelled=new ActorTransformEditSession(model,track,null,true); cancelled.arm();
+        cancelled.draft().setToScale(8,8,8); cancelled.cancel(); assertNull(cancelled.commit());
+        assertEquals(new Vector3f(3),spawn.getKeyframes().getLast().getScale());
+    }
+    @Test void pathScaleRejectsPlaybackTimeChangeAndLegacyTransform() {
+        pathActor(); var edit=new ActorTransformEditSession(model,track,null,true); edit.arm();
+        edit.draft().setToScale(2,2,2); model.setCurrentTime(3); assertNull(edit.commit());
+        assertEquals(0,history.getUndoSize());
+        model.setCurrentTime(6); assertThrows(IllegalArgumentException.class,()->new ActorTransformEditSession(model,track,null,true));
+        model.setCurrentTime(2); source();
+        assertThrows(IllegalArgumentException.class,()->new ActorTransformEditSession(model,track,null,true));
+    }
+
     TimelineModel model;
     TimelineTrack track;
     TimelineCommandHistory history;

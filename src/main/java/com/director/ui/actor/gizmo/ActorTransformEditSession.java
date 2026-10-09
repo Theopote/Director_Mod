@@ -62,7 +62,8 @@ public final class ActorTransformEditSession {
                 && ActorRegistryManager.getInstance().getActor(actorId).isPresent()
                 && sourceClips.equals(payload.getClips())
                 && (initialSpawn == null || resolveInitialSpawn(payload, time) == initialSpawn && spawnBefore.equals(SpawnState.of(initialSpawn)) && keysAreCurrent())
-                && (scaleOnly ? source == null && initialSpawn != null && resolveSource(model, owner) == null : resolveSource(model, owner) == source)
+                && (scaleOnly ? source == null && initialSpawn != null && resolveSource(model, owner) == null
+                    && com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, owner, initialSpawn) : resolveSource(model, owner) == source)
                 && (source == null || (!source.isMuted() && payload.getClips().contains(source)
                     && source.getTimelineClip() != null && owner.getClips().contains(source.getTimelineClip())
                     && before.matches(source) && keysAreCurrent()));

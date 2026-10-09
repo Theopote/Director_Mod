@@ -410,7 +410,7 @@ public final class ActorGizmoController {
             return;
         }
 
-        if (timelineTrack == null || timelineTrack.isLocked() || timelineTrack.isMuted() || model.isPlaying()) return;
+        if (timelineTrack == null || timelineTrack.isLocked() || timelineTrack.isMuted() || model.isPlaying() || model.isScrubbing()) return;
         if (currentMode == GizmoMode.LOOK_AT) return;
         dragging = true;
         var initialPreview = ActorPreviewManager.getInstance().getPreview(targetActorId);
@@ -453,7 +453,9 @@ public final class ActorGizmoController {
         var source = ActorTransformEditSession.resolveSource(model, timelineTrack);
         boolean activeClipAtCurrentTime = source != null && time >= source.getStartTime() && time <= source.getEndTime();
         try {
-            dragSession = new ActorTransformEditSession(model, timelineTrack, source);
+            boolean routeScale = currentMode == GizmoMode.SCALE
+                    && com.director.ui.actor.pose.ActorMovementSource.routeOwnsInterval(model, timelineTrack);
+            dragSession = new ActorTransformEditSession(model, timelineTrack, source, routeScale);
         } catch (IllegalArgumentException | NullPointerException invalid) {
             dragging = false;
             return;
@@ -679,6 +681,7 @@ public final class ActorGizmoController {
                 }
             }
             case SCALE -> {
+                ActorPreviewManager.getInstance().setRootScale(preview, editingClip.getToScale());
                 if (preview instanceof com.director.actor.preview.ActorPosePreview previewEntity)
                     previewEntity.setActorTransformScale(editingClip.getToScale());
             }
@@ -750,6 +753,7 @@ public final class ActorGizmoController {
                 var sample = new EntityClipSampler(actorTrack).sampleAt(model.getCurrentTime());
                 if (sample != null && sample.enabled) {
                     preview.refreshPositionAndAngles(sample.position.x, sample.position.y, sample.position.z, sample.rotation.x, sample.rotation.y);
+                    ActorPreviewManager.getInstance().setRootScale(preview, sample.scale);
                     if (preview instanceof com.director.actor.preview.ActorPosePreview previewEntity)
                         previewEntity.setActorTransformScale(sample.scale);
                 } else if (originalPosition != null && originalRotation != null) {
@@ -820,6 +824,6 @@ public final class ActorGizmoController {
      * @return 限制后的值
      */
     private static double clamp(double value) {
-        return Math.max(ActorGizmoController.MIN_SCALE, Math.min(ActorGizmoController.MAX_SCALE, value));
+        return Math.clamp(value, ActorGizmoController.MIN_SCALE, ActorGizmoController.MAX_SCALE);
     }
 }

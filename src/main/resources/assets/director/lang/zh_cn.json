@@ -14,7 +14,7 @@
   "gui.director.actor.path_movement.missing": "路径已不存在，请重新选择。",
   "gui.director.actor.path_movement.place_first": "请先把演员放置到场景中，建立演员轨道。",
   "gui.director.actor.path_movement.hint": "绑定原路径资源，后续路径形状修改会同步；创建操作支持撤销。当前从起点开始，不包含走到路径的接入动画。",
-  "gui.director.actor.movement.route_protected": "当前时间有有效路径移动：整体TRS写入暂不可用。请编辑路径；若要改用坐标关键帧，请先禁用或调整路径时间范围。现有整体帧仍可删除。",
+  "gui.director.actor.movement.route_protected": "当前路径控制位置和朝向，请使用路径工具编辑。缩放可通过参数或缩放工具单独制作关键帧；已有坐标变换片段时需先解决冲突。",
   "gui.director.actor.movement.route_source": "位置来源：路径曲线与速度。路径形状和坐标关键帧是两种不同的移动来源。",
   "gui.director.actor.movement.route_conflict": "冲突：当前时间存在Transform，按现有播放规则它会覆盖路径。请禁用或调整其中一个引用的时间范围；本次不会自动改动旧动画。",
   "gui.director.actor.root_rows.menu_title": "整体关键帧",
