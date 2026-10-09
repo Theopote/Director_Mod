@@ -84,16 +84,21 @@ public final class ActorPathRenderer {
         VertexConsumerProvider consumers = context.consumers();
         ActorPathController controller = ActorPathController.getInstance();
         UUID editingId = controller.getEditingLibraryPathId();
+        var model = com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
+        UUID selectedPath = com.director.ui.actor.path.ActorPathLibraryPanel.selectedPathFor(model);
+        UUID actorPath = com.director.ui.actor.path.ActorPathVisibility.boundPath(model);
 
         for (ActorPathDefinition path : ActorPathLibraryManager.getAllPaths()) {
-            if (!path.isVisible() || path.getWaypoints().size() < 2) {
+            if (!path.isVisible() || path.getWaypoints().size() < 2
+                    || !com.director.ui.actor.path.ActorPathVisibility.shouldShow(
+                            path.getId(), controller.isActive(), selectedPath, actorPath)) {
                 continue;
             }
             boolean isEditing = controller.isActive() && path.getId().equals(editingId);
             if (isEditing && !controller.getAnchorPositions().isEmpty()) {
                 continue;
             }
-            renderStoredPath(consumers, matrix, cameraPos, path, false);
+            renderStoredPath(consumers, matrix, cameraPos, path, path.getId().equals(selectedPath));
         }
 
         if (controller.isActive() && !controller.getAnchorPositions().isEmpty()) {

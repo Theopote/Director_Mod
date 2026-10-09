@@ -183,6 +183,8 @@ public class EntityClipSampler {
             }
         }
 
+        // Only a lifecycle clip can make an actor exist; action/path clips cannot respawn it.
+        result.active = !spawnClips.isEmpty();
         // ========== 处理 Spawn Clip（优先级最高，作为基础）==========
         if (!spawnClips.isEmpty()) {
             // 使用最后一个 Spawn Clip（如果有多个重叠）

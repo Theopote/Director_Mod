@@ -35,7 +35,16 @@ public final class ActorPathLibraryPanel {
     private com.director.timeline.model.TimelineModel viewModel;
     private com.director.actor.path.ActorPathLibrary viewLibrary;
 
+    private static ActorPathLibraryPanel selectionOwner;
+
+    public static UUID selectedPathFor(com.director.timeline.model.TimelineModel model) {
+        return selectionOwner != null && selectionOwner.viewModel == model
+                && selectionOwner.viewLibrary == ActorPathLibraryManager.getInstance()
+                ? selectionOwner.selectedPathId : null;
+    }
+
     public void render() {
+        selectionOwner = this;
         var model = com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
         var library = ActorPathLibraryManager.getInstance();
         if (viewModel != model || viewLibrary != library) {

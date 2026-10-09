@@ -97,6 +97,7 @@ public final class ActorPreviewManager {
             try {
                 // 清理反向映射
                 entityToActor.remove(entity.getId());
+                rootScales.remove(entity);
                 entity.discard();
                 LOGGER.debug("[ActorPreviewManager] 移除预览实体: {}", actorId);
             } catch (RuntimeException e) {
@@ -124,6 +125,10 @@ public final class ActorPreviewManager {
      * @param actorId 演员ID
      * @return 如果存在则返回 true
      */
+    public java.util.Set<UUID> previewActorIds() {
+        return java.util.Set.copyOf(previews.keySet());
+    }
+
     public boolean hasPreview(UUID actorId) {
         if (actorId == null) {
             return false;
