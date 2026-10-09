@@ -107,6 +107,7 @@ public class ActorTransformApplier extends TransformApplier {
 
     @Override
     public void applyRotation(double angle, Axis axis) {
+        if (axis != Axis.Y) return;
         if (actorGizmoController != null && actorGizmoController.getTargetActorId() != null) {
             beginActorDragIfNeeded();
             if (!isDragging) {

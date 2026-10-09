@@ -328,6 +328,9 @@ public final class ActorGizmoController {
     private void configureActorTransformGizmo(GizmoManager gm) {
         ensureActorTransformApplier(gm);
         gm.ensureRotationHandlesForTransform();
+        var controller = gm.getController();
+        if (controller != null) controller.setRotationHandles(controller.getRotationHandles().stream()
+                .filter(handle -> handle.getAxis() == com.director.client.gizmo.Axis.Y).toList());
         if (gm.getContext() != null) {
             gm.getContext().setMode(currentMode);
         }

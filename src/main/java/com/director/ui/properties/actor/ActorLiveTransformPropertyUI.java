@@ -110,6 +110,10 @@ public final class ActorLiveTransformPropertyUI {
             inputFloat("X##actorLiveScaleX", scaleX);
             inputFloat("Y##actorLiveScaleY", scaleY);
             inputFloat("Z##actorLiveScaleZ", scaleZ);
+            if (ImGui.button("恢复原比例##actorResetScale")) {
+                scaleX.set(1f); scaleY.set(1f); scaleZ.set(1f);
+                observe("resetScale", ActorNumericEditSession.Kind.TRANSFORM, true);
+            }
             UITheme.endGroup(); ImGui.endDisabled();
         }
 

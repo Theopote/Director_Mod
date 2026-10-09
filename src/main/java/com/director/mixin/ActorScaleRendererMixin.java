@@ -23,9 +23,11 @@ public abstract class ActorScaleRendererMixin {
         else director$nativeScales.put(state,previews.rootScale(entity));
     }
 
-    @Inject(method = "scale(Lnet/minecraft/client/render/entity/state/LivingEntityRenderState;Lnet/minecraft/client/util/math/MatrixStack;)V",
-            at = @At("TAIL"))
-    private void director$scalePreviewActor(LivingEntityRenderState state, MatrixStack matrices, CallbackInfo ci) {
+    @Inject(method = "render(Lnet/minecraft/client/render/entity/state/LivingEntityRenderState;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/render/state/CameraRenderState;)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/LivingEntityRenderer;scale(Lnet/minecraft/client/render/entity/state/LivingEntityRenderState;Lnet/minecraft/client/util/math/MatrixStack;)V", shift = At.Shift.AFTER))
+    private void director$scalePreviewActor(LivingEntityRenderState state, MatrixStack matrices,
+            net.minecraft.client.render.command.OrderedRenderCommandQueue queue,
+            net.minecraft.client.render.state.CameraRenderState camera, CallbackInfo ci) {
         var nativeScale=director$nativeScales.get(state);
         if(nativeScale!=null) { matrices.scale(nativeScale.x,nativeScale.y,nativeScale.z); return; }
         if (!(state instanceof DirectorActorIdHolder idHolder) || idHolder.director$getActorId() == null

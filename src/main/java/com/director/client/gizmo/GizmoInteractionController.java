@@ -211,8 +211,8 @@ public class GizmoInteractionController {
         Vec3d pivot=context.getPivot();
         scaleUnit=2*com.director.client.gizmo.util.GizmoVisualScale.distanceMultiplier(pivot,rayOrigin);
         scaleSigns=new Vec3d(rayOrigin.x<pivot.x?-1:1,rayOrigin.y<pivot.y?-1:1,rayOrigin.z<pivot.z?-1:1);
-        scaleRight=pivot.subtract(rayOrigin).crossProduct(new Vec3d(0,1,0)).normalize();
-        if(scaleRight.lengthSquared()<1e-8) scaleRight=new Vec3d(1,0,0);
+        scaleRight=pivot.subtract(rayOrigin).crossProduct(new Vec3d(0,1,0));
+        scaleRight=scaleRight.lengthSquared()<1e-8 ? new Vec3d(1,0,0) : scaleRight.normalize();
         if (context != null && context.getType() == GizmoType.BOUNDS && isMoveHandle(activeHandle)) {
             boundsMoveCarry = Vec3d.ZERO;
             selectionManager.setBoundsGizmoMovePreviewBounds(context.getTargetBox());

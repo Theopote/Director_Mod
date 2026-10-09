@@ -141,11 +141,11 @@ public final class HumanoidRigProfile implements ActorRigProfile {
             }
 
             case DANCE -> {
-                pose.bodyYaw = (float) Math.sin(time * 6f) * 0.3f;
-                pose.leftArmPitch = (float) Math.sin(time * 6f) * 1.5f;
-                pose.rightArmPitch = (float) Math.sin(time * 6f + Math.PI) * 1.5f;
-                pose.leftLegPitch = (float) Math.sin(time * 4f) * 1.0f;
-                pose.rightLegPitch = (float) Math.sin(time * 4f + Math.PI) * 1.0f;
+                pose.bodyYaw = (float) Math.sin(time * 6f * tempo) * 0.3f * motion;
+                pose.leftArmPitch = (float) Math.sin(time * 6f * tempo) * 1.5f * motion * style.armExpressiveness;
+                pose.rightArmPitch = (float) Math.sin(time * 6f * tempo + Math.PI) * 1.5f * motion * style.armExpressiveness;
+                pose.leftLegPitch = (float) Math.sin(time * 4f * tempo) * 1.0f * motion * style.legExpressiveness;
+                pose.rightLegPitch = (float) Math.sin(time * 4f * tempo + Math.PI) * 1.0f * motion * style.legExpressiveness;
             }
 
             case CARRY -> {

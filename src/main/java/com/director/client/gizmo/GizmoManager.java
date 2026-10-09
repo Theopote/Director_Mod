@@ -603,7 +603,7 @@ public class GizmoManager {
         if (context.getType() != GizmoType.TRANSFORM && context.getType() != GizmoType.PIVOT) {
             return;
         }
-        if (!controller.getRotationHandles().isEmpty()) {
+        if (controller.getRotationHandles().size() == 3) {
             return;
         }
         controller.setRotationHandles(createRotationHandles(context));
