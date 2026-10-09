@@ -144,9 +144,13 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
         if (startTime > endTime) {
             throw new IllegalArgumentException("startTime > endTime");
         }
+        float delta=startTime-this.startTime;
+        boolean translated=Math.abs((endTime-startTime)-(this.endTime-this.startTime))<1e-4f;
+        if(translated && delta!=0f) for(var key:keyframes)key.setTime(key.getTime()+delta);
         this.startTime = startTime;
         this.endTime = endTime;
         syncTimelineClip();
+        if(translated && delta!=0f)syncKeyframesToTimelineClip();
     }
 
     /**
@@ -200,9 +204,7 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
      * @param delta 时间偏移量（秒）
      */
     public void offsetTime(float delta) {
-        this.startTime += delta;
-        this.endTime += delta;
-        syncTimelineClip();
+        setTimeRange(this.startTime+delta,this.endTime+delta);
     }
 
     public EntityTimelineClip getTimelineClip() {

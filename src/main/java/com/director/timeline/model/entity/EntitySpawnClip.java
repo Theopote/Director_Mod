@@ -15,6 +15,23 @@ import org.joml.Vector3f;
  */
 public class EntitySpawnClip extends EntityClip {
 
+    private String boneAnimationId;
+    private EntityAnimationClip boneAnimation;
+    public String getBoneAnimationId() {return boneAnimationId;}
+    public void setBoneAnimationId(String id) {
+        boneAnimationId=id;
+        if(id!=null && (boneAnimation==null || !id.equals(boneAnimation.getAnimationId()))) {
+            boneAnimation=new EntityAnimationClip("骨骼动作",getStartTime(),getEndTime());
+            boneAnimation.setAnimationId(id);boneAnimation.setSource(EntityAnimationClip.AnimationSource.CUSTOM);boneAnimation.setLoop(false);
+            new EntityTimelineClip(boneAnimation,0);
+        }
+    }
+    public EntityAnimationClip getBoneAnimation() {
+        if(boneAnimationId==null)return null;
+        boneAnimation.setTimeRange(getStartTime(),getEndTime());boneAnimation.setMuted(isMuted());
+        if(getTimelineClip()!=null)boneAnimation.getTimelineClip().setParentTrack(getTimelineClip().getParentTrack());
+        return boneAnimation;
+    }
     private final Vector3f position = new Vector3f();
     private float yawDeg = 0f;
     private float pitchDeg = 0f;

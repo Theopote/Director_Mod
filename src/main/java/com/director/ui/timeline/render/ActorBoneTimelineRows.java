@@ -425,7 +425,7 @@ public final class ActorBoneTimelineRows {
             var keyContext=ActorAnimationEditContext.resolve(renderModel,actorId);
             var mode=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getBoneGizmoMode();
             int channel=row.channel()<0 ? (mode==com.director.client.gizmo.GizmoMode.TRANSLATE ? 1 : mode==com.director.client.gizmo.GizmoMode.SCALE ? 4 : 2) : 1<<row.channel();
-            boolean canKey=keyContext!=null && keyContext.isCurrent() && !ActorBonePropertiesPanel.hasNumericDraft()
+            boolean canKey=(keyContext!=null && keyContext.isCurrent() || keyContext==null && com.director.ui.actor.pose.ActorEmbeddedAnimation.target(renderModel,track)!=null) && !ActorBonePropertiesPanel.hasNumericDraft()
                     && !ActorBoneGizmoController.getInstance().isDragging()
                     && !com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
                     && ActorBoneChannelLayout.supports(rig,row.boneIndex(),channel==1?0:channel==2?1:2);
@@ -453,7 +453,7 @@ public final class ActorBoneTimelineRows {
                             float top, TimelineRenderMath math, int rowChannel) {
         draw.pushClipRect(left, top, right, top + CHILD_HEIGHT, true);
         try {
-            for (var clip : track.getActorTrackPayload().getClips()) {
+            for (var clip : com.director.ui.actor.pose.ActorEmbeddedAnimation.clips(track.getActorTrackPayload())) {
                 if (!(clip instanceof EntityAnimationClip animation) || clip.isMuted()) continue;
                 var asset = AnimationAssetLibrary.getInstance().find(animation.getAnimationId()).orElse(null);
                 if (asset == null || !asset.rigId().equals(rigFor(track).id())) continue;
@@ -557,7 +557,14 @@ public final class ActorBoneTimelineRows {
             if(!rightClick && mx>=contentX-24 && mx<contentX) {
                 if(preferredClip!=null && preferredClip.getParentTrack()==track) model.setSelectedClip(preferredClip);
                 var context=ActorAnimationEditContext.resolve(model,actorId);
-                if(context!=null && context.isCurrent() && !ActorBonePropertiesPanel.hasNumericDraft()
+                if(context==null) {
+                    var settings=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance();
+                    var mode=settings.getBoneGizmoMode();int channel=mode==com.director.client.gizmo.GizmoMode.TRANSLATE?1:mode==com.director.client.gizmo.GizmoMode.SCALE?4:2;
+                    try { com.director.ui.actor.pose.ActorEmbeddedAnimation.firstKey(model,track,rig.bone(boneIndex).id(),channel,settings.getInterpolation()); }
+                    catch(IllegalArgumentException failure) { ImGui.setTooltip(failure.getMessage()); }
+                    return true;
+                }
+                if(context.isCurrent() && !ActorBonePropertiesPanel.hasNumericDraft()
                         && !ActorBoneGizmoController.getInstance().isDragging()
                         && !com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()) {
                     var settings=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance();

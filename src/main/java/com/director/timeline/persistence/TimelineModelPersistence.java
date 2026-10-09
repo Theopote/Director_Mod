@@ -211,6 +211,7 @@ public class TimelineModelPersistence {
         // ===== EntitySpawnClip =====
         public Float spawnX, spawnY, spawnZ;
         public Float yawDeg, pitchDeg;
+        public String spawnBoneAnimationId;
         public Float spawnRoll, spawnScaleX, spawnScaleY, spawnScaleZ;
         public Boolean visibleOnSpawn;
 
@@ -830,6 +831,7 @@ public class TimelineModelPersistence {
                             cdto.spawnZ = sc.getPosition().z;
                             cdto.yawDeg = sc.getYawDeg();
                             cdto.pitchDeg = sc.getPitchDeg();
+                            cdto.spawnBoneAnimationId = sc.getBoneAnimationId();
                             cdto.spawnRoll = sc.getRollDeg();
                             cdto.spawnScaleX = sc.getScale().x; cdto.spawnScaleY = sc.getScale().y; cdto.spawnScaleZ = sc.getScale().z;
                             cdto.visibleOnSpawn = sc.isVisibleOnSpawn();
@@ -1431,6 +1433,7 @@ public class TimelineModelPersistence {
                                             sc.setPosition(cdto.spawnX, cdto.spawnY, cdto.spawnZ);
                                         if (cdto.yawDeg != null) sc.setYawDeg(cdto.yawDeg);
                                         if (cdto.pitchDeg != null) sc.setPitchDeg(cdto.pitchDeg);
+                                        sc.setBoneAnimationId(cdto.spawnBoneAnimationId);
                                         if (cdto.spawnRoll != null) sc.setRollDeg(cdto.spawnRoll);
                                         if (cdto.spawnScaleX != null && cdto.spawnScaleY != null && cdto.spawnScaleZ != null)
                                             sc.setScale(cdto.spawnScaleX, cdto.spawnScaleY, cdto.spawnScaleZ);

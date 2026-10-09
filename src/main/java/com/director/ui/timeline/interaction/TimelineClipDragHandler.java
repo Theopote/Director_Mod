@@ -247,8 +247,7 @@ public final class TimelineClipDragHandler {
             snappedStart = targetTrack.resolveClipStartTime(snappedStart, length, handle.clip);
         }
 
-        handle.clip.setStartTime(snappedStart);
-        handle.clip.setEndTime(snappedStart + length);
+        handle.clip.setTimeRange(snappedStart, snappedStart + length);
         model.markDurationDirty();
 
         com.director.ui.timeline.audio.TimelineAudioService.getInstance()

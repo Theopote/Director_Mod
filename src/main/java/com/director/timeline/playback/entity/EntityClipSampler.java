@@ -200,6 +200,9 @@ public class EntityClipSampler {
 
         // ========== 处理 Animation Clip（动画）==========
         // 规则：last-wins（最后一个生效，按时间排序）
+        for(var candidate:track.getClips())if(candidate instanceof EntitySpawnClip spawn && !spawn.isMuted()
+                && timeSeconds>=spawn.getStartTime() && timeSeconds<=spawn.getEndTime() && spawn.getBoneAnimation()!=null)
+            animationClips.add(spawn.getBoneAnimation());
         applyAnimation(result, animationClips, timeSeconds);
 
         // ========== 处理 State Clip（状态）==========

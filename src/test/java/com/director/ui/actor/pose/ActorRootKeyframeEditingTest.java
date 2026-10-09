@@ -23,6 +23,42 @@ class ActorRootKeyframeEditingTest {
     <T extends EntityClip> T add(T clip) {
         owner.getActorTrackPayload().addClip(clip); owner.addClip(new EntityTimelineClip(clip, 0)); return clip;
     }
+    @Test void firstBoneKeyUsesSpawnWithoutExtraClipsAndUndoRemovesResource() {
+        var spawn=add(new EntitySpawnClip("Actor",0,5));model.setCurrentTime(2);
+        assertTrue(ActorEmbeddedAnimation.firstKey(model,owner,"head",2,com.director.actor.animation.asset.InterpolationMode.SMOOTH));
+        var id=spawn.getBoneAnimationId();assertNotNull(id);assertEquals(1,owner.getClips().size());
+        assertEquals(1,owner.getActorTrackPayload().getClips().size());assertEquals(1,history.getUndoSize());
+        var actorId=owner.getActorTrackPayload().getActorRef().getActorId();
+        var context=ActorAnimationEditContext.resolve(model,actorId);assertNotNull(context);assertTrue(context.isCurrent());
+        var child=spawn.getBoneAnimation();assertSame(child,context.clip());
+        var sample=new EntityClipSampler(owner.getActorTrackPayload()).sampleAt(2);
+        assertEquals(id,sample.animationId);assertEquals(2,sample.animationLocalTime);
+        var pose=context.asset().sample(2,com.director.actor.animation.asset.AnimationLoopMode.ONCE);
+        pose.setLocalTransform("head",pose.localTransform("head").withRotation(new org.joml.Quaternionf().rotateX(.3f)));
+        assertTrue(ActorAnimationAuthoringService.keyPose(context,pose,
+                java.util.List.of("head"),com.director.actor.animation.asset.InterpolationMode.SMOOTH,2));
+        assertTrue(history.undo());
+        assertTrue(history.undo());assertNull(spawn.getBoneAnimationId());
+        assertFalse(com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().contains(id));
+        assertTrue(history.redo());assertSame(child,spawn.getBoneAnimation());
+        model.setCurrentTime(3);
+        var wrapper=spawn.getTimelineClip();wrapper.setTimeRange(1,6);
+        assertEquals(1,spawn.getBoneAnimation().getStartTime());
+        var dto=com.director.timeline.persistence.TimelineModelPersistence.toDTO(model,new TimelineViewportState());
+        assertEquals(id,dto.tracks.getFirst().actorTrackPayload.clips.getFirst().spawnBoneAnimationId);
+        com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().remove(id);
+    }
+    @Test void movingActorClipMovesAllKeysAndUndoRestoresThem() {
+        var spawn=add(new EntitySpawnClip("Actor",0,5));
+        var a=new EntityClipKeyframe(1);a.setChannels(1);var b=new EntityClipKeyframe(3);b.setChannels(4);
+        spawn.addKeyframe(a);spawn.addKeyframe(b);
+        var command=new com.director.ui.timeline.commands.MoveClipCommand(model,new com.director.ui.timeline.commands.ClipAdapter(spawn.getTimelineClip()),2,7);
+        TimelineCommandBridge.execute(command);assertEquals(3,a.getTime());assertEquals(5,b.getTime());
+        assertTrue(history.undo());assertEquals(1,a.getTime());assertEquals(3,b.getTime());
+        assertTrue(history.redo());assertEquals(3,a.getTime());assertEquals(5,b.getTime());
+        spawn.getTimelineClip().setTimeRange(0,5);assertEquals(1,a.getTime());assertEquals(3,b.getTime());
+    }
+
     @Test void independentChannelsDoNotInterruptOtherCurvesAndDeleteOnlyOne() {
         var clip=add(new EntitySpawnClip("Actor",0,5));
         ActorRootKeyframeEditing.writeChannel(model,owner,clip,1,new Vector3f(0));

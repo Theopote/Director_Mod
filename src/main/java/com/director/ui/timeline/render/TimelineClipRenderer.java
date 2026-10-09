@@ -220,7 +220,7 @@ public final class TimelineClipRenderer {
         float visibleStart = visibleTimeRange[0];
         float visibleEnd = visibleTimeRange[1];
         
-        List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = clip.getClipKeyframes();
+        List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = clip instanceof com.director.timeline.model.entity.EntityTimelineClip ? java.util.List.of() : clip.getClipKeyframes();
         if (clipKeyframes != null && !clipKeyframes.isEmpty()) {
             for (com.director.timeline.model.clip.ClipKeyframe keyframe : clipKeyframes) {
                 if (keyframe == null) {

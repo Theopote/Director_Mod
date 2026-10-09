@@ -76,8 +76,8 @@ public class MoveClipCommand extends BaseTimelineCommand {
             return;
         }
         TimelineClip timelineClip = (clip instanceof ClipAdapter adapter) ? adapter.getTimelineClip() : null;
-        clip.setStartTime(newStartTime);
-        clip.setEndTime(newEndTime);
+        if(timelineClip!=null)timelineClip.setTimeRange(newStartTime,newEndTime);
+        else { clip.setStartTime(newStartTime); clip.setEndTime(newEndTime); }
         // 同步：自动生成的音频事件默认跟随片段移动（可对单个事件取消链接）
         if (timelineClip != null) {
             com.director.ui.timeline.audio.TimelineAudioService.getInstance()
@@ -94,8 +94,8 @@ public class MoveClipCommand extends BaseTimelineCommand {
             return;
         }
         TimelineClip timelineClip = (clip instanceof ClipAdapter adapter) ? adapter.getTimelineClip() : null;
-        clip.setStartTime(oldStartTime);
-        clip.setEndTime(oldEndTime);
+        if(timelineClip!=null)timelineClip.setTimeRange(oldStartTime,oldEndTime);
+        else { clip.setStartTime(oldStartTime); clip.setEndTime(oldEndTime); }
         if (timelineClip != null) {
             com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                     .onClipTimeRangeChanged(timelineClip, newStartTime, newEndTime, oldStartTime, oldEndTime);

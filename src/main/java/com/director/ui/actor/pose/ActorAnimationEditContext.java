@@ -20,7 +20,7 @@ public record ActorAnimationEditContext(TimelineModel model, UUID actorId, Timel
         catch(IllegalArgumentException ambiguous) { return null; }
         EntityAnimationClip active=null;
         float time=model.getCurrentTime();
-        for(var candidate:owner.getActorTrackPayload().getClips()) {
+        for(var candidate:ActorEmbeddedAnimation.clips(owner.getActorTrackPayload())) {
             if(candidate instanceof EntityAnimationClip animation && !animation.isMuted()
                     && time>=animation.getStartTime() && time<=animation.getEndTime()
                     && (active==null || animation.getStartTime()>=active.getStartTime())) active=animation;
@@ -29,7 +29,7 @@ public record ActorAnimationEditContext(TimelineModel model, UUID actorId, Timel
         var selected = model.getSelectedClip();
         if (selected instanceof EntityTimelineClip wrapper && wrapper.getParentTrack() == owner
                 && wrapper.getEntityClip() instanceof EntityAnimationClip animation
-                && owner.getActorTrackPayload().getClips().contains(animation) && !animation.isMuted()
+                && ActorEmbeddedAnimation.clips(owner.getActorTrackPayload()).contains(animation) && !animation.isMuted()
                 && time >= animation.getStartTime() && time <= animation.getEndTime()) active = animation;
         return capture(model, owner, active);
     }
@@ -58,9 +58,9 @@ public record ActorAnimationEditContext(TimelineModel model, UUID actorId, Timel
                 && model.getAllTracks().contains(track) && track.getType()==TrackType.ACTOR && !track.isLocked() && !track.isMuted()
                 && track.getActorTrackPayload() == payload && payload.getActorRef() != null
                 && Objects.equals(actorId, payload.getActorRef().getActorId())
-                && payload.getClips().contains(clip) && !clip.isMuted()
+                && ActorEmbeddedAnimation.bound(payload,clip) && !clip.isMuted()
                 && wrapper!=null && clip.getTimelineClip()==wrapper && wrapper.getParentTrack()==track
-                && clip.getTimelineClip().getEntityClip()==clip && track.getClips().contains(clip.getTimelineClip())
+                && clip.getTimelineClip().getEntityClip()==clip && (track.getClips().contains(clip.getTimelineClip()) || ActorEmbeddedAnimation.bound(payload,clip))
                 && clip.getStartTime() == start && clip.getEndTime() == end && clip.getSpeed() == speed
                 && clip.isLoop() == loop && Objects.equals(clip.getAnimationId(), asset.id())
                 && asset.duration() == duration && asset.loopMode() == loopMode

@@ -20,10 +20,9 @@ public final class ActorKeyframeSelection {
         var s=current; var payload=s.owner().getActorTrackPayload();
         if(!model.getAllTracks().contains(s.owner()) || s.owner().getType()!=TrackType.ACTOR
                 || payload==null || payload!=s.payload() || payload.getActorRef()==null
-                || !Objects.equals(payload.getActorRef().getActorId(),s.actorId()) || !payload.getClips().contains(s.clip())
+                || !Objects.equals(payload.getActorRef().getActorId(),s.actorId()) || !ActorEmbeddedAnimation.bound(payload,s.clip())
                 || model.getSelectedClip()!=s.clip().getTimelineClip()
                 || s.clip().getTimelineClip()==null || s.clip().getTimelineClip().getParentTrack()!=s.owner()
-                || !s.owner().getClips().contains(s.clip().getTimelineClip())
                 || !Objects.equals(s.clip().getAnimationId(),s.asset().id())
                 || AnimationAssetLibrary.getInstance().find(s.asset().id()).orElse(null)!=s.asset()) {
             current=null; revision++; return null;

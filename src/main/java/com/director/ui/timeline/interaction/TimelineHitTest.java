@@ -228,7 +228,7 @@ public final class TimelineHitTest {
         for (TimelineClip clip : clips) {
             float centerY = trackTop + (TimelineRenderer.getTrackHeight() / 2.0f);
 
-            List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = clip.getClipKeyframes();
+            List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = clip instanceof com.director.timeline.model.entity.EntityTimelineClip ? java.util.List.of() : clip.getClipKeyframes();
             if (clipKeyframes != null && !clipKeyframes.isEmpty()) {
                 for (com.director.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
                     if (kf == null) {

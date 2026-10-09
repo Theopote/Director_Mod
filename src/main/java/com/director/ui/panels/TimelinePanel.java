@@ -421,7 +421,7 @@ public class TimelinePanel extends AbstractPanel
         
         // 3. 渲染控制栏（优先给专职的组件）
         renderControlBar();
-        com.director.ui.actor.pose.ActorTimelineAnimationPanel.render(model);
+
 
         // 控制栏与分隔线之间的间距（等于按钮与按钮之间的间距，4像素）
         // 注意：控制栏设置了 ItemSpacing=4px，控制栏结束后会自动添加 4px 间距

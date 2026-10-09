@@ -205,7 +205,7 @@ public class TimelineRenderHitTest {
         
         // ⭐⭐ 修复：优先使用 ClipKeyframe 对象列表
         java.util.List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = 
-                clip.getClipKeyframes();
+                clip instanceof com.director.timeline.model.entity.EntityTimelineClip ? java.util.List.of() : clip.getClipKeyframes();
         if (clipKeyframes != null && !clipKeyframes.isEmpty()) {
             for (com.director.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
                 if (kf == null) continue;
