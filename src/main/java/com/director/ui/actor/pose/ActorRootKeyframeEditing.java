@@ -69,6 +69,26 @@ public final class ActorRootKeyframeEditing {
         }));
         return key;
     }
+    /** Scale-only keys retain the spawn's authored position and orientation, never the route position. */
+    public static EntityClipKeyframe writeScale(TimelineModel model, TimelineTrack owner, EntitySpawnClip clip,
+                                                org.joml.Vector3f scale) {
+        if (!editable(model, owner, clip) || !scale.isFinite() || scale.x <= 0 || scale.y <= 0 || scale.z <= 0) return null;
+        var matches = clip.getKeyframes().stream().filter(k -> Math.abs(k.getTime()-model.getCurrentTime()) <= 1e-4f).toList();
+        if (matches.size() > 1) return null;
+        var existing = matches.isEmpty() ? null : matches.getFirst();
+        var key = existing == null ? sample(clip, model.getCurrentTime()) : existing;
+        var before = new org.joml.Vector3f(key.getScale());
+        var after = new org.joml.Vector3f(scale);
+        if (existing != null && before.equals(after)) return existing;
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Edit actor scale keyframe", () -> {
+            if (existing == null) clip.removeKeyframe(key.getId()); else key.setScale(before.x,before.y,before.z);
+        }, () -> {
+            key.setScale(after.x,after.y,after.z);
+            if (existing == null && !clip.getKeyframes().contains(key)) clip.addKeyframe(key);
+        }));
+        return key;
+    }
+
     private static void set(EntityClipKeyframe key, org.joml.Vector3f pos, org.joml.Vector3f rot, org.joml.Vector3f scale) {
         key.setPosition(pos.x, pos.y, pos.z); key.setRotation(rot.x, rot.y, rot.z); key.setScale(scale.x, scale.y, scale.z);
     }

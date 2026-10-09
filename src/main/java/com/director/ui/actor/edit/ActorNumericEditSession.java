@@ -9,7 +9,7 @@ import java.util.UUID;
 
 /** One inspector gesture, bound to the actor/track/playhead at activation. */
 public final class ActorNumericEditSession {
-    public enum Kind { TRANSFORM, LOOK_AT }
+    public enum Kind { TRANSFORM, SCALE, LOOK_AT }
     private final Kind kind;
     private final ActorTransformEditSession transform;
     private final ActorLookAtEditSession look;
@@ -26,11 +26,11 @@ public final class ActorNumericEditSession {
     public ActorNumericEditSession(TimelineModel model, TimelineTrack track, Kind kind,
                                   ActorTransformEditService.TransformSnapshot sample) {
         this.kind = kind;
-        if (kind == Kind.TRANSFORM) {
+        if (kind != Kind.LOOK_AT) {
             initial = new ActorTransformEditService.TransformSnapshot(new Vector3f(sample.position()),
                     new Vector3f(sample.rotation()), new Vector3f(sample.scale()));
-            var source = ActorTransformEditSession.resolveSource(model, track);
-            transform = new ActorTransformEditSession(model, track, source); look = null;
+            var source = kind == Kind.SCALE ? null : ActorTransformEditSession.resolveSource(model, track);
+            transform = new ActorTransformEditSession(model, track, source, kind == Kind.SCALE); look = null;
             var draft = transform.draft();
             if (source == null) {
                 draft.setFromPos(initial.position().x, initial.position().y, initial.position().z);

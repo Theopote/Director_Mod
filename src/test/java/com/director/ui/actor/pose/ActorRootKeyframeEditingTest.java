@@ -23,6 +23,24 @@ class ActorRootKeyframeEditingTest {
     <T extends EntityClip> T add(T clip) {
         owner.getActorTrackPayload().addClip(clip); owner.addClip(new EntityTimelineClip(clip, 0)); return clip;
     }
+    @Test void scaleKeysPreserveRouteAndSpawnPositionAndUndo() {
+        var spawn=add(new EntitySpawnClip("A",0,5)); spawn.setPosition(20,2,30);
+        var route=add(new ActorRouteClip("Path",0,5));
+        route.addWaypoint(0,0,0);
+        route.addWaypoint(10,0,0);
+        assertNotNull(ActorRootKeyframeEditing.writeScale(model,owner,spawn,new Vector3f(1)));
+        model.setCurrentTime(4);
+        var key=ActorRootKeyframeEditing.writeScale(model,owner,spawn,new Vector3f(3));
+        assertNotNull(key); assertEquals(new Vector3f(20,2,30),key.getPosition());
+        var sample=new EntityClipSampler(owner.getActorTrackPayload()).sampleAt(2);
+        assertEquals(new Vector3f(2),sample.scale); assertSame(route,sample.routeClip);
+        assertNotEquals(new Vector3f(20,2,30),sample.position);
+        assertEquals(2,owner.getClips().size());
+        assertTrue(history.undo()); assertEquals(1,spawn.getKeyframes().size());
+        assertTrue(history.redo()); assertEquals(2,spawn.getKeyframes().size());
+        owner.setLocked(true); assertNull(ActorRootKeyframeEditing.writeScale(model,owner,spawn,new Vector3f(2)));
+    }
+
     @Test void clipboardIsDetachedAndPasteIsUndoableWithoutNewReferences() {
         var clip = add(new EntitySpawnClip("A", 0, 5));
         var source = new EntityClipKeyframe(1, TimelineInterpolation.STEP);

@@ -26,9 +26,14 @@ public final class ActorTransformEditSession {
     private State initial;
     private final long contextRevision;
     private boolean finished;
+    private final boolean scaleOnly;
 
     public ActorTransformEditSession(TimelineModel model, TimelineTrack owner,
                                      EntityTransformClip source) {
+        this(model, owner, source, false);
+    }
+    public ActorTransformEditSession(TimelineModel model, TimelineTrack owner, EntityTransformClip source, boolean scaleOnly) {
+        this.scaleOnly = scaleOnly;
         this.model = Objects.requireNonNull(model);
         contextRevision = model.getActorEditContextRevision();
         this.owner = Objects.requireNonNull(owner);
@@ -52,12 +57,12 @@ public final class ActorTransformEditSession {
                 && Float.compare(time, model.getCurrentTime()) == 0
                 && model.getAllTracks().contains(owner) && owner.getType() == TrackType.ACTOR
                 && !owner.isLocked() && !owner.isMuted()
-                && !com.director.ui.actor.pose.ActorMovementSource.routeOwnsInterval(model, owner) && owner.getActorTrackPayload() == payload
+                && (scaleOnly || !com.director.ui.actor.pose.ActorMovementSource.routeOwnsInterval(model, owner)) && owner.getActorTrackPayload() == payload
                 && payload.getActorRef() != null && Objects.equals(actorId, payload.getActorRef().getActorId())
                 && ActorRegistryManager.getInstance().getActor(actorId).isPresent()
                 && sourceClips.equals(payload.getClips())
                 && (initialSpawn == null || resolveInitialSpawn(payload, time) == initialSpawn && spawnBefore.equals(SpawnState.of(initialSpawn)) && keysAreCurrent())
-                && resolveSource(model, owner) == source
+                && (scaleOnly ? source == null && initialSpawn != null && resolveSource(model, owner) == null : resolveSource(model, owner) == source)
                 && (source == null || (!source.isMuted() && payload.getClips().contains(source)
                     && source.getTimelineClip() != null && owner.getClips().contains(source.getTimelineClip())
                     && before.matches(source) && keysAreCurrent()));
@@ -123,6 +128,17 @@ public final class ActorTransformEditSession {
         State after = State.of(draft);
         finished = true;
         if (!after.valid() || initial.equals(after)) return null;
+        if (scaleOnly) {
+            if (initialSpawn == null) return null;
+            if (!sourceKeys.isEmpty()) {
+                return com.director.ui.actor.pose.ActorRootKeyframeEditing.writeScale(model, owner, initialSpawn, after.toScale) == null ? null : draft;
+            }
+            var old = new Vector3f(initialSpawn.getScale()); var next = new Vector3f(after.toScale);
+            if (old.equals(next)) return null;
+            TimelineCommandBridge.execute(new StateChangeCommand(model, "Adjust actor scale",
+                    () -> initialSpawn.setScale(old.x,old.y,old.z), () -> initialSpawn.setScale(next.x,next.y,next.z)));
+            return draft;
+        }
         if (source != null) {
             if (!sourceKeys.isEmpty()) return commitKey(after);
             if (before.equals(after)) return null;

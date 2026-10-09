@@ -106,6 +106,9 @@ public final class ActorLiveTransformPropertyUI {
             inputFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.ROLL) + "##actorLiveRotR", rotRoll);
             UITheme.endGroup();
 
+            ImGui.endDisabled();
+            boolean scaleBlocked = routeProtected && com.director.ui.actor.gizmo.ActorTransformEditSession.resolveSource(model, target.timelineTrack()) != null;
+            ImGui.beginDisabled(scaleBlocked);
             UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SCALE));
             boolean scaleLocked = com.director.ui.actor.edit.ActorScaleEditing.isLocked(actorId);
             if (ImGui.checkbox("等比锁定##actorScaleLock", scaleLocked))
@@ -115,13 +118,21 @@ public final class ActorLiveTransformPropertyUI {
             inputScale("Z##actorLiveScaleZ", scaleZ, 2);
             if (ImGui.button("恢复原比例##actorResetScale")) {
                 scaleX.set(1f); scaleY.set(1f); scaleZ.set(1f);
-                observe("resetScale", ActorNumericEditSession.Kind.TRANSFORM, true);
+                observe("resetScale", scaleKind(), true);
             }
             UITheme.endGroup(); ImGui.endDisabled();
             if (target != null) {
                 com.director.timeline.model.entity.EntityClip root = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveSource(model, target.timelineTrack());
                 if (root == null) root = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveInitialSpawn(target.actorTrack(), time);
-                if (root != null) ActorRootKeyframePropertyUI.render(root);
+                if (routeProtected && root instanceof com.director.timeline.model.entity.EntitySpawnClip spawn) {
+                    ImGui.textWrapped("路径控制位置和朝向；缩放可单独设置关键帧。");
+                    boolean canKey = com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, target.timelineTrack(), spawn) && gesture == null;
+                    ImGui.beginDisabled(!canKey);
+                    if (ImGui.button("插入缩放关键帧##routeScaleKey"))
+                        com.director.ui.actor.pose.ActorRootKeyframeEditing.writeScale(model, target.timelineTrack(), spawn,
+                                new Vector3f(scaleX.get(), scaleY.get(), scaleZ.get()));
+                    ImGui.endDisabled();
+                } else if (root != null) ActorRootKeyframePropertyUI.render(root);
             }
         }
 
@@ -197,7 +208,7 @@ public final class ActorLiveTransformPropertyUI {
             if (gesture != null && widget.equals(gestureWidget)) {
                 widgetRendered = true;
                 if (changed) {
-                    if (kind == ActorNumericEditSession.Kind.TRANSFORM)
+                    if (kind != ActorNumericEditSession.Kind.LOOK_AT)
                         gesture.updateTransform(new Vector3f(posX.get(), posY.get(), posZ.get()),
                                 new Vector3f(rotYaw.get(), rotPitch.get(), rotRoll.get()),
                                 new Vector3f(scaleX.get(), scaleY.get(), scaleZ.get()));
@@ -252,6 +263,11 @@ public final class ActorLiveTransformPropertyUI {
         cachedTime = time;
     }
 
+    private static ActorNumericEditSession.Kind scaleKind() {
+        return com.director.ui.actor.pose.ActorMovementSource.routeOwnsInterval(editingModel, editingTrack)
+                ? ActorNumericEditSession.Kind.SCALE : ActorNumericEditSession.Kind.TRANSFORM;
+    }
+
     private static void inputScale(String label, ImFloat value, int axis) {
         var before = new Vector3f(scaleX.get(), scaleY.get(), scaleZ.get());
         boolean changed = ImGui.inputFloat(label, value);
@@ -259,7 +275,7 @@ public final class ActorLiveTransformPropertyUI {
             var scale = com.director.ui.actor.edit.ActorScaleEditing.proportional(before, axis, value.get());
             scaleX.set(scale.x); scaleY.set(scale.y); scaleZ.set(scale.z);
         }
-        observe(label, ActorNumericEditSession.Kind.TRANSFORM, changed);
+        observe(label, scaleKind(), changed);
     }
 
     private static void inputFloat(String label, ImFloat value) {
