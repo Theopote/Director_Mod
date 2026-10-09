@@ -38,6 +38,10 @@ public final class ActorBoneTimelineRows {
     private final Map<TimelineTrack, com.director.actor.rig.skeleton.RigDefinition> trackRigs = new IdentityHashMap<>();
     private record KeyHit(TimelineTrack track, String bone, float x, float y, float time,
                           AnimationAsset asset, EntityAnimationClip clip, BoneTrack boneTrack, int channel, float assetTime) {}
+    private final Map<TimelineTrack,Set<String>> expandedBones=new IdentityHashMap<>();
+    private List<ActorBoneChannelLayout.Row> boneRows(TimelineTrack track,com.director.actor.rig.skeleton.RigDefinition rig) {
+        return ActorBoneChannelLayout.rows(rig,expandedBones.getOrDefault(track,Set.of()));
+    }
     private final List<KeyHit> keyHits = new ArrayList<>();
     private KeyHit dragging;
     private float dragMouseX;
@@ -370,7 +374,7 @@ public final class ActorBoneTimelineRows {
             supported.add(track);
             if (rig.isPresent()) trackRigs.put(track, rig.get());
             else trackRigs.remove(track);
-            if (expanded.contains(track)) counts[i] = ActorRootTimelineRows.COUNT + rig.map(r -> r.boneCount()).orElse(0);
+            if (expanded.contains(track)) counts[i] = ActorRootTimelineRows.COUNT + rig.map(r -> boneRows(track,r).size()).orElse(0);
         }
         return new TimelineRowLayout(height, gap, CHILD_HEIGHT, counts);
     }
@@ -400,24 +404,31 @@ public final class ActorBoneTimelineRows {
         rootRows.render(draw, renderModel, track, x, contentX, right, y + height + gap, math);
         var rig = trackRigs.get(track);
         if (rig == null) return;
-        for (int i = 0; i < rig.boneCount(); i++) {
-            var bone = rig.bone(i);
+        var rows=boneRows(track,rig);
+        for (int i = 0; i < rows.size(); i++) {
+            var row=rows.get(i);
+            var bone = rig.bone(row.boneIndex());
             float top = y + height + gap + (ActorRootTimelineRows.COUNT + i) * CHILD_HEIGHT;
-            boolean selected = actorId.equals(selection.getActorId()) && selection.isBoneSelected(bone.id());
+            var selectedMode=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getBoneGizmoMode();
+            int selectedChannel=selectedMode==com.director.client.gizmo.GizmoMode.TRANSLATE?0:selectedMode==com.director.client.gizmo.GizmoMode.SCALE?2:1;
+            boolean selected = actorId.equals(selection.getActorId()) && selection.isBoneSelected(bone.id()) && (row.channel()<0 || row.channel()==selectedChannel);
             draw.addRectFilled(x, top, right, top + CHILD_HEIGHT,
                     selected ? TimelineColors.rgba(48, 77, 100, 255) : TimelineColors.rgba(29, 32, 37, 255));
             int depth = 0;
             for (int parent = bone.parentIndex(); parent >= 0; parent = rig.bone(parent).parentIndex()) depth++;
             draw.pushClipRect(x, top, contentX - 24, top + CHILD_HEIGHT, true);
-            draw.addText(x + 16 + depth * 12, top + 4, TimelineColors.COLOR_TEXT_LIGHT, bone.id().equals("root") ? "模型根（局部）" : bone.displayName());
+            String label=row.channel()<0 ? (bone.id().equals("root")?"模型根（局部）":bone.displayName()) : new String[]{"位置（局部）","旋转（局部）","缩放（局部）"}[row.channel()];
+            if(row.channel()<0) draw.addText(x+12+depth*12,top+4,TimelineColors.COLOR_TEXT_LIGHT,
+                    expandedBones.getOrDefault(track,Set.of()).contains(bone.id())?"v":">");
+            draw.addText(x+28+depth*12+(row.channel()<0?0:12),top+4,TimelineColors.COLOR_TEXT_LIGHT,label);
             draw.popClipRect();
             var keyContext=ActorAnimationEditContext.resolve(renderModel,actorId);
             var mode=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getBoneGizmoMode();
-            int channel=mode==com.director.client.gizmo.GizmoMode.TRANSLATE ? 1 : mode==com.director.client.gizmo.GizmoMode.SCALE ? 4 : 2;
+            int channel=row.channel()<0 ? (mode==com.director.client.gizmo.GizmoMode.TRANSLATE ? 1 : mode==com.director.client.gizmo.GizmoMode.SCALE ? 4 : 2) : 1<<row.channel();
             boolean canKey=keyContext!=null && keyContext.isCurrent() && !ActorBonePropertiesPanel.hasNumericDraft()
                     && !ActorBoneGizmoController.getInstance().isDragging()
                     && !com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
-                    && (channel==1?bone.capabilities().translation():channel==2?bone.capabilities().rotation():bone.capabilities().scale());
+                    && ActorBoneChannelLayout.supports(rig,row.boneIndex(),channel==1?0:channel==2?1:2);
             float bx=contentX-12,by=top+CHILD_HEIGHT/2;
             int color=canKey?TimelineColors.rgba(255,190,90,255):TimelineColors.rgba(100,100,100,255);
             boolean hasKey=false;
@@ -434,12 +445,12 @@ public final class ActorBoneTimelineRows {
                 ImGui.setTooltip(canKey ? "记录"+bone.displayName()+new String[]{"位置","旋转","缩放"}[channel==1?0:channel==2?1:2]+"关键帧" : "需要当前时刻可编辑的骨骼动画资源及支持的通道");
             draw.addLine(contentX, top, contentX, top + CHILD_HEIGHT, TimelineColors.COLOR_SEPARATOR_LINE);
             draw.addLine(x, top + CHILD_HEIGHT, right, top + CHILD_HEIGHT, TimelineColors.COLOR_SEPARATOR_LINE);
-            renderKeys(draw, track, bone.id(), contentX, right, top, math);
+            renderKeys(draw, track, bone.id(), contentX, right, top, math, row.channel());
         }
     }
 
     private void renderKeys(ImDrawList draw, TimelineTrack track, String bone, float left, float right,
-                            float top, TimelineRenderMath math) {
+                            float top, TimelineRenderMath math, int rowChannel) {
         draw.pushClipRect(left, top, right, top + CHILD_HEIGHT, true);
         try {
             for (var clip : track.getActorTrackPayload().getClips()) {
@@ -452,7 +463,8 @@ public final class ActorBoneTimelineRows {
                 int[] colors = {TimelineColors.rgba(100, 190, 255, 255),
                         TimelineColors.rgba(255, 190, 90, 255), TimelineColors.rgba(140, 220, 130, 255)};
                 for (int channel = 0; channel < channels.size(); channel++) {
-                    float cy = top + 5 + channel * 7;
+                    if(rowChannel>=0 && channel!=rowChannel)continue;
+                    float cy = rowChannel>=0 ? top+CHILD_HEIGHT/2 : top + 5 + channel * 7;
                     Set<Integer> pixels = new HashSet<>();
                     for (var key : channels.get(channel).keyframes()) {
                         var mode = animation.isLoop() ? asset.loopMode() : AnimationLoopMode.ONCE;
@@ -523,13 +535,25 @@ public final class ActorBoneTimelineRows {
         rootRows.clearFocus();
         bone -= ActorRootTimelineRows.COUNT;
         var rig = trackRigs.get(track);
-        if (rig == null || bone >= rig.boneCount()) return false;
+        if (rig == null) return false;
+        var rows=boneRows(track,rig);
+        if(bone>=rows.size())return false;
+        var row=rows.get(bone);
+        final int boneIndex=row.boneIndex();
+        int depth=0;
+        for(int parent=rig.bone(boneIndex).parentIndex();parent>=0;parent=rig.bone(parent).parentIndex())depth++;
+        if(row.channel()<0 && mx>=x+8+depth*12 && mx<x+26+depth*12 && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
+            cancelKeyInteraction();var opened=expandedBones.computeIfAbsent(track,t->new HashSet<>());
+            if(!opened.remove(rig.bone(boneIndex).id()))opened.add(rig.bone(boneIndex).id());return true;
+        }
         if (ImGui.isMouseClicked(ImGuiMouseButton.Left) || ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
             var preferredClip=model.getSelectedClip();
             boolean rightClick=ImGui.isMouseClicked(ImGuiMouseButton.Right);
             var actorId = track.getActorTrackPayload().getActorRef().getActorId();
             boolean additive=mx>=contentX && ImGui.getIO().getKeyCtrl();
-            ActorSelectionHub.selectBone(actorId, rig.bone(bone).id(), mx<contentX && ImGui.getIO().getKeyCtrl());
+            if(row.channel()>=0) com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().setBoneGizmoMode(
+                    new com.director.client.gizmo.GizmoMode[]{com.director.client.gizmo.GizmoMode.TRANSLATE,com.director.client.gizmo.GizmoMode.ROTATE,com.director.client.gizmo.GizmoMode.SCALE}[row.channel()]);
+            ActorSelectionHub.selectBone(actorId, rig.bone(boneIndex).id(), mx<contentX && ImGui.getIO().getKeyCtrl());
             if(!rightClick && mx>=contentX-24 && mx<contentX) {
                 if(preferredClip!=null && preferredClip.getParentTrack()==track) model.setSelectedClip(preferredClip);
                 var context=ActorAnimationEditContext.resolve(model,actorId);
@@ -540,7 +564,7 @@ public final class ActorBoneTimelineRows {
                     var mode=settings.getBoneGizmoMode();
                     int channel=mode==com.director.client.gizmo.GizmoMode.TRANSLATE?1:mode==com.director.client.gizmo.GizmoMode.SCALE?4:2;
                     var pose=context.asset().sample(context.assetTime(),com.director.actor.animation.asset.AnimationLoopMode.ONCE);
-                    ActorAnimationAuthoringService.keyPose(context,pose,List.of(rig.bone(bone).id()),settings.getInterpolation(),channel);
+                    ActorAnimationAuthoringService.keyPose(context,pose,List.of(rig.bone(boneIndex).id()),settings.getInterpolation(),channel);
                 }
                 return true;
             }
@@ -549,7 +573,7 @@ public final class ActorBoneTimelineRows {
             if (mx >= contentX) {
                 var points = new ArrayList<ActorKeyframeHitCandidates.Point<KeyHit>>();
                 for (var hit : keyHits) {
-                    if (hit.track() == track && hit.bone().equals(rig.bone(bone).id()))
+                    if (hit.track() == track && hit.bone().equals(rig.bone(boneIndex).id()) && (row.channel()<0 || hit.channel()==row.channel()))
                         points.add(new ActorKeyframeHitCandidates.Point<>(hit,hit.x(),hit.y()));
                 }
                 var candidates=ActorKeyframeHitCandidates.near(points,mx,my,6);
@@ -609,7 +633,7 @@ public final class ActorBoneTimelineRows {
                             for(var hit:keyHits) if(hit.track()==track && hit.clip()==animation)
                                 frozen.add(new PendingKey(hit,context,source(hit)));
                             float rowsTop=Math.max(top,top+layout.trackTop(owner)+height+gap+ActorRootTimelineRows.COUNT*CHILD_HEIGHT-scrollY);
-                            float rowsBottom=Math.min(top+viewportHeight,top+layout.trackTop(owner)+height+gap+(ActorRootTimelineRows.COUNT+rig.boneCount())*CHILD_HEIGHT-scrollY);
+                            float rowsBottom=Math.min(top+viewportHeight,top+layout.trackTop(owner)+height+gap+(ActorRootTimelineRows.COUNT+rows.size())*CHILD_HEIGHT-scrollY);
                             focusReference(track,animation,context.asset());
                             cancelAllKeyInteractions();
                             com.director.ui.actor.pose.ActorAnimationDopeSheet.cancelKeyInteraction();
