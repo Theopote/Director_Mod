@@ -711,12 +711,11 @@ public final class ActorRuntimeController {
                 float sampleTime = s.animationLocalTime * Math.max(0.01f, s.animationSpeed);
                 // Arbitrary-topology custom rigs (no body/head/arm/leg bones) have no procedural base
                 // pose to overlay onto; play the keyframe asset directly instead.
-                com.director.actor.rig.skeleton.RigPose finalRigPose =
-                        com.director.actor.rig.skeleton.HumanoidTopology.matches(asset.rig())
-                                ? com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(rigPose.pose, asset.rig())
-                                        .overlay(asset.sample(sampleTime, playbackMode))
-                                : asset.sample(sampleTime, playbackMode);
-                applyRigPoseOverrides(finalRigPose, s);
+                var proceduralPose = com.director.actor.rig.skeleton.HumanoidTopology.matches(asset.rig())
+                        ? com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(rigPose.pose, asset.rig())
+                        : null;
+                var finalRigPose = ActorRigPoseComposition.compose(proceduralPose,
+                        asset.sample(sampleTime, playbackMode), pose -> applyRigPoseOverrides(pose, s));
                 applyPoseToRuntime(rigPose.pose);
                 Entity preview = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
                 if (preview instanceof com.director.actor.preview.ActorPosePreview previewEntity) {
@@ -853,8 +852,9 @@ public final class ActorRuntimeController {
         private void setRigRotation(com.director.actor.rig.skeleton.RigPose pose, String boneId,
                                     float pitch, float yaw, float roll) {
             var current = pose.localTransform(boneId);
-            pose.setLocalTransform(boneId, current.withRotation(
-                    new org.joml.Quaternionf().rotateXYZ(pitch, yaw, roll)));
+            pose.setLocalTransform(pose.rig().requireBoneIndex(boneId), current.withRotation(
+                    new org.joml.Quaternionf().rotateXYZ(pitch, yaw, roll)),
+                    com.director.actor.rig.skeleton.RigPose.ROTATION);
         }
 
         /**

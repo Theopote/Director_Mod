@@ -286,7 +286,7 @@ public final class ActorBoneGizmoController {
                 && (gestureTarget == ActorAnimationAuthoringSettings.EditTarget.QUICK_POSE
                     || requestedGestureMode == settings.getBoneGizmoMode())
                 && (createdAnimationClip || editingAnimationClip == null
-                    || actorTrack.getClips().contains(editingAnimationClip) && !editingAnimationClip.isMuted())
+                    || ActorEmbeddedAnimation.bound(actorTrack, editingAnimationClip) && !editingAnimationClip.isMuted())
                 && (editingAsset == null || (createdAsset
                     ? !AnimationAssetLibrary.getInstance().contains(editingAsset.id())
                     : AnimationAssetLibrary.getInstance().find(editingAsset.id()).orElse(null) == editingAsset))
@@ -420,6 +420,13 @@ public final class ActorBoneGizmoController {
             beforeRotationKey = original.rotation().findAt(animationKeyTime).orElse(null);
             animationBaseRotation = resolveAnimationBaseRotation(editingAsset, animationKeyTime);
         }
+        // An already authored channel is being edited on the timeline, not auditioned.
+        // Save its next key on release even when creation of new channels is manual.
+        gestureAutoKey |= switch (activeBoneMode) {
+            case TRANSLATE -> !original.translation().isEmpty();
+            case SCALE -> !original.scale().isEmpty();
+            default -> !original.rotation().isEmpty();
+        };
         animationGesture = true;
         dragging = true;
 
@@ -634,7 +641,7 @@ public final class ActorBoneGizmoController {
     private static EntityAnimationClip findActiveAssetClip(ActorTrack track, float time,
                                                             AnimationAssetLibrary library) {
         EntityAnimationClip result = null;
-        for (EntityClip clip : track.getClips()) {
+        for (EntityClip clip : ActorEmbeddedAnimation.clips(track)) {
             if (clip instanceof EntityAnimationClip animation && !animation.isMuted()
                     && time >= animation.getStartTime() && time <= animation.getEndTime()
                     && library.contains(animation.getAnimationId())
