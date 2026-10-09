@@ -603,6 +603,15 @@ public final class ActorGizmoController {
                         dragBaseScale.y * (1.0 + deltaWorld.y),
                         dragBaseScale.z * (1.0 + deltaWorld.z)
                 );
+                if (com.director.ui.actor.edit.ActorScaleEditing.isLocked(targetActorId)) {
+                    int axis = Math.abs(deltaWorld.x) >= Math.abs(deltaWorld.y)
+                            ? (Math.abs(deltaWorld.x) >= Math.abs(deltaWorld.z) ? 0 : 2)
+                            : (Math.abs(deltaWorld.y) >= Math.abs(deltaWorld.z) ? 1 : 2);
+                    var base = new org.joml.Vector3f((float) dragBaseScale.x, (float) dragBaseScale.y, (float) dragBaseScale.z);
+                    float requested = (float) (axis == 0 ? newScale.x : axis == 1 ? newScale.y : newScale.z);
+                    var uniform = com.director.ui.actor.edit.ActorScaleEditing.proportional(base, axis, requested);
+                    newScale = new Vec3d(uniform.x, uniform.y, uniform.z);
+                }
                 // 限制缩放范围
                 newScale = new Vec3d(
                         clamp(newScale.x),

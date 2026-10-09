@@ -107,14 +107,22 @@ public final class ActorLiveTransformPropertyUI {
             UITheme.endGroup();
 
             UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SCALE));
-            inputFloat("X##actorLiveScaleX", scaleX);
-            inputFloat("Y##actorLiveScaleY", scaleY);
-            inputFloat("Z##actorLiveScaleZ", scaleZ);
+            boolean scaleLocked = com.director.ui.actor.edit.ActorScaleEditing.isLocked(actorId);
+            if (ImGui.checkbox("等比锁定##actorScaleLock", scaleLocked))
+                com.director.ui.actor.edit.ActorScaleEditing.setLocked(actorId, !scaleLocked);
+            inputScale("X##actorLiveScaleX", scaleX, 0);
+            inputScale("Y##actorLiveScaleY", scaleY, 1);
+            inputScale("Z##actorLiveScaleZ", scaleZ, 2);
             if (ImGui.button("恢复原比例##actorResetScale")) {
                 scaleX.set(1f); scaleY.set(1f); scaleZ.set(1f);
                 observe("resetScale", ActorNumericEditSession.Kind.TRANSFORM, true);
             }
             UITheme.endGroup(); ImGui.endDisabled();
+            if (target != null) {
+                com.director.timeline.model.entity.EntityClip root = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveSource(model, target.timelineTrack());
+                if (root == null) root = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveInitialSpawn(target.actorTrack(), time);
+                if (root != null) ActorRootKeyframePropertyUI.render(root);
+            }
         }
 
         if (ImGui.collapsingHeader(Icons.TARGET + " "
@@ -242,6 +250,16 @@ public final class ActorLiveTransformPropertyUI {
 
         cachedActorId = actorId;
         cachedTime = time;
+    }
+
+    private static void inputScale(String label, ImFloat value, int axis) {
+        var before = new Vector3f(scaleX.get(), scaleY.get(), scaleZ.get());
+        boolean changed = ImGui.inputFloat(label, value);
+        if (changed && com.director.ui.actor.edit.ActorScaleEditing.isLocked(editingActor)) {
+            var scale = com.director.ui.actor.edit.ActorScaleEditing.proportional(before, axis, value.get());
+            scaleX.set(scale.x); scaleY.set(scale.y); scaleZ.set(scale.z);
+        }
+        observe(label, ActorNumericEditSession.Kind.TRANSFORM, changed);
     }
 
     private static void inputFloat(String label, ImFloat value) {
