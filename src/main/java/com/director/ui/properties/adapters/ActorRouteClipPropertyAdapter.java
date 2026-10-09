@@ -117,6 +117,7 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
             }
 
             observe("speed"); ImGui.endDisabled();
+            ImGui.beginDisabled(source.getSourcePathId() != null);
             ActorRouteClip.InterpolationMode[] interpolationModes = ActorRouteClip.InterpolationMode.values();
             ImInt interpolation = new ImInt(clip.getInterpolationMode().ordinal());
             if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.INTERPOLATION) + "##routeInterpolation",
@@ -124,7 +125,7 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
                 clip.setInterpolationMode(interpolationModes[Math.max(0, Math.min(interpolation.get(), interpolationModes.length - 1))]);
             }
 
-            observe("interpolation");
+            observe("interpolation"); ImGui.endDisabled();
             ActorRouteClip.LoopMode[] loopModes = ActorRouteClip.LoopMode.values();
             ImInt loop = new ImInt(clip.getLoopMode().ordinal());
             if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.LOOP_MODE) + "##routeLoop",
@@ -144,6 +145,8 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
         if (ImGui.collapsingHeader(Icons.PIN + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SECTION_WAYPOINTS),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (source.getSourcePathId() != null) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.linked_hint"));
+            ImGui.beginDisabled(source.getSourcePathId() != null);
             for (int i = 0; i < clip.getWaypoints().size(); i++) {
                 Vector3f point = clip.getWaypoints().get(i);
                 float[] xyz = {point.x, point.y, point.z};
@@ -169,6 +172,7 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
                         : clip.getWaypoints().getLast();
                 clip.addWaypoint(last.x, last.y, last.z);
             }
+            ImGui.endDisabled();
             ImGui.endDisabled();
         }
 

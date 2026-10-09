@@ -20,6 +20,17 @@ class ActorPathControllerDraftTest {
         var member = ActorPathController.class.getDeclaredField("pathPoints"); member.setAccessible(true);
         return (List<Vec3d>) member.get(controller);
     }
+    @Test void sceneCurvePickFindsVisibleUnlockedPathWithoutLoadingItFirst() throws Exception {
+        var c = controller(); var path = new com.director.actor.path.ActorPathDefinition("Pick test");
+        path.setWaypoints(List.of(new Vector3f(-1,0,5),new Vector3f(1,0,5)));
+        var library = com.director.actor.path.ActorPathLibraryManager.getInstance(); library.add(path);
+        var method = ActorPathController.class.getDeclaredMethod("pickLibraryPath", Vec3d.class, Vec3d.class); method.setAccessible(true);
+        try {
+            assertEquals(path.getId(), method.invoke(c, Vec3d.ZERO, new Vec3d(0,0,1)));
+            path.setVisible(false); assertNotEquals(path.getId(), method.invoke(c, Vec3d.ZERO, new Vec3d(0,0,1)));
+            path.setVisible(true); path.setLocked(true); assertNotEquals(path.getId(), method.invoke(c, Vec3d.ZERO, new Vec3d(0,0,1)));
+        } finally { library.remove(path.getId()); }
+    }
     @Test void completingSinglePointDraftCancelsWithoutCreatingPath() throws Exception {
         var controller = controller(); points(controller).add(new Vec3d(1,2,3));
         set(controller, "drawing", true); set(controller, "selectedAnchorIndex", 0);

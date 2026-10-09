@@ -22,6 +22,12 @@ public final class ActorRouteClip extends EntityClip {
         PING_PONG
     }
 
+    private java.util.UUID sourcePathId;
+    public java.util.UUID getSourcePathId() { return sourcePathId; }
+    public void setSourcePathId(java.util.UUID id) { sourcePathId = id; }
+    private com.director.actor.path.ActorPathDefinition sourcePath() {
+        return sourcePathId == null ? null : com.director.actor.path.ActorPathLibraryManager.getPath(sourcePathId);
+    }
     private final List<Vector3f> waypoints = new ArrayList<>();
     private InterpolationMode interpolationMode = InterpolationMode.LINEAR;
     private LoopMode loopMode = LoopMode.ONCE;
@@ -59,7 +65,8 @@ public final class ActorRouteClip extends EntityClip {
     }
 
     public List<Vector3f> getWaypoints() {
-        return Collections.unmodifiableList(waypoints);
+        var source = sourcePath();
+        return source == null ? Collections.unmodifiableList(waypoints) : source.getWaypoints();
     }
 
     public void setWaypoints(List<Vector3f> points) {
@@ -95,7 +102,8 @@ public final class ActorRouteClip extends EntityClip {
     }
 
     public InterpolationMode getInterpolationMode() {
-        return interpolationMode;
+        var source = sourcePath();
+        return source == null ? interpolationMode : source.getInterpolationMode();
     }
 
     public void setInterpolationMode(InterpolationMode interpolationMode) {

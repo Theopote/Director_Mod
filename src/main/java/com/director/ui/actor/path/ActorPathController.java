@@ -316,7 +316,7 @@ public final class ActorPathController {
             var track = com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model, ActorSelectionHub.getSelectedActorId());
             String name = editingLibraryPathId != null ? Objects.requireNonNull(ActorPathLibraryManager.getPath(editingLibraryPathId)).getName()
                     : editingClip != null ? editingClip.getName() : "Actor route";
-            var wrapper = ActorPathEditing.attach(model, track, getWaypointVectors(), interpolationMode, name);
+            var wrapper = ActorPathEditing.attach(model, track, getWaypointVectors(), interpolationMode, name, editingLibraryPathId);
             lastError = "";
             model.selectItem(wrapper, false);
             beginNewDraft();
@@ -344,6 +344,8 @@ public final class ActorPathController {
             return;
         }
 
+        UUID pickedPath = pickLibraryPath(ray.origin(), ray.direction());
+        if (pickedPath != null && !pickedPath.equals(editingLibraryPathId)) { loadPathForEditing(pickedPath); return; }
         int picked = pickNearestAnchor(ray.origin(), ray.direction());
         if (picked >= 0) {
             selectedAnchorIndex = picked;
@@ -548,6 +550,7 @@ public final class ActorPathController {
                 }
             }
 
+            if (routeClip.getSourcePathId() != null) { loadPathForEditing(routeClip.getSourcePathId()); return; }
             try { editingTarget = ActorPathEditing.route(model, timelineClip.getParentTrack(), routeClip); }
             catch (IllegalArgumentException unavailable) { return; }
             editingClip = routeClip;
@@ -565,6 +568,26 @@ public final class ActorPathController {
             LOGGER.info("[ActorPath] Loaded existing route clip with {} anchors", pathPoints.size());
             return;
         }
+    }
+
+    private UUID pickLibraryPath(Vec3d origin, Vec3d direction) {
+        UUID best = null; double nearest = Double.POSITIVE_INFINITY;
+        for (var path : ActorPathLibraryManager.getAllPaths()) {
+            if (!path.isVisible() || path.isLocked()) continue;
+            var curve = com.director.timeline.playback.entity.ActorRouteSampler.sampleCurvePositions(path.getWaypoints(), path.getInterpolationMode());
+            for (int i = 1; i < curve.size(); i++) {
+                var a = curve.get(i - 1); var b = curve.get(i); double length = a.distanceTo(b);
+                int steps = Math.max(1, Math.min(2048, (int)Math.ceil(length / .15)));
+                for (int n = 0; n <= steps; n++) {
+                    var point = a.lerp(b, (double)n / steps); double t = point.subtract(origin).dotProduct(direction);
+                    if (t < 0) continue;
+                    double distance = origin.add(direction.multiply(t)).distanceTo(point);
+                    double radius = .2 + Math.min(.6, t * .006);
+                    if (distance <= radius && t < nearest) { nearest = t; best = path.getId(); }
+                }
+            }
+        }
+        return best;
     }
 
     private int pickNearestAnchor(Vec3d rayOrigin, Vec3d rayDir) {

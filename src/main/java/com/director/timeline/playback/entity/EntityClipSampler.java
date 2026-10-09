@@ -54,7 +54,7 @@ public class EntityClipSampler {
      * 动作推断阈值（blocks/second）
      */
     private static final float WALK_THRESHOLD = 0.02f;
-    private static final float RUN_THRESHOLD = 0.12f;
+    private static final float RUN_THRESHOLD = 4.0f;
 
     /**
      * 构造函数（接受演员轨道）。

@@ -696,7 +696,8 @@ public final class ActorRuntimeController {
 
             // Sampling is a pure function of the timeline phase, including paused/rewound frames.
             Pose base = new Pose();
-            RigPoseResult rigPose = rig.sampleAt(actorRuntime, action, s.actionIntensity, s.actionLocalTime);
+            float gaitTime = ActorRouteGait.time(s);
+            RigPoseResult rigPose = rig.sampleAt(actorRuntime, action, s.actionIntensity, gaitTime);
 
             // 新一代逐骨骼动画资产。存在同 ID 资产时优先使用；旧 AnimationLibrary 继续作为回退。
             var rigAsset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance()

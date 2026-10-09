@@ -31,6 +31,19 @@ class ActorPathEditingTest {
         var path = new ActorPathDefinition("Path"); path.setWaypoints(points); path.setInterpolationMode(mode); library.add(path); return path;
     }
     ActorRouteClip route() { return (ActorRouteClip) ActorPathEditing.attach(model, track, points, mode, "Route").getEntityClip(); }
+    @Test void boundRouteFollowsLibraryGeometryWithoutChangingDurationAndUndoKeepsIdentity() {
+        var path = new ActorPathDefinition("Linked test"); path.setWaypoints(points); path.setInterpolationMode(mode);
+        var global = ActorPathLibraryManager.getInstance(); global.add(path);
+        try {
+            var wrapper = ActorPathEditing.attach(model, track, points, mode, path.getName(), path.getId());
+            var route = (ActorRouteClip)wrapper.getEntityClip(); float end = route.getEndTime();
+            path.setWaypoints(List.of(new Vector3f(), new Vector3f(8,0,0)));
+            assertEquals(8, route.getWaypoints().getLast().x); assertEquals(end, route.getEndTime());
+            assertEquals(4, new com.director.timeline.playback.entity.EntityClipSampler(track.getActorTrackPayload()).sampleAt(3).position.x, 1e-4f);
+            assertTrue(history.undo()); assertTrue(history.redo()); assertEquals(path.getId(), route.getSourcePathId());
+            global.remove(path.getId()); assertEquals(4, route.getWaypoints().getLast().x);
+        } finally { global.remove(path.getId()); }
+    }
     @Test void onceDurationControlsSpeedAndGeometryEditingKeepsDuration() {
         var route = route(); route.setTimeRange(2, 6);
         var sampler = new com.director.timeline.playback.entity.EntityClipSampler(track.getActorTrackPayload());

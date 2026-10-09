@@ -1,4 +1,5 @@
 {
+  "gui.director.actor.route.linked_hint": "此路线绑定路径库资源。请用路径工具点击原路径或在路径库选择它修改；所有绑定演员会同步。",
   "gui.director.actor.route.effective_speed": "按时长计算的速度：%.2f 格/秒",
   "gui.director.actor.route.exact_curve_hint": "严格沿三维曲线移动，不投射地面、不进行地形碰撞或额外跳跃。高度由路径控制点决定；循环会从终点返回起点，往返模式会反向移动。",
   "gui.director.actor.path_movement.header": "沿路径移动",
@@ -8,7 +9,7 @@
   "gui.director.actor.path_movement.apply": "从播放头开始沿路径移动",
   "gui.director.actor.path_movement.missing": "路径已不存在，请重新选择。",
   "gui.director.actor.path_movement.place_first": "请先把演员放置到场景中，建立演员轨道。",
-  "gui.director.actor.path_movement.hint": "点击按钮显式创建路径移动片段，支持撤销。使用路径形状副本，之后修改路径库不会同步。当前从路径起点开始，不含从演员当前位置走到路径的接入动画。",
+  "gui.director.actor.path_movement.hint": "绑定原路径资源，后续路径形状修改会同步；创建操作支持撤销。当前从起点开始，不包含走到路径的接入动画。",
   "gui.director.actor.movement.route_protected": "当前时间有有效路径移动：整体TRS写入暂不可用。请编辑路径；若要改用坐标关键帧，请先禁用或调整路径时间范围。现有整体帧仍可删除。",
   "gui.director.actor.movement.route_source": "位置来源：路径曲线与速度。路径形状和坐标关键帧是两种不同的移动来源。",
   "gui.director.actor.movement.route_conflict": "冲突：当前时间存在Transform，按现有播放规则它会覆盖路径。请禁用或调整其中一个引用的时间范围；本次不会自动改动旧动画。",

@@ -1,4 +1,5 @@
 {
+  "gui.director.actor.route.linked_hint": "This route references a library path. Select that path in the scene or library to edit it; all bound actors follow changes.",
   "gui.director.actor.route.effective_speed": "Speed from clip duration: %.2f blocks/s",
   "gui.director.actor.route.exact_curve_hint": "Follow the authored 3D curve exactly, without terrain projection, terrain collision or added hops. Control points define height. Loop wraps to the start; ping-pong reverses direction.",
   "gui.director.actor.path_movement.header": "Move along path",
@@ -8,7 +9,7 @@
   "gui.director.actor.path_movement.apply": "Follow path from playhead",
   "gui.director.actor.path_movement.missing": "The path no longer exists. Select again.",
   "gui.director.actor.path_movement.place_first": "Place the actor in the scene first to create its track.",
-  "gui.director.actor.path_movement.hint": "This explicitly creates an undoable route clip using a copy of the path. Library edits do not propagate. Movement starts at the path start; a walk-to-path transition is not included.",
+  "gui.director.actor.path_movement.hint": "References the original path and follows geometry edits. Creation is undoable. Starts at the path start; a walk-to-path transition is not included.",
   "gui.director.actor.movement.route_protected": "An active route protects root TRS writes. Edit the route, or mute/retime it before authoring coordinates. Existing root keys can still be deleted.",
   "gui.director.actor.movement.route_source": "Position source: route curve and speed. Routes and coordinate keys are separate movement sources.",
   "gui.director.actor.movement.route_conflict": "Conflict: an active Transform overrides this route under existing playback rules. Mute or retime one reference to resolve it.",

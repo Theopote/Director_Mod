@@ -39,7 +39,7 @@ public final class ActorPathMovementPropertyUI {
             try {
                 var current = ActorPathLibraryManager.getPath(path);
                 if (current == null) throw new IllegalArgumentException(tr("missing"));
-                var wrapper = ActorPathEditing.attach(model, owner, current.getWaypoints(), current.getInterpolationMode(), current.getName());
+                var wrapper = ActorPathEditing.attach(model, owner, current.getWaypoints(), current.getInterpolationMode(), current.getName(), current.getId());
                 model.selectItem(wrapper, false);
                 DirectorServices.get().uiSelection().setCurrentSelection(wrapper);
                 error = "";

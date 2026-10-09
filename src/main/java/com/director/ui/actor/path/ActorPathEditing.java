@@ -194,6 +194,10 @@ public final class ActorPathEditing {
     }
     public static EntityTimelineClip attach(TimelineModel model, TimelineTrack owner, List<Vector3f> points,
             ActorRouteClip.InterpolationMode mode, String name) {
+        return attach(model, owner, points, mode, name, null);
+    }
+    public static EntityTimelineClip attach(TimelineModel model, TimelineTrack owner, List<Vector3f> points,
+            ActorRouteClip.InterpolationMode mode, String name, UUID sourcePathId) {
         requireEditing(model);
         var payload = owner == null ? null : owner.getActorTrackPayload();
         UUID actorId = payload == null || payload.getActorRef() == null ? null : payload.getActorRef().getActorId();
@@ -201,7 +205,7 @@ public final class ActorPathEditing {
         Geometry geometry = new Geometry(points, mode);
         float start = model.getCurrentTime(), end = start + duration(geometry, 2);
         rejectOverlap(payload, null, start, end);
-        var route = new ActorRouteClip(name, start, end); geometry.apply(route);
+        var route = new ActorRouteClip(name, start, end); geometry.apply(route); route.setSourcePathId(sourcePathId);
         route.setSpeed(2); route.setLoopMode(ActorRouteClip.LoopMode.ONCE); route.setAlignRotationToRoute(true);
         var wrapper = new EntityTimelineClip(route, payload.getColorRgba());
         TimelineCommandBridge.execute(new StateChangeCommand(model, "Apply actor path", () -> {
