@@ -11,7 +11,7 @@ import net.minecraft.util.math.BlockPos;
  * 再交给 BlockAnimationRenderer 在渲染管线中实际绘制。
  *
  * 约定：
- * - transform 只包含“局部动画变换”（围绕方块自身中心的位移/旋转/缩放）
+ * - transform 保存方块局部空间的动画变换；整体动画将共享轴心换算到此局部空间
  * - 世界坐标（BlockPos → 世界平移）由 Renderer 统一负责：
  *      matrices.translate(pos.getX(), pos.getY(), pos.getZ());
  *      然后再乘上 snapshot.transform

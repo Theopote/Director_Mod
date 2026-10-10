@@ -1512,6 +1512,8 @@ public class TimelineClipBlockController {
         boolean exit = container.getType() == ContainerType.DEMOLITION;
         boolean enabled = clip.getParentTrack() == null
                 || (!clip.getParentTrack().isLocked() && clip.getParentTrack().isVisible());
+        // Retain the intact structure before demolition starts and while its track is disabled.
+        if (exit && (!enabled || time < clip.getStartTime())) opacity = 1.0f;
         var frame = com.director.core.animation.WholeContainerAnimation.sample(
                 config, clip.getStartTime(), clip.getEndTime(), enabled ? time : clip.getStartTime() - 1, exit);
         var pivot = com.director.core.animation.WholeContainerAnimation.pivot(
@@ -1519,7 +1521,7 @@ public class TimelineClipBlockController {
         // Rebuild overrides even while scrubbing: the original world structure must stay hidden.
         manager.setBlocksState(getCachedContainerBlocks(container), BlockVisualStateManager.BlockVisualState.hidden());
         float end = Math.min(clip.getEndTime(), clip.getStartTime() + config.getDelay() + config.getDuration());
-        boolean handoff = enabled && !exit && !frame.animating() && time >= end
+        boolean handoff = enabled && !exit && opacity >= 0.999f && !frame.animating() && time >= end
                 && time < end + com.director.core.animation.AnimationConstants.HANDOFF_POST_WINDOW;
         for (BlockPos pos : visibleBlocks) {
             BlockState state = resolveBlockStateForRender(container, pos);
@@ -1527,25 +1529,30 @@ public class TimelineClipBlockController {
             var visual = opacity < 0.999f
                     ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true)
                     : BlockVisualStateManager.BlockVisualState.normal();
+            boolean worldReady = MinecraftClient.getInstance().world != null
+                    && MinecraftClient.getInstance().world.getBlockState(pos).equals(state);
+            boolean overlay = frame.animating() || handoff || !worldReady || opacity < 0.999f;
+            if (!overlay) {
+                manager.setBlockState(pos, visual);
+                continue;
+            }
             var snapshot = new BlockAnimationSnapshot(pos, state);
             snapshot.markFullyVisible();
             snapshot.setRawProgress(frame.progress());
             snapshot.setTransform(frame.localTransform(pos, pivot));
-            boolean worldReady = MinecraftClient.getInstance().world != null
-                    && MinecraftClient.getInstance().world.getBlockState(pos).equals(state);
-            boolean overlay = frame.animating() || handoff || !worldReady || opacity < 0.999f;
             if (handoff && worldReady) {
-                com.director.core.animation.HandoffWindowManager.applyHandoffCorrection(
-                        snapshot, ClipAnimationConfig.AnimationPhase.ENTER);
+                // Preserve the assembly's shape during the world-mesh handoff too.
+                var correction = new com.director.core.animation.WholeContainerAnimation.Frame(
+                        true, true, true, 1,
+                        com.director.core.animation.AnimationConstants.HANDOFF_ENTER_SCALE, 0, 0, 0);
+                snapshot.setTransform(correction.localTransform(pos, pivot));
                 visual = BlockVisualStateManager.BlockVisualState.ghost(opacity, true, false);
             } else if (overlay) {
                 visual = visual.withSuppressWorldRendering(true);
             }
             manager.setBlockState(pos, visual);
-            if (overlay) {
-                manager.addRenderEntry(new BlockVisualStateManager.RenderEntry(pos, state, visual, clip,
-                        new BlockSequenceEntry(pos, 0, 0, 0), snapshot));
-            }
+            manager.addRenderEntry(new BlockVisualStateManager.RenderEntry(pos, state, visual, clip,
+                    new BlockSequenceEntry(pos, 0, 0, 0), snapshot));
         }
     }
 
