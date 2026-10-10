@@ -111,6 +111,21 @@ class WholeContainerAnimationEditSessionTest {
         assertEquals(2, config.getDuration()); assertEquals(0, config.getDelay());
     }
 
+    @Test void channelTogglesAndOpacityValuesUndoAndRedoAsOneGesture() {
+        var s = clip.getAnimationConfig().getWholeContainer(); s.setEffect(WholeContainerAnimationConfig.Effect.TRANSFORM);
+        change(() -> {
+            s.setTranslationEnabled(false); s.setRotationEnabled(false); s.setScaleEnabled(false);
+            s.setOpacityEnabled(true); s.setOpacity(0.25f);
+        }, false);
+        assertEquals(1, history.getUndoSize());
+        history.undo();
+        assertTrue(s.isTranslationEnabled()); assertTrue(s.isRotationEnabled()); assertTrue(s.isScaleEnabled());
+        assertFalse(s.isOpacityEnabled()); assertEquals(0, s.getOpacity());
+        history.redo();
+        assertFalse(s.isTranslationEnabled()); assertFalse(s.isRotationEnabled()); assertFalse(s.isScaleEnabled());
+        assertTrue(s.isOpacityEnabled()); assertEquals(0.25f, s.getOpacity());
+    }
+
     @Test void noOpAndDragReturningToOriginalDoNotCreateHistoryOrSounds() {
         edits.beginFrame(model, clip); edits.endFrame(false, false, "Edit");
         change(() -> clip.getAnimationConfig().getWholeContainer().setRotation(0, 720, 0), true);

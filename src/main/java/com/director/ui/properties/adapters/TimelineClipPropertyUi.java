@@ -630,41 +630,51 @@ public class TimelineClipPropertyUi {
         ImInt effect = new ImInt(settings.getEffect().ordinal());
         if (ImGui.combo(wholeText("effect"), effect,
                 new String[] {wholeText(exit ? "shrink" : "scale"), wholeText(exit ? "fly_out" : "fly_in"),
-                        wholeText(exit ? "rotate_out" : "rotate_in"), wholeText(exit ? "transform_out" : "transform_in")})) {
+                        wholeText(exit ? "rotate_out" : "rotate_in"), wholeText(exit ? "transform_out" : "transform_in"),
+                        wholeText(exit ? "fade_out" : "fade_in"), wholeText(exit ? "instant_out" : "instant_in")})) {
             settings.setEffect(WholeContainerAnimationConfig.Effect.values()[effect.get()]);
             modified = true;
         }
         ImGui.textWrapped(wholeText("hint"));
-        ImInt pivot = new ImInt(settings.getPivot().ordinal());
-        if (ImGui.combo(wholeText("pivot"), pivot,
-                new String[] {wholeText("center"), wholeText("bottom_center"), wholeText("custom_pivot")})) {
-            settings.setPivot(WholeContainerAnimationConfig.Pivot.values()[pivot.get()]);
-            modified = true;
+        boolean combined = settings.getEffect() == WholeContainerAnimationConfig.Effect.TRANSFORM;
+        boolean instant = settings.getEffect() == WholeContainerAnimationConfig.Effect.INSTANT;
+        if (combined) {
+            modified |= renderWholeChannelToggle("channel_translation", settings.isTranslationEnabled(), settings::setTranslationEnabled);
+            modified |= renderWholeChannelToggle("channel_rotation", settings.isRotationEnabled(), settings::setRotationEnabled);
+            modified |= renderWholeChannelToggle("channel_scale", settings.isScaleEnabled(), settings::setScaleEnabled);
+            modified |= renderWholeChannelToggle("channel_opacity", settings.isOpacityEnabled(), settings::setOpacityEnabled);
         }
-        if (settings.getPivot() == WholeContainerAnimationConfig.Pivot.CUSTOM) {
-            float[] pivotOffset = {settings.getPivotX(), settings.getPivotY(), settings.getPivotZ()};
-            if (ImGui.dragFloat3(wholeText("pivot_offset"), pivotOffset, 0.1f, -10000, 10000, "%.2f")) {
-                settings.setCustomPivot(pivotOffset[0], pivotOffset[1], pivotOffset[2]);
+        if (settings.usesTranslation() || settings.usesRotation() || settings.usesScale()) {
+            ImInt pivot = new ImInt(settings.getPivot().ordinal());
+            if (ImGui.combo(wholeText("pivot"), pivot,
+                    new String[] {wholeText("center"), wholeText("bottom_center"), wholeText("custom_pivot")})) {
+                settings.setPivot(WholeContainerAnimationConfig.Pivot.values()[pivot.get()]);
                 modified = true;
             }
-            ImGui.textWrapped(wholeText("pivot_hint"));
+            if (settings.getPivot() == WholeContainerAnimationConfig.Pivot.CUSTOM) {
+                float[] pivotOffset = {settings.getPivotX(), settings.getPivotY(), settings.getPivotZ()};
+                if (ImGui.dragFloat3(wholeText("pivot_offset"), pivotOffset, 0.1f, -10000, 10000, "%.2f")) {
+                    settings.setCustomPivot(pivotOffset[0], pivotOffset[1], pivotOffset[2]);
+                    modified = true;
+                }
+                ImGui.textWrapped(wholeText("pivot_hint"));
+            }
         }
-        boolean combined = settings.getEffect() == WholeContainerAnimationConfig.Effect.TRANSFORM;
-        if (combined || settings.getEffect() == WholeContainerAnimationConfig.Effect.SCALE) {
+        if (settings.usesScale()) {
             float[] scale = {settings.getScale()};
             if (ImGui.dragFloat(wholeText(exit ? "end_scale" : "start_scale"), scale, 0.01f, 0, 10, "%.2f")) {
                 settings.setScale(scale[0]);
                 modified = true;
             }
         }
-        if (combined || settings.getEffect() == WholeContainerAnimationConfig.Effect.FLY) {
+        if (settings.usesTranslation()) {
             float[] offset = {settings.getOffsetX(), settings.getOffsetY(), settings.getOffsetZ()};
             if (ImGui.dragFloat3(wholeText(exit ? "end_offset" : "start_offset"), offset, 0.1f, -10000, 10000, "%.2f")) {
                 settings.setOffset(offset[0], offset[1], offset[2]);
                 modified = true;
             }
         }
-        if (combined || settings.getEffect() == WholeContainerAnimationConfig.Effect.ROTATE) {
+        if (settings.usesRotation()) {
             float[] rotation = {settings.getRotationX(), settings.getRotationY(), settings.getRotationZ()};
             if (ImGui.dragFloat3(wholeText(exit ? "end_rotation" : "start_rotation"), rotation, 1, -3600, 3600, "%.1f")) {
                 settings.setRotation(rotation[0], rotation[1], rotation[2]);
@@ -672,34 +682,52 @@ public class TimelineClipPropertyUi {
             }
             ImGui.textWrapped(wholeText("rotation_hint"));
         }
-        if (combined) ImGui.textWrapped(wholeText("transform_hint"));
-        float[] duration = {config.getDuration()};
-        if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_DURATION_SECONDS),
-                duration, 0.05f, 0.05f, Math.max(0.05f, clip.getLength()), "%.2fs")) {
-            float oldDuration = config.getDuration();
-            config.setDuration(duration[0]);
-            var timeline = DirectorServices.get().containerTimeline().getTimelineModel();
-            if (timeline != null && timeline.findTrackForClip(clip) != null) {
-                timeline.setCurrentTime(WholeContainerAnimation.retimePreviewTime(
-                        clip.getStartTime(), clip.getEndTime(), config.getDelay(),
-                        oldDuration, config.getDuration(), timeline.getCurrentTime()));
+        if (settings.usesOpacity()) {
+            float[] opacity = {settings.getOpacity()};
+            if (ImGui.dragFloat(wholeText(exit ? "end_opacity" : "start_opacity"), opacity, 0.01f, 0, 1, "%.2f")) {
+                settings.setOpacity(opacity[0]);
+                modified = true;
             }
-            modified = true;
+        }
+        if (combined) ImGui.textWrapped(wholeText("transform_hint"));
+        if (!instant) {
+            float[] duration = {config.getDuration()};
+            if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_DURATION_SECONDS),
+                    duration, 0.05f, 0.05f, Math.max(0.05f, clip.getLength()), "%.2fs")) {
+                float oldDuration = config.getDuration();
+                config.setDuration(duration[0]);
+                var timeline = DirectorServices.get().containerTimeline().getTimelineModel();
+                if (timeline != null && timeline.findTrackForClip(clip) != null) {
+                    timeline.setCurrentTime(WholeContainerAnimation.retimePreviewTime(
+                            clip.getStartTime(), clip.getEndTime(), config.getDelay(),
+                            oldDuration, config.getDuration(), timeline.getCurrentTime()));
+                }
+                modified = true;
+            }
         }
         float[] delay = {config.getDelay()};
         if (ImGui.dragFloat(wholeText("delay"), delay, 0.05f, 0, clip.getLength(), "%.2fs")) {
             config.setDelay(delay[0]);
             modified = true;
         }
-        EasingFunction easing = EasingFunction.fromString(config.getEasing());
-        easingFunctionIndex.set(easing.ordinal());
-        if (ImGui.combo("##WholeEasing", easingFunctionIndex, getEasingFunctionLabels())) {
-            easing = EasingFunction.values()[easingFunctionIndex.get()];
-            config.setEasing(easing.name());
-            modified = true;
+        if (!instant) {
+            EasingFunction easing = EasingFunction.fromString(config.getEasing());
+            easingFunctionIndex.set(easing.ordinal());
+            if (ImGui.combo("##WholeEasing", easingFunctionIndex, getEasingFunctionLabels())) {
+                easing = EasingFunction.values()[easingFunctionIndex.get()];
+                config.setEasing(easing.name());
+                modified = true;
+            }
+            renderEasingCurvePreview(easing);
         }
-        renderEasingCurvePreview(easing);
         return modified;
+    }
+
+    private boolean renderWholeChannelToggle(String key, boolean enabled, java.util.function.Consumer<Boolean> setter) {
+        ImBoolean value = new ImBoolean(enabled);
+        if (!ImGui.checkbox(wholeText(key), value)) return false;
+        setter.accept(value.get());
+        return true;
     }
 
     boolean applySequencePreset(int presetIndex, SequenceParameters params, TimelineClipUiVariant variant) {

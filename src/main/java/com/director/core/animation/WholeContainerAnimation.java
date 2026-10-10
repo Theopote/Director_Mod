@@ -13,7 +13,13 @@ public final class WholeContainerAnimation {
 
     public record Frame(boolean worldVisible, boolean renderVisible, boolean animating,
                         float progress, float scale, float x, float y, float z,
-                        float rotationX, float rotationY, float rotationZ) {
+                        float rotationX, float rotationY, float rotationZ, float alpha) {
+        public Frame(boolean worldVisible, boolean renderVisible, boolean animating,
+                     float progress, float scale, float x, float y, float z,
+                     float rotationX, float rotationY, float rotationZ) {
+            this(worldVisible, renderVisible, animating, progress, scale, x, y, z,
+                    rotationX, rotationY, rotationZ, 1);
+        }
         public Frame(boolean worldVisible, boolean renderVisible, boolean animating,
                      float progress, float scale, float x, float y, float z) {
             this(worldVisible, renderVisible, animating, progress, scale, x, y, z, 0, 0, 0);
@@ -42,7 +48,9 @@ public final class WholeContainerAnimation {
 
     /** Rendering, world handoff and audio use the same effective clip-local window. */
     public static Window window(ClipAnimationConfig config, float clipStart, float clipEnd) {
-        return window(clipStart, clipEnd, config.getDelay(), config.getDuration());
+        float duration = config.getWholeContainer().getEffect() == WholeContainerAnimationConfig.Effect.INSTANT
+                ? 0 : config.getDuration();
+        return window(clipStart, clipEnd, config.getDelay(), duration);
     }
 
     private static Window window(float clipStart, float clipEnd, float delay, float duration) {
@@ -63,21 +71,22 @@ public final class WholeContainerAnimation {
         float scale = 1;
         float x = 0, y = 0, z = 0;
         float rotationX = 0, rotationY = 0, rotationZ = 0;
-        boolean combined = settings.getEffect() == WholeContainerAnimationConfig.Effect.TRANSFORM;
-        if (combined || settings.getEffect() == WholeContainerAnimationConfig.Effect.SCALE) {
+        if (settings.usesScale()) {
             scale = Math.max(0, 1 + (settings.getScale() - 1) * amount);
         }
-        if (combined || settings.getEffect() == WholeContainerAnimationConfig.Effect.FLY) {
+        if (settings.usesTranslation()) {
             x = settings.getOffsetX() * amount;
             y = settings.getOffsetY() * amount;
             z = settings.getOffsetZ() * amount;
         }
-        if (combined || settings.getEffect() == WholeContainerAnimationConfig.Effect.ROTATE) {
+        if (settings.usesRotation()) {
             rotationX = settings.getRotationX() * amount;
             rotationY = settings.getRotationY() * amount;
             rotationZ = settings.getRotationZ() * amount;
         }
-        return new Frame(false, true, true, raw, scale, x, y, z, rotationX, rotationY, rotationZ);
+        float alpha = settings.usesOpacity()
+                ? Math.clamp(1 + (settings.getOpacity() - 1) * amount, 0, 1) : 1;
+        return new Frame(false, true, true, raw, scale, x, y, z, rotationX, rotationY, rotationZ, alpha);
     }
 
     /** Keep the preview at the same normalized phase when the duration is edited.
@@ -94,7 +103,7 @@ public final class WholeContainerAnimation {
     }
 
     private static Frame stationary(boolean visible, float progress) {
-        return new Frame(visible, visible, false, progress, 1, 0, 0, 0);
+        return new Frame(visible, visible, false, progress, 1, 0, 0, 0, 0, 0, 0, visible ? 1 : 0);
     }
 
     public static Vec3d pivot(Container.BoundingBox bounds, WholeContainerAnimationConfig.Pivot kind) {

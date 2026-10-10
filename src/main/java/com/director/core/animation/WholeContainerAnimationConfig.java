@@ -7,7 +7,7 @@ import java.io.Serializable;
 public final class WholeContainerAnimationConfig implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
-    public enum Effect { SCALE, FLY, ROTATE, TRANSFORM }
+    public enum Effect { SCALE, FLY, ROTATE, TRANSFORM, FADE, INSTANT }
     public enum Pivot { CENTER, BOTTOM_CENTER, CUSTOM }
 
     private Effect effect = Effect.SCALE;
@@ -19,6 +19,13 @@ public final class WholeContainerAnimationConfig implements Serializable {
     private float rotationX = 0.0f;
     private float rotationY = 180.0f;
     private float rotationZ = 0.0f;
+    // Null means legacy defaults: all three transform channels on, opacity off.
+    private Boolean translationEnabled;
+    private Boolean rotationEnabled;
+    private Boolean scaleEnabled;
+    private Boolean opacityEnabled;
+    private float opacity = 0.0f;
+
     // Relative to the bounds center, so moving the container preserves the authored pivot.
     private float pivotX = 0.0f;
     private float pivotY = 0.0f;
@@ -46,6 +53,21 @@ public final class WholeContainerAnimationConfig implements Serializable {
         rotationY = finite(y, 180, -3600, 3600);
         rotationZ = finite(z, 0, -3600, 3600);
     }
+    public boolean isTranslationEnabled() { return translationEnabled == null || translationEnabled; }
+    public void setTranslationEnabled(boolean value) { translationEnabled = value; }
+    public boolean isRotationEnabled() { return rotationEnabled == null || rotationEnabled; }
+    public void setRotationEnabled(boolean value) { rotationEnabled = value; }
+    public boolean isScaleEnabled() { return scaleEnabled == null || scaleEnabled; }
+    public void setScaleEnabled(boolean value) { scaleEnabled = value; }
+    public boolean isOpacityEnabled() { return Boolean.TRUE.equals(opacityEnabled); }
+    public void setOpacityEnabled(boolean value) { opacityEnabled = value; }
+    public float getOpacity() { return finite(opacity, 0, 0, 1); }
+    public void setOpacity(float value) { opacity = finite(value, 0, 0, 1); }
+    public boolean usesTranslation() { return getEffect() == Effect.FLY || getEffect() == Effect.TRANSFORM && isTranslationEnabled(); }
+    public boolean usesRotation() { return getEffect() == Effect.ROTATE || getEffect() == Effect.TRANSFORM && isRotationEnabled(); }
+    public boolean usesScale() { return getEffect() == Effect.SCALE || getEffect() == Effect.TRANSFORM && isScaleEnabled(); }
+    public boolean usesOpacity() { return getEffect() == Effect.FADE || getEffect() == Effect.TRANSFORM && isOpacityEnabled(); }
+
     public float getPivotX() { return finite(pivotX, 0, -10000, 10000); }
     public float getPivotY() { return finite(pivotY, 0, -10000, 10000); }
     public float getPivotZ() { return finite(pivotZ, 0, -10000, 10000); }
@@ -65,6 +87,11 @@ public final class WholeContainerAnimationConfig implements Serializable {
         copy.setOffset(getOffsetX(), getOffsetY(), getOffsetZ());
         copy.setRotation(getRotationX(), getRotationY(), getRotationZ());
         copy.setCustomPivot(getPivotX(), getPivotY(), getPivotZ());
+        copy.translationEnabled = translationEnabled;
+        copy.rotationEnabled = rotationEnabled;
+        copy.scaleEnabled = scaleEnabled;
+        copy.opacityEnabled = opacityEnabled;
+        copy.setOpacity(getOpacity());
         return copy;
     }
 }

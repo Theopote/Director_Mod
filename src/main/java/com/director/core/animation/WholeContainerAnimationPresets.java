@@ -6,7 +6,7 @@ import java.util.Objects;
 
 /** Authored transforms shared by enter and demolition clips; the sampler supplies the direction. */
 public final class WholeContainerAnimationPresets {
-    public enum Preset { GROW, FROM_ABOVE, FROM_BELOW, FROM_SIDE, SPIN, SPIN_GROW, SPIN_FLY }
+    public enum Preset { GROW, FROM_ABOVE, FROM_BELOW, FROM_SIDE, SPIN, SPIN_GROW, SPIN_FLY, FADE, SOFT_GROW }
     private WholeContainerAnimationPresets() {}
 
     public static void apply(ClipAnimationConfig config, Preset preset, Container.BoundingBox bounds) {
@@ -39,12 +39,24 @@ public final class WholeContainerAnimationPresets {
                 settings.setScale(0); settings.setRotation(0, 360, 0);
                 easing = EasingFunction.EASE_IN_OUT_CUBIC;
             }
+            case FADE, SOFT_GROW -> {
+                settings.setEffect(preset == Preset.FADE ? WholeContainerAnimationConfig.Effect.FADE
+                        : WholeContainerAnimationConfig.Effect.TRANSFORM);
+                settings.setTranslationEnabled(false); settings.setRotationEnabled(false);
+                settings.setScaleEnabled(preset == Preset.SOFT_GROW); settings.setOpacityEnabled(true);
+                settings.setOpacity(0); settings.setScale(preset == Preset.SOFT_GROW ? 0.8f : 1);
+            }
             case SPIN_FLY -> {
                 settings.setEffect(WholeContainerAnimationConfig.Effect.TRANSFORM);
                 settings.setOffset(0, vertical, 0); settings.setRotation(0, 720, 0);
                 easing = EasingFunction.EASE_IN_OUT_CUBIC;
             }
         }
+        settings.setTranslationEnabled(settings.getEffect() == WholeContainerAnimationConfig.Effect.FLY || preset == Preset.SPIN_FLY);
+        settings.setRotationEnabled(settings.getEffect() == WholeContainerAnimationConfig.Effect.ROTATE
+                || preset == Preset.SPIN_GROW || preset == Preset.SPIN_FLY);
+        settings.setScaleEnabled(settings.getEffect() == WholeContainerAnimationConfig.Effect.SCALE
+                || preset == Preset.SPIN_GROW || preset == Preset.SOFT_GROW);
         // Timing and the hidden per-block configuration belong to the user's clip.
         config.setWholeContainer(settings);
         config.setEasing(easing.name());
@@ -66,6 +78,8 @@ public final class WholeContainerAnimationPresets {
                 settings.setPivot(WholeContainerAnimationConfig.Pivot.CENTER);
                 settings.setRotation(0, 180, 0);
             }
+            case FADE -> settings.setOpacity(0);
+            case INSTANT -> { }
             case TRANSFORM -> {
                 settings.setScale(0); settings.setOffset(0, 10, 0); settings.setRotation(0, 180, 0);
             }

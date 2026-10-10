@@ -8,6 +8,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
 import net.minecraft.client.render.block.BlockRenderManager;
+import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
@@ -342,7 +343,7 @@ public class BlockAnimationRenderer {
                 manager.renderBlockAsEntity(
                         state,
                         matrices,
-                        provider,
+                        withAlpha(provider, alpha),
                         light,
                         OverlayTexture.DEFAULT_UV);
             } finally {
@@ -354,6 +355,13 @@ public class BlockAnimationRenderer {
         } finally {
             GlStateManager._depthMask(true);
         }
+    }
+
+    /** The block-as-entity path uses the block atlas; faded vertices require a blending layer too. */
+    static VertexConsumerProvider withAlpha(VertexConsumerProvider provider, float alpha) {
+        if (alpha >= 0.999f) return provider;
+        return layer -> new AlphaVertexConsumer(provider.getBuffer(
+                RenderLayer.getEntityTranslucent(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE)), alpha);
     }
 
     @SuppressWarnings("unused")

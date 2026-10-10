@@ -27,9 +27,11 @@ class WholeContainerAnimationSoundTest {
                 config.getWholeContainer().setEffect(effect);
                 config.getSequenceParameters().setGlobalDelay(100);
                 float soundTime = AnimationSoundCollector.wholeContainerEventTime(clip);
-                assertEquals(13 - 1.0f / 60, soundTime, 0.0001f);
-                assertTrue(WholeContainerAnimation.sample(config, 10, 20, soundTime, exit).animating());
-                var after = WholeContainerAnimation.sample(config, 10, 20, 13, exit);
+                boolean instant = effect == WholeContainerAnimationConfig.Effect.INSTANT;
+                float handoff = instant ? 11 : 13;
+                assertEquals(instant ? handoff : handoff - 1.0f / 60, soundTime, 0.0001f);
+                assertEquals(!instant, WholeContainerAnimation.sample(config, 10, 20, soundTime, exit).animating());
+                var after = WholeContainerAnimation.sample(config, 10, 20, handoff, exit);
                 assertFalse(after.animating()); assertEquals(!exit, after.worldVisible());
             }
         }

@@ -50,6 +50,31 @@ class WholeContainerAnimationPersistenceTest {
         }
     }
 
+    @Test void independentChannelsAndOpacitySurviveProjectSaveAndDuplication() {
+        var viewport = new TimelineViewportState();
+        var model = new TimelineModel(viewport); model.setSuppressPersistenceWrites(true);
+        var track = new TimelineTrack("blocks", TrackType.CONTAINER);
+        var clip = new TimelineClip("Fade and rotate", 3, 8, 0);
+        var config = clip.getAnimationConfig(); config.setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER);
+        var settings = config.getWholeContainer(); settings.setEffect(WholeContainerAnimationConfig.Effect.TRANSFORM);
+        settings.setTranslationEnabled(false); settings.setScaleEnabled(false);
+        settings.setRotationEnabled(true); settings.setOpacityEnabled(true);
+        settings.setOpacity(0.25f); settings.setRotation(0, 720, 0);
+        track.addClip(clip); model.addTrack(track);
+        var gson = new Gson();
+        var dto = gson.fromJson(gson.toJson(TimelineModelPersistence.toDTO(model, viewport)), TimelineModelPersistence.TimelineDTO.class);
+        var restored = new TimelineModel(new TimelineViewportState()); restored.setSuppressPersistenceWrites(true);
+        TimelineModelPersistence.fromDTO(dto, restored, new TimelineViewportState());
+        var loaded = restored.getTracks().getFirst().getClips().getFirst().getAnimationConfig();
+        assertFalse(loaded.getWholeContainer().isTranslationEnabled()); assertFalse(loaded.getWholeContainer().isScaleEnabled());
+        assertTrue(loaded.getWholeContainer().isRotationEnabled()); assertTrue(loaded.getWholeContainer().isOpacityEnabled());
+        assertEquals(0.25f, loaded.getWholeContainer().getOpacity());
+        assertEquals(WholeContainerAnimation.sample(config, 3, 8, 4, false), WholeContainerAnimation.sample(loaded, 3, 8, 4, false));
+        var copy = clip.duplicateShallow().getAnimationConfig().getWholeContainer();
+        copy.setOpacity(1); copy.setTranslationEnabled(true); copy.setOpacityEnabled(false);
+        assertEquals(0.25f, settings.getOpacity()); assertFalse(settings.isTranslationEnabled()); assertTrue(settings.isOpacityEnabled());
+    }
+
     @Test void projectJsonRoundTripAndLegacyDefaults() {
         var viewport = new TimelineViewportState();
         var model = new TimelineModel(viewport);

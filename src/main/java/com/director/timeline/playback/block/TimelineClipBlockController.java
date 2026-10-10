@@ -1541,6 +1541,7 @@ public class TimelineClipBlockController {
             snapshot.markFullyVisible();
             snapshot.setRawProgress(frame.progress());
             snapshot.setTransform(frame.localTransform(pos, pivot));
+            snapshot.setAlpha(frame.alpha());
             if (handoff && worldReady) {
                 // Preserve the assembly's shape during the world-mesh handoff too.
                 var correction = new com.director.core.animation.WholeContainerAnimation.Frame(

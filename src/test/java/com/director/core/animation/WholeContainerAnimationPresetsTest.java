@@ -49,6 +49,7 @@ class WholeContainerAnimationPresetsTest {
             assertEquals(start.scale(), almostExit.scale(), 0.002f);
             assertEquals(start.y(), almostExit.y(), 0.002f);
             assertEquals(start.rotationY(), almostExit.rotationY(), 0.002f);
+            assertEquals(start.alpha(), almostExit.alpha(), 0.002f);
             if (settings.getEffect() == WholeContainerAnimationConfig.Effect.ROTATE)
                 assertEquals(720, start.rotationY());
             assertTrue(WholeContainerAnimation.sample(config, 10, 20, 14, false).worldVisible());
