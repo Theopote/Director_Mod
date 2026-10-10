@@ -1517,7 +1517,7 @@ public class TimelineClipBlockController {
         var frame = com.director.core.animation.WholeContainerAnimation.sample(
                 config, clip.getStartTime(), clip.getEndTime(), enabled ? time : clip.getStartTime() - 1, exit);
         var pivot = com.director.core.animation.WholeContainerAnimation.pivot(
-                container.getBoundingBox(), config.getWholeContainer().getPivot());
+                container.getBoundingBox(), config.getWholeContainer());
         // Rebuild overrides even while scrubbing: the original world structure must stay hidden.
         manager.setBlocksState(getCachedContainerBlocks(container), BlockVisualStateManager.BlockVisualState.hidden());
         float end = Math.min(clip.getEndTime(), clip.getStartTime() + config.getDelay() + config.getDuration());

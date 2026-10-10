@@ -593,29 +593,50 @@ public class TimelineClipPropertyUi {
         WholeContainerAnimationConfig settings = config.getWholeContainer();
         ImInt effect = new ImInt(settings.getEffect().ordinal());
         if (ImGui.combo(wholeText("effect"), effect,
-                new String[] {wholeText(exit ? "shrink" : "scale"), wholeText(exit ? "fly_out" : "fly_in")})) {
+                new String[] {wholeText(exit ? "shrink" : "scale"), wholeText(exit ? "fly_out" : "fly_in"),
+                        wholeText(exit ? "rotate_out" : "rotate_in"), wholeText(exit ? "transform_out" : "transform_in")})) {
             settings.setEffect(WholeContainerAnimationConfig.Effect.values()[effect.get()]);
             modified = true;
         }
         ImGui.textWrapped(wholeText("hint"));
         ImInt pivot = new ImInt(settings.getPivot().ordinal());
-        if (ImGui.combo(wholeText("pivot"), pivot, new String[] {wholeText("center"), wholeText("bottom_center")})) {
+        if (ImGui.combo(wholeText("pivot"), pivot,
+                new String[] {wholeText("center"), wholeText("bottom_center"), wholeText("custom_pivot")})) {
             settings.setPivot(WholeContainerAnimationConfig.Pivot.values()[pivot.get()]);
             modified = true;
         }
-        if (settings.getEffect() == WholeContainerAnimationConfig.Effect.SCALE) {
+        if (settings.getPivot() == WholeContainerAnimationConfig.Pivot.CUSTOM) {
+            float[] pivotOffset = {settings.getPivotX(), settings.getPivotY(), settings.getPivotZ()};
+            if (ImGui.dragFloat3(wholeText("pivot_offset"), pivotOffset, 0.1f, -10000, 10000, "%.2f")) {
+                settings.setCustomPivot(pivotOffset[0], pivotOffset[1], pivotOffset[2]);
+                modified = true;
+            }
+            ImGui.textWrapped(wholeText("pivot_hint"));
+        }
+        boolean combined = settings.getEffect() == WholeContainerAnimationConfig.Effect.TRANSFORM;
+        if (combined || settings.getEffect() == WholeContainerAnimationConfig.Effect.SCALE) {
             float[] scale = {settings.getScale()};
             if (ImGui.dragFloat(wholeText(exit ? "end_scale" : "start_scale"), scale, 0.01f, 0, 10, "%.2f")) {
                 settings.setScale(scale[0]);
                 modified = true;
             }
-        } else {
+        }
+        if (combined || settings.getEffect() == WholeContainerAnimationConfig.Effect.FLY) {
             float[] offset = {settings.getOffsetX(), settings.getOffsetY(), settings.getOffsetZ()};
             if (ImGui.dragFloat3(wholeText(exit ? "end_offset" : "start_offset"), offset, 0.1f, -10000, 10000, "%.2f")) {
                 settings.setOffset(offset[0], offset[1], offset[2]);
                 modified = true;
             }
         }
+        if (combined || settings.getEffect() == WholeContainerAnimationConfig.Effect.ROTATE) {
+            float[] rotation = {settings.getRotationX(), settings.getRotationY(), settings.getRotationZ()};
+            if (ImGui.dragFloat3(wholeText(exit ? "end_rotation" : "start_rotation"), rotation, 1, -3600, 3600, "%.1f")) {
+                settings.setRotation(rotation[0], rotation[1], rotation[2]);
+                modified = true;
+            }
+            ImGui.textWrapped(wholeText("rotation_hint"));
+        }
+        if (combined) ImGui.textWrapped(wholeText("transform_hint"));
         float[] duration = {config.getDuration()};
         if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_DURATION_SECONDS),
                 duration, 0.05f, 0.05f, Math.max(0.05f, clip.getLength()), "%.2fs")) {

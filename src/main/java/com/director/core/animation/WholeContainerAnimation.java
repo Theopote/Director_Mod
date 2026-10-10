@@ -5,13 +5,19 @@ import com.director.core.container.Container;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.RotationAxis;
 
 /** Pure timeline sampling: no world edits, effects, or frame-dependent state. */
 public final class WholeContainerAnimation {
     private WholeContainerAnimation() {}
 
     public record Frame(boolean worldVisible, boolean renderVisible, boolean animating,
-                        float progress, float scale, float x, float y, float z) {
+                        float progress, float scale, float x, float y, float z,
+                        float rotationX, float rotationY, float rotationZ) {
+        public Frame(boolean worldVisible, boolean renderVisible, boolean animating,
+                     float progress, float scale, float x, float y, float z) {
+            this(worldVisible, renderVisible, animating, progress, scale, x, y, z, 0, 0, 0);
+        }
         /** Conjugate the shared pivot into block-local space, preserving all relative positions. */
         public MatrixStack localTransform(BlockPos pos, Vec3d pivot) {
             if (!animating) return null;
@@ -20,6 +26,10 @@ public final class WholeContainerAnimation {
             double py = pivot.y - pos.getY();
             double pz = pivot.z - pos.getZ();
             matrix.translate(x + px, y + py, z + pz);
+            // Match the existing block engine: yaw, pitch, then roll. Angles preserve full turns.
+            if (rotationY != 0) matrix.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(rotationY));
+            if (rotationX != 0) matrix.multiply(RotationAxis.POSITIVE_X.rotationDegrees(rotationX));
+            if (rotationZ != 0) matrix.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotationZ));
             // Avoid a singular normal matrix at the exact beginning/end of a zero-scale effect.
             float safeScale = Math.max(0.0001f, scale);
             matrix.scale(safeScale, safeScale, safeScale);
@@ -40,14 +50,22 @@ public final class WholeContainerAnimation {
         WholeContainerAnimationConfig settings = config.getWholeContainer();
         float scale = 1;
         float x = 0, y = 0, z = 0;
-        if (settings.getEffect() == WholeContainerAnimationConfig.Effect.SCALE) {
+        float rotationX = 0, rotationY = 0, rotationZ = 0;
+        boolean combined = settings.getEffect() == WholeContainerAnimationConfig.Effect.TRANSFORM;
+        if (combined || settings.getEffect() == WholeContainerAnimationConfig.Effect.SCALE) {
             scale = Math.max(0, 1 + (settings.getScale() - 1) * amount);
-        } else {
+        }
+        if (combined || settings.getEffect() == WholeContainerAnimationConfig.Effect.FLY) {
             x = settings.getOffsetX() * amount;
             y = settings.getOffsetY() * amount;
             z = settings.getOffsetZ() * amount;
         }
-        return new Frame(false, true, true, raw, scale, x, y, z);
+        if (combined || settings.getEffect() == WholeContainerAnimationConfig.Effect.ROTATE) {
+            rotationX = settings.getRotationX() * amount;
+            rotationY = settings.getRotationY() * amount;
+            rotationZ = settings.getRotationZ() * amount;
+        }
+        return new Frame(false, true, true, raw, scale, x, y, z, rotationX, rotationY, rotationZ);
     }
 
     private static Frame stationary(boolean visible, float progress) {
@@ -61,5 +79,11 @@ public final class WholeContainerAnimation {
                 kind == WholeContainerAnimationConfig.Pivot.BOTTOM_CENTER ? min.getY()
                         : (min.getY() + (double) max.getY() + 1) / 2,
                 (min.getZ() + (double) max.getZ() + 1) / 2);
+    }
+
+    public static Vec3d pivot(Container.BoundingBox bounds, WholeContainerAnimationConfig settings) {
+        Vec3d base = pivot(bounds, settings.getPivot());
+        return settings.getPivot() == WholeContainerAnimationConfig.Pivot.CUSTOM
+                ? base.add(settings.getPivotX(), settings.getPivotY(), settings.getPivotZ()) : base;
     }
 }

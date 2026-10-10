@@ -280,6 +280,9 @@ public class BlockAnimationRenderer {
         // matrices.top = matrices.top * snapshot.top
         var snapshotMatrix = snapshotStack.peek().getPositionMatrix();
         var currentMatrix = matrices.peek().getPositionMatrix();
+        // Resolve normals before changing positions: entries can compute their normal matrix lazily.
+        var snapshotNormalMatrix = snapshotStack.peek().getNormalMatrix();
+        var currentNormalMatrix = matrices.peek().getNormalMatrix();
 
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[BlockAnimationRenderer] applyAnimationTransformFromSnapshot: pos={} matrix={}",
@@ -287,6 +290,7 @@ public class BlockAnimationRenderer {
         }
 
         currentMatrix.mul(snapshotMatrix);
+        currentNormalMatrix.mul(snapshotNormalMatrix);
     }
 
     // 特效触发已统一由 BlockAnimationEngine.sample() 内部负责：
