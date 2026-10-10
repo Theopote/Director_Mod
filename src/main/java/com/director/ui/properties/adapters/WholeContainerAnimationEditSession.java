@@ -17,12 +17,12 @@ public final class WholeContainerAnimationEditSession {
                              float scale, float x, float y, float z,
                              float rx, float ry, float rz, float px, float py, float pz,
                              boolean translation, boolean rotation, boolean scaling, boolean fading, float opacity,
-                             WholeContainerAnimationConfig.Motion motion, float strength, int cycles, float height, WholeContainerAnimationConfig.DustPreset dustPreset, boolean dust, float dustIntensity, float dustSpread) {
+                             WholeContainerAnimationConfig.Motion motion, float strength, int cycles, float height, WholeContainerAnimationConfig.DustPreset dustPreset, boolean dust, float dustIntensity, float dustSpread, int waveCount, float waveDecay) {
         static Transform capture(WholeContainerAnimationConfig c) {
             return new Transform(c.getEffect(), c.getPivot(), c.getScale(), c.getOffsetX(),
                     c.getOffsetY(), c.getOffsetZ(), c.getRotationX(), c.getRotationY(),
                     c.getRotationZ(), c.getPivotX(), c.getPivotY(), c.getPivotZ(),
-                    c.isTranslationEnabled(), c.isRotationEnabled(), c.isScaleEnabled(), c.isOpacityEnabled(), c.getOpacity(), c.getMotion(), c.getMotionStrength(), c.getMotionCycles(), c.getBounceHeight(), c.getDustPreset(), c.isDustEnabled(), c.getDustIntensity(), c.getDustSpread());
+                    c.isTranslationEnabled(), c.isRotationEnabled(), c.isScaleEnabled(), c.isOpacityEnabled(), c.getOpacity(), c.getMotion(), c.getMotionStrength(), c.getMotionCycles(), c.getBounceHeight(), c.getDustPreset(), c.isDustEnabled(), c.getDustIntensity(), c.getDustSpread(), c.getShockwaveCount(), c.getShockwaveDecay());
         }
         void apply(WholeContainerAnimationConfig c) {
             c.setEffect(effect); c.setPivot(pivot); c.setScale(scale);
@@ -31,6 +31,7 @@ public final class WholeContainerAnimationEditSession {
             c.setScaleEnabled(scaling); c.setOpacityEnabled(fading); c.setOpacity(opacity);
             c.setMotion(motion); c.setMotionStrength(strength); c.setMotionCycles(cycles); c.setBounceHeight(height);
             c.setDustPreset(dustPreset); c.setDustEnabled(dust); c.setDustIntensity(dustIntensity); c.setDustSpread(dustSpread);
+            c.setShockwaveCount(waveCount); c.setShockwaveDecay(waveDecay);
         }
     }
     private record State(ClipAnimationConfig.AnimationScope scope, AnimationMode mode,

@@ -1449,6 +1449,16 @@ public class TimelineClipPropertyUi {
             settings.setDustPreset(WholeContainerAnimationConfig.DustPreset.values()[preset.get()]);
             modified = true;
         }
+        if (settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.SHOCKWAVE) {
+            int[] count = {settings.getShockwaveCount()};
+            if (ImGui.dragInt(wholeText("wave_count"), count, 0.1f, 1, 6)) {
+                settings.setShockwaveCount(count[0]); modified = true;
+            }
+            float[] decay = {settings.getShockwaveDecay()};
+            if (ImGui.dragFloat(wholeText("wave_decay"), decay, 0.01f, 0, 1, "%.2f")) {
+                settings.setShockwaveDecay(decay[0]); modified = true;
+            }
+        }
         ImGui.textWrapped(wholeText(settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.SHOCKWAVE
                 ? "shockwave_hint" : "dust_hint"));
         if (settings.isDustEnabled() && ImGui.collapsingHeader(wholeText("visual_parameters"))) {

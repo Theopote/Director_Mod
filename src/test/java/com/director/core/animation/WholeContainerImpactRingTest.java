@@ -76,4 +76,70 @@ class WholeContainerImpactRingTest {
         assertEquals(expected, WholeContainerDust.sample(reverse, s.copy(), 42));
         var copy = s.copy(); copy.setDustSpread(1); assertEquals(3, s.getDustSpread());
     }
+    @Test void multipleWavesHaveOrderedDelaysAndDecayWithoutExceedingTotalBudget() {
+        var s = settings(); s.setShockwaveCount(4); s.setShockwaveDecay(0.4f);
+        var waves = WholeContainerImpactRing.waves(List.of(BlockPos.ORIGIN), s, 42);
+        assertEquals(4, waves.size());
+        int total = 0;
+        for (int i = 0; i < waves.size(); i++) {
+            var wave = waves.get(i);
+            assertEquals(i * WholeContainerImpactRing.WAVE_INTERVAL_TICKS, wave.delayTicks());
+            assertEquals(Math.pow(0.6, i), wave.strength(), 0.00001);
+            assertTrue(wave.particles().size() >= 8);
+            if (i > 0) assertTrue(wave.particles().size() <= waves.get(i - 1).particles().size());
+            total += wave.particles().size();
+        }
+        assertTrue(total <= WholeContainerDust.MAX_PARTICLES);
+        var large = new ArrayList<BlockPos>();
+        for (int i = 0; i < 10000; i++) large.add(new BlockPos(i, 0, 0));
+        s.setShockwaveCount(6); s.setDustIntensity(5); s.setShockwaveDecay(0);
+        assertTrue(WholeContainerImpactRing.waves(large, s, 42).stream()
+                .mapToInt(w -> w.particles().size()).sum() <= WholeContainerDust.MAX_PARTICLES);
+    }
+    @Test void eachWaveHasEvenAngularSpacingAndBalancedVelocity() {
+        var s = settings();
+        for (var wave : WholeContainerImpactRing.waves(List.of(BlockPos.ORIGIN), s, 42)) {
+            double sumX = 0, sumZ = 0;
+            for (var p : wave.particles()) { sumX += p.vx(); sumZ += p.vz(); }
+            assertEquals(0, sumX, 0.000001); assertEquals(0, sumZ, 0.000001);
+        }
+    }
+    @Test void eachWaveFadesMonotonicallyToZeroWithReducedInitialAlpha() {
+        for (float strength : new float[] {1, 0.65f, 0.3f}) {
+            assertEquals(strength, WholeContainerImpactRing.alpha(strength, 0));
+            float previous = strength;
+            for (int age = 1; age <= WholeContainerImpactRing.WAVE_LIFETIME_TICKS; age++) {
+                float alpha = WholeContainerImpactRing.alpha(strength, age);
+                assertTrue(alpha >= 0 && alpha <= previous); previous = alpha;
+            }
+            assertEquals(0, WholeContainerImpactRing.alpha(strength, WholeContainerImpactRing.WAVE_LIFETIME_TICKS));
+        }
+    }
+    @Test void singleWaveNoDecayAndFullDecayAreSupported() {
+        var s = settings(); s.setShockwaveCount(1);
+        assertEquals(1, WholeContainerImpactRing.waves(List.of(BlockPos.ORIGIN), s, 42).size());
+        s.setShockwaveCount(3); s.setShockwaveDecay(0);
+        var waves = WholeContainerImpactRing.waves(List.of(BlockPos.ORIGIN), s, 42);
+        assertEquals(3, waves.size());
+        for (var wave : waves) assertEquals(1, wave.strength());
+        s.setShockwaveDecay(1);
+        assertEquals(1, WholeContainerImpactRing.waves(List.of(BlockPos.ORIGIN), s, 42).size());
+    }
+    @Test void waveControlsHaveLegacyDefaultsAndSurviveJsonCopiesAndAnimationPresets() {
+        var gson = new Gson();
+        var legacy = gson.fromJson("{}", WholeContainerAnimationConfig.class);
+        assertEquals(3, legacy.getShockwaveCount()); assertEquals(0.35f, legacy.getShockwaveDecay());
+        var c = ClipAnimationConfig.defaultConfig(); var s = c.getWholeContainer();
+        s.setDustPreset(WholeContainerAnimationConfig.DustPreset.SHOCKWAVE);
+        s.setShockwaveCount(5); s.setShockwaveDecay(0.2f);
+        var loaded = gson.fromJson(gson.toJson(c), ClipAnimationConfig.class);
+        assertEquals(5, loaded.getWholeContainer().getShockwaveCount());
+        assertEquals(0.2f, loaded.getWholeContainer().getShockwaveDecay());
+        assertEquals(5, c.copy().getWholeContainer().getShockwaveCount());
+        WholeContainerAnimationPresets.apply(c, WholeContainerAnimationPresets.Preset.ELASTIC_GROW, null);
+        assertEquals(5, c.getWholeContainer().getShockwaveCount());
+        assertEquals(0.2f, c.getWholeContainer().getShockwaveDecay());
+        s.setShockwaveCount(99); s.setShockwaveDecay(Float.NaN);
+        assertEquals(6, s.getShockwaveCount()); assertEquals(0.35f, s.getShockwaveDecay());
+    }
 }

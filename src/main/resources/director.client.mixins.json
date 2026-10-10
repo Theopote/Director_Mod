@@ -3,6 +3,7 @@
   "package": "com.director.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "BillboardParticleAccessor",
     "MouseMixin",
     "KeyboardMixin",
     "CrosshairMixin",

@@ -21,6 +21,8 @@ public final class WholeContainerAnimationConfig implements Serializable {
     private boolean dustEnabled;
     private Float dustIntensity;
     private Float dustSpread;
+    private Integer shockwaveCount;
+    private Float shockwaveDecay;
 
     private Effect effect = Effect.SCALE;
     private Pivot pivot = Pivot.BOTTOM_CENTER;
@@ -92,9 +94,14 @@ public final class WholeContainerAnimationConfig implements Serializable {
             setDustSpread(dustPreset == DustPreset.IMPACT_DUST ? 1.2f : dustPreset == DustPreset.SHOCKWAVE ? 0.8f : 0.6f);
         }
     }
+    public int getShockwaveCount() { return shockwaveCount != null ? Math.clamp(shockwaveCount, 1, 6) : 3; }
+    public void setShockwaveCount(int value) { shockwaveCount = Math.clamp(value, 1, 6); }
+    public float getShockwaveDecay() { return finite(shockwaveDecay != null ? shockwaveDecay : 0.35f, 0.35f, 0, 1); }
+    public void setShockwaveDecay(float value) { shockwaveDecay = finite(value, 0.35f, 0, 1); }
     public void copyDustFrom(WholeContainerAnimationConfig source) {
         dustPreset = source.dustPreset; dustEnabled = source.dustEnabled;
         dustIntensity = source.dustIntensity; dustSpread = source.dustSpread;
+        shockwaveCount = source.shockwaveCount; shockwaveDecay = source.shockwaveDecay;
     }
     public boolean isDustEnabled() { return dustEnabled; }
     public void setDustEnabled(boolean value) { dustEnabled = value; }

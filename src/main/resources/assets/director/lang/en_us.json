@@ -2435,5 +2435,7 @@
   "gui.director.properties.clip_ui.whole_animation.visual_shockwave": "Shockwave",
   "gui.director.properties.clip_ui.whole_animation.visual_intensity": "Effect intensity",
   "gui.director.properties.clip_ui.whole_animation.visual_spread": "Effect spread (blocks)",
-  "gui.director.properties.clip_ui.whole_animation.shockwave_hint": "A glowing particle ring expands from the bottom of the assembly on arrival completion or demolition start. Playback only; particles dissipate in game time."
+  "gui.director.properties.clip_ui.whole_animation.shockwave_hint": "A glowing particle ring expands from the bottom of the assembly on arrival completion or demolition start. Playback only; particles dissipate in game time.",
+  "gui.director.properties.clip_ui.whole_animation.wave_count": "Wave count",
+  "gui.director.properties.clip_ui.whole_animation.wave_decay": "Decay per wave (0 none, 1 first wave only)"
 }

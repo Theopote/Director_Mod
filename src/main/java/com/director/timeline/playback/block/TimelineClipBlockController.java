@@ -1570,15 +1570,15 @@ public class TimelineClipBlockController {
     private void emitWholeContainerDust(Container container, ClipAnimationConfig config) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null || client.particleManager == null) return;
+        if (config.getWholeContainer().getDustPreset()
+                == com.director.core.animation.WholeContainerAnimationConfig.DustPreset.SHOCKWAVE) {
+            com.director.core.animation.WholeContainerImpactRingPlayer.play(client,
+                    getCachedContainerBlocks(container), config.getWholeContainer(), container.getId().hashCode());
+            return;
+        }
         var particles = com.director.core.animation.WholeContainerDust.sample(
                 getCachedContainerBlocks(container), config.getWholeContainer(), container.getId().hashCode());
         for (var particle : particles) {
-            if (config.getWholeContainer().getDustPreset()
-                    == com.director.core.animation.WholeContainerAnimationConfig.DustPreset.SHOCKWAVE) {
-                client.particleManager.addParticle(net.minecraft.particle.ParticleTypes.END_ROD,
-                        particle.x(), particle.y(), particle.z(), particle.vx(), particle.vy(), particle.vz());
-                continue;
-            }
             BlockState state = resolveBlockStateForRender(container, particle.source());
             net.minecraft.particle.ParticleEffect effect = state != null && !state.isAir()
                     ? new net.minecraft.particle.BlockStateParticleEffect(net.minecraft.particle.ParticleTypes.BLOCK, state)

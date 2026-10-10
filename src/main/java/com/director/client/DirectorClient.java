@@ -180,6 +180,7 @@ public class DirectorClient implements ClientModInitializer {
     private void registerKeyBindingHandler() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             com.director.ui.DirectorScreen.tickPendingRestore(client);
+            com.director.core.animation.WholeContainerImpactRingPlayer.tick(client);
 
             if (client.player != null && client.currentScreen == null) {
                 if (directorKeyBinding.wasPressed()) {

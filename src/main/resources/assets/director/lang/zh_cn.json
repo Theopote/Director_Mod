@@ -2435,5 +2435,7 @@
   "gui.director.properties.clip_ui.whole_animation.visual_shockwave": "冲击波",
   "gui.director.properties.clip_ui.whole_animation.visual_intensity": "特效强度",
   "gui.director.properties.clip_ui.whole_animation.visual_spread": "特效扩散范围（方块）",
-  "gui.director.properties.clip_ui.whole_animation.shockwave_hint": "出现完成或拆除开始时，沿组合底部向外扩散一圈发光粒子。仅正常播放时触发；粒子按游戏时间消散。"
+  "gui.director.properties.clip_ui.whole_animation.shockwave_hint": "出现完成或拆除开始时，沿组合底部向外扩散一圈发光粒子。仅正常播放时触发；粒子按游戏时间消散。",
+  "gui.director.properties.clip_ui.whole_animation.wave_count": "波纹圈数",
+  "gui.director.properties.clip_ui.whole_animation.wave_decay": "逐圈衰减（0 无衰减，1 仅首圈）"
 }

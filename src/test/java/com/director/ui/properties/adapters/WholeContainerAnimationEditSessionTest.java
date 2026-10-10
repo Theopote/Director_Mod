@@ -252,4 +252,13 @@ class WholeContainerAnimationEditSessionTest {
         assertEquals(WholeContainerAnimationConfig.DustPreset.SHOCKWAVE, config.getWholeContainer().getDustPreset());
         assertEquals(2, config.getWholeContainer().getDustSpread());
     }
+    @Test void waveCountAndDecayUndoAndRedoTogether() {
+        var s = clip.getAnimationConfig().getWholeContainer();
+        s.setDustPreset(WholeContainerAnimationConfig.DustPreset.SHOCKWAVE);
+        change(() -> { s.setShockwaveCount(5); s.setShockwaveDecay(0.6f); }, false);
+        history.undo();
+        assertEquals(3, s.getShockwaveCount()); assertEquals(0.35f, s.getShockwaveDecay());
+        history.redo();
+        assertEquals(5, s.getShockwaveCount()); assertEquals(0.6f, s.getShockwaveDecay());
+    }
 }
