@@ -1,6 +1,8 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.core.animation.ClipAnimationConfig;
+import com.director.core.animation.WholeContainerAnimation;
 import com.director.core.animation.WholeContainerAnimationConfig;
 import com.director.core.animation.easing.EasingFunction;
 import com.director.core.animation.transform.AnimationTransformerFactory;
@@ -640,7 +642,14 @@ public class TimelineClipPropertyUi {
         float[] duration = {config.getDuration()};
         if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_DURATION_SECONDS),
                 duration, 0.05f, 0.05f, Math.max(0.05f, clip.getLength()), "%.2fs")) {
+            float oldDuration = config.getDuration();
             config.setDuration(duration[0]);
+            var timeline = DirectorServices.get().containerTimeline().getTimelineModel();
+            if (timeline != null && timeline.findTrackForClip(clip) != null) {
+                timeline.setCurrentTime(WholeContainerAnimation.retimePreviewTime(
+                        clip.getStartTime(), clip.getEndTime(), config.getDelay(),
+                        oldDuration, config.getDuration(), timeline.getCurrentTime()));
+            }
             modified = true;
         }
         float[] delay = {config.getDelay()};

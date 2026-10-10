@@ -68,6 +68,19 @@ public final class WholeContainerAnimation {
         return new Frame(false, true, true, raw, scale, x, y, z, rotationX, rotationY, rotationZ);
     }
 
+    /** Keep the preview at the same normalized phase when the duration is edited.
+     * Times outside the old animation window belong to the rest of the timeline.
+     */
+    public static float retimePreviewTime(float clipStart, float clipEnd, float delay,
+                                         float oldDuration, float newDuration, float time) {
+        float start = Math.min(clipEnd, clipStart + Math.max(0, delay));
+        float oldEnd = Math.min(clipEnd, start + oldDuration);
+        float newEnd = Math.min(clipEnd, start + newDuration);
+        if (oldEnd <= start || time < start || time > oldEnd) return time;
+        float progress = (time - start) / (oldEnd - start);
+        return start + progress * (newEnd - start);
+    }
+
     private static Frame stationary(boolean visible, float progress) {
         return new Frame(visible, visible, false, progress, 1, 0, 0, 0);
     }

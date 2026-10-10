@@ -70,6 +70,86 @@ class WholeContainerAnimationTest {
         assertEquals(mid.x(), exit.x());
     }
 
+    @Test void shorterRotationKeepsAllTurnsAndDoublesAngularSpeed() {
+        for (var effect : new WholeContainerAnimationConfig.Effect[] {
+                WholeContainerAnimationConfig.Effect.ROTATE, WholeContainerAnimationConfig.Effect.TRANSFORM}) {
+            for (boolean exit : new boolean[] {false, true}) {
+                var config = config();
+                config.setDelay(0);
+                config.setEasing("LINEAR");
+                config.getWholeContainer().setEffect(effect);
+                config.getWholeContainer().setRotation(-720, 1080, 360);
+                for (float duration : new float[] {2, 1, 0.5f}) {
+                    config.setDuration(duration);
+                    var start = WholeContainerAnimation.sample(config, 10, 20, 10, exit);
+                    assertEquals(exit ? 0 : 1080, start.rotationY(), 0.001f);
+                    float totalX = 0, totalY = 0, totalZ = 0;
+                    var previous = start;
+                    for (int step = 1; step <= 64; step++) {
+                        var frame = WholeContainerAnimation.sample(config, 10, 20,
+                                10 + duration * step / 64, exit);
+                        // EXIT's final invisible frame has no transform; use the authored endpoint.
+                        float x = step == 64 && exit ? -720 : frame.rotationX();
+                        float y = step == 64 && exit ? 1080 : frame.rotationY();
+                        float z = step == 64 && exit ? 360 : frame.rotationZ();
+                        totalX += Math.abs(x - previous.rotationX());
+                        totalY += Math.abs(y - previous.rotationY());
+                        totalZ += Math.abs(z - previous.rotationZ());
+                        previous = frame;
+                    }
+                    assertEquals(720, totalX, 0.001f);
+                    assertEquals(1080, totalY, 0.001f);
+                    assertEquals(360, totalZ, 0.001f);
+                    var later = WholeContainerAnimation.sample(config, 10, 20, 10.125f, exit);
+                    assertEquals(1080 / duration, Math.abs(later.rotationY() - start.rotationY()) / 0.125f, 0.001f);
+                }
+            }
+        }
+    }
+
+    @Test void durationEditsPreserveThePreviewPoseForEveryEffectAndDirection() {
+        for (var effect : WholeContainerAnimationConfig.Effect.values()) {
+            for (boolean exit : new boolean[] {false, true}) {
+                var config = config();
+                config.getWholeContainer().setEffect(effect);
+                config.getWholeContainer().setOffset(-12, 8, 4);
+                config.getWholeContainer().setRotation(90, 720, -180);
+                config.setEasing("EASE_IN_OUT_CUBIC");
+                float time = 11.5f; // quarter of the old two-second animation, after delay
+                var before = WholeContainerAnimation.sample(config, 10, 20, time, exit);
+                float retimed = WholeContainerAnimation.retimePreviewTime(10, 20, 1, 2, 1, time);
+                assertEquals(11.25f, retimed, 0.0001f);
+                config.setDuration(1);
+                var after = WholeContainerAnimation.sample(config, 10, 20, retimed, exit);
+                assertEquals(before, after);
+                // Returning to the start still plays the full effect, now twice as fast.
+                config.setDuration(2);
+                var oldStart = WholeContainerAnimation.sample(config, 10, 20, 11, exit);
+                config.setDuration(1);
+                assertEquals(oldStart, WholeContainerAnimation.sample(config, 10, 20, 11, exit));
+                assertFalse(WholeContainerAnimation.sample(config, 10, 20, 12, exit).animating());
+            }
+        }
+    }
+
+    @Test void repeatedDurationEditsAndLengtheningDoNotAccumulatePreviewDrift() {
+        float time = 11.75f;
+        float oldDuration = 2;
+        for (float duration : new float[] {1, 0.5f, 4, 2}) {
+            time = WholeContainerAnimation.retimePreviewTime(10, 20, 1, oldDuration, duration, time);
+            oldDuration = duration;
+        }
+        assertEquals(11.75f, time, 0.0001f);
+    }
+
+    @Test void durationEditUsesTheActualClippedWindowAndLeavesOtherTimesAlone() {
+        assertEquals(11.25f, WholeContainerAnimation.retimePreviewTime(10, 12, 1, 4, 0.5f, 11.5f));
+        assertEquals(10.5f, WholeContainerAnimation.retimePreviewTime(10, 20, 1, 2, 1, 10.5f));
+        assertEquals(14, WholeContainerAnimation.retimePreviewTime(10, 20, 1, 2, 1, 14));
+        assertEquals(12, WholeContainerAnimation.retimePreviewTime(10, 12, 20, 2, 1, 12));
+        assertEquals(12, WholeContainerAnimation.retimePreviewTime(10, 20, 1, 2, 1, 13));
+    }
+
     @Test void shortenedClipsAndExcessDelayRespectClipBoundaries() {
         var config = config();
         assertTrue(WholeContainerAnimation.sample(config, 0, 2, 1.5f, false).animating());
