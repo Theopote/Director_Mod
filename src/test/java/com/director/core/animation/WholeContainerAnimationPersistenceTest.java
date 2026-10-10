@@ -64,6 +64,10 @@ class WholeContainerAnimationPersistenceTest {
         config.getWholeContainer().setOffset(-30, 4, 12);
         config.setDelay(0.4f);
         config.setDuration(1.5f);
+        config.getParams().put("enterSoundTiming", "START");
+        config.getParams().put("enterSoundOffsetSeconds", -0.2f);
+        config.getParams().put("exitSoundTiming", "PRE_LAND");
+        config.getParams().put("exitSoundOffsetSeconds", 0.35f);
         track.addClip(clip);
         model.addTrack(track);
         var gson = new Gson();
@@ -82,7 +86,15 @@ class WholeContainerAnimationPersistenceTest {
         assertEquals(0.2f, loaded.getWholeContainer().getScale());
         assertEquals(0.4f, loaded.getDelay());
         assertEquals(1.5f, loaded.getDuration());
+        assertEquals("START", loaded.getParams().get("enterSoundTiming"));
+        assertEquals(-0.2f, ((Number) loaded.getParams().get("enterSoundOffsetSeconds")).floatValue());
+        assertEquals("PRE_LAND", loaded.getParams().get("exitSoundTiming"));
+        assertEquals(0.35f, ((Number) loaded.getParams().get("exitSoundOffsetSeconds")).floatValue());
+        assertEquals(3.2f, AnimationSoundCollector.wholeContainerEventTime(
+                restored.getTracks().getFirst().getClips().getFirst()), 0.0001f);
         var duplicate = clip.duplicateShallow();
+        duplicate.getAnimationConfig().getParams().put("enterSoundOffsetSeconds", 1.0f);
+        assertEquals(-0.2f, config.getParams().get("enterSoundOffsetSeconds"));
         duplicate.getAnimationConfig().getWholeContainer().setScale(0.8f);
         assertTrue(duplicate.getAnimationConfig().isWholeContainer());
         assertEquals(0.2f, config.getWholeContainer().getScale());

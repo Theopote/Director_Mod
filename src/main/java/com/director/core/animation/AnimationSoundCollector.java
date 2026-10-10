@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 
 /**
  * 动画声音收集器
@@ -71,13 +72,14 @@ public class AnimationSoundCollector {
             return events;
         }
 
-        if (clip.getAnimationConfig().isWholeContainer()) {
+        ClipAnimationConfig config = clip.getAnimationConfig();
+        if (config == null) config = ClipAnimationConfig.defaultConfig();
+        if (config.isWholeContainer()) {
             // A single placement/removal sound for the assembly, rather than thousands of simultaneous sounds.
             BlockPos pos = container.getBlocksView().stream().min(java.util.Comparator.comparingLong(BlockPos::asLong)).orElse(null);
             if (pos == null) return events;
-            ClipAnimationConfig whole = clip.getAnimationConfig();
-            float time = Math.min(clip.getEndTime(), clip.getStartTime() + whole.getDelay() + whole.getDuration());
-            boolean exit = whole.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT;
+            float time = wholeContainerEventTime(clip);
+            boolean exit = config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT;
             BlockState state = getBlockState(container, pos);
             events.add(new AudioEvent(clip.getLabel(), exit ? getBlockBreakSound(state) : getBlockPlaceSound(state), time));
             return events;
@@ -86,11 +88,6 @@ public class AnimationSoundCollector {
         
         float clipStart = clip.getStartTime();
         float clipDuration = clip.getLength();
-
-        ClipAnimationConfig config = clip.getAnimationConfig();
-        if (config == null) {
-            config = ClipAnimationConfig.defaultConfig();
-        }
 
         float animDuration = Math.max(0.05f, Math.min(config.getDuration(), clipDuration));
         float totalDelay = Math.max(0.0f, config.getDelay());
@@ -227,7 +224,7 @@ public class AnimationSoundCollector {
      * 对于有 overshoot 的曲线（如 EaseOutBack/EaseOutElastic），该值通常 < 1；
      * 对于不 overshoot 的曲线，结果为 1。
      */
-    private float findFirstReachOne(String easingName) {
+    private static float findFirstReachOne(String easingName) {
         EasingFunction easing = EasingFunction.fromString(easingName);
 
         // 轻量扫描：步数越大越精确，但也更耗；这里足够用
@@ -327,6 +324,27 @@ public class AnimationSoundCollector {
         } else {
             return "minecraft:block.stone.break";
         }
+    }
+
+    /** Whole-container effects stay animated even when the preserved per-block mode is INSTANT. */
+    static float wholeContainerEventTime(TimelineClip clip) {
+        ClipAnimationConfig config = clip.getAnimationConfig();
+        var window = WholeContainerAnimation.window(config, clip.getStartTime(), clip.getEndTime());
+        String prefix = config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT ? "exit" : "enter";
+        var params = config.getParams();
+        String timing = soundTimingParam(params, prefix + "SoundTiming").toUpperCase(Locale.ROOT);
+        float eventTime = switch (timing) {
+            case "START" -> window.start();
+            case "PRE_LAND" -> Math.max(window.start(), window.end() - 1.0f / 60.0f);
+            case "IMPACT" -> window.start() + findFirstReachOne(config.getEasing())
+                    * (window.end() - window.start());
+            default -> window.end();
+        };
+        String offsetKey = prefix + "SoundOffsetSeconds";
+        float offset = ParseUtils.asFloat(params.get(offsetKey), 0, offsetKey);
+        if (!Float.isFinite(offset)) offset = 0;
+        // Explicit offsets may extend past the clip; only negative global times are forbidden.
+        return Math.max(0, eventTime + offset);
     }
 
     private static String soundTimingParam(Map<String, Object> params, String key) {

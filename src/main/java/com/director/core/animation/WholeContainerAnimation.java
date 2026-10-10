@@ -38,10 +38,22 @@ public final class WholeContainerAnimation {
         }
     }
 
+    public record Window(float start, float end) {}
+
+    /** Rendering, world handoff and audio use the same effective clip-local window. */
+    public static Window window(ClipAnimationConfig config, float clipStart, float clipEnd) {
+        return window(clipStart, clipEnd, config.getDelay(), config.getDuration());
+    }
+
+    private static Window window(float clipStart, float clipEnd, float delay, float duration) {
+        float start = Math.min(clipEnd, clipStart + Math.max(0, delay));
+        return new Window(start, Math.min(clipEnd, start + duration));
+    }
+
     public static Frame sample(ClipAnimationConfig config, float clipStart, float clipEnd,
                                float time, boolean exit) {
-        float start = Math.min(clipEnd, clipStart + Math.max(0, config.getDelay()));
-        float end = Math.min(clipEnd, start + config.getDuration());
+        Window window = window(config, clipStart, clipEnd);
+        float start = window.start(), end = window.end();
         if (time < start) return stationary(exit, 0);
         if (time >= end || end <= start) return stationary(!exit, 1);
         float raw = (time - start) / (end - start);
@@ -73,9 +85,9 @@ public final class WholeContainerAnimation {
      */
     public static float retimePreviewTime(float clipStart, float clipEnd, float delay,
                                          float oldDuration, float newDuration, float time) {
-        float start = Math.min(clipEnd, clipStart + Math.max(0, delay));
-        float oldEnd = Math.min(clipEnd, start + oldDuration);
-        float newEnd = Math.min(clipEnd, start + newDuration);
+        Window oldWindow = window(clipStart, clipEnd, delay, oldDuration);
+        Window newWindow = window(clipStart, clipEnd, delay, newDuration);
+        float start = oldWindow.start(), oldEnd = oldWindow.end(), newEnd = newWindow.end();
         if (oldEnd <= start || time < start || time > oldEnd) return time;
         float progress = (time - start) / (oldEnd - start);
         return start + progress * (newEnd - start);

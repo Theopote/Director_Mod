@@ -1520,7 +1520,8 @@ public class TimelineClipBlockController {
                 container.getBoundingBox(), config.getWholeContainer());
         // Rebuild overrides even while scrubbing: the original world structure must stay hidden.
         manager.setBlocksState(getCachedContainerBlocks(container), BlockVisualStateManager.BlockVisualState.hidden());
-        float end = Math.min(clip.getEndTime(), clip.getStartTime() + config.getDelay() + config.getDuration());
+        float end = com.director.core.animation.WholeContainerAnimation.window(
+                config, clip.getStartTime(), clip.getEndTime()).end();
         boolean handoff = enabled && !exit && opacity >= 0.999f && !frame.animating() && time >= end
                 && time < end + com.director.core.animation.AnimationConstants.HANDOFF_POST_WINDOW;
         for (BlockPos pos : visibleBlocks) {
