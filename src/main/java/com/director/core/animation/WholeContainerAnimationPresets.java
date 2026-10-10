@@ -6,7 +6,7 @@ import java.util.Objects;
 
 /** Authored transforms shared by enter and demolition clips; the sampler supplies the direction. */
 public final class WholeContainerAnimationPresets {
-    public enum Preset { GROW, FROM_ABOVE, FROM_BELOW, FROM_SIDE, SPIN, SPIN_GROW, SPIN_FLY, FADE, SOFT_GROW, ELASTIC_GROW, BOUNCE_DROP }
+    public enum Preset { GROW, FROM_ABOVE, FROM_BELOW, FROM_SIDE, SPIN, SPIN_GROW, SPIN_FLY, FADE, SOFT_GROW, ELASTIC_GROW, BOUNCE_DROP, ARC_FLY }
     private WholeContainerAnimationPresets() {}
 
     public static void apply(ClipAnimationConfig config, Preset preset, Container.BoundingBox bounds) {
@@ -33,6 +33,13 @@ public final class WholeContainerAnimationPresets {
                 settings.setEffect(WholeContainerAnimationConfig.Effect.FLY);
                 if (preset == Preset.FROM_SIDE) settings.setOffset(-horizontal, 0, 0);
                 else settings.setOffset(0, preset == Preset.FROM_ABOVE ? vertical : -vertical, 0);
+            }
+            case ARC_FLY -> {
+                settings.setEffect(WholeContainerAnimationConfig.Effect.FLY);
+                settings.setOffset(-horizontal, 0, 0);
+                settings.setFlightPath(WholeContainerAnimationConfig.FlightPath.ARC);
+                settings.setArcHeight(bounds == null ? 3 : Math.max(3, bounds.getHeight() * 0.75f));
+                easing = EasingFunction.EASE_IN_OUT_CUBIC;
             }
             case BOUNCE_DROP -> {
                 settings.setEffect(WholeContainerAnimationConfig.Effect.FLY);

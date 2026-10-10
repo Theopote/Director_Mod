@@ -8,10 +8,13 @@ public final class WholeContainerAnimationConfig implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
     public enum Effect { SCALE, FLY, ROTATE, TRANSFORM, FADE, INSTANT }
+    public enum FlightPath { STRAIGHT, ARC }
     public enum Pivot { CENTER, BOTTOM_CENTER, CUSTOM }
     public enum DustPreset { NONE, SOFT_DUST, IMPACT_DUST, SHOCKWAVE }
     public enum Motion { NONE, ELASTIC, BOUNCE }
 
+    private FlightPath flightPath;
+    private Float arcHeight;
     private Motion motion;
     private Float motionStrength;
     private Integer motionCycles;
@@ -82,6 +85,11 @@ public final class WholeContainerAnimationConfig implements Serializable {
     public boolean usesScale() { return getEffect() == Effect.SCALE || getEffect() == Effect.TRANSFORM && isScaleEnabled(); }
     public boolean usesOpacity() { return getEffect() == Effect.FADE || getEffect() == Effect.TRANSFORM && isOpacityEnabled(); }
 
+    public FlightPath getFlightPath() { return flightPath != null ? flightPath : FlightPath.STRAIGHT; }
+    public void setFlightPath(FlightPath value) { flightPath = value != null ? value : FlightPath.STRAIGHT; }
+    public float getArcHeight() { return finite(arcHeight != null ? arcHeight : 3, 3, -1000, 1000); }
+    public void setArcHeight(float value) { arcHeight = finite(value, 3, -1000, 1000); }
+
     public DustPreset getDustPreset() {
         return !dustEnabled ? DustPreset.NONE
                 : dustPreset != null && dustPreset != DustPreset.NONE ? dustPreset : DustPreset.SOFT_DUST;
@@ -144,6 +152,7 @@ public final class WholeContainerAnimationConfig implements Serializable {
         copy.scaleEnabled = scaleEnabled;
         copy.opacityEnabled = opacityEnabled;
         copy.setOpacity(getOpacity());
+        copy.setFlightPath(getFlightPath()); copy.setArcHeight(getArcHeight());
         copy.setMotion(getMotion()); copy.setMotionStrength(getMotionStrength());
         copy.setMotionCycles(getMotionCycles()); copy.setBounceHeight(getBounceHeight());
         copy.copyDustFrom(this);

@@ -2437,5 +2437,13 @@
   "gui.director.properties.clip_ui.whole_animation.visual_spread": "Effect spread (blocks)",
   "gui.director.properties.clip_ui.whole_animation.shockwave_hint": "A glowing particle ring expands from the bottom of the assembly on arrival completion or demolition start. Playback only; particles dissipate in game time.",
   "gui.director.properties.clip_ui.whole_animation.wave_count": "Wave count",
-  "gui.director.properties.clip_ui.whole_animation.wave_decay": "Decay per wave (0 none, 1 first wave only)"
+  "gui.director.properties.clip_ui.whole_animation.wave_decay": "Decay per wave (0 none, 1 first wave only)",
+  "gui.director.properties.clip_ui.whole_animation.flight_path": "Flight path",
+  "gui.director.properties.clip_ui.whole_animation.path_straight": "Straight",
+  "gui.director.properties.clip_ui.whole_animation.path_arc": "Arc",
+  "gui.director.properties.clip_ui.whole_animation.arc_height": "Arc height (blocks)",
+  "gui.director.properties.clip_ui.whole_animation.arc_hint": "World-Y offset from the straight path at its midpoint. Positive arches upward; negative bends downward. Endpoints stay fixed.",
+  "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.enter": "Arc arrival",
+  "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.exit": "Arc departure",
+  "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.hint": "Follow an arc from the side, sized for the assembly. Keeps the selected visual effect."
 }

@@ -87,6 +87,12 @@ public final class WholeContainerAnimation {
             x = settings.getOffsetX() * geometryAmount;
             y = settings.getOffsetY() * geometryAmount;
             z = settings.getOffsetZ() * geometryAmount;
+            if (settings.getFlightPath() == WholeContainerAnimationConfig.FlightPath.ARC) {
+                // Quadratic Bezier: preserve both endpoints, with authored world-Y lift at the midpoint.
+                // Clamp only the arc lift during overshoot; the original motion can still rebound.
+                float path = Math.clamp(geometryAmount, 0, 1);
+                y += 4 * settings.getArcHeight() * path * (1 - path);
+            }
         }
         if (settings.usesRotation()) {
             rotationX = settings.getRotationX() * geometryAmount;

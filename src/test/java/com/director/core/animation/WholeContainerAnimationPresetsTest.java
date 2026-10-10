@@ -124,4 +124,19 @@ class WholeContainerAnimationPresetsTest {
             }
         }
     }
+    @Test void arcPresetAdaptsToAssemblyBoundsAndKeepsVisualSettings() {
+        var c = config();
+        c.getWholeContainer().setDustPreset(WholeContainerAnimationConfig.DustPreset.SHOCKWAVE);
+        c.getWholeContainer().setShockwaveCount(5);
+        var bounds = new Container.BoundingBox(BlockPos.ORIGIN, new BlockPos(19, 15, 4));
+        WholeContainerAnimationPresets.apply(c, WholeContainerAnimationPresets.Preset.ARC_FLY, bounds);
+        var s = c.getWholeContainer();
+        assertTrue(Math.abs(s.getOffsetX()) > bounds.getWidth());
+        assertTrue(s.getArcHeight() >= bounds.getHeight() * 0.75f);
+        assertEquals(WholeContainerAnimationConfig.FlightPath.ARC, s.getFlightPath());
+        assertEquals(WholeContainerAnimationConfig.DustPreset.SHOCKWAVE, s.getDustPreset());
+        assertEquals(5, s.getShockwaveCount());
+        WholeContainerAnimationPresets.resetTransform(c);
+        assertEquals(WholeContainerAnimationConfig.FlightPath.STRAIGHT, c.getWholeContainer().getFlightPath());
+    }
 }

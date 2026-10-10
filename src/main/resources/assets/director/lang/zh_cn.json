@@ -2437,5 +2437,13 @@
   "gui.director.properties.clip_ui.whole_animation.visual_spread": "特效扩散范围（方块）",
   "gui.director.properties.clip_ui.whole_animation.shockwave_hint": "出现完成或拆除开始时，沿组合底部向外扩散一圈发光粒子。仅正常播放时触发；粒子按游戏时间消散。",
   "gui.director.properties.clip_ui.whole_animation.wave_count": "波纹圈数",
-  "gui.director.properties.clip_ui.whole_animation.wave_decay": "逐圈衰减（0 无衰减，1 仅首圈）"
+  "gui.director.properties.clip_ui.whole_animation.wave_decay": "逐圈衰减（0 无衰减，1 仅首圈）",
+  "gui.director.properties.clip_ui.whole_animation.flight_path": "飞行路径",
+  "gui.director.properties.clip_ui.whole_animation.path_straight": "直线",
+  "gui.director.properties.clip_ui.whole_animation.path_arc": "弧线",
+  "gui.director.properties.clip_ui.whole_animation.arc_height": "弧线高度（方块）",
+  "gui.director.properties.clip_ui.whole_animation.arc_hint": "高度表示路径中点相对直线的竖直偏移；正值向上拱，负值向下弯。起点和目标位置保持不变。",
+  "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.enter": "弧线飞入",
+  "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.exit": "弧线飞出",
+  "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.hint": "从侧面沿弧线到达或离开目标；距离和高度随组合尺寸调整。保留当前特效选择。"
 }

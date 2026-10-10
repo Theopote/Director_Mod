@@ -618,7 +618,8 @@ public class TimelineClipPropertyUi {
                     modified = true;
                 }
                 if (ImGui.isItemHovered() && (preset == WholeContainerAnimationPresets.Preset.ELASTIC_GROW
-                        || preset == WholeContainerAnimationPresets.Preset.BOUNCE_DROP))
+                        || preset == WholeContainerAnimationPresets.Preset.BOUNCE_DROP
+                        || preset == WholeContainerAnimationPresets.Preset.ARC_FLY))
                     ImGui.setTooltip(wholeText("preset." + key + ".hint"));
             }
             ImGui.endCombo();
@@ -671,6 +672,19 @@ public class TimelineClipPropertyUi {
             }
         }
         if (settings.usesTranslation()) {
+            ImInt path = new ImInt(settings.getFlightPath().ordinal());
+            if (ImGui.combo(wholeText("flight_path"), path,
+                    new String[] {wholeText("path_straight"), wholeText("path_arc")})) {
+                settings.setFlightPath(WholeContainerAnimationConfig.FlightPath.values()[path.get()]);
+                modified = true;
+            }
+            if (settings.getFlightPath() == WholeContainerAnimationConfig.FlightPath.ARC) {
+                float[] height = {settings.getArcHeight()};
+                if (ImGui.dragFloat(wholeText("arc_height"), height, 0.1f, -1000, 1000, "%.2f")) {
+                    settings.setArcHeight(height[0]); modified = true;
+                }
+                ImGui.textWrapped(wholeText("arc_hint"));
+            }
             float[] offset = {settings.getOffsetX(), settings.getOffsetY(), settings.getOffsetZ()};
             if (ImGui.dragFloat3(wholeText(exit ? "end_offset" : "start_offset"), offset, 0.1f, -10000, 10000, "%.2f")) {
                 settings.setOffset(offset[0], offset[1], offset[2]);

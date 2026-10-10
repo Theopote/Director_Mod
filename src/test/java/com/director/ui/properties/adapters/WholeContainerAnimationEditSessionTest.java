@@ -261,4 +261,17 @@ class WholeContainerAnimationEditSessionTest {
         history.redo();
         assertEquals(5, s.getShockwaveCount()); assertEquals(0.6f, s.getShockwaveDecay());
     }
+    @Test void arcPathAndHeightUndoAndRedoTogether() {
+        var s = clip.getAnimationConfig().getWholeContainer();
+        change(() -> {
+            s.setFlightPath(WholeContainerAnimationConfig.FlightPath.ARC);
+            s.setArcHeight(-5);
+        }, false);
+        history.undo();
+        assertEquals(WholeContainerAnimationConfig.FlightPath.STRAIGHT, s.getFlightPath());
+        assertEquals(3, s.getArcHeight());
+        history.redo();
+        assertEquals(WholeContainerAnimationConfig.FlightPath.ARC, s.getFlightPath());
+        assertEquals(-5, s.getArcHeight());
+    }
 }
