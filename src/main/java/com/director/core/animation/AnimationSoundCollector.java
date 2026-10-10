@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Locale;
 
 /**
  * 动画声音收集器
@@ -326,25 +325,10 @@ public class AnimationSoundCollector {
         }
     }
 
-    /** Whole-container effects stay animated even when the preserved per-block mode is INSTANT. */
+    /** One assembly sound just before the world handoff, independent of per-block audio settings. */
     static float wholeContainerEventTime(TimelineClip clip) {
-        ClipAnimationConfig config = clip.getAnimationConfig();
-        var window = WholeContainerAnimation.window(config, clip.getStartTime(), clip.getEndTime());
-        String prefix = config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT ? "exit" : "enter";
-        var params = config.getParams();
-        String timing = soundTimingParam(params, prefix + "SoundTiming").toUpperCase(Locale.ROOT);
-        float eventTime = switch (timing) {
-            case "START" -> window.start();
-            case "PRE_LAND" -> Math.max(window.start(), window.end() - 1.0f / 60.0f);
-            case "IMPACT" -> window.start() + findFirstReachOne(config.getEasing())
-                    * (window.end() - window.start());
-            default -> window.end();
-        };
-        String offsetKey = prefix + "SoundOffsetSeconds";
-        float offset = ParseUtils.asFloat(params.get(offsetKey), 0, offsetKey);
-        if (!Float.isFinite(offset)) offset = 0;
-        // Explicit offsets may extend past the clip; only negative global times are forbidden.
-        return Math.max(0, eventTime + offset);
+        var window = WholeContainerAnimation.window(clip.getAnimationConfig(), clip.getStartTime(), clip.getEndTime());
+        return Math.max(0, Math.max(window.start(), window.end() - 1.0f / 60.0f));
     }
 
     private static String soundTimingParam(Map<String, Object> params, String key) {

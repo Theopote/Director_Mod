@@ -2,6 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.core.animation.ClipAnimationConfig;
 import com.director.core.animation.WholeContainerAnimationConfig;
+import com.director.core.animation.WholeContainerAnimationPresets;
 import com.director.timeline.model.*;
 import com.director.ui.timeline.commands.*;
 import org.junit.jupiter.api.*;
@@ -91,6 +92,25 @@ class WholeContainerAnimationEditSessionTest {
         assertEquals(1, history.getRedoSize());
         assertEquals(180, clip.getAnimationConfig().getWholeContainer().getRotationY());
     }
+    @Test void applyingPresetAndResettingEachHaveOneUndoStep() {
+        var config = clip.getAnimationConfig();
+        config.getWholeContainer().setPivot(WholeContainerAnimationConfig.Pivot.CUSTOM);
+        config.getWholeContainer().setCustomPivot(1, 2, 3);
+        change(() -> WholeContainerAnimationPresets.apply(config, WholeContainerAnimationPresets.Preset.SPIN_FLY, null), false);
+        assertEquals(1, history.getUndoSize());
+        assertEquals(720, config.getWholeContainer().getRotationY());
+        history.undo();
+        assertEquals(WholeContainerAnimationConfig.Pivot.CUSTOM, config.getWholeContainer().getPivot());
+        assertEquals(1, config.getWholeContainer().getPivotX());
+        history.redo(); assertEquals(720, config.getWholeContainer().getRotationY());
+        change(() -> WholeContainerAnimationPresets.resetTransform(config), false);
+        assertEquals(2, history.getUndoSize());
+        assertEquals(180, config.getWholeContainer().getRotationY());
+        history.undo(); assertEquals(720, config.getWholeContainer().getRotationY());
+        history.redo(); assertEquals(180, config.getWholeContainer().getRotationY());
+        assertEquals(2, config.getDuration()); assertEquals(0, config.getDelay());
+    }
+
     @Test void noOpAndDragReturningToOriginalDoNotCreateHistoryOrSounds() {
         edits.beginFrame(model, clip); edits.endFrame(false, false, "Edit");
         change(() -> clip.getAnimationConfig().getWholeContainer().setRotation(0, 720, 0), true);

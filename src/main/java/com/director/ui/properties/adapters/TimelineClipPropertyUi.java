@@ -3,6 +3,7 @@ package com.director.ui.properties.adapters;
 import com.director.core.DirectorServices;
 import com.director.core.animation.ClipAnimationConfig;
 import com.director.core.animation.WholeContainerAnimation;
+import com.director.core.animation.WholeContainerAnimationPresets;
 import com.director.core.animation.WholeContainerAnimationConfig;
 import com.director.core.animation.easing.EasingFunction;
 import com.director.core.animation.transform.AnimationTransformerFactory;
@@ -606,6 +607,25 @@ public class TimelineClipPropertyUi {
             TimelineClipAnimationPolicy policy) {
         boolean modified = false;
         boolean exit = policy.phase() == ClipAnimationConfig.AnimationPhase.EXIT;
+        if (ImGui.beginCombo(wholeText("presets"), wholeText("choose_preset"))) {
+            for (var preset : WholeContainerAnimationPresets.Preset.values()) {
+                String key = preset.name().toLowerCase(java.util.Locale.ROOT);
+                if (ImGui.selectable(wholeText("preset." + key + (exit ? ".exit" : ".enter")))) {
+                    var container = clip.getBoundContainerId() == null ? null
+                            : DirectorServices.get().containers().getContainer(clip.getBoundContainerId());
+                    WholeContainerAnimationPresets.apply(config, preset,
+                            container != null ? container.getBoundingBox() : null);
+                    modified = true;
+                }
+            }
+            ImGui.endCombo();
+        }
+        if (ImGui.isItemHovered()) ImGui.setTooltip(wholeText("preset_hint"));
+        if (ImGui.button(wholeText("reset_transform"))) {
+            WholeContainerAnimationPresets.resetTransform(config);
+            modified = true;
+        }
+        if (ImGui.isItemHovered()) ImGui.setTooltip(wholeText("reset_hint"));
         WholeContainerAnimationConfig settings = config.getWholeContainer();
         ImInt effect = new ImInt(settings.getEffect().ordinal());
         if (ImGui.combo(wholeText("effect"), effect,

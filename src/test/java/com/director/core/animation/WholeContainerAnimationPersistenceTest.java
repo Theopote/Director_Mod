@@ -90,7 +90,7 @@ class WholeContainerAnimationPersistenceTest {
         assertEquals(-0.2f, ((Number) loaded.getParams().get("enterSoundOffsetSeconds")).floatValue());
         assertEquals("PRE_LAND", loaded.getParams().get("exitSoundTiming"));
         assertEquals(0.35f, ((Number) loaded.getParams().get("exitSoundOffsetSeconds")).floatValue());
-        assertEquals(3.2f, AnimationSoundCollector.wholeContainerEventTime(
+        assertEquals(4.9f - 1.0f / 60, AnimationSoundCollector.wholeContainerEventTime(
                 restored.getTracks().getFirst().getClips().getFirst()), 0.0001f);
         var duplicate = clip.duplicateShallow();
         duplicate.getAnimationConfig().getParams().put("enterSoundOffsetSeconds", 1.0f);

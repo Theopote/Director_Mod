@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.core.DirectorServices;
+import com.director.i18n.ClipPropertyUiI18n;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerType;
 import com.director.timeline.model.TimelineClip;
@@ -90,6 +91,8 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                     var cfg = containerClip.getAnimationConfig();
                     if (cfg == null) {
                         ImGui.textDisabled("容器片段动画配置为空，无法同步音效。");
+                    } else if (cfg.isWholeContainer()) {
+                        ImGui.textWrapped(ClipPropertyUiI18n.tr("gui.director.properties.clip_ui.whole_animation.sound_hint"));
                     } else {
                         boolean isErase = isDemolitionContainer(containerClip.getBoundContainerId());
 
