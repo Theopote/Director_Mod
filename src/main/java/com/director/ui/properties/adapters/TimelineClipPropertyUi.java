@@ -689,6 +689,31 @@ public class TimelineClipPropertyUi {
                 modified = true;
             }
         }
+        if (settings.usesGeometry()) {
+            ImInt motion = new ImInt(settings.getMotion().ordinal());
+            if (ImGui.combo(wholeText("motion"), motion,
+                    new String[] {wholeText("motion_none"), wholeText("motion_elastic"), wholeText("motion_bounce")})) {
+                settings.setMotion(WholeContainerAnimationConfig.Motion.values()[motion.get()]);
+                modified = true;
+            }
+            if (settings.getMotion() != WholeContainerAnimationConfig.Motion.NONE) {
+                float[] strength = {settings.getMotionStrength()};
+                if (ImGui.dragFloat(wholeText("motion_strength"), strength, 0.01f, 0, 1, "%.2f")) {
+                    settings.setMotionStrength(strength[0]); modified = true;
+                }
+                int[] cycles = {settings.getMotionCycles()};
+                if (ImGui.dragInt(wholeText("motion_cycles"), cycles, 0.1f, 1, 8)) {
+                    settings.setMotionCycles(cycles[0]); modified = true;
+                }
+                if (settings.getMotion() == WholeContainerAnimationConfig.Motion.BOUNCE) {
+                    float[] height = {settings.getBounceHeight()};
+                    if (ImGui.dragFloat(wholeText("bounce_height"), height, 0.05f, 0, 100, "%.2f")) {
+                        settings.setBounceHeight(height[0]); modified = true;
+                    }
+                }
+                ImGui.textWrapped(wholeText("motion_hint"));
+            }
+        }
         if (combined) ImGui.textWrapped(wholeText("transform_hint"));
         if (!instant) {
             float[] duration = {config.getDuration()};

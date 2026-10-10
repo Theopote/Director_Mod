@@ -2407,5 +2407,13 @@
   "gui.director.actor.root_rows.rotation": "Root rotation",
   "gui.director.actor.root_rows.scale": "Root scale",
   "gui.director.actor.root_rows.ambiguous": "Overlapping keys: select a specific actor clip first.",
-  "gui.director.actor.root_rows.drag": "Root key time: %.3f s (release to apply, Esc to cancel)"
+  "gui.director.actor.root_rows.drag": "Root key time: %.3f s (release to apply, Esc to cancel)",
+  "gui.director.properties.clip_ui.whole_animation.motion": "Motion modifier",
+  "gui.director.properties.clip_ui.whole_animation.motion_none": "None",
+  "gui.director.properties.clip_ui.whole_animation.motion_elastic": "Elastic",
+  "gui.director.properties.clip_ui.whole_animation.motion_bounce": "Bounce",
+  "gui.director.properties.clip_ui.whole_animation.motion_strength": "Modifier strength",
+  "gui.director.properties.clip_ui.whole_animation.motion_cycles": "Oscillation / bounce count",
+  "gui.director.properties.clip_ui.whole_animation.bounce_height": "Bounce height (blocks)",
+  "gui.director.properties.clip_ui.whole_animation.motion_hint": "Adds motion to geometry within the animation duration. Opacity is unaffected. Demolition reverses the modifier."
 }

@@ -68,21 +68,36 @@ public final class WholeContainerAnimation {
         float eased = EasingFunction.fromString(config.getEasing()).apply(raw);
         float amount = exit ? eased : 1 - eased;
         WholeContainerAnimationConfig settings = config.getWholeContainer();
+        float geometryAmount = amount;
+        // The modifier uses normalized time, so seeking and duration edits preserve its shape.
+        // Exit reverses the modifier around the real-world pose; opacity keeps its own easing.
+        float phase = exit ? 1 - raw : raw;
+        if (settings.usesGeometry() && settings.getMotion() == WholeContainerAnimationConfig.Motion.ELASTIC) {
+            double spring = 1 - Math.pow(1 - phase, 3)
+                    * Math.cos(2 * Math.PI * settings.getMotionCycles() * phase);
+            geometryAmount -= settings.getMotionStrength() * (float) (spring - phase);
+        }
         float scale = 1;
         float x = 0, y = 0, z = 0;
         float rotationX = 0, rotationY = 0, rotationZ = 0;
         if (settings.usesScale()) {
-            scale = Math.max(0, 1 + (settings.getScale() - 1) * amount);
+            scale = Math.max(0, 1 + (settings.getScale() - 1) * geometryAmount);
         }
         if (settings.usesTranslation()) {
-            x = settings.getOffsetX() * amount;
-            y = settings.getOffsetY() * amount;
-            z = settings.getOffsetZ() * amount;
+            x = settings.getOffsetX() * geometryAmount;
+            y = settings.getOffsetY() * geometryAmount;
+            z = settings.getOffsetZ() * geometryAmount;
         }
         if (settings.usesRotation()) {
-            rotationX = settings.getRotationX() * amount;
-            rotationY = settings.getRotationY() * amount;
-            rotationZ = settings.getRotationZ() * amount;
+            rotationX = settings.getRotationX() * geometryAmount;
+            rotationY = settings.getRotationY() * geometryAmount;
+            rotationZ = settings.getRotationZ() * geometryAmount;
+        }
+        if (settings.usesGeometry() && settings.getMotion() == WholeContainerAnimationConfig.Motion.BOUNCE) {
+            // Nonnegative, decaying world-Y hops, with exact zero displacement at both endpoints.
+            y += settings.getBounceHeight() * settings.getMotionStrength()
+                    * (float) (Math.abs(Math.sin(Math.PI * settings.getMotionCycles() * phase))
+                    * Math.pow(1 - phase, 2));
         }
         float alpha = settings.usesOpacity()
                 ? Math.clamp(1 + (settings.getOpacity() - 1) * amount, 0, 1) : 1;

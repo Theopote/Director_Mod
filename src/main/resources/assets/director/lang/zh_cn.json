@@ -2407,5 +2407,13 @@
   "gui.director.actor.root_rows.rotation": "整体旋转",
   "gui.director.actor.root_rows.scale": "整体缩放",
   "gui.director.actor.root_rows.ambiguous": "这里有重叠关键帧，请先选择具体演员片段。",
-  "gui.director.actor.root_rows.drag": "整体关键帧时间：%.3f 秒（松开提交，Esc 取消）"
+  "gui.director.actor.root_rows.drag": "整体关键帧时间：%.3f 秒（松开提交，Esc 取消）",
+  "gui.director.properties.clip_ui.whole_animation.motion": "运动修饰",
+  "gui.director.properties.clip_ui.whole_animation.motion_none": "无",
+  "gui.director.properties.clip_ui.whole_animation.motion_elastic": "回弹",
+  "gui.director.properties.clip_ui.whole_animation.motion_bounce": "弹跳",
+  "gui.director.properties.clip_ui.whole_animation.motion_strength": "修饰强度",
+  "gui.director.properties.clip_ui.whole_animation.motion_cycles": "振动 / 弹跳次数",
+  "gui.director.properties.clip_ui.whole_animation.bounce_height": "弹跳高度（方块）",
+  "gui.director.properties.clip_ui.whole_animation.motion_hint": "修饰叠加在几何动画上，共用动画时长；透明度不受影响。拆除时反向播放修饰。"
 }

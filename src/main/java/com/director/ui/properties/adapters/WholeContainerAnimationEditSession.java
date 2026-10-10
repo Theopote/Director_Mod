@@ -16,18 +16,20 @@ public final class WholeContainerAnimationEditSession {
                              WholeContainerAnimationConfig.Pivot pivot,
                              float scale, float x, float y, float z,
                              float rx, float ry, float rz, float px, float py, float pz,
-                             boolean translation, boolean rotation, boolean scaling, boolean fading, float opacity) {
+                             boolean translation, boolean rotation, boolean scaling, boolean fading, float opacity,
+                             WholeContainerAnimationConfig.Motion motion, float strength, int cycles, float height) {
         static Transform capture(WholeContainerAnimationConfig c) {
             return new Transform(c.getEffect(), c.getPivot(), c.getScale(), c.getOffsetX(),
                     c.getOffsetY(), c.getOffsetZ(), c.getRotationX(), c.getRotationY(),
                     c.getRotationZ(), c.getPivotX(), c.getPivotY(), c.getPivotZ(),
-                    c.isTranslationEnabled(), c.isRotationEnabled(), c.isScaleEnabled(), c.isOpacityEnabled(), c.getOpacity());
+                    c.isTranslationEnabled(), c.isRotationEnabled(), c.isScaleEnabled(), c.isOpacityEnabled(), c.getOpacity(), c.getMotion(), c.getMotionStrength(), c.getMotionCycles(), c.getBounceHeight());
         }
         void apply(WholeContainerAnimationConfig c) {
             c.setEffect(effect); c.setPivot(pivot); c.setScale(scale);
             c.setOffset(x, y, z); c.setRotation(rx, ry, rz); c.setCustomPivot(px, py, pz);
             c.setTranslationEnabled(translation); c.setRotationEnabled(rotation);
             c.setScaleEnabled(scaling); c.setOpacityEnabled(fading); c.setOpacity(opacity);
+            c.setMotion(motion); c.setMotionStrength(strength); c.setMotionCycles(cycles); c.setBounceHeight(height);
         }
     }
     private record State(ClipAnimationConfig.AnimationScope scope, AnimationMode mode,

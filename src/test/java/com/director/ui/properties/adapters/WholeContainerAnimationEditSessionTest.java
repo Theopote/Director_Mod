@@ -186,4 +186,18 @@ class WholeContainerAnimationEditSessionTest {
         change(() -> clip.getAnimationConfig().setDuration(1), false);
         assertEquals(0, history.getUndoSize()); assertEquals(0, refreshes.get());
     }
+    @Test void motionModifierAndParametersUndoAndRedoTogether() {
+        var s = clip.getAnimationConfig().getWholeContainer();
+        change(() -> {
+            s.setMotion(WholeContainerAnimationConfig.Motion.BOUNCE);
+            s.setMotionStrength(0.6f); s.setMotionCycles(5); s.setBounceHeight(3);
+        }, false);
+        assertEquals(1, history.getUndoSize());
+        history.undo();
+        assertEquals(WholeContainerAnimationConfig.Motion.NONE, s.getMotion());
+        assertEquals(1, s.getMotionStrength()); assertEquals(3, s.getMotionCycles()); assertEquals(1, s.getBounceHeight());
+        history.redo();
+        assertEquals(WholeContainerAnimationConfig.Motion.BOUNCE, s.getMotion());
+        assertEquals(0.6f, s.getMotionStrength()); assertEquals(5, s.getMotionCycles()); assertEquals(3, s.getBounceHeight());
+    }
 }

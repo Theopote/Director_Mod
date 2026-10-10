@@ -9,6 +9,12 @@ public final class WholeContainerAnimationConfig implements Serializable {
     private static final long serialVersionUID = 1L;
     public enum Effect { SCALE, FLY, ROTATE, TRANSFORM, FADE, INSTANT }
     public enum Pivot { CENTER, BOTTOM_CENTER, CUSTOM }
+    public enum Motion { NONE, ELASTIC, BOUNCE }
+
+    private Motion motion;
+    private Float motionStrength;
+    private Integer motionCycles;
+    private Float bounceHeight;
 
     private Effect effect = Effect.SCALE;
     private Pivot pivot = Pivot.BOTTOM_CENTER;
@@ -68,6 +74,16 @@ public final class WholeContainerAnimationConfig implements Serializable {
     public boolean usesScale() { return getEffect() == Effect.SCALE || getEffect() == Effect.TRANSFORM && isScaleEnabled(); }
     public boolean usesOpacity() { return getEffect() == Effect.FADE || getEffect() == Effect.TRANSFORM && isOpacityEnabled(); }
 
+    public Motion getMotion() { return motion != null ? motion : Motion.NONE; }
+    public void setMotion(Motion value) { motion = value != null ? value : Motion.NONE; }
+    public float getMotionStrength() { return finite(motionStrength != null ? motionStrength : 1, 1, 0, 1); }
+    public void setMotionStrength(float value) { motionStrength = finite(value, 1, 0, 1); }
+    public int getMotionCycles() { return motionCycles != null ? Math.clamp(motionCycles, 1, 8) : 3; }
+    public void setMotionCycles(int value) { motionCycles = Math.clamp(value, 1, 8); }
+    public float getBounceHeight() { return finite(bounceHeight != null ? bounceHeight : 1, 1, 0, 100); }
+    public void setBounceHeight(float value) { bounceHeight = finite(value, 1, 0, 100); }
+    public boolean usesGeometry() { return usesTranslation() || usesRotation() || usesScale(); }
+
     public float getPivotX() { return finite(pivotX, 0, -10000, 10000); }
     public float getPivotY() { return finite(pivotY, 0, -10000, 10000); }
     public float getPivotZ() { return finite(pivotZ, 0, -10000, 10000); }
@@ -92,6 +108,8 @@ public final class WholeContainerAnimationConfig implements Serializable {
         copy.scaleEnabled = scaleEnabled;
         copy.opacityEnabled = opacityEnabled;
         copy.setOpacity(getOpacity());
+        copy.setMotion(getMotion()); copy.setMotionStrength(getMotionStrength());
+        copy.setMotionCycles(getMotionCycles()); copy.setBounceHeight(getBounceHeight());
         return copy;
     }
 }
