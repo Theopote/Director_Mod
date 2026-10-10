@@ -46,4 +46,13 @@ class WholeContainerEffectCursorTest {
         c.beginFrame(0.1f, true, false); assertTrue(c.crosses(0));
         c.beginFrame(0.2f, true, false); assertFalse(c.crosses(0));
     }
+    @Test void loopingBackToZeroIncludesZeroTimeEffectsOnNextAdvance() {
+        var c = new WholeContainerEffectCursor();
+        c.beginFrame(0, false, false); c.beginFrame(1, true, false);
+        assertTrue(c.crosses(0));
+        c.beginFrame(0, true, false); assertFalse(c.crosses(0));
+        c.beginFrame(0, true, false); assertFalse(c.crosses(0));
+        c.beginFrame(0.1f, true, false); assertTrue(c.crosses(0));
+        c.beginFrame(0.2f, true, false); assertFalse(c.crosses(0));
+    }
 }

@@ -10,7 +10,7 @@ public final class WholeContainerEffectCursor {
     public void reset() { previousTime = Float.NaN; previousPlaying = previousScrubbing = forward = starting = pendingStart = false; }
     public void beginFrame(float time, boolean playing, boolean scrubbing) {
         from = previousTime; to = time;
-        if (playing && !previousPlaying) pendingStart = true;
+        if (playing && (!previousPlaying || !scrubbing && time < from)) pendingStart = true;
         starting = pendingStart;
         // Include the final advancing frame if the player just reached its stop time.
         forward = Float.isFinite(from) && Float.isFinite(to) && to > from

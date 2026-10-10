@@ -224,4 +224,18 @@ class WholeContainerAnimationEditSessionTest {
         history.redo();
         assertFalse(s.isDustEnabled());
     }
+    @Test void applyingMotionPresetUndoesTogetherAndPreservesVisualSelection() {
+        var config = clip.getAnimationConfig();
+        config.getWholeContainer().setDustPreset(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST);
+        change(() -> com.director.core.animation.WholeContainerAnimationPresets.apply(config,
+                com.director.core.animation.WholeContainerAnimationPresets.Preset.BOUNCE_DROP, null), false);
+        assertEquals(1, history.getUndoSize());
+        history.undo();
+        assertEquals(WholeContainerAnimationConfig.Motion.NONE, config.getWholeContainer().getMotion());
+        assertEquals(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST, config.getWholeContainer().getDustPreset());
+        history.redo();
+        assertEquals(WholeContainerAnimationConfig.Motion.BOUNCE, config.getWholeContainer().getMotion());
+        assertEquals(WholeContainerAnimationConfig.Effect.FLY, config.getWholeContainer().getEffect());
+        assertEquals(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST, config.getWholeContainer().getDustPreset());
+    }
 }

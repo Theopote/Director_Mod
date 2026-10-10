@@ -2425,5 +2425,15 @@
   "gui.director.properties.clip_ui.whole_animation.visual_soft_dust": "轻柔尘土",
   "gui.director.properties.clip_ui.whole_animation.visual_impact_dust": "落地烟尘",
   "gui.director.properties.clip_ui.whole_animation.visual_parameters": "调整特效参数",
-  "gui.director.properties.clip_ui.whole_animation.visual_edit": "修改整体特效"
+  "gui.director.properties.clip_ui.whole_animation.visual_edit": "修改整体特效",
+  "gui.director.properties.clip_ui.whole_animation.preset.elastic_grow.enter": "回弹生长",
+  "gui.director.properties.clip_ui.whole_animation.preset.elastic_grow.exit": "回弹缩小",
+  "gui.director.properties.clip_ui.whole_animation.preset.elastic_grow.hint": "从底部轴心生长，轻微越过目标大小后收敛；保留当前特效选择。",
+  "gui.director.properties.clip_ui.whole_animation.preset.bounce_drop.enter": "弹跳落位",
+  "gui.director.properties.clip_ui.whole_animation.preset.bounce_drop.exit": "弹跳离场",
+  "gui.director.properties.clip_ui.whole_animation.preset.bounce_drop.hint": "从上方快速落位并逐渐减弱弹跳；高度随组合大小调整。可搭配落地烟尘。",
+  "gui.director.properties.clip_ui.whole_animation.visual_shockwave": "冲击波",
+  "gui.director.properties.clip_ui.whole_animation.visual_intensity": "特效强度",
+  "gui.director.properties.clip_ui.whole_animation.visual_spread": "特效扩散范围（方块）",
+  "gui.director.properties.clip_ui.whole_animation.shockwave_hint": "出现完成或拆除开始时，沿组合底部向外扩散一圈发光粒子。仅正常播放时触发；粒子按游戏时间消散。"
 }

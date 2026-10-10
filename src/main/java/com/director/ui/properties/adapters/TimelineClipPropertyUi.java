@@ -617,6 +617,9 @@ public class TimelineClipPropertyUi {
                             container != null ? container.getBoundingBox() : null);
                     modified = true;
                 }
+                if (ImGui.isItemHovered() && (preset == WholeContainerAnimationPresets.Preset.ELASTIC_GROW
+                        || preset == WholeContainerAnimationPresets.Preset.BOUNCE_DROP))
+                    ImGui.setTooltip(wholeText("preset." + key + ".hint"));
             }
             ImGui.endCombo();
         }
@@ -1442,18 +1445,19 @@ public class TimelineClipPropertyUi {
         ImInt preset = new ImInt(settings.getDustPreset().ordinal());
         boolean modified = false;
         if (ImGui.combo(wholeText("visual_preset"), preset, new String[] {
-                wholeText("visual_none"), wholeText("visual_soft_dust"), wholeText("visual_impact_dust")})) {
+                wholeText("visual_none"), wholeText("visual_soft_dust"), wholeText("visual_impact_dust"), wholeText("visual_shockwave")})) {
             settings.setDustPreset(WholeContainerAnimationConfig.DustPreset.values()[preset.get()]);
             modified = true;
         }
-        ImGui.textWrapped(wholeText("dust_hint"));
+        ImGui.textWrapped(wholeText(settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.SHOCKWAVE
+                ? "shockwave_hint" : "dust_hint"));
         if (settings.isDustEnabled() && ImGui.collapsingHeader(wholeText("visual_parameters"))) {
             float[] intensity = {settings.getDustIntensity()};
-            if (ImGui.dragFloat(wholeText("dust_intensity"), intensity, 0.05f, 0, 5, "%.2f")) {
+            if (ImGui.dragFloat(wholeText("visual_intensity"), intensity, 0.05f, 0, 5, "%.2f")) {
                 settings.setDustIntensity(intensity[0]); modified = true;
             }
             float[] spread = {settings.getDustSpread()};
-            if (ImGui.dragFloat(wholeText("dust_spread"), spread, 0.05f, 0, 5, "%.2f")) {
+            if (ImGui.dragFloat(wholeText("visual_spread"), spread, 0.05f, 0, 5, "%.2f")) {
                 settings.setDustSpread(spread[0]); modified = true;
             }
         }

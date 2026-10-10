@@ -86,4 +86,42 @@ class WholeContainerAnimationPresetsTest {
             assertNotEquals(99, config.getWholeContainer().getOffsetX());
         }
     }
+    @Test void elasticGrowthOvershootsAndBounceDropAddsHopsWithoutChangingOpacity() {
+        var c = config();
+        WholeContainerAnimationPresets.apply(c, WholeContainerAnimationPresets.Preset.ELASTIC_GROW, null);
+        assertEquals(WholeContainerAnimationConfig.Pivot.BOTTOM_CENTER, c.getWholeContainer().getPivot());
+        assertEquals(WholeContainerAnimationConfig.Motion.ELASTIC, c.getWholeContainer().getMotion());
+        assertTrue(WholeContainerAnimation.sample(c, 10, 20, 11.75f, false).scale() > 1);
+        WholeContainerAnimationPresets.apply(c, WholeContainerAnimationPresets.Preset.BOUNCE_DROP, null);
+        var plain = c.copy(); plain.getWholeContainer().setMotion(WholeContainerAnimationConfig.Motion.NONE);
+        for (boolean exit : new boolean[] {false, true}) {
+            var bouncing = WholeContainerAnimation.sample(c, 10, 20, 12.5f, exit);
+            var baseline = WholeContainerAnimation.sample(plain, 10, 20, 12.5f, exit);
+            assertTrue(bouncing.y() > baseline.y());
+            assertEquals(baseline.scale(), bouncing.scale()); assertEquals(baseline.alpha(), bouncing.alpha());
+        }
+    }
+    @Test void bounceDropScalesDistanceAndHopHeightWithAssemblyBounds() {
+        var c = config();
+        var small = new Container.BoundingBox(BlockPos.ORIGIN, new BlockPos(1, 1, 1));
+        WholeContainerAnimationPresets.apply(c, WholeContainerAnimationPresets.Preset.BOUNCE_DROP, small);
+        float smallHeight = c.getWholeContainer().getBounceHeight();
+        var large = new Container.BoundingBox(BlockPos.ORIGIN, new BlockPos(30, 30, 30));
+        WholeContainerAnimationPresets.apply(c, WholeContainerAnimationPresets.Preset.BOUNCE_DROP, large);
+        assertTrue(c.getWholeContainer().getOffsetY() > large.getHeight());
+        assertTrue(c.getWholeContainer().getBounceHeight() > smallHeight);
+        assertTrue(c.getWholeContainer().getBounceHeight() <= 2);
+    }
+    @Test void motionPresetsKeepTheirShapeWhenDurationChangesInBothDirections() {
+        for (var preset : new WholeContainerAnimationPresets.Preset[] {
+                WholeContainerAnimationPresets.Preset.ELASTIC_GROW, WholeContainerAnimationPresets.Preset.BOUNCE_DROP}) {
+            var c = config(); WholeContainerAnimationPresets.apply(c, preset, null);
+            for (boolean exit : new boolean[] {false, true}) {
+                c.setDuration(3);
+                var before = WholeContainerAnimation.sample(c, 10, 20, 12.5f, exit);
+                c.setDuration(1);
+                assertEquals(before, WholeContainerAnimation.sample(c, 10, 20, 11.5f, exit));
+            }
+        }
+    }
 }

@@ -2425,5 +2425,15 @@
   "gui.director.properties.clip_ui.whole_animation.visual_soft_dust": "Soft dust",
   "gui.director.properties.clip_ui.whole_animation.visual_impact_dust": "Impact dust",
   "gui.director.properties.clip_ui.whole_animation.visual_parameters": "Adjust effect parameters",
-  "gui.director.properties.clip_ui.whole_animation.visual_edit": "Edit whole-object effect"
+  "gui.director.properties.clip_ui.whole_animation.visual_edit": "Edit whole-object effect",
+  "gui.director.properties.clip_ui.whole_animation.preset.elastic_grow.enter": "Elastic growth",
+  "gui.director.properties.clip_ui.whole_animation.preset.elastic_grow.exit": "Elastic shrink",
+  "gui.director.properties.clip_ui.whole_animation.preset.elastic_grow.hint": "Grow around the bottom pivot, overshoot slightly, then settle. Keeps the selected visual effect.",
+  "gui.director.properties.clip_ui.whole_animation.preset.bounce_drop.enter": "Bouncing arrival",
+  "gui.director.properties.clip_ui.whole_animation.preset.bounce_drop.exit": "Bouncing departure",
+  "gui.director.properties.clip_ui.whole_animation.preset.bounce_drop.hint": "Drop from above with decaying hops sized for the assembly. Pair with impact dust.",
+  "gui.director.properties.clip_ui.whole_animation.visual_shockwave": "Shockwave",
+  "gui.director.properties.clip_ui.whole_animation.visual_intensity": "Effect intensity",
+  "gui.director.properties.clip_ui.whole_animation.visual_spread": "Effect spread (blocks)",
+  "gui.director.properties.clip_ui.whole_animation.shockwave_hint": "A glowing particle ring expands from the bottom of the assembly on arrival completion or demolition start. Playback only; particles dissipate in game time."
 }
