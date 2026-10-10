@@ -238,4 +238,18 @@ class WholeContainerAnimationEditSessionTest {
         assertEquals(WholeContainerAnimationConfig.Effect.FLY, config.getWholeContainer().getEffect());
         assertEquals(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST, config.getWholeContainer().getDustPreset());
     }
+    @Test void shockwaveSelectionAndTweaksUndoAndRedoWithoutChangingMotion() {
+        var config = clip.getAnimationConfig();
+        config.getWholeContainer().setMotion(WholeContainerAnimationConfig.Motion.ELASTIC);
+        change(() -> {
+            config.getWholeContainer().setDustPreset(WholeContainerAnimationConfig.DustPreset.SHOCKWAVE);
+            config.getWholeContainer().setDustSpread(2);
+        }, false);
+        history.undo();
+        assertEquals(WholeContainerAnimationConfig.DustPreset.NONE, config.getWholeContainer().getDustPreset());
+        assertEquals(WholeContainerAnimationConfig.Motion.ELASTIC, config.getWholeContainer().getMotion());
+        history.redo();
+        assertEquals(WholeContainerAnimationConfig.DustPreset.SHOCKWAVE, config.getWholeContainer().getDustPreset());
+        assertEquals(2, config.getWholeContainer().getDustSpread());
+    }
 }

@@ -22,6 +22,8 @@ public final class WholeContainerDust {
 
     public static List<Particle> sample(List<BlockPos> blocks, WholeContainerAnimationConfig settings, long seed) {
         if (!settings.isDustEnabled() || settings.getDustIntensity() <= 0 || blocks.isEmpty()) return List.of();
+        if (settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.SHOCKWAVE)
+            return WholeContainerImpactRing.sample(blocks, settings, seed);
         int bottom = blocks.stream().mapToInt(BlockPos::getY).min().orElse(0);
         // Stable ordering keeps the same burst independent of container HashSet iteration order.
         var footprint = blocks.stream().filter(p -> p.getY() == bottom)

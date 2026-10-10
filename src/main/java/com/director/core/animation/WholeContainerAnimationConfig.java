@@ -9,7 +9,7 @@ public final class WholeContainerAnimationConfig implements Serializable {
     private static final long serialVersionUID = 1L;
     public enum Effect { SCALE, FLY, ROTATE, TRANSFORM, FADE, INSTANT }
     public enum Pivot { CENTER, BOTTOM_CENTER, CUSTOM }
-    public enum DustPreset { NONE, SOFT_DUST, IMPACT_DUST }
+    public enum DustPreset { NONE, SOFT_DUST, IMPACT_DUST, SHOCKWAVE }
     public enum Motion { NONE, ELASTIC, BOUNCE }
 
     private Motion motion;
@@ -89,7 +89,7 @@ public final class WholeContainerAnimationConfig implements Serializable {
         dustEnabled = dustPreset != DustPreset.NONE;
         if (dustEnabled) {
             setDustIntensity(dustPreset == DustPreset.IMPACT_DUST ? 2.5f : 1);
-            setDustSpread(dustPreset == DustPreset.IMPACT_DUST ? 1.2f : 0.6f);
+            setDustSpread(dustPreset == DustPreset.IMPACT_DUST ? 1.2f : dustPreset == DustPreset.SHOCKWAVE ? 0.8f : 0.6f);
         }
     }
     public void copyDustFrom(WholeContainerAnimationConfig source) {
