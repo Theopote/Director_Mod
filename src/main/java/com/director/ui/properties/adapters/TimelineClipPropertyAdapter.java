@@ -159,6 +159,8 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             }
         }
 
+        propertyUi.finishAnimationEditIfIdle(clip);
+
         return modified;
     }
 }

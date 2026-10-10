@@ -1,4 +1,5 @@
 {
+  "gui.director.properties.clip_ui.whole_animation.edit": "编辑整体动画",
   "gui.director.properties.clip_ui.whole_animation.scope": "动画作用方式",
   "gui.director.properties.clip_ui.whole_animation.per_block": "逐块动画",
   "gui.director.properties.clip_ui.whole_animation.whole": "整体动画",

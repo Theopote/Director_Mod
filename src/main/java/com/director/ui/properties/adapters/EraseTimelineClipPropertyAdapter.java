@@ -136,6 +136,8 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
             }
         }
 
+        propertyUi.finishAnimationEditIfIdle(clip);
+
         return modified;
     }
 }

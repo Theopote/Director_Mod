@@ -1,4 +1,5 @@
 {
+  "gui.director.properties.clip_ui.whole_animation.edit": "Edit whole-container animation",
   "gui.director.properties.clip_ui.whole_animation.scope": "Animation scope",
   "gui.director.properties.clip_ui.whole_animation.per_block": "Per block",
   "gui.director.properties.clip_ui.whole_animation.whole": "Whole container",

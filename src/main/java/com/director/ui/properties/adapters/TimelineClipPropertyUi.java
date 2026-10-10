@@ -68,6 +68,16 @@ public class TimelineClipPropertyUi {
     private static final String IMGUI_FMT_FLOAT2 = "%.2f";
 
     private int animationParamsSkipFrames = 0;
+    private final WholeContainerAnimationEditSession wholeAnimationEdits =
+            new WholeContainerAnimationEditSession(clip ->
+                    com.director.ui.timeline.audio.TimelineAudioService.getInstance()
+                            .refreshAutoSoundEventsIfNeeded(clip));
+
+    void finishAnimationEditIfIdle(TimelineClip clip) {
+        // Observe selection/project changes even when the animation section is collapsed.
+        wholeAnimationEdits.beginFrame(DirectorServices.get().containerTimeline().getTimelineModel(), clip);
+        wholeAnimationEdits.finishIfIdle(ImGui.isAnyItemActive());
+    }
 
     static String[] getEasingFunctionLabels() {
         try {
@@ -299,7 +309,11 @@ public class TimelineClipPropertyUi {
 
     boolean renderAnimationSettings(TimelineClip clip, TimelineClipUiVariant variant) {
         try {
-            return renderAnimationSettingsInternal(clip, TimelineClipAnimationPolicy.forVariant(variant));
+            var model = DirectorServices.get().containerTimeline().getTimelineModel();
+            wholeAnimationEdits.beginFrame(model, clip);
+            boolean modified = renderAnimationSettingsInternal(clip, TimelineClipAnimationPolicy.forVariant(variant));
+            wholeAnimationEdits.endFrame(modified, ImGui.isAnyItemActive(), wholeText("edit"));
+            return modified;
         } catch (Exception e) {
             LOGGER.error("渲染动画设置时发生异常: {}", e.getMessage(), e);
             ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_RENDER_ANIMATION, e.getMessage()));
