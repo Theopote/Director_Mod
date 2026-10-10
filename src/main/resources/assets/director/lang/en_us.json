@@ -2419,5 +2419,11 @@
   "gui.director.properties.clip_ui.whole_animation.dust_enabled": "Arrival / departure dust",
   "gui.director.properties.clip_ui.whole_animation.dust_intensity": "Dust intensity",
   "gui.director.properties.clip_ui.whole_animation.dust_spread": "Dust spread (blocks)",
-  "gui.director.properties.clip_ui.whole_animation.dust_hint": "One burst on arrival completion or demolition start. Scrubbing does not emit particles. Particles then dissipate in game time."
+  "gui.director.properties.clip_ui.whole_animation.dust_hint": "One burst on arrival completion or demolition start. Scrubbing does not emit particles. Particles then dissipate in game time.",
+  "gui.director.properties.clip_ui.whole_animation.visual_preset": "Whole-object effect preset",
+  "gui.director.properties.clip_ui.whole_animation.visual_none": "No effect",
+  "gui.director.properties.clip_ui.whole_animation.visual_soft_dust": "Soft dust",
+  "gui.director.properties.clip_ui.whole_animation.visual_impact_dust": "Impact dust",
+  "gui.director.properties.clip_ui.whole_animation.visual_parameters": "Adjust effect parameters",
+  "gui.director.properties.clip_ui.whole_animation.visual_edit": "Edit whole-object effect"
 }

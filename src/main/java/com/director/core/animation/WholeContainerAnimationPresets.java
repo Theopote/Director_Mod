@@ -12,6 +12,7 @@ public final class WholeContainerAnimationPresets {
     public static void apply(ClipAnimationConfig config, Preset preset, Container.BoundingBox bounds) {
         Objects.requireNonNull(preset);
         var settings = new WholeContainerAnimationConfig();
+        settings.copyDustFrom(config.getWholeContainer());
         settings.setScale(1); settings.setOffset(0, 0, 0); settings.setRotation(0, 0, 0);
         settings.setPivot(WholeContainerAnimationConfig.Pivot.CENTER);
         float vertical = bounds == null ? 10 : Math.max(10, bounds.getHeight() * 1.5f);
@@ -66,6 +67,7 @@ public final class WholeContainerAnimationPresets {
     public static void resetTransform(ClipAnimationConfig config) {
         var effect = config.getWholeContainer().getEffect();
         var settings = new WholeContainerAnimationConfig();
+        settings.copyDustFrom(config.getWholeContainer());
         settings.setEffect(effect); settings.setScale(1);
         settings.setOffset(0, 0, 0); settings.setRotation(0, 0, 0);
         switch (effect) {

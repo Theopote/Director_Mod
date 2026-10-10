@@ -105,10 +105,10 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         List<EffectInstance> effects = clip.getAnimationConfig() != null
                 ? clip.getAnimationConfig().getEffects() : Collections.emptyList();
         String effectsHeader = Icons.PARTICLE + " 特效 (Effects)";
-        if (!effects.isEmpty()) {
+        if (!clip.getAnimationConfig().isWholeContainer() && !effects.isEmpty()) {
             effectsHeader += " (" + effects.size() + ")";
         }
-        if (!clip.getAnimationConfig().isWholeContainer() && ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             modified |= propertyUi.renderEffectsSection(clip);
             ImGui.unindent();

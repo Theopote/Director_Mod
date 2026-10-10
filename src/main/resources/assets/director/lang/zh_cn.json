@@ -2419,5 +2419,11 @@
   "gui.director.properties.clip_ui.whole_animation.dust_enabled": "落地 / 离场灰尘",
   "gui.director.properties.clip_ui.whole_animation.dust_intensity": "灰尘强度",
   "gui.director.properties.clip_ui.whole_animation.dust_spread": "灰尘散射范围（方块）",
-  "gui.director.properties.clip_ui.whole_animation.dust_hint": "出现完成时触发一次，拆除开始时触发一次。仅正常播放时发射，拖动播放头不发射；粒子随后按游戏时间消散。"
+  "gui.director.properties.clip_ui.whole_animation.dust_hint": "出现完成时触发一次，拆除开始时触发一次。仅正常播放时发射，拖动播放头不发射；粒子随后按游戏时间消散。",
+  "gui.director.properties.clip_ui.whole_animation.visual_preset": "整体特效预设",
+  "gui.director.properties.clip_ui.whole_animation.visual_none": "无特效",
+  "gui.director.properties.clip_ui.whole_animation.visual_soft_dust": "轻柔尘土",
+  "gui.director.properties.clip_ui.whole_animation.visual_impact_dust": "落地烟尘",
+  "gui.director.properties.clip_ui.whole_animation.visual_parameters": "调整特效参数",
+  "gui.director.properties.clip_ui.whole_animation.visual_edit": "修改整体特效"
 }

@@ -714,18 +714,6 @@ public class TimelineClipPropertyUi {
                 ImGui.textWrapped(wholeText("motion_hint"));
             }
         }
-        modified |= renderWholeChannelToggle("dust_enabled", settings.isDustEnabled(), settings::setDustEnabled);
-        if (settings.isDustEnabled()) {
-            float[] intensity = {settings.getDustIntensity()};
-            if (ImGui.dragFloat(wholeText("dust_intensity"), intensity, 0.05f, 0, 5, "%.2f")) {
-                settings.setDustIntensity(intensity[0]); modified = true;
-            }
-            float[] spread = {settings.getDustSpread()};
-            if (ImGui.dragFloat(wholeText("dust_spread"), spread, 0.05f, 0, 5, "%.2f")) {
-                settings.setDustSpread(spread[0]); modified = true;
-            }
-            ImGui.textWrapped(wholeText("dust_hint"));
-        }
         if (combined) ImGui.textWrapped(wholeText("transform_hint"));
         if (!instant) {
             float[] duration = {config.getDuration()};
@@ -1447,7 +1435,35 @@ public class TimelineClipPropertyUi {
      * <li>3. 添加新特效按钮</li>
      * </ul>
      */
+    private boolean renderWholeEffectsSection(TimelineClip clip) {
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        wholeAnimationEdits.beginFrame(model, clip);
+        var settings = clip.getAnimationConfig().getWholeContainer();
+        ImInt preset = new ImInt(settings.getDustPreset().ordinal());
+        boolean modified = false;
+        if (ImGui.combo(wholeText("visual_preset"), preset, new String[] {
+                wholeText("visual_none"), wholeText("visual_soft_dust"), wholeText("visual_impact_dust")})) {
+            settings.setDustPreset(WholeContainerAnimationConfig.DustPreset.values()[preset.get()]);
+            modified = true;
+        }
+        ImGui.textWrapped(wholeText("dust_hint"));
+        if (settings.isDustEnabled() && ImGui.collapsingHeader(wholeText("visual_parameters"))) {
+            float[] intensity = {settings.getDustIntensity()};
+            if (ImGui.dragFloat(wholeText("dust_intensity"), intensity, 0.05f, 0, 5, "%.2f")) {
+                settings.setDustIntensity(intensity[0]); modified = true;
+            }
+            float[] spread = {settings.getDustSpread()};
+            if (ImGui.dragFloat(wholeText("dust_spread"), spread, 0.05f, 0, 5, "%.2f")) {
+                settings.setDustSpread(spread[0]); modified = true;
+            }
+        }
+        wholeAnimationEdits.endFrame(modified, ImGui.isAnyItemActive(), wholeText("visual_edit"));
+        return modified;
+    }
+
     boolean renderEffectsSection(TimelineClip clip) {
+        if (clip.getAnimationConfig() != null && clip.getAnimationConfig().isWholeContainer())
+            return renderWholeEffectsSection(clip);
         boolean modified = false;
 
         ClipAnimationConfig config = clip.getAnimationConfig();

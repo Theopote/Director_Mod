@@ -120,10 +120,10 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         List<EffectInstance> effects = clip.getAnimationConfig() != null ? clip.getAnimationConfig().getEffects()
                 : java.util.Collections.emptyList();
         String effectsHeader = Icons.PARTICLE + " "
-                + (effects.isEmpty()
+                + (clip.getAnimationConfig().isWholeContainer() || effects.isEmpty()
                 ? TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER)
                 : TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER_COUNT, effects.size()));
-        if (!clip.getAnimationConfig().isWholeContainer() && ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             modified |= propertyUi.renderEffectsSection(clip);
             ImGui.unindent();

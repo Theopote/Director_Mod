@@ -20,7 +20,8 @@ class WholeContainerDustTest {
         for (var p : particles) {
             assertEquals(4, p.source().getY());
             double dx = p.x() - p.source().getX() - 0.5, dz = p.z() - p.source().getZ() - 0.5;
-            assertTrue(dx * dx + dz * dz <= 4.00001);
+            assertTrue(dx * dx + dz * dz <= 2.55 * 2.55 + 0.16 + 0.00001);
+            assertTrue(Math.abs(dx) >= 0.55 || Math.abs(dz) >= 0.55);
             assertTrue(p.y() >= 4.05 && p.y() <= 4.2); assertTrue(p.vy() > 0);
         }
         var reversed = new ArrayList<>(blocks); Collections.reverse(reversed);
@@ -56,5 +57,42 @@ class WholeContainerDustTest {
         assertTrue(copy.isDustEnabled()); assertEquals(2, copy.getDustIntensity());
         s.setDustIntensity(Float.NaN); s.setDustSpread(Float.POSITIVE_INFINITY);
         assertEquals(1, s.getDustIntensity()); assertEquals(0.6f, s.getDustSpread());
+    }
+    @Test void presetSelectionCanDisableEffectsAndRoundTripsWithoutResettingTweaks() {
+        var s = settings();
+        s.setDustPreset(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST);
+        assertTrue(s.isDustEnabled()); assertEquals(2.5f, s.getDustIntensity()); assertEquals(1.2f, s.getDustSpread());
+        s.setDustIntensity(3); s.setDustSpread(2);
+        var loaded = new Gson().fromJson(new Gson().toJson(s), WholeContainerAnimationConfig.class);
+        assertEquals(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST, loaded.getDustPreset());
+        assertEquals(3, loaded.getDustIntensity()); assertEquals(2, loaded.copy().getDustSpread());
+        var particles = WholeContainerDust.sample(List.of(BlockPos.ORIGIN), loaded, 42);
+        assertTrue(particles.size() * 2 <= WholeContainerDust.MAX_PARTICLES);
+        loaded.setDustPreset(WholeContainerAnimationConfig.DustPreset.NONE);
+        assertFalse(loaded.isDustEnabled());
+        assertTrue(WholeContainerDust.sample(List.of(BlockPos.ORIGIN), loaded, 42).isEmpty());
+        loaded.setDustPreset(WholeContainerAnimationConfig.DustPreset.SOFT_DUST);
+        assertEquals(1, loaded.getDustIntensity()); assertEquals(0.6f, loaded.getDustSpread());
+    }
+    @Test void particlesSpawnOutsideSolidFootprintEvenAtZeroSpread() {
+        var blocks = new ArrayList<BlockPos>();
+        for (int x = 0; x < 5; x++) for (int z = 0; z < 5; z++) blocks.add(new BlockPos(x, 0, z));
+        var s = settings(); s.setDustSpread(0); s.setDustIntensity(5);
+        for (var particle : WholeContainerDust.sample(blocks, s, 42)) {
+            var cell = BlockPos.ofFloored(particle.x(), particle.y(), particle.z());
+            assertFalse(blocks.contains(cell));
+        }
+    }
+    @Test void changingAnimationPresetsAndResetDoesNotClearVisualEffects() {
+        var config = ClipAnimationConfig.defaultConfig();
+        config.getWholeContainer().setDustPreset(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST);
+        config.getWholeContainer().setDustIntensity(4);
+        for (var preset : WholeContainerAnimationPresets.Preset.values()) {
+            WholeContainerAnimationPresets.apply(config, preset, null);
+            assertEquals(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST, config.getWholeContainer().getDustPreset());
+            assertEquals(4, config.getWholeContainer().getDustIntensity());
+            WholeContainerAnimationPresets.resetTransform(config);
+            assertEquals(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST, config.getWholeContainer().getDustPreset());
+        }
     }
 }

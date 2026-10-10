@@ -9,6 +9,7 @@ public final class WholeContainerAnimationConfig implements Serializable {
     private static final long serialVersionUID = 1L;
     public enum Effect { SCALE, FLY, ROTATE, TRANSFORM, FADE, INSTANT }
     public enum Pivot { CENTER, BOTTOM_CENTER, CUSTOM }
+    public enum DustPreset { NONE, SOFT_DUST, IMPACT_DUST }
     public enum Motion { NONE, ELASTIC, BOUNCE }
 
     private Motion motion;
@@ -16,6 +17,7 @@ public final class WholeContainerAnimationConfig implements Serializable {
     private Integer motionCycles;
     private Float bounceHeight;
 
+    private DustPreset dustPreset;
     private boolean dustEnabled;
     private Float dustIntensity;
     private Float dustSpread;
@@ -78,6 +80,22 @@ public final class WholeContainerAnimationConfig implements Serializable {
     public boolean usesScale() { return getEffect() == Effect.SCALE || getEffect() == Effect.TRANSFORM && isScaleEnabled(); }
     public boolean usesOpacity() { return getEffect() == Effect.FADE || getEffect() == Effect.TRANSFORM && isOpacityEnabled(); }
 
+    public DustPreset getDustPreset() {
+        return !dustEnabled ? DustPreset.NONE
+                : dustPreset != null && dustPreset != DustPreset.NONE ? dustPreset : DustPreset.SOFT_DUST;
+    }
+    public void setDustPreset(DustPreset value) {
+        dustPreset = value != null ? value : DustPreset.NONE;
+        dustEnabled = dustPreset != DustPreset.NONE;
+        if (dustEnabled) {
+            setDustIntensity(dustPreset == DustPreset.IMPACT_DUST ? 2.5f : 1);
+            setDustSpread(dustPreset == DustPreset.IMPACT_DUST ? 1.2f : 0.6f);
+        }
+    }
+    public void copyDustFrom(WholeContainerAnimationConfig source) {
+        dustPreset = source.dustPreset; dustEnabled = source.dustEnabled;
+        dustIntensity = source.dustIntensity; dustSpread = source.dustSpread;
+    }
     public boolean isDustEnabled() { return dustEnabled; }
     public void setDustEnabled(boolean value) { dustEnabled = value; }
     public float getDustIntensity() { return finite(dustIntensity != null ? dustIntensity : 1, 1, 0, 5); }
@@ -121,7 +139,7 @@ public final class WholeContainerAnimationConfig implements Serializable {
         copy.setOpacity(getOpacity());
         copy.setMotion(getMotion()); copy.setMotionStrength(getMotionStrength());
         copy.setMotionCycles(getMotionCycles()); copy.setBounceHeight(getBounceHeight());
-        copy.setDustEnabled(isDustEnabled()); copy.setDustIntensity(getDustIntensity()); copy.setDustSpread(getDustSpread());
+        copy.copyDustFrom(this);
         return copy;
     }
 }

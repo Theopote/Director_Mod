@@ -39,4 +39,11 @@ class WholeContainerEffectCursorTest {
         c.beginFrame(3, true, false); assertTrue(c.crosses(2));
         c.reset(); c.beginFrame(4, true, false); assertFalse(c.crosses(2));
     }
+    @Test void firstPlayingFrameAtTheSameTimeStillIncludesStartBoundaryOnNextAdvance() {
+        var c = new WholeContainerEffectCursor();
+        c.beginFrame(0, false, false);
+        c.beginFrame(0, true, false); assertFalse(c.crosses(0));
+        c.beginFrame(0.1f, true, false); assertTrue(c.crosses(0));
+        c.beginFrame(0.2f, true, false); assertFalse(c.crosses(0));
+    }
 }

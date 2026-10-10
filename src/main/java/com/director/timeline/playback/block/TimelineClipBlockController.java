@@ -1577,6 +1577,11 @@ public class TimelineClipBlockController {
             net.minecraft.particle.ParticleEffect effect = state != null && !state.isAir()
                     ? new net.minecraft.particle.BlockStateParticleEffect(net.minecraft.particle.ParticleTypes.BLOCK, state)
                     : net.minecraft.particle.ParticleTypes.POOF;
+            // Visible smoke remains readable even with dark block textures.
+            client.particleManager.addParticle(net.minecraft.particle.ParticleTypes.POOF,
+                    particle.x(), particle.y(), particle.z(), particle.vx(), particle.vy(), particle.vz());
+            if (config.getWholeContainer().getDustPreset()
+                    != com.director.core.animation.WholeContainerAnimationConfig.DustPreset.IMPACT_DUST) continue;
             client.particleManager.addParticle(effect, particle.x(), particle.y(), particle.z(),
                     particle.vx(), particle.vy(), particle.vz());
         }

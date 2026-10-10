@@ -5,11 +5,14 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
+import java.util.HashSet;
+import net.minecraft.util.math.Direction;
 
 /** Bounded, deterministic footprint sampling; emitting game particles is the playback layer's job. */
 public final class WholeContainerDust {
     public static final int MAX_PARTICLES = 256;
     private WholeContainerDust() {}
+    private record Edge(BlockPos source, Direction direction) {}
     public record Particle(BlockPos source, double x, double y, double z, double vx, double vy, double vz) {}
 
     public static float eventTime(ClipAnimationConfig config, float start, float end, boolean exit) {
@@ -23,16 +26,25 @@ public final class WholeContainerDust {
         // Stable ordering keeps the same burst independent of container HashSet iteration order.
         var footprint = blocks.stream().filter(p -> p.getY() == bottom)
                 .sorted(Comparator.comparingLong(BlockPos::asLong)).toList();
-        int count = Math.min(MAX_PARTICLES, Math.max(1,
+        var occupied = new HashSet<>(blocks);
+        var edges = new ArrayList<Edge>();
+        for (var pos : footprint)
+            for (var direction : Direction.Type.HORIZONTAL)
+                if (!occupied.contains(pos.offset(direction))) edges.add(new Edge(pos, direction));
+        int count = Math.min(settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.IMPACT_DUST
+                ? MAX_PARTICLES / 2 : MAX_PARTICLES, Math.max(1,
                 (int) (12 * Math.sqrt(footprint.size()) * settings.getDustIntensity())));
         var random = new Random(seed);
         var particles = new ArrayList<Particle>(count);
         double spread = settings.getDustSpread();
         for (int i = 0; i < count; i++) {
-            var source = footprint.get(random.nextInt(footprint.size()));
-            double angle = random.nextDouble() * Math.PI * 2;
-            double radius = spread * Math.sqrt(random.nextDouble());
-            double dx = Math.cos(angle) * radius, dz = Math.sin(angle) * radius;
+            var edge = edges.get(random.nextInt(edges.size()));
+            var source = edge.source();
+            var direction = edge.direction();
+            double outward = 0.55 + spread * random.nextDouble();
+            double tangent = (random.nextDouble() - 0.5) * 0.8;
+            double dx = direction.getOffsetX() * outward + direction.getOffsetZ() * tangent;
+            double dz = direction.getOffsetZ() * outward + direction.getOffsetX() * tangent;
             particles.add(new Particle(source, source.getX() + 0.5 + dx,
                     bottom + 0.05 + random.nextDouble() * 0.15, source.getZ() + 0.5 + dz,
                     dx * 0.15, 0.08 + random.nextDouble() * 0.1, dz * 0.15));

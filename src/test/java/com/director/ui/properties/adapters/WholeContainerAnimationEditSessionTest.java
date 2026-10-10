@@ -210,4 +210,18 @@ class WholeContainerAnimationEditSessionTest {
         history.redo();
         assertTrue(s.isDustEnabled()); assertEquals(2, s.getDustIntensity()); assertEquals(3, s.getDustSpread());
     }
+    @Test void visualPresetSelectionUndoAndRedoRestoresPresetAndParameters() {
+        var s = clip.getAnimationConfig().getWholeContainer();
+        change(() -> s.setDustPreset(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST), false);
+        history.undo();
+        assertEquals(WholeContainerAnimationConfig.DustPreset.NONE, s.getDustPreset());
+        history.redo();
+        assertEquals(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST, s.getDustPreset());
+        assertEquals(2.5f, s.getDustIntensity()); assertEquals(1.2f, s.getDustSpread());
+        change(() -> s.setDustPreset(WholeContainerAnimationConfig.DustPreset.NONE), false);
+        history.undo();
+        assertEquals(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST, s.getDustPreset());
+        history.redo();
+        assertFalse(s.isDustEnabled());
+    }
 }
