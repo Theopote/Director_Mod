@@ -16,6 +16,10 @@ public final class WholeContainerAnimationConfig implements Serializable {
     private Integer motionCycles;
     private Float bounceHeight;
 
+    private boolean dustEnabled;
+    private Float dustIntensity;
+    private Float dustSpread;
+
     private Effect effect = Effect.SCALE;
     private Pivot pivot = Pivot.BOTTOM_CENTER;
     private float scale = 0.0f;
@@ -74,6 +78,13 @@ public final class WholeContainerAnimationConfig implements Serializable {
     public boolean usesScale() { return getEffect() == Effect.SCALE || getEffect() == Effect.TRANSFORM && isScaleEnabled(); }
     public boolean usesOpacity() { return getEffect() == Effect.FADE || getEffect() == Effect.TRANSFORM && isOpacityEnabled(); }
 
+    public boolean isDustEnabled() { return dustEnabled; }
+    public void setDustEnabled(boolean value) { dustEnabled = value; }
+    public float getDustIntensity() { return finite(dustIntensity != null ? dustIntensity : 1, 1, 0, 5); }
+    public void setDustIntensity(float value) { dustIntensity = finite(value, 1, 0, 5); }
+    public float getDustSpread() { return finite(dustSpread != null ? dustSpread : 0.6f, 0.6f, 0, 5); }
+    public void setDustSpread(float value) { dustSpread = finite(value, 0.6f, 0, 5); }
+
     public Motion getMotion() { return motion != null ? motion : Motion.NONE; }
     public void setMotion(Motion value) { motion = value != null ? value : Motion.NONE; }
     public float getMotionStrength() { return finite(motionStrength != null ? motionStrength : 1, 1, 0, 1); }
@@ -110,6 +121,7 @@ public final class WholeContainerAnimationConfig implements Serializable {
         copy.setOpacity(getOpacity());
         copy.setMotion(getMotion()); copy.setMotionStrength(getMotionStrength());
         copy.setMotionCycles(getMotionCycles()); copy.setBounceHeight(getBounceHeight());
+        copy.setDustEnabled(isDustEnabled()); copy.setDustIntensity(getDustIntensity()); copy.setDustSpread(getDustSpread());
         return copy;
     }
 }

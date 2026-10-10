@@ -94,6 +94,7 @@ public class TimelineClipBlockController {
     private long lastHandledRevision = -1L;
     private float lastHandledPreviewTime = Float.NaN;
     private boolean timelineDrivingPaused = true;
+    private final WholeContainerEffectCursor wholeEffectCursor = new WholeContainerEffectCursor();
     private TimelineModel observedModel;
     private final TimelineModel.ModelChangeListener modelChangeListener = changeType -> timelineRevision++;
 
@@ -463,6 +464,7 @@ public class TimelineClipBlockController {
         if (observedModel != null) {
             observedModel.removeModelChangeListener(modelChangeListener);
         }
+        wholeEffectCursor.reset();
         observedModel = model;
         if (observedModel != null) {
             observedModel.addModelChangeListener(modelChangeListener);
@@ -494,6 +496,7 @@ public class TimelineClipBlockController {
     public void update() {
         TimelineModel activeModel = resolveActiveModel();
         if (activeModel == null) {
+            wholeEffectCursor.reset();
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[TimelineClipBlockController] timelineModel 为空，跳过更新");
             }
@@ -506,6 +509,7 @@ public class TimelineClipBlockController {
         float currentTime = activeModel.getCurrentTime();
         boolean playing = activeModel.isPlaying();
         boolean scrubbing = activeModel.isScrubbing();
+        wholeEffectCursor.beginFrame(currentTime, playing, scrubbing);
         boolean previewMode = !playing;
         boolean previewTimeChanged = Float.isNaN(lastHandledPreviewTime)
                 || Math.abs(currentTime - lastHandledPreviewTime) > com.director.core.animation.AnimationConstants.TIME_EPSILON;
@@ -1516,6 +1520,11 @@ public class TimelineClipBlockController {
         if (exit && (!enabled || time < clip.getStartTime())) opacity = 1.0f;
         var frame = com.director.core.animation.WholeContainerAnimation.sample(
                 config, clip.getStartTime(), clip.getEndTime(), enabled ? time : clip.getStartTime() - 1, exit);
+        if (enabled && opacity > 0 && config.getWholeContainer().isDustEnabled()
+                && wholeEffectCursor.crosses(com.director.core.animation.WholeContainerDust.eventTime(
+                        config, clip.getStartTime(), clip.getEndTime(), exit))) {
+            emitWholeContainerDust(container, config);
+        }
         var pivot = com.director.core.animation.WholeContainerAnimation.pivot(
                 container.getBoundingBox(), config.getWholeContainer());
         // Rebuild overrides even while scrubbing: the original world structure must stay hidden.
@@ -1555,6 +1564,21 @@ public class TimelineClipBlockController {
             manager.setBlockState(pos, visual);
             manager.addRenderEntry(new BlockVisualStateManager.RenderEntry(pos, state, visual, clip,
                     new BlockSequenceEntry(pos, 0, 0, 0), snapshot));
+        }
+    }
+
+    private void emitWholeContainerDust(Container container, ClipAnimationConfig config) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world == null || client.particleManager == null) return;
+        var particles = com.director.core.animation.WholeContainerDust.sample(
+                getCachedContainerBlocks(container), config.getWholeContainer(), container.getId().hashCode());
+        for (var particle : particles) {
+            BlockState state = resolveBlockStateForRender(container, particle.source());
+            net.minecraft.particle.ParticleEffect effect = state != null && !state.isAir()
+                    ? new net.minecraft.particle.BlockStateParticleEffect(net.minecraft.particle.ParticleTypes.BLOCK, state)
+                    : net.minecraft.particle.ParticleTypes.POOF;
+            client.particleManager.addParticle(effect, particle.x(), particle.y(), particle.z(),
+                    particle.vx(), particle.vy(), particle.vz());
         }
     }
 

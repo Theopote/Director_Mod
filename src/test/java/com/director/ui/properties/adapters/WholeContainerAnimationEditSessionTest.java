@@ -200,4 +200,14 @@ class WholeContainerAnimationEditSessionTest {
         assertEquals(WholeContainerAnimationConfig.Motion.BOUNCE, s.getMotion());
         assertEquals(0.6f, s.getMotionStrength()); assertEquals(5, s.getMotionCycles()); assertEquals(3, s.getBounceHeight());
     }
+    @Test void dustSettingsUndoAndRedoTogether() {
+        var s = clip.getAnimationConfig().getWholeContainer();
+        change(() -> {
+            s.setDustEnabled(true); s.setDustIntensity(2); s.setDustSpread(3);
+        }, false);
+        history.undo();
+        assertFalse(s.isDustEnabled()); assertEquals(1, s.getDustIntensity()); assertEquals(0.6f, s.getDustSpread());
+        history.redo();
+        assertTrue(s.isDustEnabled()); assertEquals(2, s.getDustIntensity()); assertEquals(3, s.getDustSpread());
+    }
 }

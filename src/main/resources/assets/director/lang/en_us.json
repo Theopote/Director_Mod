@@ -2415,5 +2415,9 @@
   "gui.director.properties.clip_ui.whole_animation.motion_strength": "Modifier strength",
   "gui.director.properties.clip_ui.whole_animation.motion_cycles": "Oscillation / bounce count",
   "gui.director.properties.clip_ui.whole_animation.bounce_height": "Bounce height (blocks)",
-  "gui.director.properties.clip_ui.whole_animation.motion_hint": "Adds motion to geometry within the animation duration. Opacity is unaffected. Demolition reverses the modifier."
+  "gui.director.properties.clip_ui.whole_animation.motion_hint": "Adds motion to geometry within the animation duration. Opacity is unaffected. Demolition reverses the modifier.",
+  "gui.director.properties.clip_ui.whole_animation.dust_enabled": "Arrival / departure dust",
+  "gui.director.properties.clip_ui.whole_animation.dust_intensity": "Dust intensity",
+  "gui.director.properties.clip_ui.whole_animation.dust_spread": "Dust spread (blocks)",
+  "gui.director.properties.clip_ui.whole_animation.dust_hint": "One burst on arrival completion or demolition start. Scrubbing does not emit particles. Particles then dissipate in game time."
 }

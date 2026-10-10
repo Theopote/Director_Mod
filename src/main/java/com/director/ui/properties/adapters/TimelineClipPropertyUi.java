@@ -714,6 +714,18 @@ public class TimelineClipPropertyUi {
                 ImGui.textWrapped(wholeText("motion_hint"));
             }
         }
+        modified |= renderWholeChannelToggle("dust_enabled", settings.isDustEnabled(), settings::setDustEnabled);
+        if (settings.isDustEnabled()) {
+            float[] intensity = {settings.getDustIntensity()};
+            if (ImGui.dragFloat(wholeText("dust_intensity"), intensity, 0.05f, 0, 5, "%.2f")) {
+                settings.setDustIntensity(intensity[0]); modified = true;
+            }
+            float[] spread = {settings.getDustSpread()};
+            if (ImGui.dragFloat(wholeText("dust_spread"), spread, 0.05f, 0, 5, "%.2f")) {
+                settings.setDustSpread(spread[0]); modified = true;
+            }
+            ImGui.textWrapped(wholeText("dust_hint"));
+        }
         if (combined) ImGui.textWrapped(wholeText("transform_hint"));
         if (!instant) {
             float[] duration = {config.getDuration()};

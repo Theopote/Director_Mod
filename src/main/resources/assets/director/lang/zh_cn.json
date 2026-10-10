@@ -2415,5 +2415,9 @@
   "gui.director.properties.clip_ui.whole_animation.motion_strength": "修饰强度",
   "gui.director.properties.clip_ui.whole_animation.motion_cycles": "振动 / 弹跳次数",
   "gui.director.properties.clip_ui.whole_animation.bounce_height": "弹跳高度（方块）",
-  "gui.director.properties.clip_ui.whole_animation.motion_hint": "修饰叠加在几何动画上，共用动画时长；透明度不受影响。拆除时反向播放修饰。"
+  "gui.director.properties.clip_ui.whole_animation.motion_hint": "修饰叠加在几何动画上，共用动画时长；透明度不受影响。拆除时反向播放修饰。",
+  "gui.director.properties.clip_ui.whole_animation.dust_enabled": "落地 / 离场灰尘",
+  "gui.director.properties.clip_ui.whole_animation.dust_intensity": "灰尘强度",
+  "gui.director.properties.clip_ui.whole_animation.dust_spread": "灰尘散射范围（方块）",
+  "gui.director.properties.clip_ui.whole_animation.dust_hint": "出现完成时触发一次，拆除开始时触发一次。仅正常播放时发射，拖动播放头不发射；粒子随后按游戏时间消散。"
 }
