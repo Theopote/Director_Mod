@@ -576,11 +576,16 @@ public class TimelineClipBlockController {
                 // ✅ 计算透明度：使用可见性关键帧和 post-animation fade
                 // 支持可见性关键帧和 post-animation fade 功能
                 float opacityTime = currentTime;
-                if (!config.isWholeContainer() && !result.sequenceEntries().isEmpty()) {
-                    var last = result.sequenceEntries().getLast();
-                    float finished = PerBlockAnimationTiming.layout(config, clip.getStartTime(), clip.getEndTime())
-                            .window(last.getNormalizedTime()).end();
-                    if (currentTime > clip.getEndTime() && currentTime < finished) opacityTime = clip.getEndTime();
+                if (!config.isWholeContainer() && currentTime > clip.getEndTime()) {
+                    var opacitySequence = result.sequenceEntries();
+                    if (opacitySequence.isEmpty()) opacitySequence = getOrGenerateSequenceEntries(clip, container, config,
+                            clip.getLength(), config.getDuration(), config.getDelay() + config.getSequenceParameters().getGlobalDelay());
+                    if (!opacitySequence.isEmpty()) {
+                        float finished = PerBlockAnimationTiming.layout(config, clip.getStartTime(), clip.getEndTime())
+                                .window(opacitySequence.getLast().getNormalizedTime()).end();
+                        float tail = Math.max(0, finished - clip.getEndTime());
+                        opacityTime = Math.max(clip.getEndTime(), currentTime - tail);
+                    }
                 }
                 float finalOpacity = clip.computeAlphaAtGlobalTime(opacityTime);
                 currentFrameOpacity.put(containerId, finalOpacity);

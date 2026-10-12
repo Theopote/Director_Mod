@@ -63,6 +63,22 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
      */
     private final Map<TimelineClip, List<UUID>> linkedEventIdsByClip = new IdentityHashMap<>();
     private final Map<UUID, TimelineClip> linkedClipByEventId = new HashMap<>();
+    private record BlockSoundTiming(net.minecraft.util.math.BlockPos pos, float actionOffset) {}
+    private final Map<UUID, BlockSoundTiming> blockSoundTimingByEventId = new HashMap<>();
+
+    private Map<net.minecraft.util.math.BlockPos, Float> perBlockStartTimes(TimelineClip clip, float start, float end) {
+        if (clip == null || clip.getAnimationConfig().isWholeContainer() || clip.getBoundContainerId() == null) return Map.of();
+        var container = DirectorServices.get().containers().getContainer(clip.getBoundContainerId());
+        if (container == null) return Map.of();
+        var config = clip.getAnimationConfig();
+        var entries = BlockSequenceGenerator.generate(null, container, config.getSequenceParameters(), end-start,
+                config.getDuration(), config.getDelay());
+        var clock = com.director.core.animation.PerBlockAnimationTiming.layout(config, start, end);
+        Map<net.minecraft.util.math.BlockPos, Float> times = new HashMap<>();
+        for (var entry : entries) times.put(entry.getPos(), clock.window(entry.getNormalizedTime()).start());
+        return times;
+    }
+
     private final Map<TimelineClip, TimelineClip> linkedAudioClipsByClip = new IdentityHashMap<>();
     private final Map<TimelineClip, TimelineClip> linkedContainerClipsByAudioClip = new IdentityHashMap<>();
     /**
@@ -236,6 +252,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
     private void rebuildAudioLinksFromTimeline() {
         linkedEventIdsByClip.clear();
         linkedClipByEventId.clear();
+        blockSoundTimingByEventId.clear();
         linkedAudioClipsByClip.clear();
         linkedContainerClipsByAudioClip.clear();
         clipPreviewStates.clear();
@@ -433,9 +450,14 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         AnimationSoundCollector collector = AnimationSoundCollector.getInstance();
         List<AudioEvent> events = collector.collectFromClip(clip, container, sequenceEntries);
 
-        for (AudioEvent event : events) {
+        var clock = com.director.core.animation.PerBlockAnimationTiming.layout(config, clip.getStartTime(), clip.getEndTime());
+        for (int i = 0; i < events.size(); i++) {
+            AudioEvent event = events.get(i);
             audioTrack.addEvent(event);
             linkEventToClip(clip, event);
+            var entry = sequenceEntries.get(i);
+            blockSoundTimingByEventId.put(event.getId(), new BlockSoundTiming(entry.getPos(),
+                    event.getTime() - clock.window(entry.getNormalizedTime()).start()));
         }
         audioTrack.sortEvents();
 
@@ -470,9 +492,15 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         List<UUID> ids = linkedEventIdsByClip.getOrDefault(containerClip, Collections.emptyList());
         AudioTrack audioTrack = findAudioTrack();
         if (audioTrack != null && !ids.isEmpty()) {
+            var blockStarts = isContainer ? perBlockStartTimes(containerClip, newStartTime, newEndTime) : Map.<net.minecraft.util.math.BlockPos, Float>of();
             for (UUID id : ids) {
                 AudioEvent ev = audioTrack.getEventById(id);
                 if (ev == null) {
+                    continue;
+                }
+                var timing = blockSoundTimingByEventId.get(id);
+                if (timing != null && blockStarts.containsKey(timing.pos())) {
+                    ev.setTime(Math.max(0, blockStarts.get(timing.pos()) + timing.actionOffset()));
                     continue;
                 }
                 float t = ev.getTime();
@@ -556,7 +584,14 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         }
 
         state.previewTimesByEventId.clear();
+        var containerClip = isContainerClip(clip) ? clip : null;
+        var blockStarts = perBlockStartTimes(containerClip, newStartTime, newEndTime);
         for (Map.Entry<UUID, Float> e : state.originalTimesByEventId.entrySet()) {
+            var timing = blockSoundTimingByEventId.get(e.getKey());
+            if (timing != null && blockStarts.containsKey(timing.pos())) {
+                state.previewTimesByEventId.put(e.getKey(), Math.max(0, blockStarts.get(timing.pos()) + timing.actionOffset()));
+                continue;
+            }
             float t0 = e.getValue();
             float u = (t0 - state.oldStart) / oldLen;
             u = Math.clamp(u, 0f, 1f);
@@ -606,6 +641,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         }
 
         linkedClipByEventId.remove(id);
+        blockSoundTimingByEventId.remove(id);
 
         linkedEventIdsByClip.entrySet().removeIf(e -> {
             e.getValue().removeIf(id::equals);
@@ -887,7 +923,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         TimelineClip audioClip = new AudioTimelineClip(
                 formatAudioClipLabel(containerClip.getLabel(), isEraseTrack),
                 containerClip.getStartTime(),
-                containerClip.getEndTime(),
+                com.director.core.animation.PerBlockAnimationTiming.completionLimit(containerClip.getAnimationConfig(), containerClip.getStartTime(), containerClip.getEndTime()),
                 clipColor
         );
         audioClip.bindToContainer(containerClip.getBoundContainerId(), containerClip.getBoundContainerName());
@@ -1042,7 +1078,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
             return;
         }
         float newStart = containerClip.getStartTime();
-        float newEnd = containerClip.getEndTime();
+        float newEnd = com.director.core.animation.PerBlockAnimationTiming.completionLimit(containerClip.getAnimationConfig(), containerClip.getStartTime(), containerClip.getEndTime());
         float oldStart = audioClip.getStartTime();
         float oldEnd = audioClip.getEndTime();
         if (Math.abs(oldStart - newStart) < 0.0005f && Math.abs(oldEnd - newEnd) < 0.0005f) {
@@ -1065,7 +1101,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
             return;
         }
         audioClip.setStartTime(newStartTime);
-        audioClip.setEndTime(newEndTime);
+        audioClip.setEndTime(com.director.core.animation.PerBlockAnimationTiming.completionLimit(containerClip.getAnimationConfig(), newStartTime, newEndTime));
         float actualStart = audioClip.getStartTime();
         float actualEnd = audioClip.getEndTime();
         updateAudioClipKeyframes(audioClip, oldStartTime, oldEndTime, actualStart, actualEnd);
@@ -1273,7 +1309,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         if (clip == null || timelineModel == null) {
             return;
         }
-        if (suppressAutoCreate) {
+        if (suppressAutoCreate && linkedEventIdsByClip.getOrDefault(clip, List.of()).isEmpty()) {
             return;
         }
         if (!isContainerClip(clip)) {
@@ -1394,6 +1430,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         if (linked != null && !linked.isEmpty()) {
             for (UUID id : linked) {
                 linkedClipByEventId.remove(id);
+                blockSoundTimingByEventId.remove(id);
                 for (AudioTrack audioTrack : audioTracks) {
                     AudioEvent ev = audioTrack.getEventById(id);
                     if (ev != null) {

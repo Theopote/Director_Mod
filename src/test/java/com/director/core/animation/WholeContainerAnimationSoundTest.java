@@ -76,10 +76,10 @@ class WholeContainerAnimationSoundTest {
         var clip = clip(false); var config = clip.getAnimationConfig();
         config.setScope(ClipAnimationConfig.AnimationScope.PER_BLOCK); config.setMode(AnimationMode.FADE_IN);
         config.getParams().put("enterSoundOffsetSeconds", 0.25f);
-        var entries = List.of(new BlockSequenceEntry(first, 0, 0, 0), new BlockSequenceEntry(second, 1, 0, 1));
+        var entries = List.of(new BlockSequenceEntry(first, 0, 0, 0), new BlockSequenceEntry(second, 0.5f, 0, 1));
         var events = AnimationSoundCollector.getInstance().collectFromClip(clip, container, entries);
         assertEquals(2, events.size());
-        assertEquals(13.25f, events.getFirst().getStartTime()); assertEquals(20.25f, events.getLast().getStartTime());
+        assertEquals(13.25f, events.getFirst().getStartTime()); assertEquals(18.25f, events.getLast().getStartTime());
     }
     @Test void emptyAssemblyDoesNotGenerateASound() {
         assertTrue(AnimationSoundCollector.getInstance().collectFromClip(clip(false), new Container("Empty"), List.of()).isEmpty());

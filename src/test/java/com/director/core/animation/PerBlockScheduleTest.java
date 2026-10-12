@@ -27,106 +27,83 @@ class PerBlockScheduleTest {
     private PerBlockAnimationTiming.Window window(ClipAnimationConfig config, BlockSequenceEntry entry, float end) {
         return PerBlockAnimationTiming.layout(config, 0, end, entry).window(entry.getNormalizedTime());
     }
-    @Test void serialLengthIsSumAndResizingSpeedsUpEveryCompleteAction() {
+    @Test void startsUseClipLengthDividedByCountAndActionsOverlap() {
         var params = new SequenceParameters(); var config = config(params);
-        var schedule = PerBlockSchedule.create(ordered(3), params, 2, false);
-        assertEquals(6, schedule.duration());
+        var schedule = PerBlockSchedule.create(ordered(10), params, 2);
+        assertEquals(1.8f, schedule.lastStartOffset(), 0.00001);
+        for (int i = 0; i < 10; i++) {
+            var w = window(config, schedule.entries().get(i), 2);
+            assertEquals(i * 0.2f, w.start(), 0.00001);
+            assertEquals(2, w.end()-w.start(), 0.00001);
+        }
         for (int i = 0; i < 3; i++) {
-            var entry = schedule.entries().get(i);
-            var normal = window(config, entry, 6); var fast = window(config, entry, 3);
-            assertEquals(i * 2, normal.start(), 0.00001); assertEquals(i * 2 + 2, normal.end(), 0.00001);
-            assertEquals(i, fast.start(), 0.00001); assertEquals(i + 1, fast.end(), 0.00001);
-            var sample = BlockAnimationEngine.sample(entry.getPos(), null, config, entry, 0, 3, i + 0.5f, 42);
-            assertEquals(0.5f, sample.getRawProgress(), 0.00001);
+            var e = schedule.entries().get(i);
+            assertTrue(BlockAnimationEngine.sample(e.getPos(), null, config, e, 0, 2, 0.5f, 1).isVisible());
+            assertFalse(BlockAnimationEngine.sample(e.getPos(), null, config, e, 0, 2, 0.5f, 1).isAnimationFinished());
         }
     }
-    @Test void batchesWaitForThePreviousBatchToFinishThenApplyGap() {
+    @Test void changingActionDurationDoesNotMoveAnyStartsOrResizeTheClip() {
+        var container = new Container("blocks"); container.addBlocks(List.of(BlockPos.ORIGIN, new BlockPos(1,0,0)));
+        var clip = new TimelineClip("blocks", 0, 2, 0); var config = clip.getAnimationConfig();
+        config.setMode(AnimationMode.FADE_IN); config.setDuration(1);
+        var first = BlockSequenceGenerator.generate(null, container, config.getSequenceParameters(), 2, 1, 0);
+        config.setDuration(5);
+        var second = BlockSequenceGenerator.generate(null, container, config.getSequenceParameters(), 2, 5, 0);
+        assertEquals(2, clip.getLength());
+        for (int i=0; i<2; i++) {
+            assertEquals(first.get(i).getNormalizedTime(), second.get(i).getNormalizedTime());
+            assertEquals(5, window(config, second.get(i), 2).end()-window(config, second.get(i), 2).start());
+        }
+    }
+    @Test void batchAndLayerStartsDoNotWaitForPreviousActions() {
         var params = new SequenceParameters(); params.setConcurrencyMode(ConcurrencyMode.IN_BATCHES);
-        params.setBatchSize(2); params.setBatchInterval(0.5f);
-        var config = config(params); var schedule = PerBlockSchedule.create(ordered(5), params, 2, false);
-        assertEquals(7, schedule.duration());
-        for (int i = 0; i < 5; i++)
-            assertEquals((i / 2) * 2.5f, window(config, schedule.entries().get(i), 7).start(), 0.00001);
-        assertEquals(7, window(config, schedule.entries().getLast(), 7).end());
-    }
-    @Test void parallelLayersAccumulateIndependentlyUsingTheLongestLayer() {
-        var params = new SequenceParameters(); params.setConcurrencyMode(ConcurrencyMode.PARALLEL_LAYERS);
-        // Explicit layer concurrency takes priority over an old saved batch mapping.
-        params.setTimeMappingStrategy(TimeMappingStrategy.BATCH_MAPPING);
-        var schedule = PerBlockSchedule.create(ordered(1, 3), params, 2, false);
-        assertEquals(6, schedule.duration());
+        params.setBatchSize(2); params.setBatchInterval(0.25f);
+        var schedule = PerBlockSchedule.create(ordered(5), params, 2);
         var config = config(params);
-        assertEquals(2, schedule.entries().stream().filter(e -> window(config, e, 6).start() == 0).count());
-        assertEquals(2, window(config, schedule.entries().stream().filter(e -> e.getGroupId() == 0).findFirst().orElseThrow(), 6).end());
+        assertEquals(0.25f, window(config, schedule.entries().get(2), 2).start());
+        assertEquals(2, window(config, schedule.entries().getFirst(), 2).end());
+        params.setConcurrencyMode(ConcurrencyMode.PARALLEL_LAYERS);
+        params.setTimeMappingStrategy(TimeMappingStrategy.BATCH_MAPPING);
+        schedule = PerBlockSchedule.create(ordered(1,3), params, 3);
+        assertEquals(2, schedule.entries().stream().filter(e -> e.getNormalizedTime()==0).count());
+        assertEquals(2, schedule.lastStartOffset());
     }
-    @Test void unequalGroupsFinishBeforeNextGroupStartsAndStaggerReversesOnlyLocalOrder() {
-        for (var mapping : List.of(TimeMappingStrategy.GROUP_FIRST, TimeMappingStrategy.STAGGERED)) {
-            var params = new SequenceParameters(); params.setTimeMappingStrategy(mapping); params.setBatchInterval(0.5f);
-            var schedule = PerBlockSchedule.create(ordered(1, 3), params, 2, false);
-            assertEquals(8.5f, schedule.duration());
-            var config = config(params);
-            var next = schedule.entries().get(1);
-            assertEquals(2.5f, window(config, next, 8.5f).start(), 0.00001);
-            assertEquals(mapping == TimeMappingStrategy.STAGGERED ? 3 : 1, next.getPos().getX());
-        }
-    }
-    @Test void simultaneousBlocksAreStillSeparateActionsSharingAWindow() {
-        var params = new SequenceParameters(); params.setConcurrencyMode(ConcurrencyMode.ALL_AT_ONCE);
-        var schedule = PerBlockSchedule.create(ordered(3), params, 2, false);
-        assertEquals(2, schedule.duration());
-        for (var entry : schedule.entries()) {
-            assertEquals(0, window(config(params), entry, 2).start());
-            assertEquals(2, window(config(params), entry, 2).end());
-        }
-    }
-    @Test void instantRetainsSequenceAndDoesNotUseTransformDuration() {
-        var params = new SequenceParameters(); var config = config(params); config.setMode(AnimationMode.INSTANT);
-        var schedule = PerBlockSchedule.create(ordered(3), params, 2, true);
-        assertEquals(4, schedule.duration());
-        for (int i = 0; i < 3; i++) {
-            var w = window(config, schedule.entries().get(i), 4);
-            assertEquals(i * 2, w.start()); assertEquals(w.start(), w.end());
-        }
-    }
-    @Test void delayIsAppliedOnceAndBothPhasesShareTheSameCompleteWindows() {
-        var params = new SequenceParameters(); params.setGlobalDelay(0.5f);
-        var config = config(params); config.setDelay(0.5f);
-        var schedule = PerBlockSchedule.create(ordered(3), params, 2, false);
+    @Test void soundsRemainAtCompletionAfterTheClipEnd() {
+        var container = new Container("blocks"); container.addBlocks(List.of(BlockPos.ORIGIN, new BlockPos(1,0,0), new BlockPos(2,0,0)));
         for (var phase : ClipAnimationConfig.AnimationPhase.values()) {
-            config.setPhase(phase);
-            for (int i = 0; i < 3; i++) {
-                var entry = schedule.entries().get(i); var w = window(config, entry, 4);
-                assertEquals(i + 1, w.start(), 0.00001); assertEquals(i + 2, w.end(), 0.00001);
-                assertEquals(phase == ClipAnimationConfig.AnimationPhase.EXIT,
-                        BlockAnimationEngine.sample(entry.getPos(), null, config, entry, 0, 4, w.start() - 0.1f, 1).isVisible());
-                assertEquals(phase != ClipAnimationConfig.AnimationPhase.EXIT,
-                        BlockAnimationEngine.sample(entry.getPos(), null, config, entry, 0, 4, w.end(), 1).isVisible());
+            var clip = new TimelineClip("blocks", 10, 10.3f, 0); var config = clip.getAnimationConfig();
+            config.setMode(AnimationMode.FADE_IN); config.setDuration(2); config.setPhase(phase);
+            config.getParams().put(phase == ClipAnimationConfig.AnimationPhase.EXIT ? "exitSoundTiming" : "enterSoundTiming", "END");
+            var entries = BlockSequenceGenerator.generate(null, container, config.getSequenceParameters(), clip.getLength(), 2, 0);
+            var sounds = AnimationSoundCollector.getInstance().collectFromClip(clip, container, entries);
+            assertEquals(12, sounds.getFirst().getStartTime(), 0.00001);
+            assertEquals(12.2f, sounds.getLast().getStartTime(), 0.00001);
+            config.setMode(AnimationMode.INSTANT);
+            sounds = AnimationSoundCollector.getInstance().collectFromClip(clip, container, entries);
+            assertEquals(10.2f, sounds.getLast().getStartTime(), 0.00001);
+        }
+    }
+    @Test void allMappingsKeepIndependentDurationsAndStartsInsideTheTriggerSpan() {
+        for (var concurrency : ConcurrencyMode.values()) for (var mapping : TimeMappingStrategy.values()) {
+            var params = new SequenceParameters(); params.setConcurrencyMode(concurrency); params.setTimeMappingStrategy(mapping);
+            params.setBatchSize(2); params.setBatchInterval(0.2f);
+            var schedule = PerBlockSchedule.create(ordered(2,1,4), params, 1);
+            var config = config(params); float previous=-1;
+            for (var entry : schedule.entries()) {
+                var w = window(config, entry, 1);
+                assertTrue(w.start()>=previous); assertTrue(w.start()<1);
+                assertEquals(2, w.end()-w.start(), 0.00001); previous=w.start();
             }
         }
     }
-    @Test void generatorAudioAndSamplingAgreeIncludingShortClipsAndInstantMode() {
-        var container = new Container("blocks");
-        container.addBlocks(List.of(BlockPos.ORIGIN, new BlockPos(1, 0, 0), new BlockPos(2, 0, 0)));
-        for (var mode : List.of(AnimationMode.FADE_IN, AnimationMode.INSTANT))
-            for (var phase : ClipAnimationConfig.AnimationPhase.values()) {
-                var clip = new TimelineClip("blocks", 10, 10.3f, 0); var config = clip.getAnimationConfig();
-                config.setDuration(2); config.setDelay(0); config.setMode(mode); config.setPhase(phase);
-                config.getParams().put(phase == ClipAnimationConfig.AnimationPhase.EXIT ? "exitSoundTiming" : "enterSoundTiming", "END");
-                var entries = BlockSequenceGenerator.generate(null, container, config.getSequenceParameters(), clip.getLength(), config.getDuration(), 0, mode == AnimationMode.INSTANT);
-                var sounds = AnimationSoundCollector.getInstance().collectFromClip(clip, container, entries);
-                for (int i = 0; i < entries.size(); i++) {
-                    var e = entries.get(i); var timing = PerBlockAnimationTiming.layout(config, clip.getStartTime(), clip.getEndTime(), e);
-                    var w = timing.window(e.getNormalizedTime());
-                    assertEquals(w.end(), sounds.get(i).getStartTime(), 0.00001);
-                    assertEquals(mode == AnimationMode.INSTANT ? 0 : clip.getLength()/3, w.end() - w.start(), 0.00001);
-                }
-                assertEquals(clip.getEndTime(), sounds.getLast().getStartTime(), 0.00001);
-            }
-    }
-    @Test void persistedDurationOverrideAndEmptySelectionsAreHandled() {
-        var params = new SequenceParameters(); params.setPerBlockDuration(0.25f);
-        assertEquals(0.75f, PerBlockSchedule.create(ordered(3), params, 2, false).duration());
-        assertTrue(PerBlockSchedule.create(List.of(), params, 2, false).entries().isEmpty());
+    @Test void timelineDurationIncludesIndependentTailWithoutChangingClipLength() {
+        var model = new com.director.timeline.model.TimelineModel(new com.director.timeline.model.TimelineViewportState());
+        var track = new com.director.timeline.model.TimelineTrack("blocks", com.director.timeline.model.TrackType.CONTAINER);
+        model.addTrack(track); var clip = new TimelineClip("blocks", 10, 12, 0);
+        clip.getAnimationConfig().setMode(AnimationMode.FADE_IN);
+        clip.getAnimationConfig().setDuration(2); track.addClip(clip);
+        clip.bindToContainer(java.util.UUID.randomUUID(), "blocks"); model.setDuration(0.1f);
+        assertTrue(model.getDuration()>=14); assertEquals(2, clip.getLength());
     }
     @Test void reverseReversesLayerOrderAndLowWeightAllowsInterleaving() {
         var container = new Container("layers");
@@ -139,7 +116,7 @@ class PerBlockScheduleTest {
         params.setReverse(true);
         assertEquals(upperNear, BlockSequenceGenerator.generate(null, container, params).getFirst().getPos());
         params.setTimeMappingStrategy(TimeMappingStrategy.GROUP_FIRST);
-        var schedule = PerBlockSchedule.create(BlockSequenceGenerator.generate(null, container, params), params, 1, false);
+        var schedule = PerBlockSchedule.create(BlockSequenceGenerator.generate(null, container, params), params, 1);
         assertEquals(upperNear, schedule.entries().getFirst().getPos());
     }
     @Test void tinyActionDurationSurvivesCopyAndGsonRoundTrip() {
@@ -148,21 +125,6 @@ class PerBlockScheduleTest {
         var gson = new com.google.gson.Gson();
         var restored = gson.fromJson(gson.toJson(config), ClipAnimationConfig.class);
         assertEquals(0.001f, restored.getDuration());
-        assertEquals(0.003f, PerBlockSchedule.create(ordered(3), restored.getSequenceParameters(), restored.getDuration(), false).duration(), 0.000001);
-    }
-    @Test void allConcurrencyAndMappingCombinationsProduceSortedBoundedFullWindows() {
-        for (var concurrency : ConcurrencyMode.values()) for (var mapping : TimeMappingStrategy.values()) {
-            var params = new SequenceParameters(); params.setConcurrencyMode(concurrency); params.setTimeMappingStrategy(mapping);
-            params.setBatchSize(2); params.setBatchInterval(0.2f);
-            var schedule = PerBlockSchedule.create(ordered(2, 1, 4), params, 0.3f, false);
-            var config = config(params); float lastStart = -1, maxEnd = 0;
-            for (var entry : schedule.entries()) {
-                var w = window(config, entry, schedule.duration());
-                assertTrue(w.start() >= lastStart); assertTrue(w.end() <= schedule.duration() + 0.00001);
-                assertEquals(0.3f, w.end() - w.start(), 0.00001);
-                lastStart = w.start(); maxEnd = Math.max(maxEnd, w.end());
-            }
-            assertEquals(schedule.duration(), maxEnd, 0.00001);
-        }
+        assertEquals(0.001f, PerBlockAnimationTiming.layout(restored, 0, 1).duration(), 0.000001);
     }
 }
