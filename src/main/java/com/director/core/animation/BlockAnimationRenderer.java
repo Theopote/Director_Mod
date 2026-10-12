@@ -183,8 +183,9 @@ public class BlockAnimationRenderer {
         matrices.push();
         matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
         try {
+            var shell = OcclusionSurfaceRenderer.prepare(world, entries);
             for (BlockVisualStateManager.RenderEntry entry : entries) {
-                if (entry == null || entry.pos() == null) {
+                if (entry == null || entry.pos() == null || shell.handled().contains(entry.pos())) {
                     continue;
                 }
 
@@ -226,6 +227,7 @@ public class BlockAnimationRenderer {
                         visualState,
                         state, renderView);
             }
+            shell.draw(matrices, consumers);
         } finally {
             matrices.pop();
         }
