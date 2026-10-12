@@ -123,7 +123,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
                 + (clip.getAnimationConfig().isWholeContainer() || effects.isEmpty()
                 ? TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER)
                 : TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER_COUNT, effects.size()));
-        if (ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(effectsHeader + "###ClipEffects", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             modified |= propertyUi.renderEffectsSection(clip);
             ImGui.unindent();
@@ -132,16 +132,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         TimelineTrack parent = clip.getParentTrack();
         TrackType type = parent != null ? parent.getType() : null;
         boolean isBlockClip = type == TrackType.CONTAINER;
-        if (isBlockClip && (sequenceModified || animationModified)) {
-            if (!ImGui.isAnyItemActive()) {
-                com.director.ui.timeline.audio.TimelineAudioService.getInstance()
-                        .refreshAutoSoundEventsIfNeeded(clip);
-            }
-        }
-
-        parent = clip.getParentTrack();
-        type = parent != null ? parent.getType() : null;
-        isBlockClip = type == TrackType.CONTAINER;
+        propertyUi.queueSoundRefresh(clip, isBlockClip && (sequenceModified || animationModified));
         if (isBlockClip) {
             float newStart = clip.getStartTime();
             float newEnd = clip.getEndTime();

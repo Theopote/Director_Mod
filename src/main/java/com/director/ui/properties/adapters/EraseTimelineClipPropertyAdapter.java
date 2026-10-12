@@ -108,18 +108,13 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         if (!clip.getAnimationConfig().isWholeContainer() && !effects.isEmpty()) {
             effectsHeader += " (" + effects.size() + ")";
         }
-        if (ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(effectsHeader + "###ClipEffects", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             modified |= propertyUi.renderEffectsSection(clip);
             ImGui.unindent();
         }
 
-        if (sequenceModified || animationModified) {
-            if (!ImGui.isAnyItemActive()) {
-                com.director.ui.timeline.audio.TimelineAudioService.getInstance()
-                        .refreshAutoSoundEventsIfNeeded(clip);
-            }
-        }
+        propertyUi.queueSoundRefresh(clip, sequenceModified || animationModified);
 
         float newStart = clip.getStartTime();
         float newEnd = clip.getEndTime();
