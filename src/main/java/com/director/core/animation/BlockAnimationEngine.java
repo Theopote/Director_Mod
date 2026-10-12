@@ -108,6 +108,19 @@ public final class BlockAnimationEngine {
             float clipEnd,
             float now,
             long randomSeed) {
+        return sample(pos, state, config, seqEntry, clipStart, clipEnd, now, randomSeed, true);
+    }
+
+    /** 按播放头时间采样动作，拖动预览不发射粒子或修改特效触发状态。 */
+    public static BlockAnimationSnapshot samplePreview(BlockPos pos, BlockState state,
+            ClipAnimationConfig config, BlockSequenceEntry seqEntry,
+            float clipStart, float clipEnd, float now, long randomSeed) {
+        return sample(pos, state, config, seqEntry, clipStart, clipEnd, now, randomSeed, false);
+    }
+
+    private static BlockAnimationSnapshot sample(BlockPos pos, BlockState state,
+            ClipAnimationConfig config, BlockSequenceEntry seqEntry,
+            float clipStart, float clipEnd, float now, long randomSeed, boolean emitEffects) {
         BlockAnimationSnapshot snapshot = new BlockAnimationSnapshot(pos, state);
 
         // ===== 0. 无配置：纯瞬时渲染 =====
@@ -153,7 +166,7 @@ public final class BlockAnimationEngine {
                     snapshot.setTransform(null); // null = identity
                     snapshot.setAlpha(1.0f);
                     // 允许触发特效（虽然 INSTANT 模式通常不需要特效，但保留兼容性）
-                    applyEffectsSafe(snapshot, config, now, randomSeed);
+                    if (emitEffects) applyEffectsSafe(snapshot, config, now, randomSeed);
                 } else {
                     snapshot.markHidden();
                 }
@@ -175,7 +188,7 @@ public final class BlockAnimationEngine {
             snapshot.setAnimationFinished(now >= blockStartTime);
             snapshot.setSequenceNormalizedTime(seqNormalizedTime);
             snapshot.setTransform(null);
-            if (now >= blockStartTime) applyEffectsSafe(snapshot, config, now, randomSeed);
+            if (now >= blockStartTime && emitEffects) applyEffectsSafe(snapshot, config, now, randomSeed);
             return snapshot;
         }
 
@@ -225,7 +238,7 @@ public final class BlockAnimationEngine {
                 snapshot.setAnimationFinished(true);
             }
             // ✅ 修复：动画结束后仍然检查并触发特效（特别是后段特效，如 DUST_BURST）
-            applyEffectsSafe(snapshot, config, now, randomSeed);
+            if (emitEffects) applyEffectsSafe(snapshot, config, now, randomSeed);
             return snapshot;
         }
 
@@ -340,7 +353,7 @@ public final class BlockAnimationEngine {
         snapshot.setTransform(matrices);
 
         // ===== 6. 应用特效（粒子 / 其他可视效果） =====
-        applyEffectsSafe(snapshot, config, now, randomSeed);
+        if (emitEffects) applyEffectsSafe(snapshot, config, now, randomSeed);
 
         return snapshot;
     }

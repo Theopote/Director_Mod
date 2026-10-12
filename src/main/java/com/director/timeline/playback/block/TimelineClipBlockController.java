@@ -508,7 +508,7 @@ public class TimelineClipBlockController {
 
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
 
-        // 预览模式：世界方块由 Minecraft 直接渲染，不维护数万规模的 visualOverrides
+        // 每次更新重建当前时间的覆盖层，播放与拖动预览使用同一动画状态。
         visualStateManager.clearFrame();
 
         // currentFrameVisibleBlocks：保持为“渲染可见集合”（用于遮挡/overlay/视觉状态）
@@ -622,7 +622,7 @@ public class TimelineClipBlockController {
         // 如果客户端对可见集对称差（几万 pos）手动调用 scheduleBlockRenders，
         // 会导致 GPU 每帧重建几百个 chunk section，帧时间拉到 100ms+，FPS 掉到 7~10。
         // scheduleBlockRenders 仅在 BlockVisualStateManager overlay/suppress 状态变化时才需要，
-        // 由下面的 !previewMode 分支通过 visualStateManager.getChangedBlocks() 驱动。
+        // 播放和拖动预览都通过 visualStateManager.getChangedBlocks() 驱动。
         Map<UUID, Boolean> worldSetChangedByContainer = new HashMap<>();
         for (Map.Entry<UUID, Set<BlockPos>> entry : visibilityWorldBlocks.entrySet()) {
             UUID containerId = entry.getKey();
@@ -786,12 +786,12 @@ public class TimelineClipBlockController {
                 LOGGER.warn("[TimelineClipBlockController] ContainerVisibilityService 未初始化，无法控制方块显示");
             }
 
-            // ◆ 然后设置视觉状态（用于半透明效果和遮挡淡化）——仅播放时需要
+            // 播放与拖动预览共享视觉状态和动作采样，只在播放时触发特效。
             ClipAnimationConfig frameConfig = currentFrameConfigs.get(containerId);
             if (frameConfig != null && frameConfig.isWholeContainer()) {
                 registerWholeContainerEntries(visualStateManager, container, occludedClip,
                         frameConfig, currentTime, renderBlocks, opacity);
-            } else if (!previewMode) {
+            } else {
                 Set<BlockPos> prevVisible = lastFrameVisibleBlocks.getOrDefault(containerId,
                         java.util.Collections.emptySet());
 
@@ -859,8 +859,6 @@ public class TimelineClipBlockController {
                         currentTime,
                         renderBlocks,
                         previewMode);
-            } else {
-                visualStateManager.clearOverridesFor(container);
             }
 
             if (lastParams == null) {
@@ -1360,27 +1358,12 @@ public class TimelineClipBlockController {
             if (timing != null) {
                 normalizedReveal = timing.threshold(currentTime - clipStart - delay);
             }
-            if (!isDemolition) {
-                if ((previewMode || isInstant) && normalizedReveal < 0.0f) {
-                    return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), List.of());
-                }
-                if (!previewMode && !isInstant && normalizedReveal < 0.0f) {
-                    return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), List.of());
-                }
-            } else if (previewMode || isInstant) {
-                if (normalizedReveal < 0.0f) {
+            if (normalizedReveal < 0.0f) {
+                if (isDemolition) {
                     Set<BlockPos> all = newBlockSet(allBlocks);
                     return new VisibleBlocksResult(all, all, List.of());
                 }
-            } else {
-                float normalizedStart = 0;
-                if (timing != null) {
-                    normalizedStart = timing.threshold(currentTime - clipStart - delay);
-                }
-                if (normalizedStart < 0.0f) {
-                    Set<BlockPos> all = newBlockSet(allBlocks);
-                    return new VisibleBlocksResult(all, all, List.of());
-                }
+                return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), List.of());
             }
 
             sequenceEntries = getOrGenerateSequenceEntries(
@@ -1409,8 +1392,8 @@ public class TimelineClipBlockController {
             if (!isDemolition) {
                 renderBlocks = newBlockSetForExpectedSize(Math.min(allBlocks.size(), sequenceEntries.size()));
                 worldBlocks = newBlockSetForExpectedSize(Math.min(allBlocks.size(), sequenceEntries.size()));
-                if (previewMode || isInstant) {
-                    // ENTER + (preview/instant)：可见集是序列的前缀，按阈值直接取前缀避免扫描全量 entry
+                if (isInstant) {
+                    // ENTER + INSTANT：可见集是序列的前缀，按阈值直接取前缀避免扫描全量 entry
                     float normalizedThreshold = 0;
                     if (timing != null) {
                         normalizedThreshold = timing.threshold(currentTime - clipStart - delay);
@@ -1424,7 +1407,7 @@ public class TimelineClipBlockController {
                         }
                     }
                 } else {
-                    // ENTER + 播放：render 是 start 前缀；world 是 end 前缀（start+animDuration）
+                    // ENTER + 动画（播放/预览）：render 是 start 前缀；world 是 end 前缀（start+animDuration）
                     float normalizedThresholdRender = 0;
                     if (timing != null) {
                         normalizedThresholdRender = timing.threshold(currentTime - clipStart - delay);
@@ -1452,8 +1435,8 @@ public class TimelineClipBlockController {
                 renderBlocks = newBlockSet(allBlocks);
                 worldBlocks = newBlockSet(allBlocks);
 
-                if (previewMode || isInstant) {
-                    // ERASE + (preview/instant)：移除序列前缀即可
+                if (isInstant) {
+                    // ERASE + INSTANT：移除序列前缀即可
                     float normalizedThreshold = 0;
                     if (timing != null) {
                         normalizedThreshold = timing.threshold(currentTime - clipStart - delay);
@@ -1656,9 +1639,9 @@ public class TimelineClipBlockController {
             float currentTime,
             Set<BlockPos> visibleBlocks,
             boolean previewMode) {
-        if (previewMode) {
-            // 预览/拖动：结构由真实世界方块呈现，不叠加 ENTER/EXIT overlay 动画
-            return;
+        if (previewMode && clip != null) {
+            // 拖动不是时间推进，恢复播放时不要补发拖动期间跨过的完成特效。
+            perBlockEffectSampleTime.remove(clip);
         }
         if (visualStateManager == null || container == null || clip == null || config == null) {
             return;
@@ -1694,7 +1677,7 @@ public class TimelineClipBlockController {
         ClipAnimationConfig.AnimationPhase phase = config.getPhase();
         float clipDuration = Math.max(0.0001f, clipLength);
         var timing = com.director.core.animation.PerBlockAnimationTiming.layout(config, clipStart, clipEnd, sequenceEntries.getFirst());
-        Float previousEffectsTime = perBlockEffectSampleTime.put(clip, currentTime);
+        Float previousEffectsTime = previewMode ? null : perBlockEffectSampleTime.put(clip, currentTime);
 
 
         // 🔥 步骤 1：遍历当前片段的所有 BlockSequenceEntry
@@ -1747,7 +1730,7 @@ public class TimelineClipBlockController {
             BlockAnimationSnapshot snapshot;
 
             // ✅ 修复：INSTANT 模式或需要特效时，即使不在动画窗口内也应该调用 sample() 来触发特效
-            boolean needsEffects = !config.getEffects().isEmpty();
+            boolean needsEffects = !previewMode && !config.getEffects().isEmpty();
             boolean shouldSampleForEffects = isInstant && needsEffects && currentTime >= blockStartTime;
 
             // World and overlay never draw the same block simultaneously.
@@ -1795,17 +1778,12 @@ public class TimelineClipBlockController {
                 if (blockState == null) {
                     continue;
                 }
-                // 动画窗口内或需要特效：进行真实采样（会触发特效）
                 long randomSeed = container.getId().getLeastSignificantBits() ^ pos.asLong();
-                snapshot = BlockAnimationEngine.sample(
-                        pos,
-                        blockState,
-                        config,
-                        entry,
-                        clipStart,
-                        clipEnd,
-                        currentTime, // ✅ 使用时间线时间，不是世界时间
-                        randomSeed);
+                snapshot = previewMode
+                        ? BlockAnimationEngine.samplePreview(pos, blockState, config, entry,
+                                clipStart, clipEnd, currentTime, randomSeed)
+                        : BlockAnimationEngine.sample(pos, blockState, config, entry,
+                                clipStart, clipEnd, currentTime, randomSeed);
             }
 
             if (LOGGER.isTraceEnabled()) {
