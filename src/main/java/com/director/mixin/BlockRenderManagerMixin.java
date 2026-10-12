@@ -61,6 +61,8 @@ public class BlockRenderManagerMixin {
             List<?> parts,
             CallbackInfo ci
     ) {
+        // The animation also uses world tessellation, but must render while its real blocks are suppressed.
+        if (world instanceof com.director.core.animation.WholeContainerRenderView) return;
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
         if (!visualStateManager.hasActiveOverrides()) {
             return;

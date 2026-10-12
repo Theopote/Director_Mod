@@ -39,10 +39,15 @@ public final class WholeContainerImpactRingPlayer {
         advance(client, burst); // First ring appears on the exact handoff frame.
     }
 
+    public static void clear() {
+        bursts.forEach(Burst::clear);
+        bursts.clear();
+    }
+
     private static void bind(ClientWorld world) {
         if (boundWorld == world) return;
-        bursts.forEach(Burst::clear);
-        bursts.clear(); boundWorld = world; tick = 0;
+        clear();
+        boundWorld = world; tick = 0;
     }
 
     public static void tick(MinecraftClient client) {

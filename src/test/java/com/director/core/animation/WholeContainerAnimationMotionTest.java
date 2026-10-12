@@ -32,8 +32,8 @@ class WholeContainerAnimationMotionTest {
     @Test void bounceStaysAboveTheBasePathAndDecaysWithReversedExit() {
         var c = config(WholeContainerAnimationConfig.Motion.BOUNCE);
         c.getWholeContainer().setBounceHeight(2);
-        var early = at(c, 1f / 6, false);
-        var late = at(c, 0.5f, false);
+        var early = at(c, 0.55f, false);
+        var late = at(c, 0.85f, false);
         assertTrue(early.y() > late.y()); assertTrue(late.y() > 0);
         assertEquals(0, at(c, 0, false).y());
         for (int i = 0; i < 100; i++) {
@@ -78,10 +78,12 @@ class WholeContainerAnimationMotionTest {
         assertEquals(WholeContainerAnimationConfig.Motion.NONE, legacy.getMotion());
         assertEquals(1, legacy.getMotionStrength()); assertEquals(3, legacy.getMotionCycles());
         var c = config(WholeContainerAnimationConfig.Motion.BOUNCE);
-        var s = c.getWholeContainer(); s.setMotionStrength(0.4f); s.setMotionCycles(5); s.setBounceHeight(7);
+        var s = c.getWholeContainer(); s.setMotionStrength(0.4f); s.setMotionCycles(5); s.setBounceHeight(7); s.setMotionDamping(9);
         var loaded = new Gson().fromJson(new Gson().toJson(c), ClipAnimationConfig.class);
         assertEquals(at(c, 0.25f, false), at(loaded, 0.25f, false));
+        assertEquals(9, loaded.getWholeContainer().getMotionDamping());
         var copy = c.copy();
+        assertEquals(9, copy.getWholeContainer().getMotionDamping());
         assertEquals(at(c, 0.25f, false), at(copy, 0.25f, false));
         copy.getWholeContainer().setBounceHeight(20);
         assertEquals(7, s.getBounceHeight());

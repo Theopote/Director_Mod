@@ -17,12 +17,12 @@ public final class WholeContainerAnimationEditSession {
                              float scale, float x, float y, float z,
                              float rx, float ry, float rz, float px, float py, float pz,
                              boolean translation, boolean rotation, boolean scaling, boolean fading, float opacity,
-                             WholeContainerAnimationConfig.Motion motion, float strength, int cycles, float height, WholeContainerAnimationConfig.DustPreset dustPreset, boolean dust, float dustIntensity, float dustSpread, int waveCount, float waveDecay, WholeContainerAnimationConfig.FlightPath flightPath, float arcHeight) {
+                             WholeContainerAnimationConfig.Motion motion, float strength, int cycles, float height, WholeContainerAnimationConfig.DustPreset dustPreset, boolean dust, float dustIntensity, float dustSpread, int waveCount, float waveDecay, WholeContainerAnimationConfig.FlightPath flightPath, float arcHeight, float damping, float debris) {
         static Transform capture(WholeContainerAnimationConfig c) {
             return new Transform(c.getEffect(), c.getPivot(), c.getScale(), c.getOffsetX(),
                     c.getOffsetY(), c.getOffsetZ(), c.getRotationX(), c.getRotationY(),
                     c.getRotationZ(), c.getPivotX(), c.getPivotY(), c.getPivotZ(),
-                    c.isTranslationEnabled(), c.isRotationEnabled(), c.isScaleEnabled(), c.isOpacityEnabled(), c.getOpacity(), c.getMotion(), c.getMotionStrength(), c.getMotionCycles(), c.getBounceHeight(), c.getDustPreset(), c.isDustEnabled(), c.getDustIntensity(), c.getDustSpread(), c.getShockwaveCount(), c.getShockwaveDecay(), c.getFlightPath(), c.getArcHeight());
+                    c.isTranslationEnabled(), c.isRotationEnabled(), c.isScaleEnabled(), c.isOpacityEnabled(), c.getOpacity(), c.getMotion(), c.getMotionStrength(), c.getMotionCycles(), c.getBounceHeight(), c.getDustPreset(), c.isDustEnabled(), c.getDustIntensity(), c.getDustSpread(), c.getShockwaveCount(), c.getShockwaveDecay(), c.getFlightPath(), c.getArcHeight(), c.getMotionDamping(), c.getDebrisRatio());
         }
         void apply(WholeContainerAnimationConfig c) {
             c.setEffect(effect); c.setPivot(pivot); c.setScale(scale);
@@ -32,7 +32,7 @@ public final class WholeContainerAnimationEditSession {
             c.setMotion(motion); c.setMotionStrength(strength); c.setMotionCycles(cycles); c.setBounceHeight(height);
             c.setDustPreset(dustPreset); c.setDustEnabled(dust); c.setDustIntensity(dustIntensity); c.setDustSpread(dustSpread);
             c.setShockwaveCount(waveCount); c.setShockwaveDecay(waveDecay);
-            c.setFlightPath(flightPath); c.setArcHeight(arcHeight);
+            c.setFlightPath(flightPath); c.setArcHeight(arcHeight); c.setMotionDamping(damping); c.setDebrisRatio(debris);
         }
     }
     private record State(ClipAnimationConfig.AnimationScope scope, AnimationMode mode,

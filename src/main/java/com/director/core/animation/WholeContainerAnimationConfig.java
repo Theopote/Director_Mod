@@ -10,7 +10,7 @@ public final class WholeContainerAnimationConfig implements Serializable {
     public enum Effect { SCALE, FLY, ROTATE, TRANSFORM, FADE, INSTANT }
     public enum FlightPath { STRAIGHT, ARC }
     public enum Pivot { CENTER, BOTTOM_CENTER, CUSTOM }
-    public enum DustPreset { NONE, SOFT_DUST, IMPACT_DUST, SHOCKWAVE }
+    public enum DustPreset { NONE, SOFT_DUST, IMPACT_DUST, SHOCKWAVE, DEBRIS_CLOUD }
     public enum Motion { NONE, ELASTIC, BOUNCE }
 
     private FlightPath flightPath;
@@ -19,6 +19,8 @@ public final class WholeContainerAnimationConfig implements Serializable {
     private Float motionStrength;
     private Integer motionCycles;
     private Float bounceHeight;
+    private Float motionDamping;
+    private Float debrisRatio;
 
     private DustPreset dustPreset;
     private boolean dustEnabled;
@@ -98,8 +100,8 @@ public final class WholeContainerAnimationConfig implements Serializable {
         dustPreset = value != null ? value : DustPreset.NONE;
         dustEnabled = dustPreset != DustPreset.NONE;
         if (dustEnabled) {
-            setDustIntensity(dustPreset == DustPreset.IMPACT_DUST ? 2.5f : 1);
-            setDustSpread(dustPreset == DustPreset.IMPACT_DUST ? 1.2f : dustPreset == DustPreset.SHOCKWAVE ? 0.8f : 0.6f);
+            setDustIntensity(dustPreset == DustPreset.IMPACT_DUST || dustPreset == DustPreset.DEBRIS_CLOUD ? 2.5f : 1);
+            setDustSpread(dustPreset == DustPreset.IMPACT_DUST || dustPreset == DustPreset.DEBRIS_CLOUD ? 1.2f : dustPreset == DustPreset.SHOCKWAVE ? 0.8f : 0.6f);
         }
     }
     public int getShockwaveCount() { return shockwaveCount != null ? Math.clamp(shockwaveCount, 1, 6) : 3; }
@@ -109,6 +111,7 @@ public final class WholeContainerAnimationConfig implements Serializable {
     public void copyDustFrom(WholeContainerAnimationConfig source) {
         dustPreset = source.dustPreset; dustEnabled = source.dustEnabled;
         dustIntensity = source.dustIntensity; dustSpread = source.dustSpread;
+        debrisRatio = source.debrisRatio;
         shockwaveCount = source.shockwaveCount; shockwaveDecay = source.shockwaveDecay;
     }
     public boolean isDustEnabled() { return dustEnabled; }
@@ -118,6 +121,10 @@ public final class WholeContainerAnimationConfig implements Serializable {
     public float getDustSpread() { return finite(dustSpread != null ? dustSpread : 0.6f, 0.6f, 0, 5); }
     public void setDustSpread(float value) { dustSpread = finite(value, 0.6f, 0, 5); }
 
+    public float getMotionDamping() { return finite(motionDamping != null ? motionDamping : 6, 6, 0.5f, 12); }
+    public void setMotionDamping(float value) { motionDamping = finite(value, 6, 0.5f, 12); }
+    public float getDebrisRatio() { return finite(debrisRatio != null ? debrisRatio : 0.8f, 0.8f, 0, 1); }
+    public void setDebrisRatio(float value) { debrisRatio = finite(value, 0.8f, 0, 1); }
     public Motion getMotion() { return motion != null ? motion : Motion.NONE; }
     public void setMotion(Motion value) { motion = value != null ? value : Motion.NONE; }
     public float getMotionStrength() { return finite(motionStrength != null ? motionStrength : 1, 1, 0, 1); }
@@ -153,6 +160,7 @@ public final class WholeContainerAnimationConfig implements Serializable {
         copy.opacityEnabled = opacityEnabled;
         copy.setOpacity(getOpacity());
         copy.setFlightPath(getFlightPath()); copy.setArcHeight(getArcHeight());
+        copy.setMotionDamping(getMotionDamping());
         copy.setMotion(getMotion()); copy.setMotionStrength(getMotionStrength());
         copy.setMotionCycles(getMotionCycles()); copy.setBounceHeight(getBounceHeight());
         copy.copyDustFrom(this);

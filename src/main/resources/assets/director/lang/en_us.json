@@ -15,9 +15,9 @@
   "gui.director.properties.clip_ui.whole_animation.preset.soft_grow.exit": "Shrink and fade gently",
   "gui.director.properties.clip_ui.whole_animation.presets": "Whole-animation presets",
   "gui.director.properties.clip_ui.whole_animation.choose_preset": "Choose and apply...",
-  "gui.director.properties.clip_ui.whole_animation.preset_hint": "Presets set animation channels and easing while keeping duration and delay. Flight distance accounts for the container size.",
+  "gui.director.properties.clip_ui.whole_animation.preset_hint": "Presets set animation channels, flight paths, motion modifiers and easing. Duration, delay and whole-object effects are preserved. Flight distance adapts to the assembly.",
   "gui.director.properties.clip_ui.whole_animation.reset_transform": "Reset current effect parameters",
-  "gui.director.properties.clip_ui.whole_animation.reset_hint": "Reset translation, rotation, scale, opacity, pivot and channel switches. Keep effect type, duration, delay and easing.",
+  "gui.director.properties.clip_ui.whole_animation.reset_hint": "Reset translation, rotation, scale, opacity, pivot, channel switches, flight path and motion modifiers. Keep effect type, timing, easing and whole-object effects.",
   "gui.director.properties.clip_ui.whole_animation.sound_hint": "The assembly plays one sound just before real blocks appear, or just before the assembly disappears for demolition clips.",
   "gui.director.properties.clip_ui.whole_animation.preset.grow.enter": "Grow into place",
   "gui.director.properties.clip_ui.whole_animation.preset.grow.exit": "Shrink away",
@@ -2433,9 +2433,9 @@
   "gui.director.properties.clip_ui.whole_animation.preset.bounce_drop.exit": "Bouncing departure",
   "gui.director.properties.clip_ui.whole_animation.preset.bounce_drop.hint": "Drop from above with decaying hops sized for the assembly. Pair with impact dust.",
   "gui.director.properties.clip_ui.whole_animation.visual_shockwave": "Shockwave",
-  "gui.director.properties.clip_ui.whole_animation.visual_intensity": "Effect intensity",
+  "gui.director.properties.clip_ui.whole_animation.visual_intensity": "Particle density",
   "gui.director.properties.clip_ui.whole_animation.visual_spread": "Effect spread (blocks)",
-  "gui.director.properties.clip_ui.whole_animation.shockwave_hint": "A glowing particle ring expands from the bottom of the assembly on arrival completion or demolition start. Playback only; particles dissipate in game time.",
+  "gui.director.properties.clip_ui.whole_animation.shockwave_hint": "Sequential waves expand from the bottom on arrival completion or demolition start, becoming weaker and fading out. Playback only; particles use game time. Scrubbing or rewinding clears shockwaves.",
   "gui.director.properties.clip_ui.whole_animation.wave_count": "Wave count",
   "gui.director.properties.clip_ui.whole_animation.wave_decay": "Decay per wave (0 none, 1 first wave only)",
   "gui.director.properties.clip_ui.whole_animation.flight_path": "Flight path",
@@ -2445,5 +2445,8 @@
   "gui.director.properties.clip_ui.whole_animation.arc_hint": "World-Y offset from the straight path at its midpoint. Positive arches upward; negative bends downward. Endpoints stay fixed.",
   "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.enter": "Arc arrival",
   "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.exit": "Arc departure",
-  "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.hint": "Follow an arc from the side, sized for the assembly. Keeps the selected visual effect."
+  "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.hint": "Follow an arc from the side, sized for the assembly. Keeps the selected visual effect.",
+  "gui.director.properties.clip_ui.whole_animation.motion_damping": "Motion damping (higher settles faster)",
+  "gui.director.properties.clip_ui.whole_animation.visual_debris": "Block debris cloud",
+  "gui.director.properties.clip_ui.whole_animation.debris_ratio": "Debris fraction"
 }

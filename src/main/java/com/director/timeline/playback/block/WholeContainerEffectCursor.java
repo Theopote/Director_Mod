@@ -18,6 +18,9 @@ public final class WholeContainerEffectCursor {
         if (forward || !playing || scrubbing) pendingStart = false;
         previousTime = time; previousPlaying = playing; previousScrubbing = scrubbing;
     }
+    public boolean shouldClearEffects(boolean scrubbing) {
+        return scrubbing || Float.isFinite(from) && Float.isFinite(to) && to < from;
+    }
     public boolean crosses(float eventTime) {
         return forward && Float.isFinite(eventTime) && eventTime <= to
                 && (eventTime > from || starting && eventTime == from);

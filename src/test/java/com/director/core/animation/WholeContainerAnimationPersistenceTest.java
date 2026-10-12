@@ -128,4 +128,50 @@ class WholeContainerAnimationPersistenceTest {
         TimelineModelPersistence.fromDTO(dto, restored, new TimelineViewportState());
         assertFalse(restored.getTracks().getFirst().getClips().getFirst().getAnimationConfig().isWholeContainer());
     }
+    @Test void completeWholeAnimationRoundTripsThroughProjectDtoInBothClipDirections() {
+        for (var phase : ClipAnimationConfig.AnimationPhase.values()) {
+            var viewport = new TimelineViewportState();
+            var model = new TimelineModel(viewport); model.setSuppressPersistenceWrites(true);
+            var track = new TimelineTrack("assembly", TrackType.CONTAINER);
+            var clip = new TimelineClip("complete configuration", 3, 8, 0);
+            var c = clip.getAnimationConfig();
+            c.setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER); c.setPhase(phase);
+            c.setDelay(0.5f); c.setDuration(2); c.setEasing("EASE_IN_OUT_CUBIC");
+            var s = c.getWholeContainer();
+            s.setEffect(WholeContainerAnimationConfig.Effect.TRANSFORM);
+            s.setPivot(WholeContainerAnimationConfig.Pivot.CUSTOM); s.setCustomPivot(-2, 1, 3);
+            s.setOffset(-12, 4, 8); s.setRotation(180, 720, 45); s.setScale(0.2f);
+            s.setTranslationEnabled(true); s.setRotationEnabled(true); s.setScaleEnabled(true);
+            s.setOpacityEnabled(true); s.setOpacity(0.1f);
+            s.setFlightPath(WholeContainerAnimationConfig.FlightPath.ARC); s.setArcHeight(5);
+            s.setMotion(WholeContainerAnimationConfig.Motion.BOUNCE);
+            s.setBounceHeight(2); s.setMotionCycles(4); s.setMotionStrength(0.6f);
+            s.setMotionDamping(8); s.setDebrisRatio(0.3f);
+            s.setDustPreset(WholeContainerAnimationConfig.DustPreset.SHOCKWAVE);
+            s.setDustIntensity(2); s.setDustSpread(3); s.setShockwaveCount(5); s.setShockwaveDecay(0.4f);
+            track.addClip(clip); model.addTrack(track);
+            var gson = new Gson();
+            var dto = gson.fromJson(gson.toJson(TimelineModelPersistence.toDTO(model, viewport)),
+                    TimelineModelPersistence.TimelineDTO.class);
+            var restored = new TimelineModel(new TimelineViewportState()); restored.setSuppressPersistenceWrites(true);
+            TimelineModelPersistence.fromDTO(dto, restored, new TimelineViewportState());
+            var loaded = restored.getTracks().getFirst().getClips().getFirst().getAnimationConfig();
+            // Playback direction is resolved from the bound container, not persisted as a free clip flag.
+            // The same saved transform must sample correctly for either container direction below.
+            var r = loaded.getWholeContainer();
+            assertEquals(s.getPivot(), r.getPivot()); assertEquals(s.getPivotX(), r.getPivotX());
+            assertEquals(s.getFlightPath(), r.getFlightPath()); assertEquals(s.getArcHeight(), r.getArcHeight());
+            assertEquals(s.getMotion(), r.getMotion()); assertEquals(s.getMotionCycles(), r.getMotionCycles());
+            assertEquals(s.getMotionStrength(), r.getMotionStrength()); assertEquals(s.getBounceHeight(), r.getBounceHeight());
+            assertEquals(s.getDustPreset(), r.getDustPreset()); assertEquals(s.getShockwaveCount(), r.getShockwaveCount());
+            assertEquals(s.getShockwaveDecay(), r.getShockwaveDecay());
+            assertEquals(8, r.getMotionDamping()); assertEquals(0.3f, r.getDebrisRatio());
+            assertEquals(s.getDustIntensity(), r.getDustIntensity()); assertEquals(s.getDustSpread(), r.getDustSpread());
+            for (int i = 0; i <= 50; i++) {
+                float time = 3 + i / 10f;
+                assertEquals(WholeContainerAnimation.sample(c, 3, 8, time, phase == ClipAnimationConfig.AnimationPhase.EXIT),
+                        WholeContainerAnimation.sample(loaded, 3, 8, time, phase == ClipAnimationConfig.AnimationPhase.EXIT));
+            }
+        }
+    }
 }

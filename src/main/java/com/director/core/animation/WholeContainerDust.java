@@ -30,10 +30,14 @@ public final class WholeContainerDust {
                 .sorted(Comparator.comparingLong(BlockPos::asLong)).toList();
         var occupied = new HashSet<>(blocks);
         var edges = new ArrayList<Edge>();
-        for (var pos : footprint)
+        boolean debris = settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.DEBRIS_CLOUD;
+        var sources = debris ? blocks.stream().sorted(Comparator.comparingLong(BlockPos::asLong)).toList() : footprint;
+        for (var pos : sources)
             for (var direction : Direction.Type.HORIZONTAL)
                 if (!occupied.contains(pos.offset(direction))) edges.add(new Edge(pos, direction));
-        int count = Math.min(settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.IMPACT_DUST
+        int count = debris ? Math.min(MAX_PARTICLES, Math.max(8,
+                (int) (24 * Math.sqrt(edges.size()) * settings.getDustIntensity())))
+                : Math.min(settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.IMPACT_DUST
                 ? MAX_PARTICLES / 2 : MAX_PARTICLES, Math.max(1,
                 (int) (12 * Math.sqrt(footprint.size()) * settings.getDustIntensity())));
         var random = new Random(seed);
@@ -48,8 +52,10 @@ public final class WholeContainerDust {
             double dx = direction.getOffsetX() * outward + direction.getOffsetZ() * tangent;
             double dz = direction.getOffsetZ() * outward + direction.getOffsetX() * tangent;
             particles.add(new Particle(source, source.getX() + 0.5 + dx,
-                    bottom + 0.05 + random.nextDouble() * 0.15, source.getZ() + 0.5 + dz,
-                    dx * 0.15, 0.08 + random.nextDouble() * 0.1, dz * 0.15));
+                    (debris ? source.getY() + 0.15 : bottom + 0.05) + random.nextDouble() * (debris ? 0.7 : 0.15),
+                    source.getZ() + 0.5 + dz,
+                    dx * (debris ? 0.25 : 0.15), 0.08 + random.nextDouble() * (debris ? 0.2 : 0.1),
+                    dz * (debris ? 0.25 : 0.15)));
         }
         return List.copyOf(particles);
     }

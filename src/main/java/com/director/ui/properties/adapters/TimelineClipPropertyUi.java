@@ -718,6 +718,10 @@ public class TimelineClipPropertyUi {
                 if (ImGui.dragFloat(wholeText("motion_strength"), strength, 0.01f, 0, 1, "%.2f")) {
                     settings.setMotionStrength(strength[0]); modified = true;
                 }
+                float[] damping = {settings.getMotionDamping()};
+                if (ImGui.dragFloat(wholeText("motion_damping"), damping, 0.05f, 0.5f, 12, "%.2f")) {
+                    settings.setMotionDamping(damping[0]); modified = true;
+                }
                 int[] cycles = {settings.getMotionCycles()};
                 if (ImGui.dragInt(wholeText("motion_cycles"), cycles, 0.1f, 1, 8)) {
                     settings.setMotionCycles(cycles[0]); modified = true;
@@ -1459,7 +1463,7 @@ public class TimelineClipPropertyUi {
         ImInt preset = new ImInt(settings.getDustPreset().ordinal());
         boolean modified = false;
         if (ImGui.combo(wholeText("visual_preset"), preset, new String[] {
-                wholeText("visual_none"), wholeText("visual_soft_dust"), wholeText("visual_impact_dust"), wholeText("visual_shockwave")})) {
+                wholeText("visual_none"), wholeText("visual_soft_dust"), wholeText("visual_impact_dust"), wholeText("visual_shockwave"), wholeText("visual_debris")})) {
             settings.setDustPreset(WholeContainerAnimationConfig.DustPreset.values()[preset.get()]);
             modified = true;
         }
@@ -1476,6 +1480,12 @@ public class TimelineClipPropertyUi {
         ImGui.textWrapped(wholeText(settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.SHOCKWAVE
                 ? "shockwave_hint" : "dust_hint"));
         if (settings.isDustEnabled() && ImGui.collapsingHeader(wholeText("visual_parameters"))) {
+            if (settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.DEBRIS_CLOUD) {
+                float[] ratio = {settings.getDebrisRatio()};
+                if (ImGui.dragFloat(wholeText("debris_ratio"), ratio, 0.01f, 0, 1, "%.2f")) {
+                    settings.setDebrisRatio(ratio[0]); modified = true;
+                }
+            }
             float[] intensity = {settings.getDustIntensity()};
             if (ImGui.dragFloat(wholeText("visual_intensity"), intensity, 0.05f, 0, 5, "%.2f")) {
                 settings.setDustIntensity(intensity[0]); modified = true;

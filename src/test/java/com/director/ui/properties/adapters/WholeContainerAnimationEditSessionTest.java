@@ -274,4 +274,21 @@ class WholeContainerAnimationEditSessionTest {
         assertEquals(WholeContainerAnimationConfig.FlightPath.ARC, s.getFlightPath());
         assertEquals(-5, s.getArcHeight());
     }
+    @Test void dampingAndDebrisSettingsRestoreOnUndoRedo() {
+        var s = clip.getAnimationConfig().getWholeContainer();
+        change(() -> {
+            s.setMotionDamping(9);
+            s.setDustPreset(WholeContainerAnimationConfig.DustPreset.DEBRIS_CLOUD);
+            s.setDustIntensity(4); s.setDustSpread(2); s.setDebrisRatio(0.4f);
+        }, false);
+        history.undo();
+        assertEquals(6, s.getMotionDamping());
+        assertEquals(WholeContainerAnimationConfig.DustPreset.NONE, s.getDustPreset());
+        assertEquals(0.8f, s.getDebrisRatio());
+        history.redo();
+        assertEquals(9, s.getMotionDamping());
+        assertEquals(WholeContainerAnimationConfig.DustPreset.DEBRIS_CLOUD, s.getDustPreset());
+        assertEquals(4, s.getDustIntensity()); assertEquals(2, s.getDustSpread());
+        assertEquals(0.4f, s.getDebrisRatio());
+    }
 }

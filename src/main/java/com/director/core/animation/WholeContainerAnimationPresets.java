@@ -25,7 +25,7 @@ public final class WholeContainerAnimationPresets {
                 settings.setScale(0);
                 if (preset == Preset.ELASTIC_GROW) {
                     settings.setMotion(WholeContainerAnimationConfig.Motion.ELASTIC);
-                    settings.setMotionStrength(0.65f); settings.setMotionCycles(2);
+                    settings.setMotionStrength(1); settings.setMotionCycles(2);
                     easing = EasingFunction.LINEAR;
                 }
             }

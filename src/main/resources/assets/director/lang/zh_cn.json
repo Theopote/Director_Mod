@@ -15,9 +15,9 @@
   "gui.director.properties.clip_ui.whole_animation.preset.soft_grow.exit": "缩小并淡出",
   "gui.director.properties.clip_ui.whole_animation.presets": "整体动画预设",
   "gui.director.properties.clip_ui.whole_animation.choose_preset": "选择并应用…",
-  "gui.director.properties.clip_ui.whole_animation.preset_hint": "预设会设置动画通道和缓动，保留动画时长与延迟；飞行距离会参考容器尺寸。",
+  "gui.director.properties.clip_ui.whole_animation.preset_hint": "预设会设置动画通道、飞行路径、运动修饰和缓动，保留动画时长、延迟及整体特效；飞行距离会参考容器尺寸。",
   "gui.director.properties.clip_ui.whole_animation.reset_transform": "重置当前效果参数",
-  "gui.director.properties.clip_ui.whole_animation.reset_hint": "重置位移、旋转、缩放、透明度、轴心和通道开关，保留效果类型、动画时长、延迟及缓动。",
+  "gui.director.properties.clip_ui.whole_animation.reset_hint": "重置位移、旋转、缩放、透明度、轴心、通道开关、飞行路径和运动修饰；保留效果类型、时长、延迟、缓动及整体特效。",
   "gui.director.properties.clip_ui.whole_animation.sound_hint": "整体动画只播放一次音效：出现片段在真实方块落地前一刻播放，拆除片段在整体消失前一刻播放。",
   "gui.director.properties.clip_ui.whole_animation.preset.grow.enter": "从小到大",
   "gui.director.properties.clip_ui.whole_animation.preset.grow.exit": "整体缩小消失",
@@ -2433,9 +2433,9 @@
   "gui.director.properties.clip_ui.whole_animation.preset.bounce_drop.exit": "弹跳离场",
   "gui.director.properties.clip_ui.whole_animation.preset.bounce_drop.hint": "从上方快速落位并逐渐减弱弹跳；高度随组合大小调整。可搭配落地烟尘。",
   "gui.director.properties.clip_ui.whole_animation.visual_shockwave": "冲击波",
-  "gui.director.properties.clip_ui.whole_animation.visual_intensity": "特效强度",
+  "gui.director.properties.clip_ui.whole_animation.visual_intensity": "粒子浓度",
   "gui.director.properties.clip_ui.whole_animation.visual_spread": "特效扩散范围（方块）",
-  "gui.director.properties.clip_ui.whole_animation.shockwave_hint": "出现完成或拆除开始时，沿组合底部向外扩散一圈发光粒子。仅正常播放时触发；粒子按游戏时间消散。",
+  "gui.director.properties.clip_ui.whole_animation.shockwave_hint": "出现完成或拆除开始时，沿组合底部依次发射多圈波纹，并逐圈减弱、逐渐淡出。仅正常播放时触发；粒子按游戏时间消散。拖动或倒回播放头会清理冲击波。",
   "gui.director.properties.clip_ui.whole_animation.wave_count": "波纹圈数",
   "gui.director.properties.clip_ui.whole_animation.wave_decay": "逐圈衰减（0 无衰减，1 仅首圈）",
   "gui.director.properties.clip_ui.whole_animation.flight_path": "飞行路径",
@@ -2445,5 +2445,8 @@
   "gui.director.properties.clip_ui.whole_animation.arc_hint": "高度表示路径中点相对直线的竖直偏移；正值向上拱，负值向下弯。起点和目标位置保持不变。",
   "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.enter": "弧线飞入",
   "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.exit": "弧线飞出",
-  "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.hint": "从侧面沿弧线到达或离开目标；距离和高度随组合尺寸调整。保留当前特效选择。"
+  "gui.director.properties.clip_ui.whole_animation.preset.arc_fly.hint": "从侧面沿弧线到达或离开目标；距离和高度随组合尺寸调整。保留当前特效选择。",
+  "gui.director.properties.clip_ui.whole_animation.motion_damping": "运动阻尼（越大收敛越快）",
+  "gui.director.properties.clip_ui.whole_animation.visual_debris": "碎屑烟尘",
+  "gui.director.properties.clip_ui.whole_animation.debris_ratio": "碎屑比例"
 }

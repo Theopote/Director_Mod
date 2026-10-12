@@ -465,6 +465,7 @@ public class TimelineClipBlockController {
             observedModel.removeModelChangeListener(modelChangeListener);
         }
         wholeEffectCursor.reset();
+        com.director.core.animation.WholeContainerImpactRingPlayer.clear();
         observedModel = model;
         if (observedModel != null) {
             observedModel.addModelChangeListener(modelChangeListener);
@@ -497,6 +498,7 @@ public class TimelineClipBlockController {
         TimelineModel activeModel = resolveActiveModel();
         if (activeModel == null) {
             wholeEffectCursor.reset();
+            com.director.core.animation.WholeContainerImpactRingPlayer.clear();
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[TimelineClipBlockController] timelineModel 为空，跳过更新");
             }
@@ -510,6 +512,8 @@ public class TimelineClipBlockController {
         boolean playing = activeModel.isPlaying();
         boolean scrubbing = activeModel.isScrubbing();
         wholeEffectCursor.beginFrame(currentTime, playing, scrubbing);
+        if (wholeEffectCursor.shouldClearEffects(scrubbing))
+            com.director.core.animation.WholeContainerImpactRingPlayer.clear();
         boolean previewMode = !playing;
         boolean previewTimeChanged = Float.isNaN(lastHandledPreviewTime)
                 || Math.abs(currentTime - lastHandledPreviewTime) > com.director.core.animation.AnimationConstants.TIME_EPSILON;
@@ -1529,10 +1533,6 @@ public class TimelineClipBlockController {
                 container.getBoundingBox(), config.getWholeContainer());
         // Rebuild overrides even while scrubbing: the original world structure must stay hidden.
         manager.setBlocksState(getCachedContainerBlocks(container), BlockVisualStateManager.BlockVisualState.hidden());
-        float end = com.director.core.animation.WholeContainerAnimation.window(
-                config, clip.getStartTime(), clip.getEndTime()).end();
-        boolean handoff = enabled && !exit && opacity >= 0.999f && !frame.animating() && time >= end
-                && time < end + com.director.core.animation.AnimationConstants.HANDOFF_POST_WINDOW;
         for (BlockPos pos : visibleBlocks) {
             BlockState state = resolveBlockStateForRender(container, pos);
             if (state == null) continue;
@@ -1541,7 +1541,7 @@ public class TimelineClipBlockController {
                     : BlockVisualStateManager.BlockVisualState.normal();
             boolean worldReady = MinecraftClient.getInstance().world != null
                     && MinecraftClient.getInstance().world.getBlockState(pos).equals(state);
-            boolean overlay = frame.animating() || handoff || !worldReady || opacity < 0.999f;
+            boolean overlay = frame.animating() || !worldReady || opacity < 0.999f;
             if (!overlay) {
                 manager.setBlockState(pos, visual);
                 continue;
@@ -1551,16 +1551,7 @@ public class TimelineClipBlockController {
             snapshot.setRawProgress(frame.progress());
             snapshot.setTransform(frame.localTransform(pos, pivot));
             snapshot.setAlpha(frame.alpha());
-            if (handoff && worldReady) {
-                // Preserve the assembly's shape during the world-mesh handoff too.
-                var correction = new com.director.core.animation.WholeContainerAnimation.Frame(
-                        true, true, true, 1,
-                        com.director.core.animation.AnimationConstants.HANDOFF_ENTER_SCALE, 0, 0, 0);
-                snapshot.setTransform(correction.localTransform(pos, pivot));
-                visual = BlockVisualStateManager.BlockVisualState.ghost(opacity, true, false);
-            } else if (overlay) {
-                visual = visual.withSuppressWorldRendering(true);
-            }
+            visual = visual.withSuppressWorldRendering(true);
             manager.setBlockState(pos, visual);
             manager.addRenderEntry(new BlockVisualStateManager.RenderEntry(pos, state, visual, clip,
                     new BlockSequenceEntry(pos, 0, 0, 0), snapshot));
@@ -1578,7 +1569,29 @@ public class TimelineClipBlockController {
         }
         var particles = com.director.core.animation.WholeContainerDust.sample(
                 getCachedContainerBlocks(container), config.getWholeContainer(), container.getId().hashCode());
+        int index = 0;
         for (var particle : particles) {
+            if (config.getWholeContainer().getDustPreset()
+                    == com.director.core.animation.WholeContainerAnimationConfig.DustPreset.DEBRIS_CLOUD) {
+                BlockState source = resolveBlockStateForRender(container, particle.source());
+                double variant = (index++ * 0.61803398875) % 1;
+                if (variant < config.getWholeContainer().getDebrisRatio() && source != null
+                        && !source.isAir() && source.hasBlockBreakParticles()) {
+                    var debris = new net.minecraft.client.particle.BlockDustParticle(client.world,
+                            particle.x(), particle.y(), particle.z(), particle.vx(), particle.vy(), particle.vz(),
+                            source, particle.source());
+                    debris.setVelocity(particle.vx(), particle.vy(), particle.vz());
+                    debris.scale(0.45f + (float) variant * 0.55f);
+                    debris.setMaxAge(20 + (int) (variant * 20));
+                    client.particleManager.addParticle(debris);
+                } else {
+                    var smoke = client.particleManager.addParticle(net.minecraft.particle.ParticleTypes.POOF,
+                            particle.x(), particle.y(), particle.z(), particle.vx() * 0.4,
+                            particle.vy() * 0.4, particle.vz() * 0.4);
+                    if (smoke != null) smoke.scale(0.4f);
+                }
+                continue;
+            }
             BlockState state = resolveBlockStateForRender(container, particle.source());
             net.minecraft.particle.ParticleEffect effect = state != null && !state.isAir()
                     ? new net.minecraft.particle.BlockStateParticleEffect(net.minecraft.particle.ParticleTypes.BLOCK, state)

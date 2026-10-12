@@ -97,7 +97,8 @@ class WholeContainerAnimationPresetsTest {
         for (boolean exit : new boolean[] {false, true}) {
             var bouncing = WholeContainerAnimation.sample(c, 10, 20, 12.5f, exit);
             var baseline = WholeContainerAnimation.sample(plain, 10, 20, 12.5f, exit);
-            assertTrue(bouncing.y() > baseline.y());
+            assertTrue(bouncing.y() > 0);
+            assertTrue(bouncing.y() < c.getWholeContainer().getBounceHeight());
             assertEquals(baseline.scale(), bouncing.scale()); assertEquals(baseline.alpha(), bouncing.alpha());
         }
     }

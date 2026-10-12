@@ -19,6 +19,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.ArrayList;
+import net.minecraft.world.BlockRenderView;
+import net.minecraft.block.BlockRenderType;
+import net.minecraft.client.render.model.BlockModelPart;
 
 /**
  * BlockAnimationRenderer v3.1 - 重构版
@@ -104,7 +111,7 @@ public class BlockAnimationRenderer {
                     pos,
                     snapshot,
                     visualState,
-                    world.getBlockState(pos));
+                    world.getBlockState(pos), null);
 
         } catch (Exception e) {
             LOGGER.error("渲染动画方块时出错: {}", e.getMessage(), e);
@@ -156,6 +163,21 @@ public class BlockAnimationRenderer {
                 && MinecraftClient.getInstance().gameRenderer.getCamera() != null
                         ? MinecraftClient.getInstance().gameRenderer.getCamera().getPos()
                         : Vec3d.ZERO;
+        Map<TimelineClip, Map<BlockPos, BlockState>> assemblies = new IdentityHashMap<>();
+        Map<TimelineClip, WholeContainerRenderView> views = new IdentityHashMap<>();
+        for (var entry : entries) {
+            if (entry != null && entry.pos() != null && entry.clip() != null
+                    && entry.clip().getAnimationConfig() != null && entry.clip().getAnimationConfig().isWholeContainer()
+                    && entry.overrideSnapshot() != null && entry.blockState() != null)
+                assemblies.computeIfAbsent(entry.clip(), key -> new HashMap<>()).put(entry.pos(), entry.blockState());
+        }
+        for (var entry : entries) {
+            if (entry == null || entry.pos() == null || entry.overrideSnapshot() == null
+                    || !assemblies.containsKey(entry.clip()) || views.containsKey(entry.clip())) continue;
+            var stack = entry.overrideSnapshot().getTransform();
+            views.put(entry.clip(), new WholeContainerRenderView(world, assemblies.get(entry.clip()), entry.pos(),
+                    stack != null ? stack.peek().getPositionMatrix() : new org.joml.Matrix4f()));
+        }
         matrices.push();
         matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
         try {
@@ -193,7 +215,7 @@ public class BlockAnimationRenderer {
                         pos,
                         snapshot,
                         visualState,
-                        state);
+                        state, views.get(entry.clip()));
             }
         } finally {
             matrices.pop();
@@ -207,7 +229,7 @@ public class BlockAnimationRenderer {
             @NotNull BlockPos pos,
             @NotNull BlockAnimationSnapshot snapshot,
             @NotNull BlockVisualStateManager.BlockVisualState visualState,
-            BlockState blockStateOverride) {
+            BlockState blockStateOverride, BlockRenderView assemblyView) {
         // 1. HIDDEN 模式：完全不渲染
         if (visualState.getMode() == BlockRenderMode.HIDDEN) {
             return;
@@ -247,7 +269,7 @@ public class BlockAnimationRenderer {
         applyAnimationTransformFromSnapshot(matrices, snapshot);
 
         // 5.3 渲染方块（带 alpha 和深度控制）
-        renderBlockWithAlphaAndDepth(matrices, provider, world, pos, state, finalAlpha, depthWrite);
+        renderBlockWithAlphaAndDepth(matrices, provider, world, pos, state, finalAlpha, depthWrite, assemblyView);
 
         matrices.pop();
     }
@@ -308,12 +330,22 @@ public class BlockAnimationRenderer {
             @NotNull BlockPos pos,
             @NotNull BlockState state,
             float alpha,
-            boolean depthWrite) {
+            boolean depthWrite, BlockRenderView assemblyView) {
         BlockRenderManager manager = MinecraftClient.getInstance().getBlockRenderManager();
         if (manager == null) {
             return;
         }
 
+        if (assemblyView != null && state.getRenderType() == BlockRenderType.MODEL) {
+            // Use native world tessellation: AO, biome tint, randomized model parts and internal face culling.
+            var parts = new ArrayList<BlockModelPart>();
+            manager.getModel(state).addParts(net.minecraft.util.math.random.Random.create(state.getRenderingSeed(pos)), parts);
+            RenderLayer layer = finalWorldLayer(state, alpha);
+            VertexConsumer vertices = provider.getBuffer(layer);
+            if (alpha < 0.999f) vertices = new AlphaVertexConsumer(vertices, alpha);
+            manager.renderBlock(state, pos, assemblyView, matrices, vertices, true, parts);
+            return;
+        }
         try {
             GlStateManager._depthMask(depthWrite);
 
@@ -355,6 +387,15 @@ public class BlockAnimationRenderer {
         } finally {
             GlStateManager._depthMask(true);
         }
+    }
+
+    static RenderLayer finalWorldLayer(BlockState state, float alpha) {
+        // World tessellation already applies face lighting. Do not apply entity per-face lighting again.
+        if (alpha < 0.999f) return RenderLayer.getItemEntityTranslucentCull(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE);
+        if (RenderLayers.getBlockLayer(state) == BlockRenderLayer.CUTOUT
+                || RenderLayers.getBlockLayer(state) == BlockRenderLayer.CUTOUT_MIPPED)
+            return RenderLayer.getEntityCutout(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE);
+        return RenderLayers.getEntityBlockLayer(state);
     }
 
     /** The block-as-entity path uses the block atlas; faded vertices require a blending layer too. */

@@ -73,9 +73,12 @@ public final class WholeContainerAnimation {
         // Exit reverses the modifier around the real-world pose; opacity keeps its own easing.
         float phase = exit ? 1 - raw : raw;
         if (settings.usesGeometry() && settings.getMotion() == WholeContainerAnimationConfig.Motion.ELASTIC) {
-            double spring = 1 - Math.pow(1 - phase, 3)
-                    * Math.cos(2 * Math.PI * settings.getMotionCycles() * phase);
-            geometryAmount -= settings.getMotionStrength() * (float) (spring - phase);
+            float springAmount = 1 - WholeMotionCurves.spring(phase, settings.getMotionCycles(), settings.getMotionDamping());
+            geometryAmount = amount + settings.getMotionStrength() * (springAmount - amount);
+        }
+        if (settings.usesGeometry() && settings.getMotion() == WholeContainerAnimationConfig.Motion.BOUNCE) {
+            float fallAmount = 1 - WholeMotionCurves.arrival(phase);
+            geometryAmount = amount + settings.getMotionStrength() * (fallAmount - amount);
         }
         float scale = 1;
         float x = 0, y = 0, z = 0;
@@ -100,10 +103,8 @@ public final class WholeContainerAnimation {
             rotationZ = settings.getRotationZ() * geometryAmount;
         }
         if (settings.usesGeometry() && settings.getMotion() == WholeContainerAnimationConfig.Motion.BOUNCE) {
-            // Nonnegative, decaying world-Y hops, with exact zero displacement at both endpoints.
             y += settings.getBounceHeight() * settings.getMotionStrength()
-                    * (float) (Math.abs(Math.sin(Math.PI * settings.getMotionCycles() * phase))
-                    * Math.pow(1 - phase, 2));
+                    * WholeMotionCurves.bounce(phase, settings.getMotionCycles(), settings.getMotionDamping());
         }
         float alpha = settings.usesOpacity()
                 ? Math.clamp(1 + (settings.getOpacity() - 1) * amount, 0, 1) : 1;

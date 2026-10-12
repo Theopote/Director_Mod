@@ -95,4 +95,26 @@ class WholeContainerDustTest {
             assertEquals(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST, config.getWholeContainer().getDustPreset());
         }
     }
+    @Test void debrisCloudUsesAllExposedLevelsAndSupportsDensitySpreadAndPersistence() {
+        var blocks = List.of(new BlockPos(0, 0, 0), new BlockPos(0, 1, 0), new BlockPos(0, 2, 0));
+        var s = settings();
+        s.setDustPreset(WholeContainerAnimationConfig.DustPreset.DEBRIS_CLOUD);
+        s.setDustIntensity(0.1f); s.setDustSpread(0); s.setDebrisRatio(0.35f);
+        var sparse = WholeContainerDust.sample(blocks, s, 42);
+        assertTrue(sparse.stream().anyMatch(p -> p.source().getY() > 0));
+        for (var particle : sparse) {
+            assertFalse(blocks.contains(BlockPos.ofFloored(particle.x(), particle.y(), particle.z())));
+        }
+        s.setDustIntensity(5); s.setDustSpread(5);
+        var dense = WholeContainerDust.sample(blocks, s, 42);
+        assertTrue(dense.size() > sparse.size());
+        assertTrue(dense.size() <= WholeContainerDust.MAX_PARTICLES);
+        assertTrue(dense.stream().anyMatch(p -> Math.abs(p.x() - 0.5) > 1));
+        var loaded = new Gson().fromJson(new Gson().toJson(s), WholeContainerAnimationConfig.class);
+        assertEquals(dense, WholeContainerDust.sample(blocks, loaded, 42));
+        assertEquals(0.35f, loaded.getDebrisRatio());
+        assertEquals(0.35f, loaded.copy().getDebrisRatio());
+        s.setDustIntensity(0);
+        assertTrue(WholeContainerDust.sample(blocks, s, 42).isEmpty());
+    }
 }

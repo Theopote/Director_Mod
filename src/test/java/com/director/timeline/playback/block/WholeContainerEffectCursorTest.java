@@ -55,4 +55,13 @@ class WholeContainerEffectCursorTest {
         c.beginFrame(0.1f, true, false); assertTrue(c.crosses(0));
         c.beginFrame(0.2f, true, false); assertFalse(c.crosses(0));
     }
+    @Test void rewindingAndScrubbingClearOldWavesButPausingDoesNotReplayOrClearThem() {
+        var c = new WholeContainerEffectCursor();
+        c.beginFrame(0, false, false); assertFalse(c.shouldClearEffects(false));
+        c.beginFrame(2, true, false); assertFalse(c.shouldClearEffects(false));
+        c.beginFrame(2, false, false); assertFalse(c.shouldClearEffects(false));
+        c.beginFrame(1, false, false); assertTrue(c.shouldClearEffects(false));
+        c.beginFrame(3, false, true); assertTrue(c.shouldClearEffects(true));
+        c.reset(); c.beginFrame(0, true, false); assertFalse(c.shouldClearEffects(false));
+    }
 }
