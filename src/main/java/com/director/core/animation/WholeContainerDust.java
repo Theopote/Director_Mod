@@ -35,11 +35,11 @@ public final class WholeContainerDust {
         for (var pos : sources)
             for (var direction : Direction.Type.HORIZONTAL)
                 if (!occupied.contains(pos.offset(direction))) edges.add(new Edge(pos, direction));
-        int count = debris ? Math.min(MAX_PARTICLES, Math.max(8,
-                (int) (24 * Math.sqrt(edges.size()) * settings.getDustIntensity())))
-                : Math.min(settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.IMPACT_DUST
-                ? MAX_PARTICLES / 2 : MAX_PARTICLES, Math.max(1,
-                (int) (12 * Math.sqrt(footprint.size()) * settings.getDustIntensity())));
+        int count = debris ? Math.clamp(
+                (int) (24 * Math.sqrt(edges.size()) * settings.getDustIntensity()), 8, MAX_PARTICLES)
+                : Math.clamp(
+                (int) (12 * Math.sqrt(footprint.size()) * settings.getDustIntensity()), 1, settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.IMPACT_DUST
+                        ? MAX_PARTICLES / 2 : MAX_PARTICLES);
         var random = new Random(seed);
         var particles = new ArrayList<Particle>(count);
         double spread = settings.getDustSpread();

@@ -57,4 +57,47 @@ class PerBlockAnimationTimingTest {
         c.setDelay(20);
         assertEquals(12, PerBlockAnimationTiming.layout(c, 10, 12).window(0).start());
     }
+    @Test void everyModeSamplesDeterministicallyInBothDirectionsAndHasCorrectEndpoints() {
+        for (var mode : AnimationMode.values()) {
+            for (var phase : ClipAnimationConfig.AnimationPhase.values()) {
+                var c = config(); c.setMode(mode); c.setPhase(phase);
+                var entry = new BlockSequenceEntry(BlockPos.ORIGIN, 0.5f, 0, 0);
+                boolean exit = phase == ClipAnimationConfig.AnimationPhase.EXIT;
+                assertEquals(exit, BlockAnimationEngine.sample(BlockPos.ORIGIN, null, c, entry, 10, 20, 9, 42).isVisible());
+                assertEquals(!exit, BlockAnimationEngine.sample(BlockPos.ORIGIN, null, c, entry, 10, 20, 20, 42).isVisible());
+                var a = BlockAnimationEngine.sample(BlockPos.ORIGIN, null, c, entry, 10, 20, 15, 42);
+                var b = BlockAnimationEngine.sample(BlockPos.ORIGIN, null, c, entry, 10, 20, 15, 42);
+                assertTrue(Float.isFinite(a.getAlpha()), mode.name());
+                assertEquals(a.getAlpha(), b.getAlpha(), mode.name());
+                if (a.getTransform() != null && b.getTransform() != null)
+                    assertEquals(a.getTransform().peek().getPositionMatrix(), b.getTransform().peek().getPositionMatrix(), mode.name());
+            }
+        }
+    }
+    @Test void perBlockSoundsUseSameWindowsForShortClipsAndInstantSequences() {
+        var container = new com.director.core.container.Container("blocks");
+        container.addBlocks(java.util.List.of(BlockPos.ORIGIN, new BlockPos(1, 0, 0)));
+        var entries = java.util.List.of(new BlockSequenceEntry(BlockPos.ORIGIN, 0, 0, 0),
+                new BlockSequenceEntry(new BlockPos(1, 0, 0), 1, 0, 1));
+        for (var phase : ClipAnimationConfig.AnimationPhase.values()) {
+            var clip = new com.director.timeline.model.TimelineClip("blocks", 10, 12, 0);
+            var c = clip.getAnimationConfig(); c.setMode(AnimationMode.FADE_IN); c.setPhase(phase);
+            c.setDuration(2); c.setDelay(0.5f);
+            c.getParams().put(phase == ClipAnimationConfig.AnimationPhase.EXIT ? "exitSoundTiming" : "enterSoundTiming", "END");
+            var sounds = AnimationSoundCollector.getInstance().collectFromClip(clip, container, entries);
+            assertEquals(12, sounds.getFirst().getStartTime());
+            assertEquals(12, sounds.getLast().getStartTime());
+            c.setMode(AnimationMode.INSTANT); c.setDelay(0);
+            sounds = AnimationSoundCollector.getInstance().collectFromClip(clip, container, entries);
+            assertEquals(10, sounds.getFirst().getStartTime());
+            assertEquals(12, sounds.getLast().getStartTime());
+        }
+    }
+    @Test void subFrameAndEmptyClipsHaveFiniteClampedWindows() {
+        var c = config();
+        var shortWindow = PerBlockAnimationTiming.layout(c, 0, 0.01f).window(1);
+        assertEquals(0, shortWindow.start());
+        assertEquals(0.01f, shortWindow.end());
+        assertEquals(0, PerBlockAnimationTiming.layout(c, 0, 0).duration());
+    }
 }

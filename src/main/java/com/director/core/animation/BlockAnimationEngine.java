@@ -491,10 +491,20 @@ public final class BlockAnimationEngine {
 
             boolean oneShot = inst.getTriggerMode() == EffectInstance.TriggerMode.ONE_SHOT;
             if (oneShot) {
-                var gate = EffectRuntimeGate.get(snapshot.getPos().asLong(), inst.getId(), now);
-                boolean fire = PerBlockEffectTrigger.crossed(gate.initialized ? gate.lastTRaw : Float.NaN, tRaw, startNorm);
-                gate.initialized = true;
-                gate.lastTRaw = tRaw;
+                EffectRuntimeGate.State gate = null;
+                if (snapshot != null) {
+                    gate = EffectRuntimeGate.get(snapshot.getPos().asLong(), inst.getId(), now);
+                }
+                boolean fire = false;
+                if (gate != null) {
+                    fire = PerBlockEffectTrigger.crossed(gate.initialized ? gate.lastTRaw : Float.NaN, tRaw, startNorm);
+                }
+                if (gate != null) {
+                    gate.initialized = true;
+                }
+                if (gate != null) {
+                    gate.lastTRaw = tRaw;
+                }
                 if (!fire) continue;
             }
             if (!oneShot && (tRaw < startNorm || tRaw > endNorm)) {

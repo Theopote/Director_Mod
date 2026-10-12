@@ -69,7 +69,7 @@ public class BlockVisualStateManager {
          */
         public BlockVisualState(BlockRenderMode mode, float alphaMultiplier, Boolean depthWriteOverride, boolean suppressWorldRendering) {
             this.mode = mode != null ? mode : BlockRenderMode.SOLID;
-            this.alphaMultiplier = Math.max(0f, Math.min(1f, alphaMultiplier));
+            this.alphaMultiplier = Math.clamp(alphaMultiplier, 0f, 1f);
             this.depthWriteOverride = depthWriteOverride;
             this.suppressWorldRendering = suppressWorldRendering;
             this.useOverlay = (mode == BlockRenderMode.GHOST_WITH_DEPTH || mode == BlockRenderMode.GHOST_NO_DEPTH);
@@ -177,7 +177,7 @@ public class BlockVisualStateManager {
         }
         
         public void setAlpha(float alpha) {
-            this.alphaMultiplier = Math.max(0f, Math.min(1f, alpha));
+            this.alphaMultiplier = Math.clamp(alpha, 0f, 1f);
         }
         
         public boolean shouldUseOverlay() {
@@ -681,52 +681,39 @@ public class BlockVisualStateManager {
 
     /**
      * 渲染条目 2.0（用于批量渲染，包含动画语义）
-     * 
+     *
      * <p>设计目标：
      * <ul>
      *   <li>包含动画相关关键字段（clip, seqEntry），让 renderEntries() 能够真正执行动画</li>
      *   <li>支持可选的 overrideSnapshot，允许外部覆盖动画结果</li>
      *   <li>移除 snapshot 字段，改为在渲染时通过 sampleSnapshot() 生成</li>
      * </ul>
+     *
+     * @param clip             🔥 新增动画语义
+     * @param overrideSnapshot 可选：外部覆盖动画快照（通常不使用）
      */
-    public static final class RenderEntry {
+        public record RenderEntry(BlockPos pos, BlockState blockState, BlockVisualState visualState, TimelineClip clip,
+                                  BlockSequenceEntry seqEntry, BlockAnimationSnapshot overrideSnapshot) {
 
-        private final BlockPos pos;
-        private final BlockState blockState;
-        private final BlockVisualState visualState;
+            public RenderEntry(
+                    BlockPos pos,
+                    BlockState blockState,
+                    BlockVisualState visualState,
+                    TimelineClip clip,
+                    BlockSequenceEntry seqEntry,
+                    BlockAnimationSnapshot overrideSnapshot
+            ) {
+                this.pos = pos;
+                this.blockState = blockState;
+                this.visualState = visualState != null ? visualState : BlockVisualState.normal();
+                this.clip = clip;
+                this.seqEntry = seqEntry;
+                this.overrideSnapshot = overrideSnapshot;
+            }
 
-        // 🔥 新增动画语义
-        private final TimelineClip clip;
-        private final BlockSequenceEntry seqEntry;
-
-        // 可选：外部覆盖动画快照（通常不使用）
-        private final BlockAnimationSnapshot overrideSnapshot;
-
-        public RenderEntry(
-                BlockPos pos,
-                BlockState blockState,
-                BlockVisualState visualState,
-                TimelineClip clip,
-                BlockSequenceEntry seqEntry,
-                BlockAnimationSnapshot overrideSnapshot
-        ) {
-            this.pos = pos;
-            this.blockState = blockState;
-            this.visualState = visualState != null ? visualState : BlockVisualState.normal();
-            this.clip = clip;
-            this.seqEntry = seqEntry;
-            this.overrideSnapshot = overrideSnapshot;
+        public boolean hasOverrideSnapshot() {
+            return overrideSnapshot != null;
         }
-
-        public BlockPos pos() { return pos; }
-        public BlockState blockState() { return blockState; }
-        public BlockVisualState visualState() { return visualState; }
-
-        public TimelineClip clip() { return clip; }
-        public BlockSequenceEntry seqEntry() { return seqEntry; }
-
-        public BlockAnimationSnapshot overrideSnapshot() { return overrideSnapshot; }
-        public boolean hasOverrideSnapshot() { return overrideSnapshot != null; }
-    }
+        }
 
 }
