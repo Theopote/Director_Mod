@@ -12,7 +12,7 @@ class PerBlockAnimationTimingTest {
         c.setMode(AnimationMode.FADE_IN); c.setDuration(2); c.setDelay(0);
         return c;
     }
-    @Test void fullClipDurationDoesNotTrimLaterBlocksOrStartExitBeforeDelay() {
+    @Test void legacyEntriesWithoutScheduleMetadataKeepTheirFallbackWindows() {
         var c = config(); c.setDelay(0.5f); c.setDuration(2);
         var layout = PerBlockAnimationTiming.layout(c, 10, 12);
         for (float n : new float[] {0, 0.5f, 1}) {
@@ -23,7 +23,7 @@ class PerBlockAnimationTimingTest {
         assertEquals(Float.NEGATIVE_INFINITY, layout.threshold(-0.1f));
         assertEquals(Float.POSITIVE_INFINITY, layout.threshold(0));
     }
-    @Test void regularSequencePreservesOrderAndEqualAnimationDurations() {
+    @Test void legacyNormalizedEntriesKeepTheirTimingCompatibility() {
         var c = config(); c.setDelay(1); c.getSequenceParameters().setGlobalDelay(0.5f);
         var l = PerBlockAnimationTiming.layout(c, 10, 20);
         assertEquals(11.5f, l.window(0).start());

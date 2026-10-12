@@ -273,6 +273,34 @@ public class SequenceParameters implements Serializable, Cloneable {
         this.globalDelay = Math.max(0.0f, globalDelay);
     }
 
+    /** Stable cache key for ordering and timing parameters. */
+    public int fingerprint() {
+        int h = 1;
+        h = 31 * h + (this.getFlowType() != null ? this.getFlowType().name().hashCode() : 0);
+        h = 31 * h + (this.getFillType() != null ? this.getFillType().name().hashCode() : 0);
+        h = 31 * h + (this.getOriginType() != null ? this.getOriginType().name().hashCode() : 0);
+        h = 31 * h + Float.floatToIntBits(this.getPlaneYaw());
+        h = 31 * h + Float.floatToIntBits(this.getPlanePitch());
+        h = 31 * h + Float.floatToIntBits(this.getLayerStep());
+        h = 31 * h + this.getCustomX();
+        h = 31 * h + this.getCustomY();
+        h = 31 * h + this.getCustomZ();
+        h = 31 * h + Float.floatToIntBits(this.getPriorityWeight());
+        h = 31 * h + (this.isReverse() ? 1 : 0);
+        h = 31 * h + (this.isAlternating() ? 1 : 0);
+        h = 31 * h + (this.getFloodSeedMode() != null ? this.getFloodSeedMode().name().hashCode() : 0);
+        h = 31 * h + (this.getConcurrencyMode() != null ? this.getConcurrencyMode().name().hashCode() : 0);
+        h = 31 * h + this.getBatchSize();
+        h = 31 * h + Float.floatToIntBits(this.getBatchInterval());
+        h = 31 * h + (this.getTimeMappingStrategy() != null ? this.getTimeMappingStrategy().name().hashCode() : 0);
+        h = 31 * h + Float.floatToIntBits(this.getPerBlockDuration());
+        h = 31 * h + Float.floatToIntBits(this.getGlobalDelay());
+        h = 31 * h + (this.getRasterScanAxis() != null ? this.getRasterScanAxis().hashCode() : 0);
+        h = 31 * h + Float.floatToIntBits(this.getRasterRowStep());
+        h = 31 * h + (this.isRasterZigZag() ? 1 : 0);
+        return h;
+    }
+
     // --- 复制 ---
     public SequenceParameters copy() {
         SequenceParameters clone = new SequenceParameters();

@@ -130,7 +130,7 @@ public final class BlockAnimationEngine {
 
         // ===== INSTANT 模式特殊处理：直接按序列出现，不需要动画窗口 =====
         if (mode == AnimationMode.INSTANT) {
-            var timing = PerBlockAnimationTiming.layout(config, clipStart, clipEnd);
+            var timing = PerBlockAnimationTiming.layout(config, clipStart, clipEnd, seqEntry);
             float seqNormalizedTime = seqEntry != null ? MathHelper.clamp(seqEntry.getNormalizedTime(), 0, 1) : 0;
             float blockStartTime = timing.window(seqNormalizedTime).start();
 
@@ -161,7 +161,7 @@ public final class BlockAnimationEngine {
             return snapshot;
         }
 
-        var timing = PerBlockAnimationTiming.layout(config, clipStart, clipEnd);
+        var timing = PerBlockAnimationTiming.layout(config, clipStart, clipEnd, seqEntry);
         float seqNormalizedTime = seqEntry != null ? MathHelper.clamp(seqEntry.getNormalizedTime(), 0, 1) : 0;
         var window = timing.window(seqNormalizedTime);
         float blockStartTime = window.start();

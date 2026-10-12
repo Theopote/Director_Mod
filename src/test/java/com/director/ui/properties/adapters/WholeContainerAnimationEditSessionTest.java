@@ -291,4 +291,18 @@ class WholeContainerAnimationEditSessionTest {
         assertEquals(4, s.getDustIntensity()); assertEquals(2, s.getDustSpread());
         assertEquals(0.4f, s.getDebrisRatio());
     }
+    @Test void scopeSwitchUndoAlsoRestoresCumulativeClipLength() {
+        float originalLength = clip.getLength();
+        change(() -> {
+            clip.getAnimationConfig().setScope(ClipAnimationConfig.AnimationScope.PER_BLOCK);
+            clip.getAnimationConfig().setDuration(0.1f);
+            clip.setLength(7);
+        }, false);
+        history.undo();
+        assertEquals(originalLength, clip.getLength());
+        assertTrue(clip.getAnimationConfig().isWholeContainer());
+        history.redo();
+        assertEquals(7, clip.getLength());
+        assertFalse(clip.getAnimationConfig().isWholeContainer());
+    }
 }

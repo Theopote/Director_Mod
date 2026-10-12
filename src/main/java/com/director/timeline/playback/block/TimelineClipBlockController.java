@@ -173,30 +173,7 @@ public class TimelineClipBlockController {
         if (p == null) {
             return 0;
         }
-        int h = 1;
-        h = 31 * h + (p.getFlowType() != null ? p.getFlowType().name().hashCode() : 0);
-        h = 31 * h + (p.getFillType() != null ? p.getFillType().name().hashCode() : 0);
-        h = 31 * h + (p.getOriginType() != null ? p.getOriginType().name().hashCode() : 0);
-        h = 31 * h + Float.floatToIntBits(p.getPlaneYaw());
-        h = 31 * h + Float.floatToIntBits(p.getPlanePitch());
-        h = 31 * h + Float.floatToIntBits(p.getLayerStep());
-        h = 31 * h + p.getCustomX();
-        h = 31 * h + p.getCustomY();
-        h = 31 * h + p.getCustomZ();
-        h = 31 * h + Float.floatToIntBits(p.getPriorityWeight());
-        h = 31 * h + (p.isReverse() ? 1 : 0);
-        h = 31 * h + (p.isAlternating() ? 1 : 0);
-        h = 31 * h + (p.getFloodSeedMode() != null ? p.getFloodSeedMode().name().hashCode() : 0);
-        h = 31 * h + (p.getConcurrencyMode() != null ? p.getConcurrencyMode().name().hashCode() : 0);
-        h = 31 * h + p.getBatchSize();
-        h = 31 * h + Float.floatToIntBits(p.getBatchInterval());
-        h = 31 * h + (p.getTimeMappingStrategy() != null ? p.getTimeMappingStrategy().name().hashCode() : 0);
-        h = 31 * h + Float.floatToIntBits(p.getPerBlockDuration());
-        h = 31 * h + Float.floatToIntBits(p.getGlobalDelay());
-        h = 31 * h + (p.getRasterScanAxis() != null ? p.getRasterScanAxis().hashCode() : 0);
-        h = 31 * h + Float.floatToIntBits(p.getRasterRowStep());
-        h = 31 * h + (p.isRasterZigZag() ? 1 : 0);
-        return h;
+        return p.fingerprint();
     }
 
     private List<BlockSequenceEntry> getOrGenerateSequenceEntries(TimelineClip clip,
@@ -212,7 +189,7 @@ public class TimelineClipBlockController {
         long containerMod = container.getModifiedTime();
         int blockCount = container.getBlockCount();
         var params = (config != null) ? config.getSequenceParameters() : null;
-        int paramsHash = hashSequenceParameters(params);
+        int paramsHash = 31 * hashSequenceParameters(params) + (config != null && config.getMode() == com.director.core.container.AnimationMode.INSTANT ? 1 : 0);
 
         ClipSequenceCache cache = sequenceCacheByClip.get(clip);
         if (cache != null
@@ -234,7 +211,7 @@ public class TimelineClipBlockController {
                 params,
                 clipDuration,
                 animDuration,
-                totalDelay);
+                totalDelay, config != null && config.getMode() == com.director.core.container.AnimationMode.INSTANT);
         if (generated != null && generated.size() > 1) {
             // 性能关键：确保按 normalizedTime 单调，便于在可见集计算时提前 break（避免每帧扫描 5w+ entry）
             generated.sort(Comparator.comparingDouble(BlockSequenceEntry::getNormalizedTime));
@@ -257,7 +234,7 @@ public class TimelineClipBlockController {
         if (entries == null || entries.isEmpty()) {
             return 0;
         }
-        if (normalizedThreshold <= 0.0f) {
+        if (normalizedThreshold < 0.0f) {
             return 0;
         }
         if (normalizedThreshold >= 1.0f) {
@@ -1335,7 +1312,7 @@ public class TimelineClipBlockController {
             float animDuration = clipDuration;
             float delay = 0.0f;
             if (config != null) {
-                animDuration = Math.min(config.getDuration(), Math.max(0, clipDuration));
+                animDuration = config.getDuration();
                 delay = Math.max(0.0f, config.getDelay());
                 try {
                     var seq = config.getSequenceParameters();
@@ -1349,9 +1326,7 @@ public class TimelineClipBlockController {
             if (config != null) {
                 timing = PerBlockAnimationTiming.layout(config, clipStart, clipEnd);
             }
-            if (timing != null) {
-                animDuration = timing.duration();
-            }
+
             if (timing != null) {
                 delay = timing.delay();
             }
@@ -1407,6 +1382,12 @@ public class TimelineClipBlockController {
                 // 后备：序列为空时，直接视为全量
                 Set<BlockPos> all = newBlockSet(allBlocks);
                 return new VisibleBlocksResult(all, all, sequenceEntries);
+            }
+
+            if (config != null) {
+                timing = PerBlockAnimationTiming.layout(config, clipStart, clipEnd, sequenceEntries.getFirst());
+                animDuration = timing.duration();
+                sequenceSpan = timing.sequenceSpan();
             }
 
             // ✅ 基于容器类型判断（不再依赖轨道类型）
@@ -1699,7 +1680,7 @@ public class TimelineClipBlockController {
         // ===== 预计算单块时间窗口参数（避免每个 entry 重复走 BlockAnimationEngine 的时间窗口逻辑） =====
         ClipAnimationConfig.AnimationPhase phase = config.getPhase();
         float clipDuration = Math.max(0.0001f, clipLength);
-        var timing = com.director.core.animation.PerBlockAnimationTiming.layout(config, clipStart, clipEnd);
+        var timing = com.director.core.animation.PerBlockAnimationTiming.layout(config, clipStart, clipEnd, sequenceEntries.getFirst());
         Float previousEffectsTime = perBlockEffectSampleTime.put(clip, currentTime);
 
 

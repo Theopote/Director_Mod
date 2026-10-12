@@ -74,6 +74,51 @@ public class TimelineClipPropertyUi {
                     com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                             .refreshAutoSoundEventsIfNeeded(clip));
 
+    private TimelineClip scheduleClip;
+    private long scheduleContainerVersion;
+    private int scheduleHash, scheduleBlockCount;
+    private float scheduleDuration;
+    private boolean scheduleInstant;
+    private com.director.core.animation.sequence.PerBlockSchedule.Schedule scheduleCache;
+
+    private com.director.core.animation.sequence.PerBlockSchedule.Schedule perBlockSchedule(TimelineClip clip) {
+        var container = clip.getBoundContainerId() == null ? null
+                : DirectorServices.get().containers().getContainer(clip.getBoundContainerId());
+        if (container == null) return null;
+        var config = clip.getAnimationConfig();
+        var params = config.getSequenceParameters();
+        boolean instant = config.getMode() == AnimationMode.INSTANT;
+        if (scheduleCache == null || scheduleClip != clip || scheduleContainerVersion != container.getModifiedTime()
+                || scheduleBlockCount != container.getBlockCount() || scheduleHash != params.fingerprint()
+                || scheduleDuration != config.getDuration() || scheduleInstant != instant) {
+            scheduleClip = clip; scheduleContainerVersion = container.getModifiedTime();
+            scheduleBlockCount = container.getBlockCount(); scheduleHash = params.fingerprint();
+            scheduleDuration = config.getDuration(); scheduleInstant = instant;
+            scheduleCache = com.director.core.animation.sequence.PerBlockSchedule.create(
+                    com.director.core.animation.sequence.BlockSequenceGenerator.generate(null, container, params),
+                    params, config.getDuration(), instant);
+        }
+        return scheduleCache;
+    }
+
+    private float effectivePerBlockDuration(TimelineClip clip) {
+        var config = clip.getAnimationConfig();
+        var schedule = perBlockSchedule(clip);
+        if (schedule == null || schedule.duration() <= 0) return config.getDuration();
+        float slot = config.getSequenceParameters().getPerBlockDuration() > 0
+                ? config.getSequenceParameters().getPerBlockDuration() : config.getDuration();
+        float playable = Math.max(0, clip.getLength() - config.getDelay() - config.getSequenceParameters().getGlobalDelay());
+        return slot * playable / schedule.duration();
+    }
+
+    private void fitPerBlockClipToActions(TimelineClip clip) {
+        var schedule = perBlockSchedule(clip);
+        if (schedule == null || schedule.entries().isEmpty()) return;
+        var config = clip.getAnimationConfig();
+        clip.setLength(config.getDelay() + config.getSequenceParameters().getGlobalDelay() + schedule.duration());
+        DirectorServices.get().containerTimeline().getTimelineModel().markDurationDirty();
+    }
+
     void finishAnimationEditIfIdle(TimelineClip clip) {
         // Observe selection/project changes even when the animation section is collapsed.
         wholeAnimationEdits.beginFrame(DirectorServices.get().containerTimeline().getTimelineModel(), clip);
@@ -456,12 +501,19 @@ public class TimelineClipPropertyUi {
             LOGGER.error("显示模式描述时出错: {}", e.getMessage(), e);
         }
 
-        float[] duration = { config.getDuration() };
-        if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_DURATION_SECONDS), duration, 0.05f, 0.0f, clip.getLength(), "%.2fs")) {
+        float[] duration = { effectivePerBlockDuration(clip) };
+        if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_DURATION_SECONDS), duration, 0.01f, 0.0001f, 300f, "%.4fs")) {
             if (duration[0] < 0.0f) {
                 duration[0] = 0.0f;
             }
+            var previousSchedule = perBlockSchedule(clip);
+            if (previousSchedule != null && previousSchedule.duration() > 0) {
+                float scale = Math.max(0, clip.getLength() - config.getDelay() - config.getSequenceParameters().getGlobalDelay()) / previousSchedule.duration();
+                config.getSequenceParameters().setBatchInterval(config.getSequenceParameters().getBatchInterval() * scale);
+            }
+            config.getSequenceParameters().setPerBlockDuration(0);
             config.setDuration(duration[0]);
+            fitPerBlockClipToActions(clip);
         }
         // ⭐ 性能优化：只在拖动结束时才标记为已修改
         if (ImGui.isItemDeactivatedAfterEdit()) {
@@ -851,6 +903,13 @@ public class TimelineClipPropertyUi {
             modified = true;
         }
 
+        int previousSequenceHash = params.fingerprint();
+        float previousActionDuration = effectivePerBlockDuration(clip);
+        float previousGap = params.getBatchInterval();
+        var previousSchedule = perBlockSchedule(clip);
+        float previousScale = previousSchedule == null || previousSchedule.duration() <= 0 ? 1
+                : Math.max(0, clip.getLength() - config.getDelay() - params.getGlobalDelay()) / previousSchedule.duration();
+
         // 强制使用 Evaluator 模式（已废弃旧模式）
         if (config.getSequenceMode() != SequenceMode.EVALUATOR_BASED) {
             config.setSequenceMode(SequenceMode.EVALUATOR_BASED);
@@ -925,6 +984,12 @@ public class TimelineClipPropertyUi {
         UITheme.separator();
         modified |= renderSequenceTimingSection(clip, config, params);
 
+        if (!config.isWholeContainer() && previousSequenceHash != params.fingerprint()) {
+            if (params.getBatchInterval() == previousGap) params.setBatchInterval(previousGap * previousScale);
+            params.setPerBlockDuration(0);
+            config.setDuration(previousActionDuration);
+            fitPerBlockClipToActions(clip);
+        }
         return modified;
     }
 
@@ -987,7 +1052,10 @@ public class TimelineClipPropertyUi {
                 params.setBatchSize(bs[0]);
                 modified = true;
             }
-            float[] bi = { params.getBatchInterval() };
+            var schedule = perBlockSchedule(clip);
+            float scale = schedule == null || schedule.duration() <= 0 ? 1
+                    : Math.max(0, clip.getLength() - config.getDelay() - params.getGlobalDelay()) / schedule.duration();
+            float[] bi = { params.getBatchInterval() * scale };
             if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_BATCH_INTERVAL), bi, 0.01f, 0.0f, 10.0f, "%.2fs")) {
                 params.setBatchInterval(bi[0]);
             }
@@ -999,7 +1067,10 @@ public class TimelineClipPropertyUi {
                 ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_BATCH_INTERVAL_TOOLTIP));
             }
         } else if (needsGroupGap) {
-            float[] gi = { params.getBatchInterval() };
+            var schedule = perBlockSchedule(clip);
+            float scale = schedule == null || schedule.duration() <= 0 ? 1
+                    : Math.max(0, clip.getLength() - config.getDelay() - params.getGlobalDelay()) / schedule.duration();
+            float[] gi = { params.getBatchInterval() * scale };
             if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_GROUP_INTERVAL), gi, 0.01f, 0.0f, 10.0f, "%.2fs")) {
                 // 复用 batchInterval 作为组间隔（避免新增字段破坏存档）
                 params.setBatchInterval(gi[0]);
@@ -1016,7 +1087,7 @@ public class TimelineClipPropertyUi {
         // 轻提示：这些字段现在已在运行时生效
         ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_TIMING_SUMMARY,
                 clip.getLength(),
-                config != null ? config.getDuration() : 0.0f,
+                config != null ? effectivePerBlockDuration(clip) : 0.0f,
                 (config != null ? Math.max(0.0f, config.getDelay()) : 0.0f) + Math.max(0.0f, params.getGlobalDelay())));
 
         return modified;
@@ -1804,10 +1875,10 @@ public class TimelineClipPropertyUi {
 
         // ✅ 特效时间轴是“相对于单块动画窗口”的归一化（0..1），而不是相对于片段长度
         ClipAnimationConfig cfg = clip.getAnimationConfig();
-        float clipLength = Math.max(clip.getLength(), 0.0001f);
-        float animLen = 0.05f;
+        float animLen = 0.0001f;
         if (cfg != null) {
-            animLen = Math.max(0.05f, Math.min(cfg.getDuration(), clipLength));
+            animLen = cfg.isWholeContainer() ? Math.max(0.05f, Math.min(cfg.getDuration(), clip.getLength()))
+                    : Math.max(0.0001f, cfg.getMode() == AnimationMode.INSTANT ? 0 : effectivePerBlockDuration(clip));
         }
 
         // 作用阶段

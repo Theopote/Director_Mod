@@ -107,6 +107,7 @@ public class TimelineClip {
 
     public void setLength(float length) {
         this.endTime = this.startTime + Math.max(MINIMUM_LENGTH, length);
+        invalidateRestoreTimeCache();
         pruneOrphanedKeyframes(); // 确保关键帧在范围内
     }
 

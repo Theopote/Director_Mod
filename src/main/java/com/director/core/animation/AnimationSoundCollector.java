@@ -88,7 +88,7 @@ public class AnimationSoundCollector {
         float clipStart = clip.getStartTime();
         float clipDuration = clip.getLength();
 
-        var timing = PerBlockAnimationTiming.layout(config, clipStart, clipStart + clipDuration);
+        var timing = PerBlockAnimationTiming.layout(config, clipStart, clipStart + clipDuration, sequenceEntries.getFirst());
         float animDuration = timing.duration();
 
         boolean isExit = config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT;

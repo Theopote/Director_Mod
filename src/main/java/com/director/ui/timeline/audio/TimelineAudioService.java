@@ -410,7 +410,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         }
 
         float clipDuration = Math.max(0.05f, clip.getLength());
-        float animDuration = Math.max(0.05f, Math.min(config.getDuration(), clipDuration));
+        float animDuration = config.getDuration();
         float totalDelay = Math.max(0.0f, config.getDelay());
         com.director.core.animation.sequence.SequenceParameters sequenceParameters = config.getSequenceParameters();
         if (sequenceParameters != null) {
@@ -423,7 +423,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
                 config.getSequenceParameters(),
                 clipDuration,
                 animDuration,
-                totalDelay
+                totalDelay, config.getMode() == com.director.core.container.AnimationMode.INSTANT
         );
 
         if (sequenceEntries == null || sequenceEntries.isEmpty()) {

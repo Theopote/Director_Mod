@@ -16,13 +16,22 @@ public final class BlockSequenceEntry implements Serializable {
     private final float normalizedTime;
     private final int groupId;
     private final float groupNormalizedTime;
+    private final float durationRatio;
 
     public BlockSequenceEntry(BlockPos pos, float normalizedTime, int groupId, float groupNormalizedTime) {
+        this(pos, normalizedTime, groupId, groupNormalizedTime, Float.NaN);
+    }
+
+    public BlockSequenceEntry(BlockPos pos, float normalizedTime, int groupId, float groupNormalizedTime, float durationRatio) {
+        this.durationRatio = durationRatio;
         this.pos = pos;
         this.normalizedTime = normalizedTime;
         this.groupId = groupId;
         this.groupNormalizedTime = groupNormalizedTime;
     }
+
+    /** Fraction of the playable clip occupied by one action; NaN denotes a legacy entry. */
+    public float getDurationRatio() { return durationRatio; }
 
     public BlockPos getPos() {
         return pos;

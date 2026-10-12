@@ -123,6 +123,7 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
      */
     public ClipAnimationConfig copy() {
         ClipAnimationConfig clone = new ClipAnimationConfig(mode, duration, delay, easing, ordering);
+        clone.duration = this.duration;
         clone.params.putAll(this.params);
         clone.phase = this.phase;
         clone.scope = getScope();
@@ -183,8 +184,8 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
     }
 
     public void setDuration(float duration) {
-        // 下限 0.05s 防止除零；上限 300s 防止手动输入极端值导致动画卡在中间状态
-        this.duration = Math.clamp(duration, 0.05f, 300.0f);
+        // 串行片段可包含大量方块，单块窗口允许短于一个游戏 tick。
+        this.duration = Math.clamp(duration, isWholeContainer() ? 0.05f : 0.0001f, 300.0f);
     }
 
     public float getDelay() {

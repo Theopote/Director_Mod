@@ -36,10 +36,11 @@ public final class WholeContainerAnimationEditSession {
         }
     }
     private record State(ClipAnimationConfig.AnimationScope scope, AnimationMode mode,
-                         float duration, float delay, String easing, Transform transform) {
-        static State capture(ClipAnimationConfig c) {
+                         float duration, float delay, String easing, Transform transform, float clipLength) {
+        static State capture(TimelineClip clip) {
+            var c = clip.getAnimationConfig();
             return new State(c.getScope(), c.getMode(), c.getDuration(), c.getDelay(),
-                    c.getEasing(), Transform.capture(c.getWholeContainer()));
+                    c.getEasing(), Transform.capture(c.getWholeContainer()), clip.getLength());
         }
         void apply(TimelineModel model, TimelineClip clip) {
             if (model.findTrackForClip(clip) == null)
@@ -50,6 +51,7 @@ public final class WholeContainerAnimationEditSession {
                     && Float.compare(c.getDelay(), delay) == 0;
             c.setScope(scope); c.setMode(mode); c.setDuration(duration); c.setDelay(delay); c.setEasing(easing);
             transform.apply(c.getWholeContainer());
+            if (clip.getLength() != clipLength) { clip.setLength(clipLength); model.markDurationDirty(); }
             if (retime) model.setCurrentTime(WholeContainerAnimation.retimePreviewTime(
                     clip.getStartTime(), clip.getEndTime(), delay, oldDuration, duration, model.getCurrentTime()));
         }
@@ -72,7 +74,7 @@ public final class WholeContainerAnimationEditSession {
         frameModel = model;
         frameClip = clip;
         frameBefore = clip != null && clip.getAnimationConfig() != null
-                ? State.capture(clip.getAnimationConfig()) : null;
+                ? State.capture(clip) : null;
     }
     public void endFrame(boolean modified, boolean itemActive, String description) {
         if (modified && frameBefore != null && frameModel != null
@@ -101,7 +103,7 @@ public final class WholeContainerAnimationEditSession {
         var description = pendingDescription;
         clearPending();
         if (model.findTrackForClip(clip) == null || clip.getAnimationConfig() != config) return;
-        var after = State.capture(config);
+        var after = State.capture(clip);
         if (before.equals(after)) return;
         TimelineCommandBridge.execute(new StateChangeCommand(model, description,
                 () -> { before.apply(model, clip); refreshSound.accept(clip); },
