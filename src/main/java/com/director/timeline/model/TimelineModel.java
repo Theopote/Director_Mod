@@ -1031,6 +1031,10 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
                 }
                 for (TimelineClip clip : track.getClips()) {
                     maxEndTime = Math.max(maxEndTime, clip.getEndTime());
+                    if (track.getType() == TrackType.CONTAINER && clip.getBoundContainerId() != null) {
+                        maxEndTime = Math.max(maxEndTime, com.director.core.animation.PerBlockAnimationTiming.completionLimit(
+                                clip.getAnimationConfig(), clip.getStartTime(), clip.getEndTime()));
+                    }
                     // clip 内关键帧（理论上应在 clip 范围内，但这里做兜底）
                     for (com.director.timeline.model.clip.ClipKeyframe kf : clip.getClipKeyframes()) {
                         if (kf == null) continue;

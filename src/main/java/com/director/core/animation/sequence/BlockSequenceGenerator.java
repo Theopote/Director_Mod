@@ -90,7 +90,7 @@ public final class BlockSequenceGenerator {
         return result;
     }
 
-    /** Builds cumulative action windows, then fits the entire schedule to the clip. */
+    /** Schedules starts inside the clip, independently of individual action duration. */
     public static List<BlockSequenceEntry> generate(List<BlockPos> sourceBlocks, Container container,
             SequenceParameters params, float clipDuration, float animDuration, float totalDelaySeconds) {
         return generate(sourceBlocks, container, params, clipDuration, animDuration, totalDelaySeconds, false);
@@ -99,7 +99,7 @@ public final class BlockSequenceGenerator {
     public static List<BlockSequenceEntry> generate(List<BlockPos> sourceBlocks, Container container,
             SequenceParameters params, float clipDuration, float animDuration, float totalDelaySeconds,
             boolean instant) {
-        return PerBlockSchedule.create(generate(sourceBlocks, container, params), params, animDuration, instant).entries();
+        return PerBlockSchedule.create(generate(sourceBlocks, container, params), params, clipDuration).entries();
     }
 
     private static List<BlockSequenceEntry> generateDefault(List<BlockPos> sourceBlocks, Container container) {

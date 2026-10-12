@@ -247,7 +247,6 @@ public class TimelineDragAndDropHandler {
                         ClipAnimationConfig cfg = clip.getAnimationConfig();
                         cfg.setPhase(ClipAnimationConfig.AnimationPhase.EXIT);
                         cfg.setMode(com.director.core.container.AnimationMode.FADE_OUT);
-                        normalizePerBlockTiming(cfg, c, clip.getLength());
                         clip.setAnimationConfig(cfg);
                     }
                 } catch (Exception ignored) {}
@@ -383,7 +382,6 @@ public class TimelineDragAndDropHandler {
             
             // 应用配置到片段
             applySafetyDefaults(config, container, clipDuration);
-            normalizePerBlockTiming(config, container, clipDuration);
             clip.setAnimationConfig(config);
             
             LOGGER.info("[DragDrop] 片段 {} 动画配置已初始化：模式={}, 时长={}s, 缓动={}",
@@ -395,19 +393,6 @@ public class TimelineDragAndDropHandler {
             LOGGER.error("[DragDrop] 初始化片段动画配置失败，使用默认配置", e);
             // 使用默认配置作为后备
             clip.setAnimationConfig(ClipAnimationConfig.defaultConfig());
-        }
-    }
-
-    /** Store the actual action/gap durations corresponding to the initial total clip length. */
-    private void normalizePerBlockTiming(ClipAnimationConfig config, Container container, float clipDuration) {
-        var params = config.getSequenceParameters();
-        var schedule = com.director.core.animation.sequence.PerBlockSchedule.create(
-                com.director.core.animation.sequence.BlockSequenceGenerator.generate(null, container, params),
-                params, config.getDuration(), config.getMode() == com.director.core.container.AnimationMode.INSTANT);
-        if (schedule.duration() > 0) {
-            float scale = Math.max(0, clipDuration - config.getDelay() - params.getGlobalDelay()) / schedule.duration();
-            config.setDuration(config.getDuration() * scale);
-            params.setBatchInterval(params.getBatchInterval() * scale);
         }
     }
 
