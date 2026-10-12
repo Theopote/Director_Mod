@@ -64,6 +64,8 @@ public class TimelineModelPersistence {
     // 配置文件路径
     private static final Path CONFIG_DIR = Paths.get("config", "director");
     private static final Set<String> RESERVED_SEQUENCE_KEYS = Set.of(
+        "layerStep", "floodSeedMode", "concurrencyMode", "batchSize", "batchInterval",
+        "timeMappingStrategy", "perBlockDuration", "globalDelay",
         "flowType",
         "fillType",
         "originType",
@@ -322,6 +324,11 @@ public class TimelineModelPersistence {
         public List<VisibilityKeyframeDTO> visibilityKeyframes = new ArrayList<>();
         public String animationMode;
         public String animationScope;
+        public String animationPhase;
+        public boolean occlusionTransparencyEnabled = true;
+        public float postAnimationFadeStart = 0;
+        public float postAnimationFadeEnd = 2;
+        public List<com.director.core.animation.effect.EffectInstance> animationEffects = new ArrayList<>();
         public com.director.core.animation.WholeContainerAnimationConfig wholeContainerAnimation;
         public float animationDuration = 2.0f;
         public float animationDelay = 0.0f;
@@ -682,6 +689,11 @@ public class TimelineModelPersistence {
                 ClipAnimationConfig config = clip.getAnimationConfig();
                 clipDTO.animationMode = config.getMode().name();
                 clipDTO.animationScope = config.getScope().name();
+                clipDTO.animationPhase = config.getPhase().name();
+                clipDTO.occlusionTransparencyEnabled = config.isOcclusionTransparencyEnabled();
+                clipDTO.postAnimationFadeStart = clip.getPostAnimationFadeStart();
+                clipDTO.postAnimationFadeEnd = clip.getPostAnimationFadeEnd();
+                for (var effect : config.getEffects()) if (effect != null) clipDTO.animationEffects.add(effect.copy());
                 clipDTO.wholeContainerAnimation = config.getWholeContainer().copy();
                 clipDTO.animationDuration = config.getDuration();
                 clipDTO.animationDelay = config.getDelay();
@@ -698,6 +710,14 @@ public class TimelineModelPersistence {
                     clipDTO.sequenceParams.put("originType", seqParams.getOriginType().name());
                     clipDTO.sequenceParams.put("planeYaw", seqParams.getPlaneYaw());
                     clipDTO.sequenceParams.put("planePitch", seqParams.getPlanePitch());
+                    clipDTO.sequenceParams.put("layerStep", seqParams.getLayerStep());
+                    clipDTO.sequenceParams.put("floodSeedMode", seqParams.getFloodSeedMode().name());
+                    clipDTO.sequenceParams.put("concurrencyMode", seqParams.getConcurrencyMode().name());
+                    clipDTO.sequenceParams.put("batchSize", seqParams.getBatchSize());
+                    clipDTO.sequenceParams.put("batchInterval", seqParams.getBatchInterval());
+                    clipDTO.sequenceParams.put("timeMappingStrategy", seqParams.getTimeMappingStrategy().name());
+                    clipDTO.sequenceParams.put("perBlockDuration", seqParams.getPerBlockDuration());
+                    clipDTO.sequenceParams.put("globalDelay", seqParams.getGlobalDelay());
                     clipDTO.sequenceParams.put("customX", seqParams.getCustomX());
                     clipDTO.sequenceParams.put("customY", seqParams.getCustomY());
                     clipDTO.sequenceParams.put("customZ", seqParams.getCustomZ());
@@ -1167,6 +1187,14 @@ public class TimelineModelPersistence {
                     config.setScope(scope);
                 }
                 config.setWholeContainer(clipDTO.wholeContainerAnimation);
+                config.setPhase(ParseUtils.enumFromObject(clipDTO.animationPhase,
+                        ClipAnimationConfig.AnimationPhase.class, config.getPhase(), "Clip.animationPhase"));
+                config.setOcclusionTransparencyEnabled(clipDTO.occlusionTransparencyEnabled);
+                clip.setPostAnimationFadeStart(clipDTO.postAnimationFadeStart);
+                clip.setPostAnimationFadeEnd(clipDTO.postAnimationFadeEnd);
+                config.clearEffects();
+                if (clipDTO.animationEffects != null)
+                    for (var effect : clipDTO.animationEffects) if (effect != null) config.addEffect(effect.copy());
                 config.setDelay(Math.max(0.0f, clipDTO.animationDelay));
                 if (clipDTO.animationEasing != null) {
                     config.setEasing(clipDTO.animationEasing);
@@ -1205,6 +1233,14 @@ public class TimelineModelPersistence {
                     seqParams.setOriginType(ParseUtils.enumFromObject(raw.get("originType"), OriginType.class, seqParams.getOriginType(), "sequenceParams.originType"));
                     seqParams.setPlaneYaw(ParseUtils.asFloat(raw.get("planeYaw"), seqParams.getPlaneYaw(), "sequenceParams.planeYaw"));
                     seqParams.setPlanePitch(ParseUtils.asFloat(raw.get("planePitch"), seqParams.getPlanePitch(), "sequenceParams.planePitch"));
+                    seqParams.setLayerStep(ParseUtils.asFloat(raw.get("layerStep"), seqParams.getLayerStep(), "sequenceParams.layerStep"));
+                    seqParams.setFloodSeedMode(ParseUtils.enumFromObject(raw.get("floodSeedMode"), com.director.core.animation.sequence.evaluator.FloodSeedMode.class, seqParams.getFloodSeedMode(), "sequenceParams.floodSeedMode"));
+                    seqParams.setConcurrencyMode(ParseUtils.enumFromObject(raw.get("concurrencyMode"), com.director.core.animation.sequence.ConcurrencyMode.class, seqParams.getConcurrencyMode(), "sequenceParams.concurrencyMode"));
+                    seqParams.setBatchSize(ParseUtils.asInt(raw.get("batchSize"), seqParams.getBatchSize(), "sequenceParams.batchSize"));
+                    seqParams.setBatchInterval(ParseUtils.asFloat(raw.get("batchInterval"), seqParams.getBatchInterval(), "sequenceParams.batchInterval"));
+                    seqParams.setTimeMappingStrategy(ParseUtils.enumFromObject(raw.get("timeMappingStrategy"), com.director.core.animation.sequence.TimeMappingStrategy.class, seqParams.getTimeMappingStrategy(), "sequenceParams.timeMappingStrategy"));
+                    seqParams.setPerBlockDuration(ParseUtils.asFloat(raw.get("perBlockDuration"), seqParams.getPerBlockDuration(), "sequenceParams.perBlockDuration"));
+                    seqParams.setGlobalDelay(ParseUtils.asFloat(raw.get("globalDelay"), seqParams.getGlobalDelay(), "sequenceParams.globalDelay"));
                     int customX = ParseUtils.asInt(raw.get("customX"), seqParams.getCustomX(), "sequenceParams.customX");
                     int customY = ParseUtils.asInt(raw.get("customY"), seqParams.getCustomY(), "sequenceParams.customY");
                     int customZ = ParseUtils.asInt(raw.get("customZ"), seqParams.getCustomZ(), "sequenceParams.customZ");

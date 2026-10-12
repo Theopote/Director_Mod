@@ -47,7 +47,7 @@ public final class BlockAnimationContext {
     /** 全局时间（秒） */
     private final double globalTimeSec;
     
-    /** 片段内本地时间（秒）[0, clip.length] */
+    /** 片段内本地时间（秒），允许动画尾段超出 clip.length */
     private final double clipLocalTime;
     
     /** 序列归一化时间 [0..1]，表示该方块在序列中的位置 */
@@ -123,77 +123,20 @@ public final class BlockAnimationContext {
         double clipStart = clip.getStartTime();
         double clipEnd = clipStart + clip.getLength();
         
-        // 不在片段时间范围内
-        if (globalTimeSec < clipStart || globalTimeSec > clipEnd) {
+        var timing = PerBlockAnimationTiming.layout(config, (float) clipStart, (float) clipEnd);
+        if (globalTimeSec < clipStart
+                || globalTimeSec > PerBlockAnimationTiming.completionLimit(config, (float) clipStart, (float) clipEnd))
             return null;
-        }
-        
-        // 片段内本地时间 [0, clip.length]
         double clipLocalTime = globalTimeSec - clipStart;
-        
-        float seqT = sequenceEntry.getNormalizedTime(); // 0..1
+        float seqT = Float.isFinite(sequenceEntry.getNormalizedTime())
+                ? Math.clamp(sequenceEntry.getNormalizedTime(), 0, 1) : 0;
+        var window = timing.window(seqT);
+        if (globalTimeSec < window.start()
+                && config.getPhase() != ClipAnimationConfig.AnimationPhase.EXIT) return null;
+        float animProgressRaw = window.end() > window.start()
+                ? Math.clamp((float) ((globalTimeSec - window.start()) / (window.end() - window.start())), 0, 1)
+                : globalTimeSec >= window.start() ? 1 : 0;
 
-        // 动画时长
-        float clipDuration = (float) Math.max(0.0001, clip.getLength());
-        float animDuration = (float) Math.max(0.0001, Math.min(config.getDuration(), clipDuration));
-
-        if (animDuration <= 0.0) {
-            // duration 为 0 相当于瞬间到位
-            return new BlockAnimationContext(
-                    world, pos, clip, config, sequenceEntry,
-                    globalTimeSec, clipLocalTime, seqT,
-                    1.0f, 1.0f
-            );
-        }
-
-        // ✅ 修复：与 BlockAnimationEngine.sample() 保持一致的时间窗口计算
-        float delay = Math.max(0.0f, config.getDelay());
-        try {
-            var seq = config.getSequenceParameters();
-            if (seq != null) {
-                delay += Math.max(0.0f, seq.getGlobalDelay());
-            }
-        } catch (Exception ignored) {
-        }
-
-        float baseSpan = clipDuration - animDuration - delay;
-        boolean fullWindow = baseSpan > 0.0001f;
-        float sequenceSpan = fullWindow ? baseSpan : Math.max(0.0001f, clipDuration - delay);
-
-        // ENTER：开始时刻分布在 [clipStart+delay, clipEnd-animDuration]
-        float blockBaseOffset = seqT * sequenceSpan;
-        double blockStartTime = delay + blockBaseOffset;
-        double blockEndTime = blockStartTime + animDuration;
-
-        // 钳制到片段范围
-        if (blockStartTime < 0) blockStartTime = 0;
-        if (blockEndTime > clipDuration) blockEndTime = clipDuration;
-
-        if (blockEndTime <= blockStartTime) {
-            // 动画时间窗口无效：按瞬时处理
-            if (clipLocalTime >= blockStartTime) {
-                return new BlockAnimationContext(
-                        world, pos, clip, config, sequenceEntry,
-                        globalTimeSec, clipLocalTime, seqT,
-                        1.0f, 1.0f
-                );
-            }
-            return null;
-        }
-
-        // 对于这个方块来说，当前的动画进度
-        double animLocalTime = clipLocalTime - blockStartTime;
-        float animProgressRaw = (float) (animLocalTime / (blockEndTime - blockStartTime));
-        
-        if (animProgressRaw < 0.0f) {
-            // 动画还没开始
-            return null;
-        }
-        if (animProgressRaw > 1.0f) {
-            // 动画已经结束
-            animProgressRaw = 1.0f;
-        }
-        
         // 应用缓动函数
         float animProgress = animProgressRaw;
         try {

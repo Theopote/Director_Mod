@@ -291,6 +291,15 @@ public class TimelineClipBlockController {
 
     // ===== 性能采样（节流日志）=====
     private long lastPerfLogMs = 0L;
+    private float lastPerBlockEffectTime = Float.NaN;
+    private boolean perBlockEffectsPlaying;
+
+    private void resetPerBlockEffects() {
+        BlockAnimationEngine.resetEffects();
+        perBlockEffectSampleTime.clear();
+        lastPerBlockEffectTime = Float.NaN;
+        perBlockEffectsPlaying = false;
+    }
 
     private TimelineClipBlockController() {
         // 注册容器删除监听器，主动清理缓存防止内存泄漏
@@ -443,6 +452,7 @@ public class TimelineClipBlockController {
             observedModel.removeModelChangeListener(modelChangeListener);
         }
         wholeEffectCursor.reset();
+        resetPerBlockEffects();
         com.director.core.animation.WholeContainerImpactRingPlayer.clear();
         observedModel = model;
         if (observedModel != null) {
@@ -476,6 +486,7 @@ public class TimelineClipBlockController {
         TimelineModel activeModel = resolveActiveModel();
         if (activeModel == null) {
             wholeEffectCursor.reset();
+            resetPerBlockEffects();
             com.director.core.animation.WholeContainerImpactRingPlayer.clear();
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[TimelineClipBlockController] timelineModel 为空，跳过更新");
@@ -492,7 +503,15 @@ public class TimelineClipBlockController {
         wholeEffectCursor.beginFrame(currentTime, playing, scrubbing);
         if (wholeEffectCursor.shouldClearEffects(scrubbing))
             com.director.core.animation.WholeContainerImpactRingPlayer.clear();
-        boolean previewMode = !playing;
+        // Stateless poses can seek freely; particle gates belong to one forward playback run.
+        boolean finalAdvancingFrame = perBlockEffectsPlaying && currentTime > lastPerBlockEffectTime;
+        boolean effectsFrame = !scrubbing && (playing || finalAdvancingFrame);
+        if (!effectsFrame || !perBlockEffectsPlaying || currentTime < lastPerBlockEffectTime) {
+            resetPerBlockEffects();
+        }
+        lastPerBlockEffectTime = currentTime;
+        perBlockEffectsPlaying = playing && !scrubbing;
+        boolean previewMode = !effectsFrame;
         boolean previewTimeChanged = Float.isNaN(lastHandledPreviewTime)
                 || Math.abs(currentTime - lastHandledPreviewTime) > com.director.core.animation.AnimationConstants.TIME_EPSILON;
 
@@ -1687,7 +1706,10 @@ public class TimelineClipBlockController {
             }
             BlockPos pos = entry.getPos();
             if (pos != null && !config.getEffects().isEmpty() && previousEffectsTime != null) {
-                var end = timing.window(entry.getNormalizedTime()).end();
+                var effectWindow = timing.window(entry.getNormalizedTime());
+                if (previousEffectsTime < effectWindow.start() && currentTime >= effectWindow.start())
+                    BlockAnimationEngine.primeEffectsBeforeStart(pos, config, currentTime);
+                var end = effectWindow.end();
                 if (previousEffectsTime < end && currentTime >= end) {
                     var source = resolveBlockStateForRender(container, pos);
                     if (source != null)

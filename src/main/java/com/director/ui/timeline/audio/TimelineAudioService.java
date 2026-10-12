@@ -498,6 +498,13 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
                 if (ev == null) {
                     continue;
                 }
+                if (isContainer && containerClip.getAnimationConfig().isWholeContainer()) {
+                    var config = containerClip.getAnimationConfig();
+                    float oldAnchor = AnimationSoundCollector.wholeContainerEventTime(config, oldStartTime, oldEndTime);
+                    float newAnchor = AnimationSoundCollector.wholeContainerEventTime(config, newStartTime, newEndTime);
+                    ev.setTime(Math.max(0, newAnchor + ev.getTime() - oldAnchor));
+                    continue;
+                }
                 var timing = blockSoundTimingByEventId.get(id);
                 if (timing != null && blockStarts.containsKey(timing.pos())) {
                     ev.setTime(Math.max(0, blockStarts.get(timing.pos()) + timing.actionOffset()));
@@ -587,6 +594,13 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         var containerClip = isContainerClip(clip) ? clip : null;
         var blockStarts = perBlockStartTimes(containerClip, newStartTime, newEndTime);
         for (Map.Entry<UUID, Float> e : state.originalTimesByEventId.entrySet()) {
+            if (containerClip != null && containerClip.getAnimationConfig().isWholeContainer()) {
+                var config = containerClip.getAnimationConfig();
+                float oldAnchor = AnimationSoundCollector.wholeContainerEventTime(config, state.oldStart, state.oldEnd);
+                float newAnchor = AnimationSoundCollector.wholeContainerEventTime(config, newStartTime, newEndTime);
+                state.previewTimesByEventId.put(e.getKey(), Math.max(0, newAnchor + e.getValue() - oldAnchor));
+                continue;
+            }
             var timing = blockSoundTimingByEventId.get(e.getKey());
             if (timing != null && blockStarts.containsKey(timing.pos())) {
                 state.previewTimesByEventId.put(e.getKey(), Math.max(0, blockStarts.get(timing.pos()) + timing.actionOffset()));
@@ -1378,6 +1392,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         h = 31 * h + (cfg.getPhase() != null ? cfg.getPhase().ordinal() : 0);
         h = 31 * h + (cfg.getMode() != null ? cfg.getMode().ordinal() : 0);
         h = 31 * h + cfg.getScope().ordinal();
+        h = 31 * h + cfg.getWholeContainer().getEffect().ordinal();
         h = 31 * h + Float.floatToIntBits(cfg.getDuration());
         h = 31 * h + Float.floatToIntBits(cfg.getDelay());
         h = 31 * h + (cfg.getEasing() != null ? cfg.getEasing().hashCode() : 0);

@@ -175,11 +175,12 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      * ⭐ 性能优化：添加防重复调用机制和节流保存
      */
     public void markDirty() {
+        // Offline sampling suppresses disk writes, but still needs an up-to-date animation tail.
+        markDurationDirty();
         if (suppressPersistenceWrites) {
             return;
         }
 
-        markDurationDirty();
         notifyModelChanged("model_changed");
 
         // ⭐ 性能优化：节流保存操作，避免频繁的文件 I/O 阻塞主线程

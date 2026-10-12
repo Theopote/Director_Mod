@@ -88,6 +88,24 @@ public final class BlockAnimationEngine {
         }
     }
 
+    /** A playback frame crossed the block start; prime thresholds even if no intermediate frame was rendered. */
+    public static void primeEffectsBeforeStart(BlockPos pos, ClipAnimationConfig config, float now) {
+        if (pos == null || config == null) return;
+        for (var effect : config.getEffects()) {
+            if (effect == null || !effect.isEnabled()
+                    || effect.getTriggerMode() != EffectInstance.TriggerMode.ONE_SHOT) continue;
+            var gate = EffectRuntimeGate.get(pos.asLong(), effect.getId(), now);
+            gate.initialized = true;
+            gate.lastTRaw = -1;
+        }
+    }
+
+    /** Clear frame-dependent effects when switching projects, seeking backward or restarting playback. */
+    public static void resetEffects() {
+        EffectRuntimeGate.STATES.clear();
+        EffectRuntimeGate.lastCleanupNow = Float.NEGATIVE_INFINITY;
+    }
+
     /**
      * 对单个方块进行采样，生成一帧的动画快照。
      *
@@ -262,7 +280,8 @@ public final class BlockAnimationEngine {
                 && mode != AnimationMode.EXPLODE
                 && mode != AnimationMode.IMPLODE
                 && mode != AnimationMode.FLY_OUT
-                && mode != AnimationMode.SHRINK_OUT) {
+                && mode != AnimationMode.SHRINK_OUT
+                && mode != AnimationMode.GRAVITY_FALL) {
             tForTransformer = 1.0f - tEased;
         }
 
@@ -414,15 +433,21 @@ public final class BlockAnimationEngine {
             float sy = Float.isNaN(scaleY) ? 1.0f : scaleY;
             float sz = Float.isNaN(scaleZ) ? 1.0f : scaleZ;
             if (sx != 1.0f || sy != 1.0f || sz != 1.0f) {
-                matrices.scale(sx, sy, sz);
+                matrices.scale(safeScale(sx), safeScale(sy), safeScale(sz));
             }
         } else {
             // 统一缩放
             float scale = getFloat(params, "scale", 1.0f);
             if (scale != 1.0f) {
-                matrices.scale(scale, scale, scale);
+                matrices.scale(safeScale(scale), safeScale(scale), safeScale(scale));
             }
         }
+    }
+
+    /** Zero scale would make the normal matrix / lighting inverse singular. */
+    private static float safeScale(float value) {
+        if (!Float.isFinite(value)) return 1;
+        return Math.abs(value) < 0.0001f ? Math.copySign(0.0001f, value) : value;
     }
 
     private static float getFloat(Map<String, Object> map, String key, float defaultValue) {

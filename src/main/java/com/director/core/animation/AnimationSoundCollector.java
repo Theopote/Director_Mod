@@ -321,7 +321,11 @@ public class AnimationSoundCollector {
 
     /** One assembly sound just before the world handoff, independent of per-block audio settings. */
     static float wholeContainerEventTime(TimelineClip clip) {
-        var window = WholeContainerAnimation.window(clip.getAnimationConfig(), clip.getStartTime(), clip.getEndTime());
+        return wholeContainerEventTime(clip.getAnimationConfig(), clip.getStartTime(), clip.getEndTime());
+    }
+
+    public static float wholeContainerEventTime(ClipAnimationConfig config, float start, float end) {
+        var window = WholeContainerAnimation.window(config, start, end);
         return Math.max(0, Math.max(window.start(), window.end() - 1.0f / 60.0f));
     }
 
