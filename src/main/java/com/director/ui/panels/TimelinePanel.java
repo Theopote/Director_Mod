@@ -553,7 +553,8 @@ public class TimelinePanel extends AbstractPanel
      * @return 是否成功写入存档
      */
     public boolean saveNow() {
-        boolean saved=model.save();
+        autoSave.flushNow();
+        boolean saved = model.save();
         return com.director.actor.ActorRegistryManager.saveImmediately() && saved;
     }
 

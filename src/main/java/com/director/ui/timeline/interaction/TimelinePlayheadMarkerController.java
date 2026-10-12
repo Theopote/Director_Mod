@@ -183,7 +183,6 @@ public final class TimelinePlayheadMarkerController {
         }
 
         handle.currentTime = newTime;
-        dataChangeNotifier.onDataChanged();
     }
 
     public void dragPlayhead(float mouseX, float contentX) {
@@ -193,7 +192,6 @@ public final class TimelinePlayheadMarkerController {
         TimelineWeatherController.getInstance().previewAt(clampedTime);
         TimelineCameraController.getInstance().updateScrubbing(clampedTime);
         TimelineClipBlockController.getInstance().update();
-        dataChangeNotifier.onDataChanged();
     }
 
     public void finishPlayheadDrag() {

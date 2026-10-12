@@ -4,6 +4,7 @@ import com.director.actor.Actor;
 import com.director.actor.ActorGroup;
 import com.director.actor.ActorRegistry;
 import com.director.actor.ActorType;
+import com.director.persistence.AtomicFileWriter;
 import com.director.util.WorldIdentifier;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -92,17 +93,7 @@ public class ActorRegistryPersistence {
 
             JsonObject root = getJsonObject(registry);
             String json = GSON.toJson(root);
-            
-            // ⭐ 使用临时文件写入，然后原子性重命名，避免写入过程中崩溃导致文件损坏
-            Path tempFile = file.resolveSibling(file.getFileName().toString() + ".tmp");
-            Files.writeString(tempFile, json);
-            try {
-                // 尝试原子性移动（某些文件系统可能不支持）
-                Files.move(tempFile, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
-            } catch (java.nio.file.FileSystemException e) {
-                // 如果不支持原子移动，使用普通替换
-                Files.move(tempFile, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            }
+            AtomicFileWriter.writeString(file, json);
 
             LOGGER.info("[ActorRegistryPersistence] 保存 ActorRegistry 到文件: {} ({} 个 Actor)", file, registry.size());
             return true;

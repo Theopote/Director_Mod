@@ -39,9 +39,22 @@ public final class AutoSaveManager {
      */
     public void markDirty() {
         dirty = true;
-        // 立即保存一份，确保实时落盘；定时 tick 作为兜底。
-        if (model.save()) {
-            lastSaveTime = System.currentTimeMillis();
+    }
+
+    /**
+     * 立即落盘（用于关闭界面等需要强制保存的场景）。
+     *
+     * @return 是否成功写入存档
+     */
+    public boolean flushNow() {
+        if (!dirty) {
+            return true;
         }
+        if (model.save()) {
+            dirty = false;
+            lastSaveTime = System.currentTimeMillis();
+            return true;
+        }
+        return false;
     }
 }

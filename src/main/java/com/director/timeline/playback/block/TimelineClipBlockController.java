@@ -4,6 +4,7 @@ import com.director.core.DirectorServices;
 import com.director.core.animation.BlockAnimationEngine;
 import com.director.core.animation.BlockAnimationSnapshot;
 import com.director.core.animation.ClipAnimationConfig;
+import com.director.core.animation.PerBlockAnimationTiming;
 import com.director.core.animation.sequence.BlockSequenceEntry;
 import com.director.core.animation.sequence.BlockSequenceGenerator;
 import com.director.core.container.Container;
@@ -1334,7 +1335,7 @@ public class TimelineClipBlockController {
             float animDuration = clipDuration;
             float delay = 0.0f;
             if (config != null) {
-                animDuration = Math.clamp(config.getDuration(), 0.05f, clipDuration);
+                animDuration = Math.min(config.getDuration(), Math.max(0, clipDuration));
                 delay = Math.max(0.0f, config.getDelay());
                 try {
                     var seq = config.getSequenceParameters();
@@ -1344,11 +1345,20 @@ public class TimelineClipBlockController {
                 } catch (Exception ignored) {
                 }
             }
-            var timing = com.director.core.animation.PerBlockAnimationTiming.layout(config, clipStart, clipEnd);
-            animDuration = timing.duration();
-            delay = timing.delay();
-            boolean fullWindow = true;
-            float sequenceSpan = timing.sequenceSpan();
+            PerBlockAnimationTiming.Layout timing = null;
+            if (config != null) {
+                timing = PerBlockAnimationTiming.layout(config, clipStart, clipEnd);
+            }
+            if (timing != null) {
+                animDuration = timing.duration();
+            }
+            if (timing != null) {
+                delay = timing.delay();
+            }
+            float sequenceSpan = 0;
+            if (timing != null) {
+                sequenceSpan = timing.sequenceSpan();
+            }
 
             boolean isInstant = false;
             try {
@@ -1358,7 +1368,10 @@ public class TimelineClipBlockController {
             }
 
             // 播放头尚未推进到首个方块时刻：跳过 5w+ 序列生成（拖入片段起点时常见）
-            float normalizedReveal = timing.threshold(currentTime - clipStart - delay);
+            float normalizedReveal = 0;
+            if (timing != null) {
+                normalizedReveal = timing.threshold(currentTime - clipStart - delay);
+            }
             if (!isDemolition) {
                 if ((previewMode || isInstant) && normalizedReveal < 0.0f) {
                     return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), List.of());
@@ -1372,7 +1385,10 @@ public class TimelineClipBlockController {
                     return new VisibleBlocksResult(all, all, List.of());
                 }
             } else {
-                float normalizedStart = timing.threshold(currentTime - clipStart - delay);
+                float normalizedStart = 0;
+                if (timing != null) {
+                    normalizedStart = timing.threshold(currentTime - clipStart - delay);
+                }
                 if (normalizedStart < 0.0f) {
                     Set<BlockPos> all = newBlockSet(allBlocks);
                     return new VisibleBlocksResult(all, all, List.of());
@@ -1401,7 +1417,10 @@ public class TimelineClipBlockController {
                 worldBlocks = newBlockSetForExpectedSize(Math.min(allBlocks.size(), sequenceEntries.size()));
                 if (previewMode || isInstant) {
                     // ENTER + (preview/instant)：可见集是序列的前缀，按阈值直接取前缀避免扫描全量 entry
-                    float normalizedThreshold = timing.threshold(currentTime - clipStart - delay);
+                    float normalizedThreshold = 0;
+                    if (timing != null) {
+                        normalizedThreshold = timing.threshold(currentTime - clipStart - delay);
+                    }
                     int cutoff = upperBoundNormalized(sequenceEntries, normalizedThreshold);
                     for (int i = 0; i < cutoff; i++) {
                         BlockSequenceEntry entry = sequenceEntries.get(i);
@@ -1412,8 +1431,14 @@ public class TimelineClipBlockController {
                     }
                 } else {
                     // ENTER + 播放：render 是 start 前缀；world 是 end 前缀（start+animDuration）
-                    float normalizedThresholdRender = timing.threshold(currentTime - clipStart - delay);
-                    float normalizedThresholdWorld = timing.threshold(currentTime - clipStart - delay - animDuration);
+                    float normalizedThresholdRender = 0;
+                    if (timing != null) {
+                        normalizedThresholdRender = timing.threshold(currentTime - clipStart - delay);
+                    }
+                    float normalizedThresholdWorld = 0;
+                    if (timing != null) {
+                        normalizedThresholdWorld = timing.threshold(currentTime - clipStart - delay - animDuration);
+                    }
                     int cutoffRender = upperBoundNormalized(sequenceEntries, normalizedThresholdRender);
                     int cutoffWorld = upperBoundNormalized(sequenceEntries, normalizedThresholdWorld);
                     for (int i = 0; i < cutoffRender; i++) {
@@ -1435,7 +1460,10 @@ public class TimelineClipBlockController {
 
                 if (previewMode || isInstant) {
                     // ERASE + (preview/instant)：移除序列前缀即可
-                    float normalizedThreshold = timing.threshold(currentTime - clipStart - delay);
+                    float normalizedThreshold = 0;
+                    if (timing != null) {
+                        normalizedThreshold = timing.threshold(currentTime - clipStart - delay);
+                    }
                     int cutoff = upperBoundNormalized(sequenceEntries, normalizedThreshold);
                     for (int i = 0; i < cutoff; i++) {
                         BlockSequenceEntry entry = sequenceEntries.get(i);
@@ -1450,7 +1478,10 @@ public class TimelineClipBlockController {
                     // 中（避免与真实方块叠加导致黑色）
                     // 扫描已经开始退出的前缀，动画中移出 world，完成后再移出 render。
                     float base = currentTime - clipStart - delay;
-                    float normalizedThresholdEnd = timing.threshold(base);
+                    float normalizedThresholdEnd = 0;
+                    if (timing != null) {
+                        normalizedThresholdEnd = timing.threshold(base);
+                    }
                     int cutoffEnd = upperBoundNormalized(sequenceEntries, normalizedThresholdEnd);
                     for (int i = 0; i < cutoffEnd; i++) {
                         BlockSequenceEntry entry = sequenceEntries.get(i);
@@ -1458,7 +1489,7 @@ public class TimelineClipBlockController {
                             continue;
                         }
                         float normalizedTime = entry.getNormalizedTime();
-                        float blockEndTime = clipStart + delay + (fullWindow ? animDuration : 0.0f)
+                        float blockEndTime = clipStart + delay + animDuration
                                 + normalizedTime * sequenceSpan;
                         float blockStartTime = blockEndTime - animDuration;
 

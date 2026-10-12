@@ -25,6 +25,34 @@ class AtomicFileWriterTest {
     }
 
     @Test
+    void serializesConcurrentWrites() throws Exception {
+        Path target = tempDir.resolve("timeline.json");
+        Files.writeString(target, "initial");
+        Thread writerA = new Thread(() -> {
+            try {
+                AtomicFileWriter.writeString(target, "from-a");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Thread writerB = new Thread(() -> {
+            try {
+                AtomicFileWriter.writeString(target, "from-b");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        writerA.start();
+        writerB.start();
+        writerA.join();
+        writerB.join();
+
+        String content = Files.readString(target);
+        assertEquals(true, content.equals("from-a") || content.equals("from-b"));
+        assertFalse(Files.exists(tempDir.resolve("timeline.json.tmp")));
+    }
+
+    @Test
     void failedWritePreservesCommittedFileAndCleansTemporaryFile() throws IOException {
         Path target = tempDir.resolve("containers.dat");
         Files.writeString(target, "committed");

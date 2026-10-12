@@ -172,7 +172,7 @@ public class SelectionManager {
     public void setCurrentTool(String toolId, World world) {
         SelectionTool tool = registry.getTool(toolId);
         if (tool == null) {
-            LOGGER.warn("[SelectionManager] 闂傚倸鍊搁崐椋庣矆娓氣偓楠炴牠顢曢敃鈧悿顕€鏌ｅΔ鈧悧濠囧矗韫囨稒鐓熼柕蹇曞Х娴犳盯鏌涜箛鏃傜煉闁哄本鐩、鏇㈡晲閸℃瑯妲紓鍌欒閸嬫捇鏌涢埄鍐姇闁绘挻娲熼弻鏇熷緞濞戞艾鍩屾繝纰樷偓鐐藉仮妤犵偞鐗犲鍫曞箣椤栨繂鎯堥梻浣告惈閺堫剟鎯勯鐐靛祦闁圭儤顨呭Λ妯荤箾閸℃瑥浜炬慨锝咁槹缁绘繈鎮介棃娴舵盯鏌涚€ｎ偅灏伴柕鍥у楠炴﹢宕￠悙鍏哥棯闂備胶顭堢€涒晠銆冩繝鍥ц摕闁哄洨鍠庣欢鐐烘煕椤愶絿绠撳┑顔肩Ф缁辨挻鎷呴悷鐗堟毎缂傚倸绉崇欢姘嚕? {}", toolId);
+            LOGGER.warn("[SelectionManager] 未知工具: {}", toolId);
             return;
         }
 
@@ -195,7 +195,7 @@ public class SelectionManager {
         // 闂傚倸鍊搁崐椋庣矆娓氣偓楠炲鏁撻悩鍐蹭画闂佹寧娲栭崐鎼佸垂閸岀偞鐓熼柕蹇嬪灪閺嗏晠鏌涘Δ浣圭殤闁逞屽墰閹虫挾鈧矮鍗冲畷鎴炵節閸パ呮焾闂佸憡绋戦悺銊╂偂韫囨搩鐔嗛悹楦挎婢ф洟鏌涢弮鈧銊╁焵椤掑倹鏆╁褎顨呴～蹇涘捶椤撶喎搴婂┑鐘绘涧閻楀棝寮搁崼鐔剁箚妞ゆ牗绻冮妴鍐熆鐟欏嫭绀冪紒缁樼箞閹粙妫冨☉妤€鎽嬮梺璇茬箰濞存碍绂嶉鍫涒偓浣糕枎閹邦喚鐦堥梺鍛婃处閸犳牕鐨梻鍌欑窔濞佳団€﹂鐔剁箚闁搞儺鍏欓埀?
         getEventProcessorInternal().processToolActivation(toolId, world);
 
-        LOGGER.info("[SelectionManager] 闂傚倷娴囧畷鐢稿窗閹邦喖鍨濋幖娣灪濞呯姵淇婇妶鍛櫣缂佺姳鍗抽弻娑樷槈濮楀牊鏁惧┑鐐叉噽婵炩偓闁哄矉绲借灒闁绘垶菤閺嬫瑩姊洪崫銉ユ瀻闁硅櫕锕㈠濠氬即閻旈绐為梺鍓插亝缁诲倹鎱ㄦ惔銊﹀€甸柣銏ゆ涧椤ｅ吋淇婇銏犳殻鐎殿喛顕ч埥澶愬閻樻鍞洪梻浣烘嚀椤曨參宕戝☉鈶哄洭鍩￠崨顔尖偓鐢告偡濞嗗繐顏紒鈧埀顒勬倵濞堝灝鏋涘褍娴烽崚? {}", tool.getDisplayName());
+        LOGGER.info("[SelectionManager] 切换到工具: {}", tool.getDisplayName());
     }
 
     /**
