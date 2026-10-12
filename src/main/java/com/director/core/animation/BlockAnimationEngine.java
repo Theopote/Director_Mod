@@ -130,30 +130,9 @@ public final class BlockAnimationEngine {
 
         // ===== INSTANT 模式特殊处理：直接按序列出现，不需要动画窗口 =====
         if (mode == AnimationMode.INSTANT) {
-            float delay = Math.max(0.0f, config.getDelay());
-            try {
-                var seq = config.getSequenceParameters();
-                if (seq != null) {
-                    delay += Math.max(0.0f, seq.getGlobalDelay());
-                }
-            } catch (Exception e) {
-                LOGGER.debug("[BlockAnimationEngine] 获取序列参数失败，使用默认延迟: {}", e.getMessage());
-            }
-
-            float seqNormalizedTime = (seqEntry != null)
-                    ? MathHelper.clamp(seqEntry.getNormalizedTime(), 0.0f, 1.0f)
-                    : 0.0f;
-
-            float clipDuration = Math.max(0.0001f, clipEnd - clipStart);
-            // INSTANT 模式：方块按照序列顺序直接出现，不需要动画窗口
-            float sequenceSpan = Math.max(0.0001f, clipDuration - delay);
-            float blockStartTime = clipStart + delay + seqNormalizedTime * sequenceSpan;
-
-            // 钳制到片段范围
-            if (blockStartTime < clipStart)
-                blockStartTime = clipStart;
-            if (blockStartTime > clipEnd)
-                blockStartTime = clipEnd;
+            var timing = PerBlockAnimationTiming.layout(config, clipStart, clipEnd);
+            float seqNormalizedTime = seqEntry != null ? MathHelper.clamp(seqEntry.getNormalizedTime(), 0, 1) : 0;
+            float blockStartTime = timing.window(seqNormalizedTime).start();
 
             if (phase == ClipAnimationConfig.AnimationPhase.EXIT) {
                 // EXIT：在 blockStartTime 之前完全可见，之后隐藏（由上层移除）
@@ -182,66 +161,21 @@ public final class BlockAnimationEngine {
             return snapshot;
         }
 
-        float clipDuration = Math.max(0.0001f, clipEnd - clipStart);
-        float animDuration = Math.max(0.0001f, Math.min(config.getDuration(), clipDuration));
-        float delay = Math.max(0.0f, config.getDelay());
-        try {
-            var seq = config.getSequenceParameters();
-            if (seq != null) {
-                delay += Math.max(0.0f, seq.getGlobalDelay());
-            }
-        } catch (Exception e) {
-            LOGGER.debug("[BlockAnimationEngine] 获取序列参数失败，使用默认延迟: {}", e.getMessage());
-        }
-
-        // 性能敏感：sample() 会被每帧对大量方块调用，禁止使用 info 级日志刷屏。
-        // 如需调试请改用 trace 并自行开启日志级别。
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("[BlockAnimationEngine] sample: pos={} mode={} duration={} clipStart={} clipEnd={} now={}",
-                    pos, mode, animDuration, clipStart, clipEnd, now);
-        }
-
-        // ===== 1. 序列归一化时间 =====
-        float seqNormalizedTime = (seqEntry != null)
-                ? MathHelper.clamp(seqEntry.getNormalizedTime(), 0.0f, 1.0f)
-                : 0.0f;
-
-        // ===== 2. 计算单个方块的动画时间窗口 =====
-        // ENTER：方块从自己的 startTime 起进入世界并播放，endTime 后静态就位
-        // EXIT ：方块在自己的 startTime 起开始退出动画，endTime 后应当被移除（由上层负责从世界中移除）
-        float blockStartTime;
-        float blockEndTime;
-        float baseSpan = clipDuration - animDuration - delay;
-        boolean fullWindow = baseSpan > 0.0001f;
-        float sequenceSpan = fullWindow ? baseSpan : Math.max(0.0001f, clipDuration - delay);
-        if (phase == ClipAnimationConfig.AnimationPhase.EXIT) {
-            // 结束时刻分布在 [clipStart+delay+animDuration, clipEnd]
-            blockEndTime = clipStart + delay + (fullWindow ? animDuration : 0.0f) + seqNormalizedTime * sequenceSpan;
-            blockStartTime = blockEndTime - animDuration;
-        } else {
-            // ENTER：开始时刻分布在 [clipStart+delay, clipEnd-animDuration]
-            float blockBaseOffset = seqNormalizedTime * sequenceSpan;
-            blockStartTime = clipStart + delay + blockBaseOffset;
-            blockEndTime = blockStartTime + animDuration;
-        }
-
-        // 钳制到片段范围
-        if (blockStartTime < clipStart)
-            blockStartTime = clipStart;
-        if (blockEndTime > clipEnd)
-            blockEndTime = clipEnd;
+        var timing = PerBlockAnimationTiming.layout(config, clipStart, clipEnd);
+        float seqNormalizedTime = seqEntry != null ? MathHelper.clamp(seqEntry.getNormalizedTime(), 0, 1) : 0;
+        var window = timing.window(seqNormalizedTime);
+        float blockStartTime = window.start();
+        float blockEndTime = window.end();
 
         if (blockEndTime <= blockStartTime) {
-            // 动画时间窗口无效：按瞬时处理，但仍然允许触发 effect
-            if (now >= blockStartTime) {
-                snapshot.markFullyVisible();
-                snapshot.setTransform(null); // null = identity
-                snapshot.setSequenceNormalizedTime(seqNormalizedTime);
-                snapshot.setAlpha(1.0f);
-                applyEffectsSafe(snapshot, config, now, randomSeed);
-            } else {
-                snapshot.markHidden();
-            }
+            boolean visible = phase == ClipAnimationConfig.AnimationPhase.EXIT ? now < blockStartTime : now >= blockStartTime;
+            if (visible) snapshot.markFullyVisible(); else snapshot.markHidden();
+            snapshot.setRawProgress(now >= blockStartTime ? 1 : 0);
+            snapshot.setEasedProgress(snapshot.getRawProgress());
+            snapshot.setAnimationFinished(now >= blockStartTime);
+            snapshot.setSequenceNormalizedTime(seqNormalizedTime);
+            snapshot.setTransform(null);
+            if (now >= blockStartTime) applyEffectsSafe(snapshot, config, now, randomSeed);
             return snapshot;
         }
 
@@ -253,20 +187,18 @@ public final class BlockAnimationEngine {
                 snapshot.setSequenceNormalizedTime(seqNormalizedTime);
                 snapshot.setTransform(null); // null = identity
                 snapshot.setAlpha(1.0f);
-                // ✅ 修复：即使动画还没开始，如果设置了特效，也应该检查并触发（特别是前段特效）
+                // 延迟阶段不发射粒子。
                 snapshot.setRawProgress(0.0f);
                 snapshot.setEasedProgress(0.0f);
-                applyEffectsSafe(snapshot, config, now, randomSeed);
                 return snapshot;
             }
         } else {
             // ENTER：动画开始前隐藏
             if (now < blockStartTime) {
                 snapshot.markHidden();
-                // ✅ 修复：即使动画还没开始，如果设置了特效，也应该检查并触发（特别是前段特效）
+                // 延迟阶段不发射粒子。
                 snapshot.setRawProgress(0.0f);
                 snapshot.setEasedProgress(0.0f);
-                applyEffectsSafe(snapshot, config, now, randomSeed);
                 return snapshot;
             }
         }
@@ -280,6 +212,8 @@ public final class BlockAnimationEngine {
             if (phase == ClipAnimationConfig.AnimationPhase.EXIT) {
                 // EXIT：动画结束后应当隐藏（上层会在同一时刻把方块从世界中移除）
                 snapshot.markHidden();
+                snapshot.setRawProgress(1); snapshot.setEasedProgress(1);
+                snapshot.setAnimationFinished(true);
             } else {
                 snapshot.markFullyVisible();
                 snapshot.setSequenceNormalizedTime(seqNormalizedTime);
@@ -555,7 +489,15 @@ public final class BlockAnimationEngine {
                 continue;
             }
 
-            if (tRaw < startNorm || tRaw > endNorm) {
+            boolean oneShot = inst.getTriggerMode() == EffectInstance.TriggerMode.ONE_SHOT;
+            if (oneShot) {
+                var gate = EffectRuntimeGate.get(snapshot.getPos().asLong(), inst.getId(), now);
+                boolean fire = PerBlockEffectTrigger.crossed(gate.initialized ? gate.lastTRaw : Float.NaN, tRaw, startNorm);
+                gate.initialized = true;
+                gate.lastTRaw = tRaw;
+                if (!fire) continue;
+            }
+            if (!oneShot && (tRaw < startNorm || tRaw > endNorm)) {
                 if (LOGGER.isTraceEnabled()) {
                     LOGGER.trace("[BlockAnimationEngine] 特效 {} 时间窗口不匹配：tRaw={} 窗口=[{}, {}]",
                             inst.getType(), tRaw, startNorm, endNorm);
@@ -563,7 +505,7 @@ public final class BlockAnimationEngine {
                 continue;
             }
 
-            float effectT = MathHelper.clamp((tRaw - startNorm) / durNorm, 0.0f, 1.0f);
+            float effectT = oneShot ? 0 : MathHelper.clamp((tRaw - startNorm) / durNorm, 0.0f, 1.0f);
 
             IBlockEffect effectImpl = BlockEffectRegistry.get(inst.getType());
             if (effectImpl == null) {
@@ -573,75 +515,7 @@ public final class BlockAnimationEngine {
             try {
                 net.minecraft.client.world.ClientWorld world = MinecraftClient.getInstance().world;
                 if (world != null && snapshot != null) {
-                    // ONE_SHOT：只在进入时间窗口时触发一次（支持回放/拖动倒退时再次触发）
-                    if (inst.getTriggerMode() == com.director.core.animation.effect.EffectInstance.TriggerMode.ONE_SHOT) {
-                        var gate = EffectRuntimeGate.get(snapshot.getPos().asLong(), inst.getId(), now);
 
-                        // ✅ 优化：使用动态容差，基于时间变化量，确保在不同帧率下稳定工作
-                        // 最小容差 1e-4f 用于静止/极慢播放，最大不超过时间变化量的50%避免跳过边界
-                        float timeDelta = Math.abs(tRaw - gate.lastTRaw);
-                        float epsilon = Math.max(1e-4f, Math.min(timeDelta * 0.5f, 0.05f));
-
-                        if (!gate.initialized) {
-                            gate.initialized = true;
-                            gate.lastTRaw = tRaw;
-                            // 首次看到该方块：
-                            // - 默认不触发，避免在片段中途开始渲染时”突然爆一堆”
-                            // - 但如果特效窗口从 0 开始，且当前正处于动画刚起步，允许触发一次
-                            if (tRaw < startNorm - epsilon) {
-                                // 当前时间还没到特效窗口，等待进入窗口
-                                gate.lastTRaw = tRaw;
-                                if (LOGGER.isDebugEnabled()) {
-                                    LOGGER.debug(
-                                            "[BlockAnimationEngine] ONE_SHOT 特效 {} 等待进入窗口: tRaw={} startNorm={} epsilon={}",
-                                            inst.getType(), tRaw, startNorm, epsilon);
-                                }
-                                continue;
-                            }
-                            // 已经在窗口内，允许触发一次
-                            gate.lastTRaw = tRaw;
-                            effectT = 0.0f;
-                            if (LOGGER.isDebugEnabled()) {
-                                LOGGER.debug(
-                                        "[BlockAnimationEngine] ONE_SHOT 特效 {} 首次触发（已在窗口内）: tRaw={} startNorm={} epsilon={}",
-                                        inst.getType(), tRaw, startNorm, epsilon);
-                            }
-                        } else {
-                            // 如果时间倒退（拖动播放头/循环），重置状态以允许重新触发
-                            if (tRaw < gate.lastTRaw - epsilon) {
-                                // 时间倒退：重置状态，允许下次前进时重新触发
-                                gate.lastTRaw = tRaw;
-                                // 如果倒退到特效窗口之前，重置 initialized 以允许重新触发
-                                if (tRaw < startNorm - epsilon) {
-                                    gate.initialized = false;
-                                    if (LOGGER.isDebugEnabled()) {
-                                        LOGGER.debug(
-                                                "[BlockAnimationEngine] ONE_SHOT 特效 {} 时间倒退，重置状态: tRaw={} startNorm={} epsilon={}",
-                                                inst.getType(), tRaw, startNorm, epsilon);
-                                    }
-                                }
-                                continue;
-                            }
-                            // ✅ 修复：使用动态容差检查是否跨越了特效开始边界（从窗口外进入窗口内）
-                            boolean crossed = gate.lastTRaw < startNorm - epsilon && tRaw >= startNorm - epsilon;
-                            gate.lastTRaw = tRaw;
-                            if (!crossed) {
-                                if (LOGGER.isTraceEnabled()) {
-                                    LOGGER.trace(
-                                            "[BlockAnimationEngine] ONE_SHOT 特效 {} 未跨越边界: lastTRaw={} tRaw={} startNorm={} epsilon={}",
-                                            inst.getType(), gate.lastTRaw, tRaw, startNorm, epsilon);
-                                }
-                                continue;
-                            }
-                            // 触发一次：用 effectT=0 作为起点
-                            effectT = 0.0f;
-                            if (LOGGER.isDebugEnabled()) {
-                                LOGGER.debug(
-                                        "[BlockAnimationEngine] ONE_SHOT 特效 {} 跨越边界触发: lastTRaw={} tRaw={} startNorm={} epsilon={}",
-                                        inst.getType(), gate.lastTRaw, tRaw, startNorm, epsilon);
-                            }
-                        }
-                    }
 
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug(

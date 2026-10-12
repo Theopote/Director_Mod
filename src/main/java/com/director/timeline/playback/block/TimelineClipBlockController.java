@@ -900,6 +900,12 @@ public class TimelineClipBlockController {
         }
         cleanupContainersNoLongerControlled(desiredWorldBlocks.keySet(), visibilityService, visualStateManager, rerender);
 
+        for (var pos : rerender) {
+            if (visualStateManager.hasWorldSuppressionChanged(pos))
+                com.director.core.animation.WholeContainerRenderSections.getInstance()
+                        .request(MinecraftClient.getInstance().world, pos);
+        }
+
         // ⭐ 额外优化：如果重渲染方块数量太多，分批处理或跳过
         // 避免一次性重渲染导致游戏卡顿
         if (rerender.size() > com.director.core.animation.AnimationConstants.MAX_RERENDER_BLOCKS) {
@@ -1338,9 +1344,11 @@ public class TimelineClipBlockController {
                 } catch (Exception ignored) {
                 }
             }
-            float baseSpan = clipDuration - animDuration - delay;
-            boolean fullWindow = baseSpan > 0.0001f;
-            float sequenceSpan = fullWindow ? baseSpan : Math.max(0.0001f, clipDuration - delay);
+            var timing = com.director.core.animation.PerBlockAnimationTiming.layout(config, clipStart, clipEnd);
+            animDuration = timing.duration();
+            delay = timing.delay();
+            boolean fullWindow = true;
+            float sequenceSpan = timing.sequenceSpan();
 
             boolean isInstant = false;
             try {
@@ -1350,23 +1358,22 @@ public class TimelineClipBlockController {
             }
 
             // 播放头尚未推进到首个方块时刻：跳过 5w+ 序列生成（拖入片段起点时常见）
-            float normalizedReveal = (currentTime - clipStart - delay) / sequenceSpan;
+            float normalizedReveal = timing.threshold(currentTime - clipStart - delay);
             if (!isDemolition) {
-                if ((previewMode || isInstant) && normalizedReveal <= 0.0f) {
+                if ((previewMode || isInstant) && normalizedReveal < 0.0f) {
                     return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), List.of());
                 }
-                if (!previewMode && !isInstant && normalizedReveal <= 0.0f) {
+                if (!previewMode && !isInstant && normalizedReveal < 0.0f) {
                     return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), List.of());
                 }
             } else if (previewMode || isInstant) {
-                if (normalizedReveal <= 0.0f) {
+                if (normalizedReveal < 0.0f) {
                     Set<BlockPos> all = newBlockSet(allBlocks);
                     return new VisibleBlocksResult(all, all, List.of());
                 }
             } else {
-                float normalizedEnd = (currentTime - clipStart - delay - (fullWindow ? animDuration : 0.0f))
-                        / sequenceSpan;
-                if (normalizedEnd <= 0.0f) {
+                float normalizedStart = timing.threshold(currentTime - clipStart - delay);
+                if (normalizedStart < 0.0f) {
                     Set<BlockPos> all = newBlockSet(allBlocks);
                     return new VisibleBlocksResult(all, all, List.of());
                 }
@@ -1394,7 +1401,7 @@ public class TimelineClipBlockController {
                 worldBlocks = newBlockSetForExpectedSize(Math.min(allBlocks.size(), sequenceEntries.size()));
                 if (previewMode || isInstant) {
                     // ENTER + (preview/instant)：可见集是序列的前缀，按阈值直接取前缀避免扫描全量 entry
-                    float normalizedThreshold = (currentTime - clipStart - delay) / sequenceSpan;
+                    float normalizedThreshold = timing.threshold(currentTime - clipStart - delay);
                     int cutoff = upperBoundNormalized(sequenceEntries, normalizedThreshold);
                     for (int i = 0; i < cutoff; i++) {
                         BlockSequenceEntry entry = sequenceEntries.get(i);
@@ -1405,8 +1412,8 @@ public class TimelineClipBlockController {
                     }
                 } else {
                     // ENTER + 播放：render 是 start 前缀；world 是 end 前缀（start+animDuration）
-                    float normalizedThresholdRender = (currentTime - clipStart - delay) / sequenceSpan;
-                    float normalizedThresholdWorld = (currentTime - clipStart - delay - animDuration) / sequenceSpan;
+                    float normalizedThresholdRender = timing.threshold(currentTime - clipStart - delay);
+                    float normalizedThresholdWorld = timing.threshold(currentTime - clipStart - delay - animDuration);
                     int cutoffRender = upperBoundNormalized(sequenceEntries, normalizedThresholdRender);
                     int cutoffWorld = upperBoundNormalized(sequenceEntries, normalizedThresholdWorld);
                     for (int i = 0; i < cutoffRender; i++) {
@@ -1428,7 +1435,7 @@ public class TimelineClipBlockController {
 
                 if (previewMode || isInstant) {
                     // ERASE + (preview/instant)：移除序列前缀即可
-                    float normalizedThreshold = (currentTime - clipStart - delay) / sequenceSpan;
+                    float normalizedThreshold = timing.threshold(currentTime - clipStart - delay);
                     int cutoff = upperBoundNormalized(sequenceEntries, normalizedThreshold);
                     for (int i = 0; i < cutoff; i++) {
                         BlockSequenceEntry entry = sequenceEntries.get(i);
@@ -1441,9 +1448,9 @@ public class TimelineClipBlockController {
                     // 非 INSTANT 模式：逐步清除（带退出动画窗口）
                     // ✅ 与容器片段对称：在动画窗口内时，方块只在 renderBlocks 中（用于 overlay），不在 worldBlocks
                     // 中（避免与真实方块叠加导致黑色）
-                    // 以 normalizedTime 计算 end 阈值的前缀；其余 entry 都处于“动画开始前”，无需扫描
-                    float base = currentTime - clipStart - delay - (fullWindow ? animDuration : 0.0f);
-                    float normalizedThresholdEnd = base / sequenceSpan;
+                    // 扫描已经开始退出的前缀，动画中移出 world，完成后再移出 render。
+                    float base = currentTime - clipStart - delay;
+                    float normalizedThresholdEnd = timing.threshold(base);
                     int cutoffEnd = upperBoundNormalized(sequenceEntries, normalizedThresholdEnd);
                     for (int i = 0; i < cutoffEnd; i++) {
                         BlockSequenceEntry entry = sequenceEntries.get(i);
@@ -1613,6 +1620,8 @@ public class TimelineClipBlockController {
         }
     }
 
+    private final Map<TimelineClip, Float> perBlockEffectSampleTime = new java.util.WeakHashMap<>();
+
     private void registerRenderEntriesForContainer(
             BlockVisualStateManager visualStateManager,
             Container container,
@@ -1629,7 +1638,7 @@ public class TimelineClipBlockController {
         if (visualStateManager == null || container == null || clip == null || config == null) {
             return;
         }
-        if (visibleBlocks == null || visibleBlocks.isEmpty()) {
+        if (visibleBlocks == null || visibleBlocks.isEmpty() && config.getEffects().isEmpty()) {
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace(
                         "[TimelineClipBlockController] registerRenderEntries: visibleBlocks is empty for container {}",
@@ -1659,18 +1668,9 @@ public class TimelineClipBlockController {
         // ===== 预计算单块时间窗口参数（避免每个 entry 重复走 BlockAnimationEngine 的时间窗口逻辑） =====
         ClipAnimationConfig.AnimationPhase phase = config.getPhase();
         float clipDuration = Math.max(0.0001f, clipLength);
-        float animDuration = Math.max(0.0001f, Math.min(config.getDuration(), clipDuration));
-        float delay = Math.max(0.0f, config.getDelay());
-        try {
-            var seq = config.getSequenceParameters();
-            if (seq != null) {
-                delay += Math.max(0.0f, seq.getGlobalDelay());
-            }
-        } catch (Exception ignored) {
-        }
-        float baseSpan = clipDuration - animDuration - delay;
-        boolean fullWindow = baseSpan > 0.0001f;
-        float sequenceSpan = fullWindow ? baseSpan : Math.max(0.0001f, clipDuration - delay);
+        var timing = com.director.core.animation.PerBlockAnimationTiming.layout(config, clipStart, clipEnd);
+        Float previousEffectsTime = perBlockEffectSampleTime.put(clip, currentTime);
+
 
         // 🔥 步骤 1：遍历当前片段的所有 BlockSequenceEntry
         for (BlockSequenceEntry entry : sequenceEntries) {
@@ -1678,6 +1678,15 @@ public class TimelineClipBlockController {
                 continue;
             }
             BlockPos pos = entry.getPos();
+            if (pos != null && !config.getEffects().isEmpty() && previousEffectsTime != null) {
+                var end = timing.window(entry.getNormalizedTime()).end();
+                if (previousEffectsTime < end && currentTime >= end) {
+                    var source = resolveBlockStateForRender(container, pos);
+                    if (source != null)
+                        BlockAnimationEngine.sample(pos, source, config, entry, clipStart, clipEnd, currentTime,
+                                container.getId().getLeastSignificantBits() ^ pos.asLong());
+                }
+            }
             if (pos == null || !visibleBlocks.contains(pos)) {
                 continue;
             }
@@ -1690,20 +1699,9 @@ public class TimelineClipBlockController {
 
             // ===== 性能关键：只有在“当前块处于动画窗口内”或“视觉状态本身需要 overlay（遮挡/透明）”时才 sample =====
             float seqNormalizedTime = net.minecraft.util.math.MathHelper.clamp(entry.getNormalizedTime(), 0.0f, 1.0f);
-            float blockStartTime;
-            float blockEndTime;
-            if (phase == ClipAnimationConfig.AnimationPhase.EXIT) {
-                blockEndTime = clipStart + delay + (fullWindow ? animDuration : 0.0f)
-                        + seqNormalizedTime * sequenceSpan;
-                blockStartTime = blockEndTime - animDuration;
-            } else {
-                blockStartTime = clipStart + delay + seqNormalizedTime * sequenceSpan;
-                blockEndTime = blockStartTime + animDuration;
-            }
-            if (blockStartTime < clipStart)
-                blockStartTime = clipStart;
-            if (blockEndTime > clipEnd)
-                blockEndTime = clipEnd;
+            var window = timing.window(seqNormalizedTime);
+            float blockStartTime = window.start();
+            float blockEndTime = window.end();
 
             // INSTANT 模式：不需要动画窗口，直接按序列出现
             boolean isInstant = config.getMode() == com.director.core.container.AnimationMode.INSTANT;
@@ -1727,15 +1725,16 @@ public class TimelineClipBlockController {
             boolean needsEffects = !config.getEffects().isEmpty();
             boolean shouldSampleForEffects = isInstant && needsEffects && currentTime >= blockStartTime;
 
-            // ===== 使用 HandoffWindowManager 判断交接窗口 =====
-            boolean inHandoffWindow = com.director.core.animation.HandoffWindowManager.isInHandoffWindow(
-                    currentTime, blockStartTime, blockEndTime, phase);
+            // World and overlay never draw the same block simultaneously.
 
             if (!inAnimWindow && !shouldSampleForEffects) {
                 // 静态块：如果视觉状态是 NORMAL 且不抑制世界渲染，完全不需要 overlay / snapshot
                 // ✅ 关键修复：但如果处于交接窗口内，必须继续渲染 overlay 以遮盖区块重建延迟
-                if (visualState.isNormal() && !visualState.shouldSuppressWorldRendering() && !inHandoffWindow) {
-                    continue;
+                if (visualState.isNormal() && !visualState.shouldSuppressWorldRendering()) {
+                    var expected = resolveBlockStateForRender(container, pos);
+                    var world = MinecraftClient.getInstance().world;
+                    if (expected == null || world != null && expected.equals(world.getBlockState(pos))) continue;
+                    visualState = visualState.withSuppressWorldRendering(true);
                 }
 
                 // 🔥 步骤 3：静态但需要 overlay，才解析方块状态（避免每帧对海量静态块做 world.getBlockState）
@@ -1800,45 +1799,19 @@ public class TimelineClipBlockController {
                 continue;
             }
 
-            // 🔥 步骤 5：检查是否需要覆盖层渲染
-            // 引入交接窗口（Handoff Window），解决区块重建延迟导致的黑影/闪烁/Z-fighting问题
-            // 策略：在动画边界处强制渲染一个"微放大且不透明"的 Overlay，以覆盖底下的真实方块
-            // （PRE_POST_WINDOW / MASK_WINDOW / inEnterHandoff / inExitHandoff 已在前面提前计算）
-
-            // 需要 overlay 的情况：
-            // - 视觉状态不是 NORMAL（有透明度或遮挡）
-            // - 动画 alpha < 0.999（有透明度变化）
-            // - 有非单位变换（有动画变换）
-            // - EXIT 阶段在动画窗口内
-            // - ✅ 处于交接窗口内（强制 overlay 接管）
+            // 动画模型独占渲染；真实网格接管时不再叠加缩放模型。
             boolean needsOverlay = !visualState.isNormal()
                     || snapshot.getAlpha() < 0.999f
                     || !isIdentityTransform(snapshot)
                     || (phase == ClipAnimationConfig.AnimationPhase.EXIT && inAnimWindow)
-                    || inHandoffWindow;
+                    || visualState.shouldSuppressWorldRendering();
 
             if (!needsOverlay) {
                 continue;
             }
 
-            // 如果处于交接窗口，强制修正 snapshot 状态，确保平滑过渡且遮挡底下的瑕疵
-            // 如果处于交接窗口，应用交接窗口修正
-            if (inHandoffWindow) {
-                // 使用 HandoffWindowManager 统一处理交接窗口修正
-                com.director.core.animation.HandoffWindowManager.applyHandoffCorrection(snapshot, phase);
-
-                // 设置交接窗口专用的视觉状态
-                visualState = com.director.core.animation.HandoffWindowManager.createHandoffVisualState();
-                visualStateManager.setBlockState(pos, visualState);
-            }
-
-            // 🔥 步骤 6：确保视觉状态抑制世界渲染（除非在交接窗口期间）
-            // 注意：在交接窗口期间，已经设置 suppressWorldRendering = false
-            // 这里只对非交接窗口的动画方块启用抑制
-            if (!inHandoffWindow && !visualState.shouldSuppressWorldRendering()) {
-                visualState = visualState.withSuppressWorldRendering(true);
-                visualStateManager.setBlockState(pos, visualState);
-            }
+            visualState = visualState.withSuppressWorldRendering(true);
+            visualStateManager.setBlockState(pos, visualState);
 
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[TimelineClipBlockController] Adding render entry: pos={} alpha={}",

@@ -19,11 +19,18 @@ public final class WholeContainerRenderView implements BlockRenderView {
     private final Map<BlockPos, BlockState> states;
     private final BlockPos origin;
     private final Matrix4f transform;
+    private final boolean cullNeighbors;
     public WholeContainerRenderView(BlockRenderView world, Map<BlockPos, BlockState> states,
             BlockPos origin, Matrix4f transform) {
+        this(world, states, origin, transform, true);
+    }
+    public WholeContainerRenderView(BlockRenderView world, Map<BlockPos, BlockState> states,
+            BlockPos origin, Matrix4f transform, boolean cullNeighbors) {
+        this.cullNeighbors = cullNeighbors;
         this.world = world; this.states = states; this.origin = origin;
         this.transform = new Matrix4f(transform);
     }
+    public boolean cullNeighbors() { return cullNeighbors; }
     public BlockPos displayedPosition(BlockPos pos) {
         var p = transform.transformPosition(new Vector3f(
                 pos.getX() - origin.getX() + 0.5f, pos.getY() - origin.getY() + 0.5f,

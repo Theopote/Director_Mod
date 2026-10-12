@@ -208,6 +208,13 @@ public class BlockAnimationRenderer {
                     continue;
                 }
 
+                var renderView = views.get(entry.clip());
+                if (renderView == null && state != null) {
+                    var transform = snapshot.getTransform();
+                    // Each block has its own transform. Do not cull faces against other moving blocks.
+                    renderView = new WholeContainerRenderView(world, Map.of(pos, state), pos,
+                            transform != null ? transform.peek().getPositionMatrix() : new org.joml.Matrix4f(), false);
+                }
                 renderAnimatedBlockWithVisualState(
                         matrices,
                         consumers,
@@ -215,7 +222,7 @@ public class BlockAnimationRenderer {
                         pos,
                         snapshot,
                         visualState,
-                        state, views.get(entry.clip()));
+                        state, renderView);
             }
         } finally {
             matrices.pop();
@@ -343,7 +350,8 @@ public class BlockAnimationRenderer {
             RenderLayer layer = finalWorldLayer(state, alpha);
             VertexConsumer vertices = provider.getBuffer(layer);
             if (alpha < 0.999f) vertices = new AlphaVertexConsumer(vertices, alpha);
-            manager.renderBlock(state, pos, assemblyView, matrices, vertices, true, parts);
+            manager.renderBlock(state, pos, assemblyView, matrices, vertices,
+                    !(assemblyView instanceof WholeContainerRenderView view) || view.cullNeighbors(), parts);
             return;
         }
         try {

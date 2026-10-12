@@ -88,15 +88,8 @@ public class AnimationSoundCollector {
         float clipStart = clip.getStartTime();
         float clipDuration = clip.getLength();
 
-        float animDuration = Math.max(0.05f, Math.min(config.getDuration(), clipDuration));
-        float totalDelay = Math.max(0.0f, config.getDelay());
-        if (config.getSequenceParameters() != null) {
-            totalDelay += Math.max(0.0f, config.getSequenceParameters().getGlobalDelay());
-        }
-
-        float baseSpan = clipDuration - animDuration - totalDelay;
-        boolean fullWindow = baseSpan > 0.0001f;
-        float availableSpan = fullWindow ? baseSpan : Math.max(0.0001f, clipDuration - totalDelay);
+        var timing = PerBlockAnimationTiming.layout(config, clipStart, clipStart + clipDuration);
+        float animDuration = timing.duration();
 
         boolean isExit = config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT;
         boolean isInstant = config.getMode() == com.director.core.container.AnimationMode.INSTANT;
@@ -135,8 +128,9 @@ public class AnimationSoundCollector {
             // 计算方块事件时间（全局时间）
             float normalizedTime = entry.getNormalizedTime(); // 0..1
             float eventTime;
-            float blockStartTime = clipStart + totalDelay + normalizedTime * availableSpan;
-            float blockEndTime = Math.min(clipStart + clipDuration, blockStartTime + animDuration);
+            var window = timing.window(normalizedTime);
+            float blockStartTime = window.start();
+            float blockEndTime = window.end();
             if (isExit) {
 
                 if (isInstant) {
