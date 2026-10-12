@@ -36,6 +36,25 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(WorldRenderer.class)
 public abstract class WorldRendererMixin {
+    @org.spongepowered.asm.mixin.Shadow private net.minecraft.client.render.BuiltChunkStorage chunks;
+    @org.spongepowered.asm.mixin.Shadow private net.minecraft.client.render.chunk.ChunkBuilder chunkBuilder;
+    @org.spongepowered.asm.mixin.Shadow private net.minecraft.client.world.ClientWorld world;
+
+    @Inject(method = "updateChunks", at = @At("HEAD"))
+    private void director$flushWholeContainerHandoffs(net.minecraft.client.render.Camera camera, CallbackInfo ci) {
+        var sections = com.director.core.animation.WholeContainerRenderSections.getInstance().take(world);
+        if (sections.isEmpty() || chunks == null || chunkBuilder == null) return;
+        var regions = new net.minecraft.client.render.chunk.ChunkRendererRegionBuilder();
+        for (var chunk : chunks.chunks) {
+            if (chunk == null || !sections.contains(chunk.getSectionPos())) continue;
+            // Cancel obsolete async work and compile using the current suppression state.
+            chunkBuilder.rebuild(chunk, regions);
+            chunk.cancelRebuild();
+        }
+        // Uploads must finish before vanilla terrain is drawn, not after the animation overlay.
+        chunkBuilder.upload();
+    }
+
 
     /**
      * 🚫 拦截原版方块边框渲染

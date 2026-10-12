@@ -390,12 +390,19 @@ public class BlockAnimationRenderer {
     }
 
     static RenderLayer finalWorldLayer(BlockState state, float alpha) {
-        // World tessellation already applies face lighting. Do not apply entity per-face lighting again.
-        if (alpha < 0.999f) return RenderLayer.getItemEntityTranslucentCull(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE);
-        if (RenderLayers.getBlockLayer(state) == BlockRenderLayer.CUTOUT
-                || RenderLayers.getBlockLayer(state) == BlockRenderLayer.CUTOUT_MIPPED)
-            return RenderLayer.getEntityCutout(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE);
-        return RenderLayers.getEntityBlockLayer(state);
+        return finalWorldLayer(RenderLayers.getBlockLayer(state), alpha);
+    }
+
+    static RenderLayer finalWorldLayer(BlockRenderLayer type, float alpha) {
+        // Entity shaders add directional lighting even without PER_FACE_LIGHTING.
+        // World tessellation already includes that shading and AO; use terrain shaders.
+        if (alpha < 0.999f) return WholeContainerRenderLayers.FADED;
+        return switch (type) {
+            case SOLID -> RenderLayer.getSolid();
+            case CUTOUT -> RenderLayer.getCutout();
+            case CUTOUT_MIPPED -> RenderLayer.getCutoutMipped();
+            case TRANSLUCENT, TRIPWIRE -> WholeContainerRenderLayers.FADED;
+        };
     }
 
     /** The block-as-entity path uses the block atlas; faded vertices require a blending layer too. */

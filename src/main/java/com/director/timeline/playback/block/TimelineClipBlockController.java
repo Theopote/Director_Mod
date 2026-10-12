@@ -1532,7 +1532,7 @@ public class TimelineClipBlockController {
         var pivot = com.director.core.animation.WholeContainerAnimation.pivot(
                 container.getBoundingBox(), config.getWholeContainer());
         // Rebuild overrides even while scrubbing: the original world structure must stay hidden.
-        manager.setBlocksState(getCachedContainerBlocks(container), BlockVisualStateManager.BlockVisualState.hidden());
+        manager.setBlocksState(getCachedContainerBlocks(container), BlockVisualStateManager.BlockVisualState.hidden().withSuppressWorldRendering(true));
         for (BlockPos pos : visibleBlocks) {
             BlockState state = resolveBlockStateForRender(container, pos);
             if (state == null) continue;
@@ -1555,6 +1555,13 @@ public class TimelineClipBlockController {
             manager.setBlockState(pos, visual);
             manager.addRenderEntry(new BlockVisualStateManager.RenderEntry(pos, state, visual, clip,
                     new BlockSequenceEntry(pos, 0, 0, 0), snapshot));
+        }
+        // Rebuild old uploaded meshes before the next world draw, including large selections.
+        // This queue is independent of the generic per-block rerender count limit.
+        var world = MinecraftClient.getInstance().world;
+        for (var pos : getCachedContainerBlocks(container)) {
+            if (manager.hasWorldSuppressionChanged(pos))
+                com.director.core.animation.WholeContainerRenderSections.getInstance().request(world, pos);
         }
     }
 

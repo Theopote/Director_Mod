@@ -468,11 +468,16 @@ public class BlockVisualStateManager {
     }
     
     /**
-     * 检查方块状态是否发生变化
-     * 
-     * @param pos 方块位置
-     * @return 如果状态发生变化返回 true
+     * 检查世界网格的渲染抑制是否切换，忽略动画透明度等逐帧变化。
      */
+    public boolean hasWorldSuppressionChanged(BlockPos pos) {
+        var current = visualOverrides.get(pos);
+        var previous = lastFrameStates.get(pos);
+        return (current != null && current.shouldSuppressWorldRendering())
+                != (previous != null && previous.shouldSuppressWorldRendering());
+    }
+
+    /** 检查包含透明度、模式及世界渲染抑制在内的全部视觉状态变化。 */
     public boolean hasStateChanged(BlockPos pos) {
         BlockVisualState current = visualOverrides.get(pos);
         BlockVisualState last = lastFrameStates.get(pos);
