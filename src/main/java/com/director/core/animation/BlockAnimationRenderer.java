@@ -8,9 +8,9 @@ import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
 import net.minecraft.client.render.block.BlockRenderManager;
-import net.minecraft.client.texture.SpriteAtlasTexture;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import com.mojang.blaze3d.opengl.GlStateManager;
@@ -46,6 +46,8 @@ import net.minecraft.client.render.model.BlockModelPart;
  * @version 3.1
  */
 public class BlockAnimationRenderer {
+    private static final Identifier BLOCK_ATLAS_TEXTURE =
+            Identifier.ofVanilla("textures/atlas/blocks.png");
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BlockAnimationRenderer.class);
 
@@ -417,7 +419,7 @@ public class BlockAnimationRenderer {
     static VertexConsumerProvider withAlpha(VertexConsumerProvider provider, float alpha) {
         if (alpha >= 0.999f) return provider;
         return layer -> new AlphaVertexConsumer(provider.getBuffer(
-                RenderLayer.getEntityTranslucent(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE)), alpha);
+                RenderLayer.getEntityTranslucent(BLOCK_ATLAS_TEXTURE)), alpha);
     }
 
     @SuppressWarnings("unused")

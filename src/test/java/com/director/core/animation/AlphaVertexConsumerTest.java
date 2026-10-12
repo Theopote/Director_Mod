@@ -3,7 +3,7 @@ package com.director.core.animation;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.RenderLayer;
-import net.minecraft.client.texture.SpriteAtlasTexture;
+import net.minecraft.util.Identifier;
 import org.junit.jupiter.api.Test;
 import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.*;
@@ -30,7 +30,8 @@ class AlphaVertexConsumerTest {
         VertexConsumerProvider original = layer -> { requested.set(layer); return recording; };
         var faded = BlockAnimationRenderer.withAlpha(original, 0.5f);
         faded.getBuffer(null).color(255, 255, 255, 255);
-        assertSame(RenderLayer.getEntityTranslucent(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE), requested.get());
+        assertSame(RenderLayer.getEntityTranslucent(
+                Identifier.ofVanilla("textures/atlas/blocks.png")), requested.get());
         assertEquals(127, recording.alpha);
         assertSame(original, BlockAnimationRenderer.withAlpha(original, 1));
     }
