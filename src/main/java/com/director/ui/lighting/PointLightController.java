@@ -55,9 +55,12 @@ public final class PointLightController {
     public void select(PointLight light) {
         finishDrag(); enter(); placing=false; draft.clear();anchorIndex=-1;PointLightEditor.select(light); attach(light);
     }
+    public void inspectTimeline() {
+        finishDrag();enter();placing=false;draft.clear();anchorIndex=-1;
+        var light=PointLightEditor.selected();if(light!=null) attach(light);
+    }
     public void stop() {
-        PointLightParameterEditing.finish();
-        cancelDrag(); active=false; placing=false;draft.clear();anchorIndex=-1;owner=null; world=null;
+        cancelDrag();PointLightParameterEditing.finish(); active=false; placing=false;draft.clear();anchorIndex=-1;owner=null; world=null;
         if (ownsGizmo()) GizmoManager.get().deactivate();
     }
     public void update() {
@@ -100,7 +103,8 @@ public final class PointLightController {
             var ray=DirectorInputSystem.computeImGuiRay();
             if (ray==null) return;
             PointLight nearest=null;int nearestAnchor=-1; double distance=Double.POSITIVE_INFINITY;
-            for (PointLight candidate:owner.getPointLights()) {
+            for (PointLight asset:owner.getPointLights()) {
+                PointLight candidate=light!=null && light.id().equals(asset.id())?light:asset;
                 var points=candidate.type()==LightType.LINE?LightGeometry.vertices(candidate):List.of(new LightPoint(candidate.x(),candidate.y(),candidate.z()));
                 for(int i=0;i<points.size();i++) {
                     var vertex=points.get(i);Vec3d p=new Vec3d(vertex.x(),vertex.y(),vertex.z());
@@ -111,7 +115,11 @@ public final class PointLightController {
                     }
                 }
             }
-            if(nearest!=null) { select(nearest);anchorIndex=nearestAnchor;attach(nearest); }
+            if(nearest!=null) {
+                var payload=com.director.core.DirectorServices.get().uiSelection().getSelectionPayload();
+                if(!(payload instanceof LightKeyframe key && key.value().id().equals(nearest.id()))) select(nearest);
+                anchorIndex=nearestAnchor;attach(nearest);
+            }
             else { stop();com.director.core.DirectorServices.get().uiSelection().clearSelection(); }
         }
     }
@@ -151,14 +159,25 @@ public final class PointLightController {
         var next=anchorIndex>=0 && current.type()==LightType.LINE
             ? current.withAnchor(anchorIndex,new LightPoint(p.x,p.y,p.z)) : current.at(p.x,p.y,p.z);
         if(dragKey==null) owner.replacePointLight(current.id(),next);
-        else PointLightParameterEditing.previewKey(owner,dragClip,dragKey,next);
+        else dragKey.setValue(next);
         PointLightRuntime.update(owner);
         GizmoManager.get().setTargetBox(markerBox(p));
         GizmoManager.get().setPivot(p);
     }
     void finishDrag() {
         PointLight before=dragBefore;dragBefore=null;
-        if(dragKey!=null) {PointLightParameterEditing.finish();dragKey=null;dragClip=null;return;}
+        if(dragKey!=null) {
+            var key=dragKey;var clip=dragClip;dragKey=null;dragClip=null;
+            if(before!=null && owner==PointLightEditor.model() && owner.getActorEditContextRevision()==revision
+                && world==MinecraftClient.getInstance().world && clip!=null && owner.findTrackForClip(clip)!=null
+                && clip.getClipKeyframes().contains(key) && !before.equals(key.value())) {
+                var after=key.value();var model=owner;
+                com.director.ui.timeline.commands.TimelineCommandBridge.execute(new com.director.ui.timeline.commands.StateChangeCommand(model,"Move light keyframe",
+                    () -> {key.setValue(before);PointLightRuntime.update(model);},
+                    () -> {key.setValue(after);PointLightRuntime.update(model);}));
+            }
+            return;
+        }
         if (before!=null && owner!=null && owner==PointLightEditor.model() && owner.getActorEditContextRevision()==revision && world==MinecraftClient.getInstance().world)
             PointLightEditor.change(owner,before,owner.getPointLight(before.id()));
     }

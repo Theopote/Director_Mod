@@ -6,7 +6,7 @@ import com.director.ui.properties.IPropertyAdapter;
 public final class PointLightPropertyAdapter implements IPropertyAdapter<PointLight> {
     private final LightParameterControls controls=new LightParameterControls();
     @Override public Class<PointLight> getTargetType() { return PointLight.class; }
-    @Override public String getAdapterName() { return LightsPanel.tr("point"); }
+    @Override public String getAdapterName() { return LightsPanel.tr("properties"); }
     @Override public boolean renderProperties(PointLight target) {
         var model=PointLightEditor.model();if(model==null) return false;
         var current=model.getPointLight(target.id());if(current==null) {PointLightParameterEditing.finish();return false;}

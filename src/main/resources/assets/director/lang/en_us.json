@@ -1,4 +1,8 @@
 {
+  "gui.director.light.properties": "Light properties",
+  "gui.director.light.clip_properties": "Light clip properties",
+  "gui.director.light.key_properties": "Light keyframe properties",
+
   "gui.director.light.place_line": "Draw line light",
   "gui.director.light.place_area": "Place area light",
   "gui.director.light.line": "Line light",

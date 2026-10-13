@@ -22,7 +22,10 @@ public final class PointLightMarkerRenderer {
         var consumer=context.consumers().getBuffer(RenderLayer.getLines());
         Vec3d camera=client.gameRenderer.getCamera().getPos();
         var selected=PointLightEditor.selected();
-        for(var light:model.getPointLights()) {
+        var sampled=new java.util.HashMap<java.util.UUID,PointLight>();
+        for(var value:LightTimelineSampler.sample(model,model.getCurrentTime())) sampled.put(value.id(),value);
+        for(var asset:model.getPointLights()) {
+            var light=selected!=null && selected.id().equals(asset.id())?selected:sampled.getOrDefault(asset.id(),asset);
             Vec3d p=PointLightController.position(light).subtract(camera);
             if(p.lengthSquared()>256*256) continue;
             boolean isSelected=selected!=null && selected.id().equals(light.id());

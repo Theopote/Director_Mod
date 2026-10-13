@@ -137,9 +137,8 @@ public final class VideoRenderPipeline {
             return;
         }
 
-        // Point lights are baked into terrain meshes. Re-render the same requested time
-        // until visible chunk rebuilds/uploads settle; never capture a stale first frame.
-        var client=MinecraftClient.getInstance();
+        // Light changes (including switching off) are baked into terrain meshes.
+        // Wait at the requested time until visible rebuilds/uploads settle.
         if (com.director.lighting.PointLightRuntime.awaitTerrain()) return;
         try {
             captureMainFramebuffer(head);

@@ -9,6 +9,7 @@ import imgui.ImGui;
 import imgui.type.ImInt;
 public final class LightKeyframePropertyAdapter implements IPropertyAdapter<LightKeyframe> {
     private final LightParameterControls controls=new LightParameterControls();
+    @Override public String getAdapterName() {return LightsPanel.tr("key_properties");}
     @Override public Class<LightKeyframe> getTargetType() {return LightKeyframe.class;}
     @Override public boolean renderProperties(LightKeyframe key) {
         var model=PointLightEditor.model();if(model==null) return false;

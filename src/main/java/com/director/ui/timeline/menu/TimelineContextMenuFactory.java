@@ -156,6 +156,24 @@ public class TimelineContextMenuFactory {
                 .disabledItem(tr(DirectorLang.Timeline.ContextMenu.TIME_RANGE, clip.getStartTime(), clip.getEndTime()))
                 .separator();
 
+        if(clip instanceof com.director.lighting.LightTimelineClip lightClip) {
+            builder.command(tr(DirectorLang.Timeline.ContextMenu.DUPLICATE_CLIP),new DuplicateClipCommand(model,track,clip),"Ctrl+D")
+                .command(tr(DirectorLang.Timeline.ContextMenu.DELETE_CLIP),deleteCmd,"Del");
+            builder.item(com.director.ui.panels.LightsPanel.tr("add_key"),() -> {
+                float time=model.getCurrentTime();var base=model.getPointLight(lightClip.lightId());
+                if(track.isLocked() || base==null || time<clip.getStartTime() || time>clip.getEndTime()) return;
+                com.director.ui.lighting.PointLightParameterEditing.finish();
+                var key=clip.findKeyframeAt(time,1e-4f);
+                if(key==null) {
+                    key=new com.director.lighting.LightKeyframe(time,lightClip.sample(base,time));
+                    commandHistory.executeCommand(new com.director.ui.timeline.commands.AddClipKeyframeCommand(model,track,clip,key));
+                }
+                com.director.core.DirectorServices.get().uiSelection().setSelection(com.director.ui.selection.SelectionType.KEYFRAME,key);
+            });
+            if(panel!=null) builder.item(tr(DirectorLang.Timeline.ContextMenu.RENAME_CLIP),() -> panel.requestClipRename(clip));
+            return builder.build();
+        }
+
         // ⭐ 音频片段：简化菜单（只保留基本操作）
         if (track.getType() == TrackType.AUDIO) {
             builder.command(tr(DirectorLang.Timeline.ContextMenu.DUPLICATE_CLIP), new DuplicateClipCommand(model, track, clip), "Ctrl+D")

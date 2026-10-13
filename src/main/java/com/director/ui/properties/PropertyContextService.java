@@ -60,6 +60,9 @@ public final class PropertyContextService {
                 com.director.ui.lighting.PointLightParameterEditing.finish();
                 if (t == SelectionType.TRACK || t == SelectionType.CLIP || t == SelectionType.KEYFRAME) {
                     svc.onTimelineSelectionChanged(uiSelection.getSelectionPayload());
+                    if(uiSelection.getSelectionPayload() instanceof com.director.lighting.LightTimelineClip
+                        || uiSelection.getSelectionPayload() instanceof com.director.lighting.LightKeyframe)
+                        com.director.ui.lighting.PointLightController.get().inspectTimeline();
                 } else if (t == SelectionType.LIGHT) {
                     svc.onWorldSelectionChanged(uiSelection.getSelectionPayload());
                 } else {

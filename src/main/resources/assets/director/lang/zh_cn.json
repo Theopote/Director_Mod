@@ -1,4 +1,8 @@
 {
+  "gui.director.light.properties": "灯光属性",
+  "gui.director.light.clip_properties": "灯光片段属性",
+  "gui.director.light.key_properties": "灯光关键帧属性",
+
   "gui.director.light.place_line": "绘制线光源",
   "gui.director.light.place_area": "放置面光源",
   "gui.director.light.line": "线光源",

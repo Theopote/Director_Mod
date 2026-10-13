@@ -9,6 +9,7 @@ import imgui.ImGui;
 /** Clip interval plus scene defaults; keyframes have their own property target. */
 public final class LightTimelineClipPropertyAdapter implements IPropertyAdapter<LightTimelineClip> {
     private final PointLightPropertyAdapter baseProperties=new PointLightPropertyAdapter();
+    @Override public String getAdapterName() {return LightsPanel.tr("clip_properties");}
     @Override public Class<LightTimelineClip> getTargetType() {return LightTimelineClip.class;}
     @Override public boolean renderProperties(LightTimelineClip clip) {
         var model=PointLightEditor.model();if(model==null) return false;
@@ -21,7 +22,6 @@ public final class LightTimelineClipPropertyAdapter implements IPropertyAdapter<
         changed |= ImGui.dragFloat(LightsPanel.tr("end"),end,.01f);
         if(changed && Float.isFinite(start[0]) && Float.isFinite(end[0]) && start[0]>=0 && end[0]>=start[0]+.05f) {
             PointLightParameterEditing.finish();
-            float oldStart=clip.getStartTime(),oldEnd=clip.getEndTime();
             var before=clip.captureState();
             float newStart=start[0],newEnd=end[0];
             clip.setTimeRange(newStart,newEnd);var after=clip.captureState();
