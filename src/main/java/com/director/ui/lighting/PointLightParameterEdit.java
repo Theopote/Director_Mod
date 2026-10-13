@@ -35,7 +35,7 @@ public final class PointLightParameterEdit {
     private boolean isCurrent() {
         return !closed && model.getActorEditContextRevision() == revision
                 && (key==null ? after.equals(model.getPointLight(before.id()))
-                    : model.findTrackForClip(clip)!=null && clip.getClipKeyframes().contains(key) && after.equals(key.value()));
+                    : com.director.lighting.LightLifecycle.containsClip(model,clip) && clip.getClipKeyframes().contains(key) && after.equals(key.value()));
     }
     public boolean preview(PointLight light) {
         if (!before.id().equals(light.id())) throw new IllegalArgumentException("Light ID mismatch");

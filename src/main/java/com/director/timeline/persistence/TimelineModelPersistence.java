@@ -1352,6 +1352,7 @@ public class TimelineModelPersistence {
         }
 
         if(dto.lightingVersion==0) com.director.lighting.LightTimelineSampler.migrateLegacy(model);
+        else com.director.lighting.LightLifecycle.cleanLoadedProject(model);
         model.clearInOut();
         if (dto.inPoint != null) {
             model.setInPoint(dto.inPoint);

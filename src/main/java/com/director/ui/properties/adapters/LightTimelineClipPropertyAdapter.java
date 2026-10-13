@@ -13,7 +13,7 @@ public final class LightTimelineClipPropertyAdapter implements IPropertyAdapter<
     @Override public Class<LightTimelineClip> getTargetType() {return LightTimelineClip.class;}
     @Override public boolean renderProperties(LightTimelineClip clip) {
         var model=PointLightEditor.model();if(model==null) return false;
-        var track=model.findTrackForClip(clip);if(track==null) return false;
+        var track=model.findTrackForClip(clip);if(!LightLifecycle.containsClip(model,clip)) return false;
         var base=model.getPointLight(clip.lightId());if(base==null) return false;
         boolean locked=track.isLocked() || com.director.export.video.VideoExportManager.getInstance().isExporting();
         ImGui.beginDisabled(locked);

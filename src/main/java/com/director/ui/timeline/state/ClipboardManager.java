@@ -24,6 +24,11 @@ public final class ClipboardManager {
     
     private TimelineClip clip;
     private boolean isCut;
+    private com.director.lighting.PointLight lightAsset;
+    private void captureLight(TimelineClip clip,TimelineModel model) {
+        lightAsset=clip instanceof com.director.lighting.LightTimelineClip light && model!=null
+            ? model.getPointLight(light.lightId()) : null;
+    }
     private java.util.function.Consumer<TimelineClip> initializeAudio = ignored -> {};
 
     private ClipboardManager() {
@@ -44,6 +49,7 @@ public final class ClipboardManager {
         }
         
         // 复制到剪贴板
+        captureLight(clip,model);
         this.clip = com.director.timeline.model.TimelineClipCopies.copy(clip);
         this.initializeAudio = com.director.ui.timeline.audio.TimelineAudioService.getInstance().captureAudioCopy(clip);
         this.isCut = true;
@@ -60,9 +66,13 @@ public final class ClipboardManager {
      * 复制片段
      */
     public void copy(TimelineClip clip) {
+        copy(clip,clip instanceof com.director.lighting.LightTimelineClip?com.director.ui.lighting.PointLightEditor.model():null);
+    }
+    public void copy(TimelineClip clip,TimelineModel model) {
         if (clip == null) {
             return;
         }
+        captureLight(clip,model);
         this.clip = com.director.timeline.model.TimelineClipCopies.copy(clip);
         this.initializeAudio = com.director.ui.timeline.audio.TimelineAudioService.getInstance().captureAudioCopy(clip);
         this.isCut = false;
@@ -92,7 +102,7 @@ public final class ClipboardManager {
         newClip.offsetTime(delta);
         
         // 添加到轨道
-        var insertion = new com.director.ui.timeline.commands.InsertClipCommand(model, track, newClip, initializeAudio);
+        var insertion = new com.director.ui.timeline.commands.InsertClipCommand(model, track, newClip, initializeAudio, lightAsset);
         com.director.ui.timeline.commands.TimelineCommandBridge.execute(insertion);
         if (!insertion.canUndo()) {
             LOGGER.info("[Timeline] 粘贴片段失败，轨道拒绝接收: {} -> {}",
@@ -161,7 +171,7 @@ public final class ClipboardManager {
     }
 
     public void clear() {
-        clip = null;
+        clip = null;lightAsset=null;
         initializeAudio = ignored -> {};
         isCut = false;
     }

@@ -28,6 +28,7 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
     private final TimelineTrack track;
     private final List<TimelineTrack> trackList;
     private int removedIndex = -1;
+    private List<com.director.lighting.PointLight> removedLights=List.of();
     private final List<Runnable> restoreAudio = new java.util.ArrayList<>();
     
     // 记录删除 Track 后，Actor 是否还在其他地方被使用
@@ -45,6 +46,7 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
             LOGGER.warn("[Timeline] 删除轨道失败：track 或 trackList 为 null");
             return;
         }
+        removedLights=List.of();
         orphanedActorId = null;
         
         // 如果是 ActorTrack，检查删除后 Actor 是否还在其他地方被使用
@@ -79,6 +81,9 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
             }
             if (trackList == model.getTracks()) model.removeTrack(track);
             else trackList.remove(removedIndex);
+            removedLights=com.director.lighting.LightLifecycle.removeUnreferenced(model,track.getClips().stream()
+                .filter(c -> c instanceof com.director.lighting.LightTimelineClip)
+                .map(c -> ((com.director.lighting.LightTimelineClip)c).lightId()).toList());
             // Removing an animation owner must not delete the project actor instance.
             LOGGER.info("[Timeline] 删除轨道，索引: {}", removedIndex);
         } else {
@@ -93,6 +98,7 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
             return;
         }
         if (removedIndex >= 0 && removedIndex <= trackList.size()) {
+            com.director.lighting.LightLifecycle.restore(model,removedLights);
             if (trackList == model.getTracks()) model.insertTrack(removedIndex, track);
             else trackList.add(removedIndex, track);
             restoreAudio.forEach(Runnable::run);

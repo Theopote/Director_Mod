@@ -17,9 +17,12 @@ public final class PointLightEditor {
     public static PointLight selected() {
         var selection=DirectorServices.get().uiSelection();
         if(selection.getSelectionPayload() instanceof com.director.lighting.LightTimelineClip clip)
-            return model()==null?null:model().getPointLight(clip.lightId());
-        if(selection.getSelectionPayload() instanceof com.director.lighting.LightKeyframe key)
-            return model()==null || model().getPointLight(key.value().id())==null?null:key.value();
+            return !com.director.lighting.LightLifecycle.containsClip(model(),clip)?null:model().getPointLight(clip.lightId());
+        if(selection.getSelectionPayload() instanceof com.director.lighting.LightKeyframe key) {
+            if(model()==null || model().getPointLight(key.value().id())==null) return null;
+            return model().getTracks().stream().flatMap(t -> t.getClips().stream())
+                .anyMatch(c -> c instanceof com.director.lighting.LightTimelineClip && c.getClipKeyframes().contains(key))?key.value():null;
+        }
         return selection.getSelectionType()==SelectionType.LIGHT && selection.getSelectionPayload() instanceof UUID id
                 && model()!=null ? model().getPointLight(id) : null;
     }

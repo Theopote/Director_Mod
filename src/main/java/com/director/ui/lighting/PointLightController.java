@@ -169,7 +169,7 @@ public final class PointLightController {
         if(dragKey!=null) {
             var key=dragKey;var clip=dragClip;dragKey=null;dragClip=null;
             if(before!=null && owner==PointLightEditor.model() && owner.getActorEditContextRevision()==revision
-                && world==MinecraftClient.getInstance().world && clip!=null && owner.findTrackForClip(clip)!=null
+                && world==MinecraftClient.getInstance().world && clip!=null && LightLifecycle.containsClip(owner,clip)
                 && clip.getClipKeyframes().contains(key) && !before.equals(key.value())) {
                 var after=key.value();var model=owner;
                 com.director.ui.timeline.commands.TimelineCommandBridge.execute(new com.director.ui.timeline.commands.StateChangeCommand(model,"Move light keyframe",
@@ -185,7 +185,7 @@ public final class PointLightController {
         PointLight before=dragBefore;dragBefore=null;
         if(dragKey!=null) {
             if(before!=null && owner==PointLightEditor.model() && owner.getActorEditContextRevision()==revision && dragClip!=null
-                && owner.findTrackForClip(dragClip)!=null && dragClip.getClipKeyframes().contains(dragKey)) dragKey.setValue(before);
+                && LightLifecycle.containsClip(owner,dragClip) && dragClip.getClipKeyframes().contains(dragKey)) dragKey.setValue(before);
             dragKey=null;dragClip=null;PointLightParameterEditing.finish();PointLightRuntime.update(owner);return;
         }
         if (before!=null && owner!=null && owner==PointLightEditor.model() && owner.getActorEditContextRevision()==revision && world==MinecraftClient.getInstance().world) {

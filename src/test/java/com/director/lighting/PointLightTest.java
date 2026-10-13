@@ -67,6 +67,7 @@ class PointLightTest {
     @Test void persistenceRoundTripRestoresSettingsAndStableId() {
         var model=model();var light=light().at(-1.25,70,9).settings(7,13,2,false);
         model.replacePointLight(light.id(),light);
+        LightTimelineSampler.migrateLegacy(model);
         var dto=TimelineModelPersistence.toDTO(model,null);
         var gson=new Gson();
         var decoded=gson.fromJson(gson.toJson(dto),TimelineModelPersistence.TimelineDTO.class);
