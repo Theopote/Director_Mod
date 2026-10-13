@@ -140,6 +140,10 @@ public abstract class MouseMixin {
                 ci.cancel();
                 return;
             }
+            if (com.director.ui.lighting.PointLightController.get().isActive()) {
+                ci.cancel();
+                return;
+            }
             if (ToolRegistry.get().hasNonSelectionActiveTool()) {
                 return;
             }
@@ -239,6 +243,7 @@ public abstract class MouseMixin {
         }
 
         if (selectionInputHandler == null) return;
+        if (com.director.ui.lighting.PointLightController.get().isActive()) return;
         if (ToolRegistry.get().hasNonSelectionActiveTool()) {
             return;
         }

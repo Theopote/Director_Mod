@@ -123,6 +123,7 @@ public class TimelineModelPersistence {
      */
     public static class TimelineDTO {
         public List<TrackDTO> tracks = new ArrayList<>();
+        public List<com.director.lighting.PointLight> pointLights = new ArrayList<>();
         public float pixelsPerSecond = 80.0f;
         public float scrollX = 0f;
         public boolean snapEnabled = true;
@@ -520,6 +521,7 @@ public class TimelineModelPersistence {
      */
     public static TimelineDTO toDTO(TimelineModel model, TimelineViewportState viewportState) {
         TimelineDTO dto = new TimelineDTO();
+        dto.pointLights.addAll(model.getPointLights());
         
         // 保存视图状态
         if (viewportState != null) {
@@ -866,6 +868,11 @@ public class TimelineModelPersistence {
         model.setLoopEnabled(dto.loopEnabled);
         model.setPlaybackSpeed(dto.playbackSpeed);
         
+        // Replace scene lights too, including loading older files without lights.
+        for (var light:model.getPointLights()) model.replacePointLight(light.id(),null);
+        if (dto.pointLights != null) for (var light:dto.pointLights) {
+            if (light != null) model.replacePointLight(light.id(),light);
+        }
         // 清空现有轨道
         for (TimelineTrack existing : new ArrayList<>(model.getTracks())) model.removeTrack(existing);
         for (TimelineMarker marker : model.getMarkers()) {

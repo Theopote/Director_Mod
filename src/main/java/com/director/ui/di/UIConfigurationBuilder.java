@@ -368,6 +368,11 @@ public class UIConfigurationBuilder {
             }
         }
         
+        if (useDefaultPanels && panels.stream().noneMatch(panel -> panel instanceof LightsPanel)
+                && (config==null || config.getPanels()==null
+                    || config.getPanels().stream().noneMatch(def -> "LightsPanel".equals(def.getType())))) {
+            panels.add(factory.createPanel(LightsPanel.class, minecraftClient));
+        }
         // 按优先级排序
         panels.sort(Comparator.comparingInt(IPanel::getPriority));
         
@@ -432,6 +437,7 @@ public class UIConfigurationBuilder {
             case "ToolbarPanel" -> ToolbarPanel.class;
             case "ContainerPanel" -> ContainerPanel.class;
             case "ActorsPanel" -> ActorsPanel.class;
+            case "LightsPanel" -> LightsPanel.class;
             case "PropertiesPanel" -> PropertiesPanel.class;
             case "TimelinePanel" -> TimelinePanel.class;
             // 添加新的模块化面板
@@ -460,6 +466,7 @@ public class UIConfigurationBuilder {
             ToolbarPanel.class,
             ContainerPanel.class,
             ActorsPanel.class,
+            LightsPanel.class,
             PropertiesPanel.class,
             TimelinePanel.class,
             // ToolPropertiesPanel 已并入属性面板，不再加入默认列表（switch 保留以兼容旧布局）

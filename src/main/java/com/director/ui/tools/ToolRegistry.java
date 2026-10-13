@@ -316,6 +316,7 @@ public final class ToolRegistry {
      */
     public boolean activate(String toolId) {
         if (toolId == null || toolId.isBlank()) return false;
+        com.director.ui.lighting.PointLightController.get().stop();
         GizmoMode deprecatedGizmoMode = deprecatedActorGizmoMode(toolId);
         toolId = normalizeActorToolId(toolId);
         SelectionManager selectionManager = selectionManager();
@@ -347,6 +348,7 @@ public final class ToolRegistry {
     public boolean activate(EditorTool tool) {
         if (tool == null) return false;
         if (!tool.isEnabled()) return false;
+        com.director.ui.lighting.PointLightController.get().stop();
 
         // Selection vs Non-Selection 分发
         if (tool.getGroup() == ToolGroup.SELECTION) {

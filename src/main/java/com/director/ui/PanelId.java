@@ -54,6 +54,7 @@ public final class PanelId {
 
     /** 演员面板 */
     public static final String ACTORS = "Actors";
+    public static final String LIGHTS = "Lights";
     
     /** 选择过滤器面板 */
     public static final String SELECTION_FILTER = "SelectionFilter";
@@ -93,6 +94,7 @@ public final class PanelId {
             case "ToolProperties" -> TOOL_PROPERTIES;
             case "Container" -> CONTAINER;
             case "Actors" -> ACTORS;
+            case "Lights" -> LIGHTS;
             case "SelectionFilter" -> SELECTION_FILTER;
             case "SelectionHistory" -> SELECTION_HISTORY;
             case "RenderSettings" -> RENDER_SETTINGS;

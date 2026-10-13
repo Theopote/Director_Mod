@@ -38,6 +38,8 @@ public final class PanelWindows {
         return PanelI18n.title(PanelId.CONTAINER) + CONTAINER_ID;
     }
 
+    public static String lights() { return PanelI18n.title(PanelId.LIGHTS) + "###LightsPanel"; }
+
     public static String actors() {
         return Icons.TARGET + " " + PanelI18n.title(PanelId.ACTORS) + ACTORS_ID;
     }

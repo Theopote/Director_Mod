@@ -77,6 +77,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     
     // ========== 轨道数据 ==========
     private final List<TimelineTrack> tracks = new ArrayList<>();
+    private final List<com.director.lighting.PointLight> pointLights = new ArrayList<>();
     
     // ========== 标记数据（全局标记，不属于任何轨道）==========
     private final List<TimelineMarker> markers = new ArrayList<>();
@@ -361,6 +362,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         cachedDynamicDuration = 0f;
         isDurationDirty = true;
         tracks.clear();
+        pointLights.clear();
         audioSeekRevision++;
         notifyModelChanged("timeline_reset");
         markers.clear();
@@ -1106,6 +1108,19 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     public void setScrollX(float scrollX) { viewportState.setScrollX(scrollX); }
 
     
+    public List<com.director.lighting.PointLight> getPointLights() { return List.copyOf(pointLights); }
+    public com.director.lighting.PointLight getPointLight(java.util.UUID id) {
+        return pointLights.stream().filter(light -> light.id().equals(id)).findFirst().orElse(null);
+    }
+    /** Preview changes are committed by one StateChangeCommand when the gesture ends. */
+    public void replacePointLight(java.util.UUID id, com.director.lighting.PointLight light) {
+        if (light != null && !id.equals(light.id())) throw new IllegalArgumentException("Light ID mismatch");
+        int index=-1;
+        for (int i=0;i<pointLights.size();i++) if (pointLights.get(i).id().equals(id)) { index=i; break; }
+        if (light == null) { if (index>=0) pointLights.remove(index); }
+        else if (index>=0) pointLights.set(index,light);
+        else pointLights.add(light);
+    }
     public List<TimelineTrack> getTracks() { return tracks; }
     
     /**

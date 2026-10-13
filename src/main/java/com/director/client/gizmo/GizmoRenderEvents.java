@@ -131,7 +131,8 @@ public class GizmoRenderEvents {
     private static boolean usesFrameInteraction() {
         var controller = GizmoManager.get().getController();
         return controller != null && controller.getTransformApplier()
-                instanceof com.director.ui.actor.gizmo.ActorTransformApplier;
+                instanceof com.director.ui.actor.gizmo.ActorTransformApplier
+                || controller != null && controller.getTransformApplier() instanceof com.director.ui.lighting.PointLightTransformApplier;
     }
 
     private static void pollInteraction() {

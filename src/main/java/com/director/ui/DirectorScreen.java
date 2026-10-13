@@ -259,6 +259,7 @@ public class DirectorScreen extends Screen {
             InputFocusManager.getInstance().update();
 
             // Use fresh ImGui pointer/viewport coordinates once per rendered frame.
+            com.director.ui.lighting.PointLightController.get().update();
             com.director.client.gizmo.GizmoRenderEvents.frameInteraction();
 
             // 移除调试状态栏显示（FPS、Panels、Frame#已在工具栏和状态栏显示）
@@ -447,6 +448,7 @@ public class DirectorScreen extends Screen {
         }
 
         // 在清理世界/渲染状态之前优先落盘，避免关闭流程导致世界路径不可用。
+        com.director.ui.lighting.PointLightController.get().stop();
         persistWorkspaceBeforeShutdown();
 
         // 样式隔离已改为 DirectorStyleScope（每帧 push/pop），不再需要上下文切换或恢复
@@ -908,6 +910,12 @@ public class DirectorScreen extends Screen {
         if (!registry.isInitialized()) {
             LOGGER.warn("[Director] 渲染注册表失效，尝试补挂载");
             registry.ensureInitialized();
+        }
+
+        com.director.ui.lighting.PointLightController.get().update();
+        if (com.director.ui.lighting.PointLightController.get().isActive()) {
+            com.director.client.gizmo.GizmoRenderEvents.tickInteraction();
+            return;
         }
 
         // Camera path edit tool: world-space anchor picking and Gizmo movement.

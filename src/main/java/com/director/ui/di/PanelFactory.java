@@ -47,6 +47,7 @@ public class PanelFactory implements IPanelFactory {
         DEFAULT_PANEL_TYPES.put(ToolbarPanel.class, ToolbarPanel.class);
         DEFAULT_PANEL_TYPES.put(ContainerPanel.class, ContainerPanel.class);
         DEFAULT_PANEL_TYPES.put(ActorsPanel.class, ActorsPanel.class);
+        DEFAULT_PANEL_TYPES.put(LightsPanel.class, LightsPanel.class);
         DEFAULT_PANEL_TYPES.put(PropertiesPanel.class, PropertiesPanel.class);
         DEFAULT_PANEL_TYPES.put(TimelinePanel.class, TimelinePanel.class);
     }
@@ -99,6 +100,8 @@ public class PanelFactory implements IPanelFactory {
             return new ActorsPanel();
         });
         
+        registerPanelCreator(LightsPanel.class, minecraftClient -> new LightsPanel());
+
         // 注册PropertiesPanel创建器
         registerPanelCreator(PropertiesPanel.class, minecraftClient -> {
             LOGGER.debug("[PanelFactory] 创建PropertiesPanel (MinecraftClient: {})", 

@@ -259,6 +259,9 @@ public final class DirectorRendererRegistry {
                 registerRenderer(RendererStage.TOOL_PREVIEW, "CameraPath",
                         ctx -> CameraPathRenderer.getInstance().render(ctx),
                         RendererStage.TOOL_PREVIEW.getOrder() + 10); // 在工具预览之后渲染
+                registerRenderer(RendererStage.TOOL_PREVIEW, "PointLights",
+                        com.director.lighting.PointLightMarkerRenderer::render,
+                        RendererStage.TOOL_PREVIEW.getOrder() + 12);
                 registerRenderer(RendererStage.TOOL_PREVIEW, "ActorPath",
                         ctx -> ActorPathRenderer.getInstance().render(ctx),
                         RendererStage.TOOL_PREVIEW.getOrder() + 11);

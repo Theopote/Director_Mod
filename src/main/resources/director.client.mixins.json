@@ -17,6 +17,8 @@
     "HotbarMixin",
     "DebugHudMixin",
     "WorldRendererMixin",
+    "PointLightWorldRendererMixin",
+    "PointLightEntityRendererMixin",
     "LightmapTextureManagerMixin",
     "SkyRenderingMixin",
     "CloudRendererMixin",

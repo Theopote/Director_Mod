@@ -29,6 +29,7 @@ public enum SelectionType {
      * <p>Show Project panel
      */
     PROJECT,
+    LIGHT,
     
     /**
      * 演员选择

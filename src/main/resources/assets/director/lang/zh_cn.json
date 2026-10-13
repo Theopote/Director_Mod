@@ -1,4 +1,18 @@
 {
+  "gui.director.panel.lights": "灯光",
+  "gui.director.light.place": "放置点光源",
+  "gui.director.light.point": "点光源",
+  "gui.director.light.placement_hint": "在场景中右键放置；Esc 取消。",
+  "gui.director.light.selection_hint": "左键选中灯光并用 Gizmo 移动；点击空白处取消选择。",
+  "gui.director.light.prototype": "原型：场景常驻点光源，无阴影。",
+  "gui.director.light.delete": "删除选中灯光",
+  "gui.director.light.enabled": "启用",
+  "gui.director.light.position": "位置",
+  "gui.director.light.brightness": "亮度",
+  "gui.director.light.range": "衰减范围",
+  "gui.director.light.falloff": "衰减曲线",
+  "gui.director.light.white": "颜色：原版光照（暂不支持 RGB）",
+
   "gui.director.properties.clip_ui.whole_animation.clip_span_hint": "整体动作发生在片段范围内；实际动作时长不超过片段时长减去启动延迟。",
   "gui.director.properties.clip_ui.whole_animation.per_block_delay_hint": "整体平移逐块启动序列，不改变启动间隔或单块动作时长；与序列中的全局延迟相加。",
   "gui.director.properties.clip_ui.whole_animation.per_block_delay": "动作启动延迟（秒）",

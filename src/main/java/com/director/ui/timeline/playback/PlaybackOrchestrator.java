@@ -203,6 +203,7 @@ public final class PlaybackOrchestrator {
     }
 
     private void driveSubsystems(float deltaSeconds) {
+        com.director.lighting.PointLightRuntime.update(com.director.timeline.playback.TimelinePlaybackSampler.resolveModel());
         float renderDelta = getRenderDeltaFallback(deltaSeconds);
 
         runSubsystem("TimelineClipBlockController", () -> {

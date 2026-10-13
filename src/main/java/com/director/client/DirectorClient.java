@@ -136,6 +136,9 @@ public class DirectorClient implements ClientModInitializer {
             com.director.actor.model.texture.CustomModelResourceWarmup.scheduleForCurrentWorld();
         });
 
+        ClientTickEvents.END_CLIENT_TICK.register(client ->
+                com.director.lighting.PointLightRuntime.update(com.director.timeline.playback.TimelinePlaybackSampler.resolveModel()));
+
         // 注册键绑定事件处理器
         registerKeyBindingHandler();
         

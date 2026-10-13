@@ -34,6 +34,11 @@
       "dependencies": ["ToolbarPanel"]
     },
     {
+      "type": "LightsPanel",
+      "enabled": true,
+      "priority": 36
+    },
+    {
       "type": "ActorsPanel",
       "enabled": true,
       "priority": 35,

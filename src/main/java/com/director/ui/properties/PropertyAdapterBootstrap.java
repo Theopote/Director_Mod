@@ -104,6 +104,8 @@ public final class PropertyAdapterBootstrap {
         
         try {
             int registeredCount = 0;
+            registerAdapter(com.director.lighting.PointLight.class, new PointLightPropertyAdapter());
+            registeredCount++;
             
             LOGGER.info("  ========== 时间线系统适配器 ==========");
             

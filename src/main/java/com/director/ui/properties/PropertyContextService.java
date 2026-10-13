@@ -57,8 +57,11 @@ public final class PropertyContextService {
             uiSelection.addSelectionChangedListener(ignore -> {
                 PropertyContextService svc = PropertyContextService.get();
                 SelectionType t = uiSelection.getSelectionType();
+                com.director.ui.lighting.PointLightParameterEditing.finish();
                 if (t == SelectionType.TRACK || t == SelectionType.CLIP || t == SelectionType.KEYFRAME) {
                     svc.onTimelineSelectionChanged(uiSelection.getSelectionPayload());
+                } else if (t == SelectionType.LIGHT) {
+                    svc.onWorldSelectionChanged(uiSelection.getSelectionPayload());
                 } else {
                     svc.onTimelineSelectionChanged(null);
                 }
@@ -70,6 +73,7 @@ public final class PropertyContextService {
     private Object actorInspection;
     public void inspectActorObject(Object target) {
         if(target instanceof com.director.actor.Actor || target instanceof com.director.actor.ActorGroup) {
+            com.director.ui.lighting.PointLightController.get().stop();
             actorInspection=target; cleared=false;
         }
     }
@@ -99,6 +103,7 @@ public final class PropertyContextService {
             return PropertyContext.NONE;
         }
         SelectionType st = DirectorServices.get().uiSelection().getSelectionType();
+        if (st == SelectionType.LIGHT && com.director.ui.lighting.PointLightEditor.selected()!=null) return PropertyContext.WORLD;
         boolean hasTimeline = (st == SelectionType.TRACK || st == SelectionType.CLIP || st == SelectionType.KEYFRAME);
         boolean hasTool = ToolRegistry.get().hasNonSelectionActiveTool();
         if (!hasTool) {
@@ -142,6 +147,7 @@ public final class PropertyContextService {
             case TOOL -> ToolRegistry.get().hasNonSelectionActiveTool()
                     ? ToolRegistry.get().getActiveTool()
                     : DirectorServices.get().selection().getCurrentTool();
+            case WORLD -> com.director.ui.lighting.PointLightEditor.selected();
             case TIMELINE -> {
                 Object payload = DirectorServices.get().uiSelection().getSelectionPayload();
                 if (payload instanceof EntityTimelineClip entityTimelineClip) {

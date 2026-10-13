@@ -1,4 +1,18 @@
 {
+  "gui.director.panel.lights": "Lights",
+  "gui.director.light.place": "Place point light",
+  "gui.director.light.point": "Point light",
+  "gui.director.light.placement_hint": "Right-click a surface to place; Esc cancels.",
+  "gui.director.light.selection_hint": "Left-click a light and move it with the gizmo; click empty space to deselect.",
+  "gui.director.light.prototype": "Prototype: persistent scene point lights, without shadows.",
+  "gui.director.light.delete": "Delete selected light",
+  "gui.director.light.enabled": "Enabled",
+  "gui.director.light.position": "Position",
+  "gui.director.light.brightness": "Brightness",
+  "gui.director.light.range": "Range",
+  "gui.director.light.falloff": "Falloff",
+  "gui.director.light.white": "Color: vanilla lighting (RGB unavailable)",
+
   "gui.director.properties.clip_ui.whole_animation.clip_span_hint": "The whole action runs inside the clip; its effective duration cannot exceed clip length minus start delay.",
   "gui.director.properties.clip_ui.whole_animation.per_block_delay_hint": "Shifts all block starts without changing cadence or action duration. Adds to the sequence global delay.",
   "gui.director.properties.clip_ui.whole_animation.per_block_delay": "Action start delay (seconds)",

@@ -36,7 +36,23 @@ public class KeyboardMixin {
             // ImGui 帧间状态不可用时，沿用既有捕获逻辑
         }
 
+        if (!textInputActive && input.key()==org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE
+                && net.minecraft.client.MinecraftClient.getInstance().currentScreen instanceof com.director.ui.DirectorScreen
+                && com.director.ui.lighting.PointLightController.get().isActive()) {
+            com.director.ui.lighting.PointLightController.get().stop();
+            ci.cancel(); return;
+        }
         if (!textInputActive) {
+            if ((input.modifiers() & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL)!=0
+                    && (input.key()==org.lwjgl.glfw.GLFW.GLFW_KEY_Z || input.key()==org.lwjgl.glfw.GLFW.GLFW_KEY_Y))
+                com.director.ui.lighting.PointLightParameterEditing.finish();
+            if (com.director.ui.lighting.PointLightController.get().isActive()
+                    && com.director.client.gizmo.GizmoManager.get().isDraggingHandle()
+                    && (input.modifiers() & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL)!=0
+                    && (input.key()==org.lwjgl.glfw.GLFW.GLFW_KEY_Z || input.key()==org.lwjgl.glfw.GLFW.GLFW_KEY_Y)) {
+                com.director.ui.lighting.PointLightController.get().cancelDrag();
+                com.director.client.gizmo.GizmoManager.get().deactivate();
+            }
             dispatchDirectorShortcut(input);
         }
 

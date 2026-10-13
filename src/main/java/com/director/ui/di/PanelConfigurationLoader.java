@@ -182,6 +182,7 @@ public class PanelConfigurationLoader {
         panels.add(new PanelConfiguration.PanelDefinition("ContainerPanel", true, 30));
 
         panels.add(new PanelConfiguration.PanelDefinition("ActorsPanel", true, 35));
+        panels.add(new PanelConfiguration.PanelDefinition("LightsPanel", true, 36));
         
         // PropertiesPanel
         panels.add(new PanelConfiguration.PanelDefinition("PropertiesPanel", true, 40));

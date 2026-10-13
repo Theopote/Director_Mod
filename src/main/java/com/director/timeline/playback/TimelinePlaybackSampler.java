@@ -32,6 +32,7 @@ public final class TimelinePlaybackSampler {
             return;
         }
         model.setCurrentTime(timeSeconds);
+        com.director.lighting.PointLightRuntime.update(model);
         driveSubsystems(timeSeconds);
         run("方块片段", () -> TimelineClipBlockController.getInstance().update());
     }

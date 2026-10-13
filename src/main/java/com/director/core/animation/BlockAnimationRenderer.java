@@ -280,9 +280,18 @@ public class BlockAnimationRenderer {
         applyAnimationTransformFromSnapshot(matrices, snapshot);
 
         // 5.3 渲染方块（带 alpha 和深度控制）
-        renderBlockWithAlphaAndDepth(matrices, provider, world, pos, state, finalAlpha, depthWrite, assemblyView);
+        BlockPos lightPos=displayedLightPosition(pos,snapshot);
+        renderBlockWithAlphaAndDepth(matrices, provider, world, pos, state, finalAlpha, depthWrite, assemblyView, lightPos);
 
         matrices.pop();
+    }
+
+    static BlockPos displayedLightPosition(BlockPos pos, BlockAnimationSnapshot snapshot) {
+        if(snapshot.getTransform()==null) return pos;
+        var center=snapshot.getTransform().peek().getPositionMatrix()
+                .transformPosition(new org.joml.Vector3f(.5f,.5f,.5f));
+        return BlockPos.ofFloored(pos.getX()+(double)center.x,
+                pos.getY()+(double)center.y,pos.getZ()+(double)center.z);
     }
 
     /**
@@ -341,7 +350,7 @@ public class BlockAnimationRenderer {
             @NotNull BlockPos pos,
             @NotNull BlockState state,
             float alpha,
-            boolean depthWrite, BlockRenderView assemblyView) {
+            boolean depthWrite, BlockRenderView assemblyView, BlockPos lightPos) {
         BlockRenderManager manager = MinecraftClient.getInstance().getBlockRenderManager();
         if (manager == null) {
             return;
@@ -367,7 +376,7 @@ public class BlockAnimationRenderer {
             com.director.client.renderer.BlockColorRenderContext.push(world, pos);
             try {
                 // ✅ 使用世界实时光照（否则动画方块会“永远全亮”，夜晚也不变暗）
-                int light = net.minecraft.client.render.WorldRenderer.getLightmapCoordinates(world, pos);
+                int light = net.minecraft.client.render.WorldRenderer.getLightmapCoordinates(world, lightPos);
 
                 // 🔥 修复：如果当前位置是完整方块（光源被遮挡导致 light=0），
                 // 且我们需要渲染 overlay（双重渲染用于遮缝），则 overlay 会变成全黑。
@@ -379,7 +388,7 @@ public class BlockAnimationRenderer {
                         light = net.minecraft.client.render.LightmapTextureManager.pack(luminance, 0);
                     } else {
                         // 2. 自身不发光且为不透明方块，采集上方亮度（模拟环境光照）
-                        light = net.minecraft.client.render.WorldRenderer.getLightmapCoordinates(world, pos.up());
+                        light = net.minecraft.client.render.WorldRenderer.getLightmapCoordinates(world, lightPos.up());
                     }
                 }
 

@@ -30,6 +30,7 @@ public final class PanelI18n {
             case PanelId.TOOL_PROPERTIES -> DirectorLang.Panel.TOOL_PROPERTIES;
             case PanelId.CONTAINER -> DirectorLang.Panel.CONTAINER;
             case PanelId.ACTORS -> DirectorLang.Panel.ACTORS;
+            case PanelId.LIGHTS -> "gui.director.panel.lights";
             case PanelId.SELECTION_FILTER -> DirectorLang.Panel.SELECTION_FILTER;
             case PanelId.SELECTION_HISTORY -> DirectorLang.Panel.SELECTION_HISTORY;
             case PanelId.RENDER_SETTINGS -> DirectorLang.Panel.RENDER_SETTINGS;

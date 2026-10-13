@@ -226,12 +226,12 @@ public class PropertiesPanel extends AbstractPanel {
             renderNoToolMessage();
             return;
         }
-        if (ctx == PropertyContext.NONE || ctx == PropertyContext.WORLD) {
+        if (ctx == PropertyContext.NONE) {
             renderProjectPanel();
             renderMultiSelectHint(DirectorServices.get().uiSelection());
             return;
         }
-        if (ctx == PropertyContext.TIMELINE) {
+        if (ctx == PropertyContext.TIMELINE || ctx == PropertyContext.WORLD) {
             if (target == null || svc.isTimelineTargetRenderedAsProject(target)) {
                 renderProjectPanel();
                 renderMultiSelectHint(DirectorServices.get().uiSelection());
@@ -563,11 +563,13 @@ public class PropertiesPanel extends AbstractPanel {
     
     @Override
     protected void onContentUnavailable() {
+        com.director.ui.lighting.PointLightParameterEditing.finish();
         com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
     }
 
     @Override
     public void dispose() {
+        com.director.ui.lighting.PointLightParameterEditing.finish();
         com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
         // 移除监听器
         DirectorServices.get().uiSelection().removeSelectionChangedListener(this::onSelectionChanged);

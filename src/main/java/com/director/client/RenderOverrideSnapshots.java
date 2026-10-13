@@ -19,6 +19,7 @@ public final class RenderOverrideSnapshots {
     }
 
     public static void clearAll() {
+        com.director.lighting.PointLightRuntime.clear();
         WorldRenderOverride.clearAll();
         CameraRenderOverride.clear();
         EntityRenderOverride.clear();
