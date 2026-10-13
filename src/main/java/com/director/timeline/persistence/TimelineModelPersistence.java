@@ -124,6 +124,7 @@ public class TimelineModelPersistence {
     public static class TimelineDTO {
         public List<TrackDTO> tracks = new ArrayList<>();
         public List<com.director.lighting.PointLight> pointLights = new ArrayList<>();
+        public int lightingVersion;
         public float pixelsPerSecond = 80.0f;
         public float scrollX = 0f;
         public boolean snapEnabled = true;
@@ -314,6 +315,7 @@ public class TimelineModelPersistence {
      * 片段数据传输对象
      */
     public static class ClipDTO {
+        public String lightId;
         public String label;
         public float startTime;
         public float endTime;
@@ -426,6 +428,7 @@ public class TimelineModelPersistence {
         public float time;
         public String interpolation; // TimelineInterpolation.name()
         public Float audioVolume;
+        public com.director.lighting.PointLight lightValue;
     }
 
     /**
@@ -522,6 +525,7 @@ public class TimelineModelPersistence {
     public static TimelineDTO toDTO(TimelineModel model, TimelineViewportState viewportState) {
         TimelineDTO dto = new TimelineDTO();
         dto.pointLights.addAll(model.getPointLights());
+        dto.lightingVersion=1;
         
         // 保存视图状态
         if (viewportState != null) {
@@ -661,6 +665,7 @@ public class TimelineModelPersistence {
             // 保存轨道的所有片段
             for (TimelineClip clip : track.getClips()) {
                 ClipDTO clipDTO = new ClipDTO();
+                if(clip instanceof com.director.lighting.LightTimelineClip light) clipDTO.lightId=light.lightId().toString();
                 clipDTO.label = clip.getLabel();
                 clipDTO.startTime = clip.getStartTime();
                 clipDTO.endTime = clip.getEndTime();
@@ -677,6 +682,7 @@ public class TimelineModelPersistence {
                     if (ckf instanceof AudioClipKeyframe audioKeyframe) {
                         ckfdto.audioVolume = audioKeyframe.getVolume();
                     }
+                    if(ckf instanceof com.director.lighting.LightKeyframe light) ckfdto.lightValue=light.value();
                     clipDTO.clipKeyframes.add(ckfdto);
                 }
 
@@ -1047,7 +1053,11 @@ public class TimelineModelPersistence {
             // 恢复所有片段
             for (ClipDTO clipDTO : trackDTO.clips) {
                 // ✅ AUDIO 轨道上的片段必须是 AudioTimelineClip，否则会被轨道约束误判并拒绝加入轨道，导致“重启后音频面板丢失”。
-                TimelineClip clip = (track.getType() == TrackType.AUDIO)
+                java.util.UUID lightId=ParseUtils.uuidOrNull(clipDTO.lightId,"LightClip.id");
+                if(track.getType()==TrackType.LIGHT && (lightId==null || model.getPointLight(lightId)==null)) continue;
+                TimelineClip clip = track.getType()==TrackType.LIGHT
+                        ? new com.director.lighting.LightTimelineClip(clipDTO.label,clipDTO.startTime,clipDTO.endTime,lightId)
+                        : (track.getType() == TrackType.AUDIO)
                         ? new AudioTimelineClip(clipDTO.label, clipDTO.startTime, clipDTO.endTime, clipDTO.color)
                         : new TimelineClip(clipDTO.label, clipDTO.startTime, clipDTO.endTime, clipDTO.color);
                 clip.setAutoFadePreviousClips(clipDTO.autoFadePreviousClips);
@@ -1155,7 +1165,7 @@ public class TimelineModelPersistence {
                 clip.setBoundContainerName(clipDTO.boundContainerName);
                 
                 // 恢复关键帧
-                for (Float keyframe : clipDTO.keyframes) {
+                if(track.getType()!=TrackType.LIGHT && clipDTO.keyframes!=null) for (Float keyframe : clipDTO.keyframes) {
                     clip.addKeyframe(keyframe);
                 }
 
@@ -1168,7 +1178,10 @@ public class TimelineModelPersistence {
                             interp = ParseUtils.enumOr(ckfdto.interpolation, TimelineInterpolation.class, interp, "TimelineInterpolation");
                         }
                         ClipKeyframe ckf;
-                        if (track.getType() == TrackType.AUDIO || ckfdto.audioVolume != null) {
+                        if (track.getType()==TrackType.LIGHT) {
+                            if(ckfdto.lightValue==null || !ckfdto.lightValue.id().equals(lightId)) continue;
+                            ckf=new com.director.lighting.LightKeyframe(ckfdto.time,ckfdto.lightValue);ckf.setInterpolation(interp);
+                        } else if (track.getType() == TrackType.AUDIO || ckfdto.audioVolume != null) {
                             float volume = ckfdto.audioVolume != null ? ckfdto.audioVolume : 1.0f;
                             ckf = new AudioClipKeyframe(ckfdto.time, interp, volume);
                         } else {
@@ -1338,6 +1351,7 @@ public class TimelineModelPersistence {
         }
         }
 
+        if(dto.lightingVersion==0) com.director.lighting.LightTimelineSampler.migrateLegacy(model);
         model.clearInOut();
         if (dto.inPoint != null) {
             model.setInPoint(dto.inPoint);

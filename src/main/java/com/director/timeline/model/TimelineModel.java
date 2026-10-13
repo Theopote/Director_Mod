@@ -463,7 +463,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
 
     public void setPlaybackSpeed(float playbackSpeed) {
         // 合理范围：防止 0 或负数导致卡死/倒放（如需倒放以后再单独实现）
-        float clamped = Math.max(0.1f, Math.min(8.0f, playbackSpeed));
+        float clamped = Math.clamp(playbackSpeed, 0.1f, 8.0f);
         if (Math.abs(this.playbackSpeed - clamped) < 0.0001f) {
             return;
         }

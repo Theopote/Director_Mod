@@ -140,8 +140,7 @@ public final class VideoRenderPipeline {
         // Point lights are baked into terrain meshes. Re-render the same requested time
         // until visible chunk rebuilds/uploads settle; never capture a stale first frame.
         var client=MinecraftClient.getInstance();
-        if (com.director.lighting.PointLightRuntime.hasLights() && client.worldRenderer!=null
-                && !client.worldRenderer.isTerrainRenderComplete()) return;
+        if (com.director.lighting.PointLightRuntime.awaitTerrain()) return;
         try {
             captureMainFramebuffer(head);
         } catch (Exception e) {

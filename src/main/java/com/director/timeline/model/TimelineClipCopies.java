@@ -19,6 +19,7 @@ public final class TimelineClipCopies {
             copy.setBoundContainerName(null);
             return copy;
         }
+        if(source instanceof com.director.lighting.LightTimelineClip light) return new com.director.lighting.LightTimelineClip(light);
         return new TimelineClip(source);
     }
 }

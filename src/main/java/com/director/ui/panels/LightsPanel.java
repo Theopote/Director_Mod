@@ -15,15 +15,17 @@ public final class LightsPanel extends AbstractPanel {
         var model=PointLightEditor.model(); if(model==null) return;
         var controller=PointLightController.get();
         ImGui.beginDisabled(com.director.export.video.VideoExportManager.getInstance().isExporting());
-        if(ImGui.button(tr("place"))) controller.startPlacement();
+        if(ImGui.button(tr("place"))) controller.startPlacement(com.director.lighting.LightType.POINT);
+        if(ImGui.button(tr("place_line"))) controller.startPlacement(com.director.lighting.LightType.LINE);
+        ImGui.sameLine();if(ImGui.button(tr("place_area"))) controller.startPlacement(com.director.lighting.LightType.AREA);
         if(controller.isActive()) {
-            ImGui.textWrapped(tr(controller.isPlacing()?"placement_hint":"selection_hint"));
+            ImGui.textWrapped(tr(controller.isPlacing()?(controller.placementType()==com.director.lighting.LightType.LINE?"line_hint":"placement_hint"):"selection_hint"));
         }
         ImGui.textDisabled(tr("prototype")); ImGui.separator();
         var selected=PointLightEditor.selected();
         for(var light:model.getPointLights()) {
             ImGui.pushID(light.id().toString());
-            if(ImGui.selectable(light.name(),selected!=null && selected.id().equals(light.id()))) controller.select(light);
+            if(ImGui.selectable(tr(light.type().name().toLowerCase())+" · "+light.name(),selected!=null && selected.id().equals(light.id()))) controller.select(light);
             ImGui.popID();
         }
         if(selected!=null && ImGui.button(tr("delete"))) {

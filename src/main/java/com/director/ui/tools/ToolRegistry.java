@@ -246,7 +246,7 @@ public final class ToolRegistry {
         }
         // 稳定排序：先按 metadata.order，再按 displayName
         out.sort(Comparator
-                .comparingInt((EditorTool t) -> getMetadataOrDefault(t.getId()).getOrder())
+                .comparingInt((EditorTool t) -> getMetadataOrDefault(t.id()).getOrder())
                 .thenComparing(EditorTool::getDisplayName, Comparator.nullsLast(String::compareTo)));
         return out;
     }
@@ -260,7 +260,7 @@ public final class ToolRegistry {
         String activeId = getActiveToolId();
         if (activeId == null) return null;
         for (EditorTool tool : getAllTools()) {
-            if (tool != null && Objects.equals(activeId, tool.getId())) {
+            if (tool != null && Objects.equals(activeId, tool.id())) {
                 return tool;
             }
         }
@@ -291,7 +291,7 @@ public final class ToolRegistry {
     public EditorTool getToolById(String toolId) {
         if (toolId == null) return null;
         for (EditorTool t : getAllTools()) {
-            if (t != null && Objects.equals(toolId, t.getId())) {
+            if (t != null && Objects.equals(toolId, t.id())) {
                 return t;
             }
         }
@@ -352,7 +352,7 @@ public final class ToolRegistry {
 
         // Selection vs Non-Selection 分发
         if (tool.getGroup() == ToolGroup.SELECTION) {
-            return activate(tool.getId());
+            return activate(tool.id());
         }
         return activateNonSelection(tool);
     }
@@ -361,7 +361,7 @@ public final class ToolRegistry {
         if (toolId == null) return null;
         toolId = normalizeActorToolId(toolId);
         for (EditorTool t : extraTools) {
-            if (t != null && Objects.equals(toolId, t.getId())) {
+            if (t != null && Objects.equals(toolId, t.id())) {
                 return t;
             }
         }
@@ -374,7 +374,7 @@ public final class ToolRegistry {
 
         // 切换前停用旧的 non-selection
         EditorTool prev = getToolById(activeNonSelectionToolId);
-        if(prev==null || !Objects.equals(prev.getId(),tool.getId()))
+        if(prev==null || !Objects.equals(prev.id(),tool.id()))
             com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
         if (prev instanceof ToolLifecycle prevLifecycle) {
             try {
@@ -384,7 +384,7 @@ public final class ToolRegistry {
             }
         }
 
-        activeNonSelectionToolId = tool.getId();
+        activeNonSelectionToolId = tool.id();
 
         if (tool instanceof ToolLifecycle lifecycle) {
             try {
@@ -394,7 +394,7 @@ public final class ToolRegistry {
             }
         }
 
-        LOGGER.info("[ToolRegistry] Activated non-selection tool: {} ({})", tool.getDisplayName(), tool.getId());
+        LOGGER.info("[ToolRegistry] Activated non-selection tool: {} ({})", tool.getDisplayName(), tool.id());
         return true;
     }
 
@@ -429,7 +429,7 @@ public final class ToolRegistry {
     private void addExtraToolIfMissing(EditorTool tool) {
         if (tool == null) return;
         for (EditorTool existing : extraTools) {
-            if (existing != null && Objects.equals(existing.getId(), tool.getId())) {
+            if (existing != null && Objects.equals(existing.id(), tool.id())) {
                 return;
             }
         }
@@ -444,12 +444,12 @@ public final class ToolRegistry {
         if (placeholderId == null) {
             return;
         }
-        extraTools.removeIf(t -> t != null && Objects.equals(t.getId(), placeholderId));
+        extraTools.removeIf(t -> t != null && Objects.equals(t.id(), placeholderId));
     }
 
     private synchronized void ensurePlaceholders() {
         if (!hasExtraToolInGroup(ToolGroup.WORLD)
-                && extraTools.stream().noneMatch(t -> t != null && Objects.equals(t.getId(), WORLD_PLACEHOLDER_ID))) {
+                && extraTools.stream().noneMatch(t -> t != null && Objects.equals(t.id(), WORLD_PLACEHOLDER_ID))) {
             extraTools.add(new PlaceholderTool(
                     WORLD_PLACEHOLDER_ID,
                     Icons.WRENCH
@@ -457,7 +457,7 @@ public final class ToolRegistry {
         }
 
         if (!hasExtraToolInGroup(ToolGroup.TIMELINE)
-                && extraTools.stream().noneMatch(t -> t != null && Objects.equals(t.getId(), TIMELINE_PLACEHOLDER_ID))) {
+                && extraTools.stream().noneMatch(t -> t != null && Objects.equals(t.id(), TIMELINE_PLACEHOLDER_ID))) {
             extraTools.add(new PlaceholderTool(
                     TIMELINE_PLACEHOLDER_ID,
                     Icons.TIME
@@ -471,8 +471,8 @@ public final class ToolRegistry {
                 continue;
             }
             if (tool.getGroup() == group
-                    && !Objects.equals(tool.getId(), WORLD_PLACEHOLDER_ID)
-                    && !Objects.equals(tool.getId(), TIMELINE_PLACEHOLDER_ID)) {
+                    && !Objects.equals(tool.id(), WORLD_PLACEHOLDER_ID)
+                    && !Objects.equals(tool.id(), TIMELINE_PLACEHOLDER_ID)) {
                 return true;
             }
         }
@@ -483,52 +483,35 @@ public final class ToolRegistry {
     // Adapters
     // =========================================================
 
-    private static final class PlaceholderTool implements EditorTool {
-        private final String id;
-        private final String icon;
-
-        private PlaceholderTool(String id, String icon) {
-            this.id = id;
-            this.icon = icon;
-        }
+    private record PlaceholderTool(String id, String icon) implements EditorTool {
 
         @Override
-        public String getId() {
-            return id;
-        }
+            public String getDisplayName() {
+                return ToolI18n.name(id);
+            }
 
-        @Override
-        public String getDisplayName() {
-            return ToolI18n.name(id);
-        }
+            @Override
+            public String getDescription() {
+                return ToolI18n.description(id);
+            }
 
-        @Override
-        public String getIcon() {
-            return icon;
-        }
+            @Override
+            public ToolGroup getGroup() {
+                ToolMetadata meta = META.get(id);
+                return meta != null ? meta.getGroup() : ToolGroup.SELECTION;
+            }
 
-        @Override
-        public String getDescription() {
-            return ToolI18n.description(id);
-        }
+            @Override
+            public boolean isEnabled() {
+                return false;
+            }
 
-        @Override
-        public ToolGroup getGroup() {
-            ToolMetadata meta = META.get(id);
-            return meta != null ? meta.getGroup() : ToolGroup.SELECTION;
+            @Override
+            public boolean isActive() {
+                // 占位工具默认不可用，因此不会被激活；保持 false
+                return false;
+            }
         }
-
-        @Override
-        public boolean isEnabled() {
-            return false;
-        }
-
-        @Override
-        public boolean isActive() {
-            // 占位工具默认不可用，因此不会被激活；保持 false
-            return false;
-        }
-    }
 
     private final class SelectionToolAdapter implements EditorTool {
         private final SelectionTool tool;
@@ -540,7 +523,7 @@ public final class ToolRegistry {
         }
 
         @Override
-        public String getId() {
+        public String id() {
             return tool.getId();
         }
 
@@ -550,7 +533,7 @@ public final class ToolRegistry {
         }
 
         @Override
-        public String getIcon() {
+        public String icon() {
             return tool.getIcon();
         }
 
@@ -562,7 +545,7 @@ public final class ToolRegistry {
 
         @Override
         public ToolGroup getGroup() {
-            ToolMetadata meta = META.get(getId());
+            ToolMetadata meta = META.get(id());
             if (meta != null) return meta.getGroup();
             // 默认：Selection
             return ToolGroup.SELECTION;
@@ -572,7 +555,7 @@ public final class ToolRegistry {
         public boolean isEnabled() {
             // world 为空时禁用；部分工具可在此追加更严格的启用条件
             if (MinecraftClient.getInstance().world == null) return false;
-            return selectionManager.getRegistry().getTool(getId()) != null;
+            return selectionManager.getRegistry().getTool(id()) != null;
         }
 
         @Override
@@ -582,7 +565,7 @@ public final class ToolRegistry {
                 return false;
             }
             String activeId = selectionManager.getCurrentToolId();
-            return Objects.equals(activeId, getId());
+            return Objects.equals(activeId, id());
         }
     }
 }

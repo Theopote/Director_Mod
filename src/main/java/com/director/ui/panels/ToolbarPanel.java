@@ -185,7 +185,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
      */
     private boolean renderToolGroupWrapped(ToolGroup group, String groupIcon, boolean firstGroup) {
         List<EditorTool> tools = toolRegistry.getToolsByGroup(group).stream()
-                .filter(tool -> tool != null && !ToolRegistry.isPlaceholderToolId(tool.getId()))
+                .filter(tool -> tool != null && !ToolRegistry.isPlaceholderToolId(tool.id()))
                 .toList();
         if (tools.isEmpty()) {
             return firstGroup;
@@ -226,7 +226,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
             // 状态显示：只读查询，不缓存
             boolean active = commands != null && commands.tools() != null
-                    ? commands.tools().isToolActive(tool.getId())
+                    ? commands.tools().isToolActive(tool.id())
                     : tool.isActive();
             boolean enabled = tool.isEnabled();
 
@@ -239,12 +239,12 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
             }
 
             String label = getToolButtonLabel(tool);
-            String buttonId = "ToolbarPanel_tool_" + tool.getId();
+            String buttonId = "ToolbarPanel_tool_" + tool.id();
             float drawW = SHOW_TOOL_TEXT ? 0 : UITheme.Spacing.BUTTON_HEIGHT;
             if (ImGui.button(label + "##" + buttonId, drawW, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (enabled && commands != null && commands.tools() != null) {
-                    logger.info("[ToolbarPanel] 工具按钮点击: {} (ID: {})", tool.getDisplayName(), tool.getId());
-                    commands.tools().activateTool(tool.getId());
+                    logger.info("[ToolbarPanel] 工具按钮点击: {} (ID: {})", tool.getDisplayName(), tool.id());
+                    commands.tools().activateTool(tool.id());
                 }
             }
 
@@ -300,7 +300,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
     private String getToolButtonLabel(EditorTool tool) {
         if (tool == null) return Icons.TOOLS;
-        String icon = tool.getIcon();
+        String icon = tool.icon();
         return SHOW_TOOL_TEXT ? (icon + " " + tool.getDisplayName()) : icon;
     }
 
@@ -336,7 +336,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         }
 
         // 快捷键：从 ShortcutBindings 系统读取（若存在）
-        String shortcut = com.director.ui.input.ShortcutBindings.getToolShortcutText(tool.getId());
+        String shortcut = com.director.ui.input.ShortcutBindings.getToolShortcutText(tool.id());
         if (shortcut != null && !shortcut.isBlank()) {
             ImGui.separator();
             ImGui.text(DirectorI18n.translate(DirectorLang.Toolbar.SHORTCUT, shortcut));

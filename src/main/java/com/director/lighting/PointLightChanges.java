@@ -13,8 +13,13 @@ public final class PointLightChanges {
     }
     private static void add(List<Bounds> bounds,PointLight light) {
         if(!light.enabled() || light.brightness()==0) return;
-        int r=(int)Math.ceil(light.range())+1;
-        int x=(int)Math.floor(light.x()),y=(int)Math.floor(light.y()),z=(int)Math.floor(light.z());
-        bounds.add(new Bounds(x-r,y-r,z-r,x+r,y+r,z+r));
+        double minX=Double.POSITIVE_INFINITY,minY=minX,minZ=minX,maxX=Double.NEGATIVE_INFINITY,maxY=maxX,maxZ=maxX;
+        for(var p:LightGeometry.vertices(light)) {
+            minX=Math.min(minX,p.x());minY=Math.min(minY,p.y());minZ=Math.min(minZ,p.z());
+            maxX=Math.max(maxX,p.x());maxY=Math.max(maxY,p.y());maxZ=Math.max(maxZ,p.z());
+        }
+        double r=light.range()+1;
+        bounds.add(new Bounds((int)Math.floor(minX-r),(int)Math.floor(minY-r),(int)Math.floor(minZ-r),
+                (int)Math.ceil(maxX+r),(int)Math.ceil(maxY+r),(int)Math.ceil(maxZ+r)));
     }
 }

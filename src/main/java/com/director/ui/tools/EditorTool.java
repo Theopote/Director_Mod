@@ -9,13 +9,13 @@ package com.director.ui.tools;
 public interface EditorTool {
 
     /** 工具唯一 ID（例如 "click" / "box" / "wand"） */
-    String getId();
+    String id();
 
     /** 工具显示名（用于按钮与 Tooltip 标题） */
     String getDisplayName();
 
     /** 工具图标（当前项目使用 Icons 的私有区字体图标或 Emoji） */
-    String getIcon();
+    String icon();
 
     /** 工具描述（用于 Tooltip 说明） */
     String getDescription();

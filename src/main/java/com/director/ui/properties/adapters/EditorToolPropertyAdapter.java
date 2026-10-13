@@ -89,7 +89,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
 
         renderToolHeader(tool);
-        if (ToolRegistry.isActorToolId(tool.getId())) {
+        if (ToolRegistry.isActorToolId(tool.id())) {
             renderActorToolProperties(tool);
         } else {
             renderGenericToolProperties(tool);
@@ -98,7 +98,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     }
 
     private void renderToolHeader(EditorTool tool) {
-        UITheme.label(tool.getIcon() + " " + tool.getDisplayName(), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(tool.icon() + " " + tool.getDisplayName(), UITheme.DarkTheme.TEXT_SELECTED);
         if (tool.getDescription() != null && !tool.getDescription().isBlank()) {
             ImGui.textWrapped(tool.getDescription());
         }
@@ -109,7 +109,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     private void renderGenericToolProperties(EditorTool tool) {
         if (ImGui.collapsingHeader(Icons.INFO + " " + tr(DirectorLang.Properties.AdapterEditorTool.SECTION_STATUS),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.text(tr(DirectorLang.Properties.AdapterEditorTool.ID_FMT, tool.getId()));
+            ImGui.text(tr(DirectorLang.Properties.AdapterEditorTool.ID_FMT, tool.id()));
             ImGui.text(tr(DirectorLang.Properties.AdapterEditorTool.GROUP_FMT, tool.getGroup()));
             ImGui.text(tool.isEnabled()
                     ? tr(DirectorLang.Properties.AdapterEditorTool.STATUS_AVAILABLE)
@@ -143,14 +143,14 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
             }
         }
 
-        if (Objects.equals(tool.getId(), ToolRegistry.ACTOR_POSE_TOOL_ID)) {
+        if (Objects.equals(tool.id(), ToolRegistry.ACTOR_POSE_TOOL_ID)) {
             renderAnimationAuthoring();
             renderPoseAuthoring(actor);
             renderLocalPoseAuthoring(actor);
-        } else if (Objects.equals(tool.getId(), ToolRegistry.ACTOR_PATH_TOOL_ID)) {
+        } else if (Objects.equals(tool.id(), ToolRegistry.ACTOR_PATH_TOOL_ID)) {
             renderActorPathToolProperties(actor);
-        } else if (ToolRegistry.isActorTransformGizmoToolId(tool.getId())) {
-            if (Objects.equals(tool.getId(),ToolRegistry.ACTOR_LOOK_AT_TOOL_ID)) renderLookAtAuthoring(actor);
+        } else if (ToolRegistry.isActorTransformGizmoToolId(tool.id())) {
+            if (Objects.equals(tool.id(),ToolRegistry.ACTOR_LOOK_AT_TOOL_ID)) renderLookAtAuthoring(actor);
             if (actor != null) {
                 ActorLiveTransformPropertyUI.render(actor.getActorId());
             } else {

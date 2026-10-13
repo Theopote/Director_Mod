@@ -9,6 +9,13 @@ import java.util.List;
 public final class PointLightRuntime {
     private static volatile List<PointLight> snapshot = List.of();
     private static ClientWorld world;
+    private static boolean terrainChanged;
+    public static boolean awaitTerrain() {
+        var client=MinecraftClient.getInstance();
+        if(!terrainChanged || client==null || client.worldRenderer==null) return false;
+        if(client.worldRenderer.isTerrainRenderComplete()) {terrainChanged=false;return false;}
+        return true;
+    }
     private PointLightRuntime() {}
     public static int sample(int vanilla, double x, double y, double z) {
         return PointLightSampler.packed(snapshot,vanilla,x,y,z);
@@ -17,7 +24,7 @@ public final class PointLightRuntime {
     public static void update(TimelineModel model) {
         MinecraftClient client=MinecraftClient.getInstance();
         if (client == null) return;
-        List<PointLight> next=client.world == null || model == null ? List.of() : List.copyOf(model.getPointLights());
+        List<PointLight> next=client.world == null || model == null ? List.of() : LightTimelineSampler.sample(model,model.getCurrentTime());
         List<PointLight> previous=snapshot;
         boolean worldChanged=world != client.world;
         if (!worldChanged && previous.equals(next)) return;
@@ -36,7 +43,9 @@ public final class PointLightRuntime {
         world=null;
     }
     private static void invalidate(MinecraftClient client,List<PointLight> before,List<PointLight> after) {
-        for(var b:PointLightChanges.affected(before,after))
+        var changed=PointLightChanges.affected(before,after);
+        if(!changed.isEmpty()) terrainChanged=true;
+        for(var b:changed)
             client.worldRenderer.scheduleBlockRenders(b.minX(),b.minY(),b.minZ(),b.maxX(),b.maxY(),b.maxZ());
     }
 }

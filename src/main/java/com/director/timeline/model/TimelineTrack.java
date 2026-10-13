@@ -89,6 +89,7 @@ public class TimelineTrack {
      */
     public boolean addClip(TimelineClip clip) {
         if (clip != null && !this.clips.contains(clip)) {
+            if ((clip instanceof com.director.lighting.LightTimelineClip) != (type==TrackType.LIGHT)) return false;
             // ✅ 轨道类型约束（防止“拆除容器/清除片段”被拖到其他轨道）
             // - DEMOLITION 容器只能在 ERASE 轨道
             // - 非 DEMOLITION 容器不能进 ERASE 轨道

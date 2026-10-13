@@ -18,7 +18,7 @@ abstract class AbstractActorTool implements EditorTool {
     }
 
     @Override
-    public String getId() {
+    public String id() {
         return id;
     }
 
@@ -28,7 +28,7 @@ abstract class AbstractActorTool implements EditorTool {
     }
 
     @Override
-    public String getIcon() {
+    public String icon() {
         return icon;
     }
 

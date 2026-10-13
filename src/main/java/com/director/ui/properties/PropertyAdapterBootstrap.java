@@ -105,6 +105,8 @@ public final class PropertyAdapterBootstrap {
         try {
             int registeredCount = 0;
             registerAdapter(com.director.lighting.PointLight.class, new PointLightPropertyAdapter());
+            registerAdapter(com.director.lighting.LightTimelineClip.class,new com.director.ui.properties.adapters.LightTimelineClipPropertyAdapter());
+            registerAdapter(com.director.lighting.LightKeyframe.class,new com.director.ui.properties.adapters.LightKeyframePropertyAdapter());
             registeredCount++;
             
             LOGGER.info("  ========== 时间线系统适配器 ==========");

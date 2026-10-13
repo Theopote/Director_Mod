@@ -13,6 +13,14 @@ public final class PointLightParameterEdit {
     private final long revision;
     private PointLight after;
     private boolean closed;
+    private com.director.lighting.LightTimelineClip clip;
+    private com.director.lighting.LightKeyframe key;
+    public PointLightParameterEdit(TimelineModel model,com.director.lighting.LightTimelineClip clip,com.director.lighting.LightKeyframe key) {
+        this(model,key.value());this.clip=clip;this.key=key;
+    }
+    public boolean belongsToKey(TimelineModel model,com.director.lighting.LightKeyframe key) {
+        return this.model==model && this.key==key && isCurrent();
+    }
 
     public PointLightParameterEdit(TimelineModel model, PointLight light) {
         this.model = Objects.requireNonNull(model);
@@ -22,16 +30,17 @@ public final class PointLightParameterEdit {
     }
     public TimelineModel model() { return model; }
     public boolean belongsTo(TimelineModel model, UUID id) {
-        return this.model == model && before.id().equals(id) && isCurrent();
+        return key==null && this.model == model && before.id().equals(id) && isCurrent();
     }
     private boolean isCurrent() {
         return !closed && model.getActorEditContextRevision() == revision
-                && after.equals(model.getPointLight(before.id()));
+                && (key==null ? after.equals(model.getPointLight(before.id()))
+                    : model.findTrackForClip(clip)!=null && clip.getClipKeyframes().contains(key) && after.equals(key.value()));
     }
     public boolean preview(PointLight light) {
         if (!before.id().equals(light.id())) throw new IllegalArgumentException("Light ID mismatch");
         if (!isCurrent() || after.equals(light)) return false;
-        model.replacePointLight(light.id(), light);
+        if(key==null) model.replacePointLight(light.id(), light);else key.setValue(light);
         after = light;
         return true;
     }

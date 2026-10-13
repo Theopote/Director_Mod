@@ -1133,6 +1133,17 @@ public class TimelinePanel extends AbstractPanel
         final float clickTime = clamp(model.screenToTime(mouseX, contentX),
                 clip.getStartTime(), clip.getEndTime());
 
+        if (clip instanceof com.director.lighting.LightTimelineClip lightClip) {
+            var existing=clip.findKeyframeAt(clickTime,KEYFRAME_TOLERANCE);
+            if(existing!=null) commandHistory.executeCommand(new RemoveClipKeyframeCommand(model,track,clip,existing));
+            else {
+                var base=model.getPointLight(lightClip.lightId());
+                if(base!=null) commandHistory.executeCommand(new AddClipKeyframeCommand(model,track,clip,
+                    new com.director.lighting.LightKeyframe(clickTime,lightClip.sample(base,clickTime))));
+            }
+            markDataChanged();return;
+        }
+
         if (track != null && track.getType() == TrackType.AUDIO) {
             com.director.timeline.model.clip.ClipKeyframe existing =
                     clip.findKeyframeAt(clickTime, KEYFRAME_TOLERANCE);

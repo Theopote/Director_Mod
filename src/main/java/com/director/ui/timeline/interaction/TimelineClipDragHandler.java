@@ -80,8 +80,8 @@ public final class TimelineClipDragHandler {
         callbacks.onDataChanged();
 
         boolean isAudioTrack = track.getType() == TrackType.AUDIO;
-        if (isAudioTrack && isDoubleClick) {
-            callbacks.onKeyframeDoubleClick(clip, mouseX, contentX);
+        if ((isAudioTrack || track.getType()==TrackType.LIGHT) && isDoubleClick) {
+            callbacks.onKeyframeDoubleClick(clip, mouseX, contentX);return;
         }
 
         if (LOGGER.isDebugEnabled()) {
@@ -281,6 +281,7 @@ public final class TimelineClipDragHandler {
             model.setSelectedClip(handle.clip);
         }
 
+        if(handle.lightState!=null && handle.clip instanceof com.director.lighting.LightTimelineClip light) light.restoreState(handle.lightState);
         float originalStart = interactionManager.getDragStartValue();
         float originalEnd = interactionManager.getDragStartValue2();
         float minLength = TimelineInteractionConstants.MIN_CLIP_LENGTH;
@@ -362,9 +363,8 @@ public final class TimelineClipDragHandler {
             }
         }
         com.director.ui.timeline.audio.TimelineAudioService.getInstance().moveLinkedEventsToTrack(handle.clip, handle.track);
-        handle.clip.setTimeRange(
-                interactionManager.getDragStartValue(),
-                interactionManager.getDragStartValue2());
+        if(handle.lightState!=null && handle.clip instanceof com.director.lighting.LightTimelineClip light) light.restoreState(handle.lightState);
+        else handle.clip.setTimeRange(interactionManager.getDragStartValue(),interactionManager.getDragStartValue2());
         model.markDurationDirty();
     }
 
@@ -379,7 +379,11 @@ public final class TimelineClipDragHandler {
                 : Math.abs(currentEnd - originalEnd) > 0.001f;
 
         if (changed) {
-            commandHistory.executeCommand(
+            if(handle.lightState!=null && handle.clip instanceof com.director.lighting.LightTimelineClip light) {
+                var after=light.captureState();
+                commandHistory.executeCommand(new com.director.ui.timeline.commands.StateChangeCommand(model,"Resize light clip",
+                    () -> light.restoreState(handle.lightState), () -> light.restoreState(after)));
+            } else commandHistory.executeCommand(
                     new ResizeClipCommand(model, handle.clip, originalStart, originalEnd, currentStart, currentEnd));
             if (LOGGER.isDebugEnabled()) {
                 if (leftEdge) {
@@ -415,6 +419,8 @@ public final class TimelineClipDragHandler {
             return false;
         }
         TrackType tt = track.getType();
+        if(clip instanceof com.director.lighting.LightTimelineClip) return tt==TrackType.LIGHT;
+        if(tt==TrackType.LIGHT) return false;
         if (clip instanceof com.director.timeline.model.entity.EntityTimelineClip entity) {
             if (tt != TrackType.ACTOR || track.getActorTrackPayload() == null) return false;
             // Payload ownership is not transferred by this generic clip drag handler.

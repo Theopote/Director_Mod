@@ -15,7 +15,7 @@ public final class CameraPathEditTool implements EditorTool, ToolLifecycle {
     public static final String ID = "camera_path_edit";
 
     @Override
-    public String getId() {
+    public String id() {
         return ID;
     }
 
@@ -25,7 +25,7 @@ public final class CameraPathEditTool implements EditorTool, ToolLifecycle {
     }
 
     @Override
-    public String getIcon() {
+    public String icon() {
         return Icons.PATH;
     }
 

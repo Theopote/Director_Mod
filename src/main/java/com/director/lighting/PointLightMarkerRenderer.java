@@ -27,6 +27,19 @@ public final class PointLightMarkerRenderer {
             if(p.lengthSquared()>256*256) continue;
             boolean isSelected=selected!=null && selected.id().equals(light.id());
             float red=light.enabled()?1f:.45f, green=isSelected?1f:.65f, blue=light.enabled()?.2f:.45f;
+            var vertices=LightGeometry.vertices(light);
+            for(int i=0;i<vertices.size();i++) {
+                var v=vertices.get(i);Vec3d at=new Vec3d(v.x(),v.y(),v.z()).subtract(camera);
+                cross(consumer,matrix,at,red,green,blue);
+                if(i>0) {
+                    var previous=vertices.get(i-1);
+                    line(consumer,matrix,new Vec3d(previous.x(),previous.y(),previous.z()).subtract(camera),at,red,green,blue,1);
+                }
+            }
+            if(light.type()==LightType.AREA) {
+                var first=vertices.getFirst();var last=vertices.getLast();
+                line(consumer,matrix,new Vec3d(first.x(),first.y(),first.z()).subtract(camera),new Vec3d(last.x(),last.y(),last.z()).subtract(camera),red,green,blue,1);
+            }
             double size=.25;
             line(consumer,matrix,p.add(-size,0,0),p.add(size,0,0),red,green,blue,1);
             line(consumer,matrix,p.add(0,-size,0),p.add(0,size,0),red,green,blue,1);
@@ -36,6 +49,18 @@ public final class PointLightMarkerRenderer {
                 line(consumer,matrix,p.add(circle(plane,a,r)),p.add(circle(plane,b,r)),1,1,.2f,.35f);
             }
         }
+        var draft=PointLightController.get().draft();
+        Vec3d previous=null;
+        for(var vertex:draft) {
+            Vec3d p=new Vec3d(vertex.x(),vertex.y(),vertex.z()).subtract(camera);cross(consumer,matrix,p,1,1,.2f);
+            if(previous!=null) line(consumer,matrix,previous,p,1,1,.2f,1);previous=p;
+        }
+    }
+    private static void cross(VertexConsumer c,Matrix4f m,Vec3d p,float r,float g,float b) {
+        double s=.25;
+        line(c,m,p.add(-s,0,0),p.add(s,0,0),r,g,b,1);
+        line(c,m,p.add(0,-s,0),p.add(0,s,0),r,g,b,1);
+        line(c,m,p.add(0,0,-s),p.add(0,0,s),r,g,b,1);
     }
     private static Vec3d circle(int plane,double a,double r) {
         double x=Math.cos(a)*r,y=Math.sin(a)*r;

@@ -174,6 +174,8 @@ public final class ClipboardManager {
         if (clip == null || track == null) {
             return false;
         }
+        if (clip instanceof com.director.lighting.LightTimelineClip) return track.getType()==TrackType.LIGHT;
+        if (track.getType()==TrackType.LIGHT) return false;
         if (clip instanceof com.director.timeline.model.entity.EntityTimelineClip) return track.getType() == TrackType.ACTOR;
         if (clip instanceof com.director.timeline.model.audio.AudioTimelineClip) return track.getType() == TrackType.AUDIO;
         if (clip.getBoundContainerId() == null) {
