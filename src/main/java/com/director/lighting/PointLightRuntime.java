@@ -1,51 +1,84 @@
 package com.director.lighting;
 
+import com.director.mixin.accessor.LightWorldRendererAccessor;
 import com.director.timeline.model.TimelineModel;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.chunk.ChunkRenderData;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.math.ChunkSectionPos;
 import java.util.List;
 
-/** Publishes scene lights before rendering; chunk workers only read immutable data. */
+/** Live entity lighting and batched terrain lighting have separate immutable snapshots. */
 public final class PointLightRuntime {
-    private static volatile List<PointLight> snapshot = List.of();
+    private static final LightBuildSnapshots builds = new LightBuildSnapshots();
     private static ClientWorld world;
-    private static boolean terrainChanged;
-    public static boolean awaitTerrain() {
-        var client=MinecraftClient.getInstance();
-        if(!terrainChanged || client==null || client.worldRenderer==null) return false;
-        if(client.worldRenderer.isTerrainRenderComplete()) {terrainChanged=false;return false;}
-        return true;
-    }
+    private static final LightTerrainRefresh refresh = new LightTerrainRefresh(builds);
     private PointLightRuntime() {}
+    public static LightBuildSnapshots buildSnapshots() { return builds; }
     public static int sample(int vanilla, double x, double y, double z) {
-        return PointLightSampler.packed(snapshot,vanilla,x,y,z);
+        return PointLightSampler.packed(builds.sampling(refresh.requested()), vanilla, x, y, z);
     }
-    public static boolean hasLights() { return snapshot.stream().anyMatch(light -> light.enabled() && light.brightness()>0); }
+    public static boolean hasLights() {
+        return builds.sampling(refresh.requested()).stream().anyMatch(light -> light.enabled() && light.brightness() > 0);
+    }
     public static void update(TimelineModel model) {
-        MinecraftClient client=MinecraftClient.getInstance();
+        var client = MinecraftClient.getInstance();
         if (client == null) return;
-        List<PointLight> next=client.world == null || model == null ? List.of() : LightTimelineSampler.sample(model,model.getCurrentTime());
-        List<PointLight> previous=snapshot;
-        boolean worldChanged=world != client.world;
-        if (!worldChanged && previous.equals(next)) return;
-        world=client.world;
-        snapshot=next;
-        if (client.world == null || client.worldRenderer == null) return;
-        // Removed/moved lights must also invalidate their former influence volume.
-        invalidate(client,worldChanged?List.of():previous,next);
+        if (world != client.world) {
+            world = client.world;
+            refresh.reset();
+        }
+        refresh.request(client.world == null || model == null ? List.of()
+                : LightTimelineSampler.sample(model, model.getCurrentTime()));
+        flush(client);
     }
     public static void clear() {
-        MinecraftClient client=MinecraftClient.getInstance();
-        List<PointLight> previous=snapshot;
-        snapshot=List.of();
-        if (client != null && client.world != null && client.world == world && client.worldRenderer != null)
-            invalidate(client,previous,List.of());
-        world=null;
+        refresh.request(List.of());
+        var client = MinecraftClient.getInstance();
+        if (client == null || client.world != world || client.world == null) {
+            world = client == null ? null : client.world;
+            refresh.reset();
+        } else flush(client);
     }
-    private static void invalidate(MinecraftClient client,List<PointLight> before,List<PointLight> after) {
-        var changed=PointLightChanges.affected(before,after);
-        if(!changed.isEmpty()) terrainChanged=true;
-        for(var b:changed)
-            client.worldRenderer.scheduleBlockRenders(b.minX(),b.minY(),b.minZ(),b.maxX(),b.maxY(),b.maxZ());
+    /** Called before export capture: newly dirtied terrain must be drawn at least once. */
+    public static void onWorldRendered() {
+        refresh.rendered();
+        flush(MinecraftClient.getInstance());
+    }
+    public static boolean awaitTerrain() {
+        var client = MinecraftClient.getInstance();
+        if (client == null || client.world == null || client.worldRenderer == null) return false;
+        flush(client);
+        return refresh.hasTerrainWork() && refresh.awaiting(settled(client));
+    }
+    private static boolean settled(MinecraftClient client) {
+        if (builds.activeJobs() != 0 || !client.worldRenderer.isTerrainRenderComplete()) return false;
+        // Vanilla's completion predicate omits running workers and unscheduled dirty sections.
+        for (var chunk : client.worldRenderer.getBuiltChunks()) {
+            if (chunk.needsRebuild()
+                    && (chunk.getCurrentRenderData() != ChunkRenderData.HIDDEN || chunk.shouldBuild())) return false;
+        }
+        return true;
+    }
+    private static void flush(MinecraftClient client) {
+        if (client == null || world == null || client.world != world || client.worldRenderer == null
+                || !refresh.pending()) return;
+        var changed = refresh.publish(settled(client));
+        if (changed == null || changed.isEmpty()) return;
+        var storage = ((LightWorldRendererAccessor) client.worldRenderer).director$getLightChunkStorage();
+        if (storage == null) return; // New storage builds with the published snapshot when created.
+        // Iterate resident sections once, including sections outside the current camera frustum.
+        // Work stays bounded by render distance even for very long linear emitters.
+        for (var chunk : storage.chunks) {
+            long pos = chunk.getSectionPos();
+            int x = ChunkSectionPos.unpackX(pos), y = ChunkSectionPos.unpackY(pos), z = ChunkSectionPos.unpackZ(pos);
+            for (var bounds : changed) {
+                if (LightSectionBounds.intersects(bounds, x, y, z)) {
+                    chunk.scheduleRebuild(false);
+                    refresh.requireRender();
+                    break;
+                }
+            }
+        }
     }
 }

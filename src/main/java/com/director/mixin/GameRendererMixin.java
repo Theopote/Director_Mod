@@ -53,6 +53,7 @@ public class GameRendererMixin {
     @Inject(method = "renderWorld", at = @At("TAIL"))
     private void director$onRenderWorldTail(RenderTickCounter tickCounter, CallbackInfo ci) {
         // 🎥 视频导出：在世界渲染结束后（HUD 之前）抓取画面到指定分辨率 offscreen framebuffer
+        com.director.lighting.PointLightRuntime.onWorldRendered();
         VideoRenderPipeline.getInstance().onRenderWorldTail();
     }
 
