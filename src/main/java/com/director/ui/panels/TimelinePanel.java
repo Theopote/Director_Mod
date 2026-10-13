@@ -318,7 +318,8 @@ public class TimelinePanel extends AbstractPanel
      */
     public void cancelInteraction() {
         renderer.cancelActorKeyInteraction();
-        interactionManager.cancelInteraction();
+        interactionHandler.cancelAllInteractionsSilently();
+        autoSave.markDirty();
     }
 
     @Override
@@ -521,6 +522,7 @@ public class TimelinePanel extends AbstractPanel
      * 重置时间线与容器关联（供菜单项“新建动画”调用）
      */
     public void resetWorkspace(boolean clearContainers) {
+        clearWorkspaceEditingState();
         model.resetToEmpty();
         if (clearContainers) {
             DirectorServices.get().containers().clear();
@@ -531,8 +533,16 @@ public class TimelinePanel extends AbstractPanel
     /**
      * 存档切换时调用：清空并加载“当前存档”的时间线数据（如无存档则保持空白）。
      */
-    public void reloadForCurrentWorld() {
+    private void clearWorkspaceEditingState() {
         cancelInteraction();
+        commandHistory.clear();
+        clipboard.clear();
+        com.director.ui.actor.selection.ActorSelectionHub.clearSelection();
+        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
+    }
+
+    public void reloadForCurrentWorld() {
+        clearWorkspaceEditingState();
         com.director.ui.actor.selection.ActorSelectionHub.clearSelection();
         com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
         var runtime=com.director.actor.runtime.ActorRuntimeController.getInstance();
@@ -553,6 +563,7 @@ public class TimelinePanel extends AbstractPanel
      * @return 是否成功写入存档
      */
     public boolean saveNow() {
+        cancelInteraction();
         autoSave.flushNow();
         boolean saved = model.save();
         return com.director.actor.ActorRegistryManager.saveImmediately() && saved;

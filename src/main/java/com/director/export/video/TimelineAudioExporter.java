@@ -196,7 +196,7 @@ public final class TimelineAudioExporter implements AudioExporter {
             if (t == null || t.getType() != TrackType.AUDIO) {
                 continue;
             }
-            if (t.isMuted()) {
+            if (!com.director.timeline.audio.TimelineAudioPlaybackPolicy.isAudible(model.getTracks(), t)) {
                 continue;
             }
 
@@ -205,7 +205,7 @@ public final class TimelineAudioExporter implements AudioExporter {
                 trackVolume = at.getTrackVolume();
                 for (AudioEvent e : at.getEventsInRange(startTimeSec, endTimeSec)) {
                     if (e == null) continue;
-                    result.add(new EventClip(e.getTime(), e.getVolume(), e.getPitch(), e.isEnabled(), trackVolume, e.getSoundId()));
+                    result.add(new EventClip(e.getTime(), e.getVolume() * com.director.ui.timeline.audio.TimelineAudioService.getInstance().getVolumeMultiplierForEvent(e), e.getPitch(), e.isEnabled(), trackVolume, e.getSoundId()));
                 }
             } else {
                 // 兼容：如果未来不是 AudioTrack 子类，但 automationKeyframes 里放了 AudioEvent
@@ -213,7 +213,7 @@ public final class TimelineAudioExporter implements AudioExporter {
                     if (sel instanceof AudioEvent e) {
                         float time = e.getTime();
                         if (time >= startTimeSec && time <= endTimeSec) {
-                            result.add(new EventClip(time, e.getVolume(), e.getPitch(), e.isEnabled(), trackVolume, e.getSoundId()));
+                            result.add(new EventClip(time, e.getVolume() * com.director.ui.timeline.audio.TimelineAudioService.getInstance().getVolumeMultiplierForEvent(e), e.getPitch(), e.isEnabled(), trackVolume, e.getSoundId()));
                         }
                     }
                 }

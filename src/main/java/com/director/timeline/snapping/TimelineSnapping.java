@@ -1,7 +1,5 @@
 package com.director.timeline.snapping;
 
-import java.util.List;
-
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
@@ -69,167 +67,64 @@ public final class TimelineSnapping {
      * @param pixelThreshold 像素阈值（如果为 0 或负数，则使用 model 的默认阈值）
      * @return 吸附结果
      */
-    public static Result snapTime(TimelineModel model,
-                                  float rawTime,
-                                  TimelineTrack track,
-                                  TimelineClip activeClip,
-                                  float pixelThreshold) {
-        if (model == null) {
+    public static Result snapTime(TimelineModel model, float rawTime, TimelineTrack track,
+                                  TimelineClip activeClip, float pixelThreshold) {
+        return snapTime(model, rawTime, track, activeClip, pixelThreshold, activeClip);
+    }
+
+    public static Result snapTime(TimelineModel model, float rawTime, TimelineTrack track,
+                                  TimelineClip activeClip, float pixelThreshold, Object excluded) {
+        if (model == null || !model.getSnapSettings().isEnabled() || model.getPixelsPerSecond() <= 0.0001f)
             return new Result(rawTime, false, false, false);
-        }
-
-        // 使用统一配置系统
-        TimelineSnapSettings settings = model.getSnapSettings();
-        if (!settings.isEnabled()) {
-            return new Result(rawTime, false, false, false);
-        }
-
-        float pps = model.getPixelsPerSecond();
-        if (pps <= 0.0001f) {
-            return new Result(rawTime, false, false, false);
-        }
-
-        // 像素阈值 -> 时间阈值（优先使用传入的参数，否则使用 model 的默认值）
-        float effectiveThreshold = pixelThreshold > 0 
-            ? pixelThreshold 
-            : model.getSnapPixelThreshold();
-        float timeThreshold = effectiveThreshold / pps;
-
-        float bestTime = rawTime;
-        float bestDelta = Float.MAX_VALUE;
-        boolean snappedGrid = false;
-        boolean snappedClip = false;
-        boolean snappedKey = false;
-
-        // 0) 优先同轨道吸附（片段边缘 / 关键帧）
+        float threshold = (pixelThreshold > 0 ? pixelThreshold : model.getSnapPixelThreshold()) / model.getPixelsPerSecond();
+        Candidate best = new Candidate(rawTime, threshold);
         if (track != null) {
-            if (model.snapToClipEdges()) {
-                for (TimelineClip clip : track.getClips()) {
-                    if (clip == null) continue;
-                    if (activeClip != null && clip == activeClip) continue;
-
-                    float start = clip.getStartTime();
-                    float end = clip.getEndTime();
-
-                    float ds = Math.abs(start - rawTime);
-                    if (ds < bestDelta && ds <= timeThreshold) {
-                        bestTime = start;
-                        bestDelta = ds;
-                        snappedGrid = false;
-                        snappedClip = true;
-                        snappedKey = false;
-                    }
-
-                    float de = Math.abs(end - rawTime);
-                    if (de < bestDelta && de <= timeThreshold) {
-                        bestTime = end;
-                        bestDelta = de;
-                        snappedGrid = false;
-                        snappedClip = true;
-                        snappedKey = false;
-                    }
-                }
-            }
-
-            if (model.snapToKeyframes()) {
-                for (TimelineClip clip : track.getClips()) {
-                    if (clip == null) continue;
-                    for (Float kf : clip.getKeyframeTimes()) {
-                        if (kf == null) continue;
-                        float dk = Math.abs(kf - rawTime);
-                        if (dk < bestDelta && dk <= timeThreshold) {
-                            bestTime = kf;
-                            bestDelta = dk;
-                            snappedGrid = false;
-                            snappedClip = false;
-                            snappedKey = true;
-                        }
-                    }
-                }
-            }
-
-            if (snappedClip || snappedKey) {
-                return new Result(bestTime, snappedGrid, snappedClip, snappedKey);
-            }
+            collect(model, track, activeClip, excluded, best);
+            if (best.kind != 0) return best.result();
         }
-        // 1) 网格吸附（使用统一 API）
-        if (model.isSnapToGridEnabled()) {
-            float gridCandidate = model.snapToGrid(rawTime);
-            float gridDelta = Math.abs(gridCandidate - rawTime);
-            if (gridDelta < bestDelta && gridDelta <= timeThreshold) {
-                bestTime = gridCandidate;
-                bestDelta = gridDelta;
-                snappedGrid = true;
+        if (model.isSnapToGridEnabled()) best.offer(model.snapToGrid(rawTime), 1);
+        for (TimelineTrack item : model.getAllTracks()) collect(model, item, activeClip, excluded, best);
+        return best.result();
+    }
+
+    private static void collect(TimelineModel model, TimelineTrack track, TimelineClip activeClip,
+                                Object excluded, Candidate best) {
+        for (TimelineClip clip : track.getClips()) {
+            if (clip == null) continue;
+            if (model.snapToClipEdges() && clip != activeClip && clip != excluded) {
+                best.offer(clip.getStartTime(), 2); best.offer(clip.getEndTime(), 2);
             }
-        }
-
-        // 2) 片段边缘吸附（使用统一 API 检查开关）
-        // 如果 track 不为空，可以限制只吸附当前轨道（可选功能）
-        if (model.snapToClipEdges()) {
-            List<TimelineTrack> tracks = model.getAllTracks();
-            if (tracks != null && !tracks.isEmpty()) {
-                for (TimelineTrack t : tracks) {
-                    // 可选：如果只想吸附同轨道，取消下面的注释
-                    // if (track != null && t != track) continue;
-                    
-                    for (TimelineClip clip : t.getClips()) {
-                        if (clip == null) continue;
-
-                        // 避免吸附到正在拖动的那个 clip 自己的边缘
-                        // 使用对象引用比较（更安全，避免 ID 比较的问题）
-                        if (activeClip != null && clip == activeClip) {
-                            continue;
-                        }
-
-                        float start = clip.getStartTime();
-                        float end = clip.getEndTime();
-
-                        float ds = Math.abs(start - rawTime);
-                        if (ds < bestDelta && ds <= timeThreshold) {
-                            bestTime = start;
-                            bestDelta = ds;
-                            snappedGrid = false;
-                            snappedClip = true;
-                            snappedKey = false;
-                        }
-
-                        float de = Math.abs(end - rawTime);
-                        if (de < bestDelta && de <= timeThreshold) {
-                            bestTime = end;
-                            bestDelta = de;
-                            snappedGrid = false;
-                            snappedClip = true;
-                            snappedKey = false;
-                        }
-                    }
+            if (model.snapToKeyframes() && clip != excluded) {
+                for (var key : clip.getClipKeyframes()) if (key != excluded) best.offer(key.getTime(), 3);
+                for (Float time : clip.getKeyframeTimes()) {
+                    if (time == null) continue;
+                    if (excluded instanceof com.director.timeline.model.clip.ClipKeyframe key
+                            && clip.getClipKeyframes().contains(key) && Math.abs(time - key.getTime()) < 0.0001f) continue;
+                    best.offer(time, 3);
                 }
             }
         }
-
-        // 3) 关键帧吸附（使用统一 API 检查开关）
-        if (model.snapToKeyframes()) {
-            List<TimelineTrack> tracks = model.getAllTracks();
-            if (tracks != null && !tracks.isEmpty()) {
-                for (TimelineTrack t : tracks) {
-                    for (TimelineClip clip : t.getClips()) {
-                        if (clip == null) continue;
-                        for (Float kf : clip.getKeyframeTimes()) {
-                            if (kf == null) continue;
-                            float dk = Math.abs(kf - rawTime);
-                            if (dk < bestDelta && dk <= timeThreshold) {
-                                bestTime = kf;
-                                bestDelta = dk;
-                                snappedGrid = false;
-                                snappedClip = false;
-                                snappedKey = true;
-                            }
-                        }
-                    }
-                }
-            }
+        if (model.snapToKeyframes())
+            for (var key : track.getAutomationKeyframes()) if (key != excluded) best.offer(key.getStartTime(), 3);
+        for (var path : track.getCameraPathClips()) {
+            if (path == null || !path.isEnabled() || path == excluded) continue;
+            if (model.snapToClipEdges()) { best.offer(path.getStartTime(), 2); best.offer(path.getEndTime(), 2); }
+            if (model.snapToKeyframes() && path instanceof com.director.timeline.model.camera.path.CustomPathClip custom)
+                for (var key : custom.getKeyframes()) if (key != excluded) best.offer(key.getTime(), 3);
         }
+    }
 
-        // 如果什么也没吸附成功，返回原值
-        return new Result(bestTime, snappedGrid, snappedClip, snappedKey);
+    private static final class Candidate {
+        final float raw;
+        final float threshold;
+        float time;
+        float distance = Float.POSITIVE_INFINITY;
+        int kind;
+        Candidate(float raw, float threshold) { this.raw = raw; this.time = raw; this.threshold = threshold; }
+        void offer(float candidate, int type) {
+            float delta = Math.abs(candidate - raw);
+            if (delta <= threshold && delta < distance) { time = candidate; distance = delta; kind = type; }
+        }
+        Result result() { return new Result(time, kind == 1, kind == 2, kind == 3); }
     }
 }

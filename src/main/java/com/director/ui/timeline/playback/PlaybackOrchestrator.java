@@ -66,6 +66,7 @@ public final class PlaybackOrchestrator {
         if (model != null && model.isPlaying()) {
             model.setPlaying(false); // 确保初始状态为暂停
         }
+        TimelineAudioController.getInstance().setTimelineModel(model);
         lastPlaying = false; // 重置状态追踪
     }
 
@@ -116,6 +117,7 @@ public final class PlaybackOrchestrator {
      * 从 paused → playing 时调用
      */
     private void onPlay() {
+        runSubsystem("audio playback start", () -> TimelineAudioController.getInstance().update());
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[PlaybackOrchestrator] 播放开始");
         }
@@ -144,7 +146,8 @@ public final class PlaybackOrchestrator {
 
     private void advanceTime(float deltaSeconds) {
         float speed = model.getPlaybackSpeed();
-        float newTime = model.getCurrentTime() + deltaSeconds * speed;
+        float previousTime = model.getCurrentTime();
+        float newTime = previousTime + deltaSeconds * speed;
         float rangeStart = model.getPlaybackRangeStart();
         float rangeEnd = model.getPlaybackRangeEnd();
 
@@ -152,15 +155,26 @@ public final class PlaybackOrchestrator {
             newTime = rangeStart;
         }
 
+        boolean wrapped = newTime > rangeEnd && model.isLoopEnabled() && rangeEnd > rangeStart;
         // 处理超界：loop or stop
         if (newTime > rangeEnd) {
             if (model.isLoopEnabled() && rangeEnd > rangeStart) {
-                newTime = rangeStart;
+                var audio = TimelineAudioController.getInstance();
+                audio.playWindow(previousTime, rangeEnd, false);
+                float remaining = newTime - rangeEnd;
+                float length = rangeEnd - rangeStart;
+                while (remaining > length) {
+                    audio.playWindow(rangeStart, rangeEnd, true);
+                    remaining -= length;
+                }
+                newTime = rangeStart + remaining;
+                audio.playWindow(rangeStart, newTime, true);
                 if (LOGGER.isTraceEnabled()) {
                     LOGGER.trace("[PlaybackOrchestrator] 播放循环，回到开始 (时间: {:.2f}s)", newTime);
                 }
             } else {
                 newTime = rangeEnd;
+                TimelineAudioController.getInstance().playWindow(previousTime, newTime, false);
                 model.setPlaying(false);
                 onStop();
 
@@ -170,7 +184,9 @@ public final class PlaybackOrchestrator {
             }
         }
 
-        model.setCurrentTime(newTime);
+        if (!wrapped && newTime >= previousTime && model.isPlaying())
+            TimelineAudioController.getInstance().playWindow(previousTime, newTime, false);
+        model.advancePlaybackTime(newTime);
 
         float sampledTime = newTime;
         runSubsystem("季节采样", () -> com.director.timeline.playback.season.TimelineSeasonController

@@ -14,7 +14,6 @@ import java.util.List;
 public final class TimelineClipLayoutResolver {
 
     private static final float EPS = 0.001f;
-    private static final int MAX_ITERATIONS = 64;
 
     private TimelineClipLayoutResolver() {
     }
@@ -68,27 +67,23 @@ public final class TimelineClipLayoutResolver {
         }
 
         float desired = Math.max(minStart, candidateStart);
-        float start = desired;
-        float end = start + length;
-
-        for (int i = 0; i < MAX_ITERATIONS; i++) {
-            Interval blocker = findOverlapping(occupied, start, end);
-            if (blocker == null) {
-                return Math.max(minStart, start);
+        List<Interval> sorted = new ArrayList<>(occupied);
+        sorted.sort(Comparator.comparingDouble(Interval::start));
+        float gapStart = minStart;
+        float best = Float.NaN;
+        float distance = Float.POSITIVE_INFINITY;
+        for (Interval interval : sorted) {
+            if (interval.end <= gapStart) continue;
+            float latest = interval.start - length;
+            if (latest >= gapStart) {
+                float candidate = Math.clamp(desired, gapStart, latest);
+                float delta = Math.abs(candidate - desired);
+                if (delta < distance) { best = candidate; distance = delta; }
             }
-
-            float beforeStart = Math.max(minStart, blocker.start - length);
-            float afterStart = blocker.end;
-
-            if (Math.abs(desired - beforeStart) <= Math.abs(desired - afterStart)) {
-                start = beforeStart;
-            } else {
-                start = afterStart;
-            }
-            end = start + length;
+            gapStart = Math.max(gapStart, interval.end);
         }
-
-        return Math.max(minStart, start);
+        float tail = Math.max(desired, gapStart);
+        return Math.abs(tail - desired) < distance ? tail : best;
     }
 
     /**

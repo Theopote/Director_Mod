@@ -32,7 +32,7 @@ import java.util.*;
  * <p>设计特点：
  * <ul>
  *   <li>事件只触发一次 - 通过 playedEvents 记录已经播放过的事件</li>
- *   <li>倒放也能触发（可选）- 如果 lastTime > time，表示用户拖动时间轴回去了，也能触发事件</li>
+ *   <li>跳转只重置采样时钟；循环按前向窗口触发事件</li>
  *   <li>支持静音轨道 - 检查 track.isMuted() 来避免发声</li>
  *   <li>支持暂停 / 重置 - 暂停播放时不会持续触发事件，Reset 时重置播放状态</li>
  *   <li>与 Minecraft 声音引擎直接集成 - 使用 PositionedSoundInstance.master() 作为全局 UI 声音处理方案</li>
@@ -72,12 +72,27 @@ public class AudioTrackSampler {
      * @param playing 是否正在播放
      */
     public void setPlaying(boolean playing) {
+        if (this.playing != playing) lastTime = -1f;
         this.playing = playing;
     }
 
     /**
      * 重置采样器状态
      */
+    public void seek(float time) { lastTime = time; }
+
+    public void sampleWindow(float fromTime, float toTime, boolean includeStart) {
+        lastTime = toTime;
+        if (!playing || track.isMuted() || toTime < fromTime) return;
+        List<AudioEvent> events = track.getEvents();
+        int from = includeStart ? lowerBound(events, fromTime) : upperBound(events, fromTime);
+        int to = upperBound(events, toTime);
+        for (int i = from; i < to; i++) {
+            AudioEvent event = events.get(i);
+            if (event != null) triggerEvent(event);
+        }
+    }
+
     public void reset() {
         lastTime = -1f;
     }
@@ -155,17 +170,8 @@ public class AudioTrackSampler {
                 triggerEvent(ev);
             }
         } else {
-            // 倒放：[time, prevTime) 的事件也触发（从后往前）
-            if (prevTime <= time + eps) {
-                return;
-            }
-            int from = lowerBound(events, time - eps);
-            int to = lowerBound(events, prevTime - eps);
-            for (int i = to - 1; i >= from; i--) {
-                AudioEvent ev = events.get(i);
-                if (ev == null) continue;
-                triggerEvent(ev);
-            }
+            // A backward clock jump is a seek; loop windows are sampled explicitly.
+            return;
         }
     }
 

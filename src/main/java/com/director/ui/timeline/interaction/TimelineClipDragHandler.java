@@ -327,10 +327,16 @@ public final class TimelineClipDragHandler {
 
         return switch (mode) {
             case DRAG_CLIP -> {
-                callbacks.onClipInteractionFinished(
-                        handle.clip,
-                        interactionManager.getDragStartValue(),
-                        interactionManager.getDragStartValue2());
+                float oldStart = interactionManager.getDragStartValue();
+                float oldEnd = interactionManager.getDragStartValue2();
+                var target = model.findTrackForClip(handle.clip);
+                if (target != handle.track || Math.abs(oldStart - handle.clip.getStartTime()) > 0.001f
+                        || Math.abs(oldEnd - handle.clip.getEndTime()) > 0.001f) {
+                    commandHistory.executeCommand(new com.director.ui.timeline.commands.MoveClipCommand(
+                            model, handle.clip, handle.track, target, oldStart, oldEnd,
+                            handle.clip.getStartTime(), handle.clip.getEndTime()));
+                    callbacks.onDataChanged();
+                }
                 com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                         .endClipTimeRangePreview(handle.clip);
                 yield true;
@@ -355,6 +361,7 @@ public final class TimelineClipDragHandler {
                 handle.track.addClip(handle.clip);
             }
         }
+        com.director.ui.timeline.audio.TimelineAudioService.getInstance().moveLinkedEventsToTrack(handle.clip, handle.track);
         handle.clip.setTimeRange(
                 interactionManager.getDragStartValue(),
                 interactionManager.getDragStartValue2());
@@ -417,6 +424,7 @@ public final class TimelineClipDragHandler {
         if (tt == null) {
             return true;
         }
+        if (clip instanceof com.director.timeline.model.audio.AudioTimelineClip) return tt == TrackType.AUDIO;
         if (clip.getBoundContainerId() == null) {
             return true;
         }

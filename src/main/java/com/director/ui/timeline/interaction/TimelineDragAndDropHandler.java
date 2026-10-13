@@ -184,8 +184,11 @@ public class TimelineDragAndDropHandler {
                         }
                     }
 
-                    existingClip.setStartTime(dropTime);
-                    existingClip.setEndTime(dropTime + clipLength);
+                    float oldStart = existingClip.getStartTime();
+                    float oldEnd = existingClip.getEndTime();
+                    existingClip.setTimeRange(dropTime, dropTime + clipLength);
+                    com.director.ui.timeline.audio.TimelineAudioService.getInstance().onClipTimeRangeChanged(
+                            existingClip, oldStart, oldEnd, dropTime, dropTime + clipLength);
 
                     // 如果目标轨道不同，需要移动片段到新轨道
                     if (oldTrack != null && oldTrack != targetTrack) {

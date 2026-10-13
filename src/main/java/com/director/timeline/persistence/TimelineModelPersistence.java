@@ -135,6 +135,7 @@ public class TimelineModelPersistence {
         public int timeUnit = 0;
         public boolean loopEnabled = false;
         public float playbackSpeed = 1.0f;
+        public Float duration = null;
         public Float inPoint = null;
         public Float outPoint = null;
         public List<MarkerDTO> markers = new ArrayList<>();
@@ -538,6 +539,7 @@ public class TimelineModelPersistence {
         dto.timeUnit = model.getTimeUnit();
         dto.loopEnabled = model.isLoopEnabled();
         dto.playbackSpeed = model.getPlaybackSpeed();
+        dto.duration = model.getDuration();
         dto.inPoint = model.hasInPoint() ? model.getInPoint() : null;
         dto.outPoint = model.hasOutPoint() ? model.getOutPoint() : null;
         dto.timestamp = System.currentTimeMillis();
@@ -816,137 +818,7 @@ public class TimelineModelPersistence {
 
                 for (com.director.timeline.model.entity.EntityClip clip : actorTrack.getClips()) {
                     if (clip == null) continue;
-                    EntityClipDTO cdto = new EntityClipDTO();
-                    cdto.id = clip.getId().toString();
-                    cdto.clipType = clip.getClipType().name();
-                    cdto.name = clip.getName();
-                    cdto.startTime = clip.getStartTime();
-                    cdto.endTime = clip.getEndTime();
-                    cdto.muted = clip.isMuted();
-                    cdto.weight = clip.getWeight();
-
-                    // 关键帧
-                    for (com.director.timeline.model.entity.EntityClipKeyframe kf : clip.getKeyframes()) {
-                        if (kf == null) continue;
-                        EntityClipKeyframeDTO kfdto = new EntityClipKeyframeDTO();
-                        kfdto.id = kf.getId().toString();
-                        kfdto.time = kf.getTime();
-                        kfdto.interpolation = kf.getInterpolation() != null ? kf.getInterpolation().name() : null;
-                        kfdto.position = Vec3DTO.from(kf.getPosition());
-                        kfdto.rotation = Vec3DTO.from(kf.getRotation());
-                        kfdto.scale = Vec3DTO.from(kf.getScale());
-                        kfdto.channels = kf.getChannels();
-                        kfdto.actionType = kf.getActionType() != null ? kf.getActionType().name() : null;
-                        kfdto.actionSpeed = kf.getActionSpeed();
-                        kfdto.actionLoop = kf.isActionLoop();
-                        kfdto.visibility = kf.getVisibility();
-                        kfdto.active = kf.isActive();
-                        kfdto.displayName = kf.getDisplayName();
-                        kfdto.showNameTag = kf.isShowNameTag();
-                        kfdto.entityType = kf.getEntityType() != null ? kf.getEntityType().name() : null;
-                        cdto.keyframes.add(kfdto);
-                    }
-
-                    // 类型特定字段
-                    switch (clip) {
-                        case com.director.timeline.model.entity.EntitySpawnClip sc -> {
-                            cdto.spawnX = sc.getPosition().x;
-                            cdto.spawnY = sc.getPosition().y;
-                            cdto.spawnZ = sc.getPosition().z;
-                            cdto.yawDeg = sc.getYawDeg();
-                            cdto.pitchDeg = sc.getPitchDeg();
-                            cdto.spawnBoneAnimationId = sc.getBoneAnimationId();
-                            cdto.spawnRoll = sc.getRollDeg();
-                            cdto.spawnScaleX = sc.getScale().x; cdto.spawnScaleY = sc.getScale().y; cdto.spawnScaleZ = sc.getScale().z;
-                            cdto.visibleOnSpawn = sc.isVisibleOnSpawn();
-                        }
-                        case com.director.timeline.model.entity.EntityTransformClip tc -> {
-                            cdto.transformInterpolation = tc.getInterpolation() != null ? tc.getInterpolation().name() : null;
-                            cdto.fromPos = Vec3DTO.from(tc.getFromPos());
-                            cdto.toPos = Vec3DTO.from(tc.getToPos());
-                            cdto.fromRot = Vec3DTO.from(tc.getFromRot());
-                            cdto.toRot = Vec3DTO.from(tc.getToRot());
-                            cdto.fromScale = Vec3DTO.from(tc.getFromScale());
-                            cdto.toScale = Vec3DTO.from(tc.getToScale());
-                            cdto.pathId = tc.getPathId();
-                            cdto.followPath = tc.isFollowPath();
-                        }
-                        case com.director.timeline.model.entity.EntityLookAtClip lc -> {
-                            cdto.lookAtMode = lc.getMode() != null ? lc.getMode().name() : null;
-                            cdto.lookAtWorldPoint = Vec3DTO.from(lc.getWorldPoint());
-                            cdto.lookAtTargetEntityUuid = lc.getTargetEntityUuid() != null ? lc.getTargetEntityUuid().toString() : null;
-                            cdto.lookAtStrength = lc.getStrength();
-                        }
-                        case com.director.timeline.model.entity.EntityAnimationClip ac -> {
-                            cdto.animationSource = ac.getSource() != null ? ac.getSource().name() : null;
-                            cdto.animationId = ac.getAnimationId();
-                            cdto.animationLoop = ac.isLoop();
-                            cdto.animationSpeed = ac.getSpeed();
-                        }
-                        case com.director.timeline.model.entity.EntityStateClip stc -> {
-                            cdto.sneaking = stc.isSneaking();
-                            cdto.sprinting = stc.isSprinting();
-                            cdto.glowing = stc.isGlowing();
-                            cdto.invulnerable = stc.isInvulnerable();
-                            cdto.stateVisibility = stc.getVisibility();
-                        }
-                        case com.director.timeline.model.entity.EntityActionClip xac -> {
-                            cdto.actionType = xac.getActionType() != null ? xac.getActionType().name() : null;
-                            cdto.actionParams.putAll(xac.getParams());
-                            cdto.triggerOnce = xac.isTriggerOnce();
-                        }
-                        case com.director.timeline.model.entity.EntityDespawnClip dc -> cdto.despawnMode = dc.getMode() != null ? dc.getMode().name() : null;
-                        case com.director.timeline.model.entity.ActorActionClip aac -> {
-                            cdto.actorActionType = aac.getActionType() != null ? aac.getActionType().name() : null;
-                            cdto.actorActionIntensity = aac.getIntensity();
-                            cdto.actorActionLoop = aac.isLoop();
-                        }
-                        case com.director.timeline.model.entity.ActorPoseClip pc -> {
-                            cdto.poseOverrideBody = pc.isOverrideBody();
-                            cdto.poseOverrideHead = pc.isOverrideHead();
-                            cdto.poseOverrideArms = pc.isOverrideArms();
-                            cdto.poseOverrideLegs = pc.isOverrideLegs();
-                            cdto.poseBodyPitch = pc.getBodyPitch();
-                            cdto.poseBodyYaw = pc.getBodyYaw();
-                            cdto.poseBodyRoll = pc.getBodyRoll();
-                            cdto.poseHeadPitch = pc.getHeadPitch();
-                            cdto.poseHeadYaw = pc.getHeadYaw();
-                            cdto.poseLeftArmPitch = pc.getLeftArmPitch();
-                            cdto.poseLeftArmYaw = pc.getLeftArmYaw();
-                            cdto.poseLeftArmRoll = pc.getLeftArmRoll();
-                            cdto.poseRightArmPitch = pc.getRightArmPitch();
-                            cdto.poseRightArmYaw = pc.getRightArmYaw();
-                            cdto.poseRightArmRoll = pc.getRightArmRoll();
-                            cdto.poseLeftLegPitch = pc.getLeftLegPitch();
-                            cdto.poseRightLegPitch = pc.getRightLegPitch();
-                        }
-                        case com.director.timeline.model.entity.ActorRouteClip rc -> {
-                            for (org.joml.Vector3f waypoint : rc.getWaypoints()) {
-                                cdto.routeWaypoints.add(Vec3DTO.from(waypoint));
-                            }
-                            cdto.routeInterpolationMode = rc.getInterpolationMode() != null ? rc.getInterpolationMode().name() : null;
-                            cdto.routeLoopMode = rc.getLoopMode() != null ? rc.getLoopMode().name() : null;
-                            cdto.routeSourcePathId = rc.getSourcePathId() == null ? null : rc.getSourcePathId().toString();
-                            cdto.routeSmoothTravel = rc.isSmoothTravel();
-                            cdto.routeSpeed = rc.getSpeed();
-                            cdto.routeAlignRotation = rc.isAlignRotationToRoute();
-                            cdto.routeJumpStart = rc.getJumpStart();
-                            cdto.routeJumpDuration = rc.getJumpDuration();
-                            cdto.routeJumpHeight = rc.getJumpHeight();
-                        }
-                        case com.director.timeline.model.entity.ActorRelationClip rel -> {
-                            cdto.relationTargetActorId = rel.getTargetActorId() != null ? rel.getTargetActorId().toString() : null;
-                            cdto.relationType = rel.getRelationType() != null ? rel.getRelationType().name() : null;
-                            cdto.relationDistance = rel.getDistance();
-                            cdto.relationAngle = rel.getAngle();
-                            cdto.relationHeightOffset = rel.getHeightOffset();
-                            cdto.relationMaintainLookAt = rel.isMaintainLookAt();
-                        }
-                        default -> {
-                        }
-                    }
-
-                    etDTO.clips.add(cdto);
+                    etDTO.clips.add(entityClipToDTO(clip));
                 }
 
                 trackDTO.actorTrackPayload = etDTO;
@@ -970,6 +842,7 @@ public class TimelineModelPersistence {
         TimelineAudioLoadHook audioHook = model.getAudioLoadHook();
         boolean prevSuppress = audioHook.isSuppressAutoCreate();
         audioHook.setSuppressAutoCreate(true);
+        boolean previousPersistenceSuppression = model.isSuppressPersistenceWrites();
         model.setSuppressPersistenceWrites(true);
         try {
         
@@ -989,11 +862,12 @@ public class TimelineModelPersistence {
         model.getSnapSettings().setPixelThreshold(dto.snapPixelThreshold);
         model.setFrameRate(dto.frameRate);
         model.setTimeUnit(dto.timeUnit);
+        model.setDuration(dto.duration != null && Float.isFinite(dto.duration) ? dto.duration : 20f);
         model.setLoopEnabled(dto.loopEnabled);
         model.setPlaybackSpeed(dto.playbackSpeed);
         
         // 清空现有轨道
-        model.getTracks().clear();
+        for (TimelineTrack existing : new ArrayList<>(model.getTracks())) model.removeTrack(existing);
         for (TimelineMarker marker : model.getMarkers()) {
             if (marker != null) {
                 model.removeMarker(marker.getId());
@@ -1435,176 +1309,7 @@ public class TimelineModelPersistence {
                         for (EntityClipDTO cdto : etDTO.clips) {
                             if (cdto == null || cdto.clipType == null) continue;
                             try {
-                                com.director.timeline.model.entity.EntityClipType clipType =
-                                    com.director.timeline.model.entity.EntityClipType.valueOf(cdto.clipType);
-                                EntityClip clip = getEntityClip(cdto, clipType);
-
-                                // 恢复关键帧
-                                if (cdto.keyframes != null) {
-                                    for (EntityClipKeyframeDTO kfdto : cdto.keyframes) {
-                                        if (kfdto == null) continue;
-                                        try {
-                                            com.director.timeline.model.entity.EntityClipKeyframe kf = new com.director.timeline.model.entity.EntityClipKeyframe(kfdto.time);
-                                            if (kfdto.interpolation != null) {
-                                                ParseUtils.setEnumIfValid(kfdto.interpolation, com.director.timeline.model.TimelineInterpolation.class, "TimelineInterpolation", kf::setInterpolation);
-                                            }
-                                            if (kfdto.position != null) kf.setPosition(kfdto.position.x, kfdto.position.y, kfdto.position.z);
-                                            if (kfdto.rotation != null) kf.setRotation(kfdto.rotation.x, kfdto.rotation.y, kfdto.rotation.z);
-                                            if (kfdto.scale != null) kf.setScale(kfdto.scale.x, kfdto.scale.y, kfdto.scale.z);
-                                            kf.setChannels(kfdto.channels);
-                                            if (kfdto.actionType != null) {
-                                                ParseUtils.setEnumIfValid(kfdto.actionType, com.director.timeline.model.entity.EntityKeyframe.ActionType.class, "ActionType", kf::setActionType);
-                                            }
-                                            if (kfdto.actionSpeed != null) kf.setActionSpeed(kfdto.actionSpeed);
-                                            if (kfdto.actionLoop != null) kf.setActionLoop(kfdto.actionLoop);
-                                            if (kfdto.visibility != null) kf.setVisibility(kfdto.visibility);
-                                            if (kfdto.active != null) kf.setActive(kfdto.active);
-                                            if (kfdto.displayName != null) kf.setDisplayName(kfdto.displayName);
-                                            if (kfdto.showNameTag != null) kf.setShowNameTag(kfdto.showNameTag);
-                                            if (kfdto.entityType != null) {
-                                                ParseUtils.setEnumIfValid(kfdto.entityType, com.director.timeline.model.entity.EntityKeyframe.EntityType.class, "EntityType", kf::setEntityType);
-                                            }
-                                            clip.addKeyframe(kf);
-                                        } catch (RuntimeException e) {
-                                            LOGGER.debug("[TimelineModelPersistence] Skip invalid entity clip keyframe at {}: {}",
-                                                    kfdto.time, e.getMessage());
-                                        }
-                                    }
-                                }
-
-                                // 类型特定字段
-                                switch (clip) {
-                                    case com.director.timeline.model.entity.EntitySpawnClip sc -> {
-                                        if (cdto.spawnX != null && cdto.spawnY != null && cdto.spawnZ != null)
-                                            sc.setPosition(cdto.spawnX, cdto.spawnY, cdto.spawnZ);
-                                        if (cdto.yawDeg != null) sc.setYawDeg(cdto.yawDeg);
-                                        if (cdto.pitchDeg != null) sc.setPitchDeg(cdto.pitchDeg);
-                                        sc.setBoneAnimationId(cdto.spawnBoneAnimationId);
-                                        if (cdto.spawnRoll != null) sc.setRollDeg(cdto.spawnRoll);
-                                        if (cdto.spawnScaleX != null && cdto.spawnScaleY != null && cdto.spawnScaleZ != null)
-                                            sc.setScale(cdto.spawnScaleX, cdto.spawnScaleY, cdto.spawnScaleZ);
-                                        if (cdto.visibleOnSpawn != null) sc.setVisibleOnSpawn(cdto.visibleOnSpawn);
-                                    }
-                                    case com.director.timeline.model.entity.EntityTransformClip tc -> {
-                                        if (cdto.transformInterpolation != null) {
-                                            ParseUtils.setEnumIfValid(cdto.transformInterpolation, com.director.timeline.model.TimelineInterpolation.class, "TimelineInterpolation", tc::setInterpolation);
-                                        }
-                                        if (cdto.fromPos != null) tc.setFromPos(cdto.fromPos.x, cdto.fromPos.y, cdto.fromPos.z);
-                                        if (cdto.toPos != null) tc.setToPos(cdto.toPos.x, cdto.toPos.y, cdto.toPos.z);
-                                        if (cdto.fromRot != null) tc.setFromRot(cdto.fromRot.x, cdto.fromRot.y, cdto.fromRot.z);
-                                        if (cdto.toRot != null) tc.setToRot(cdto.toRot.x, cdto.toRot.y, cdto.toRot.z);
-                                        if (cdto.fromScale != null) tc.setFromScale(cdto.fromScale.x, cdto.fromScale.y, cdto.fromScale.z);
-                                        if (cdto.toScale != null) tc.setToScale(cdto.toScale.x, cdto.toScale.y, cdto.toScale.z);
-                                        if (cdto.pathId != null) tc.setPathId(cdto.pathId);
-                                        if (cdto.followPath != null) tc.setFollowPath(cdto.followPath);
-                                    }
-                                    case com.director.timeline.model.entity.EntityLookAtClip lc -> {
-                                        if (cdto.lookAtMode != null) {
-                                            ParseUtils.setEnumIfValid(cdto.lookAtMode, com.director.timeline.model.entity.EntityLookAtClip.TargetMode.class, "TargetMode", lc::setMode);
-                                        }
-                                        if (cdto.lookAtWorldPoint != null) lc.setWorldPoint(cdto.lookAtWorldPoint.x, cdto.lookAtWorldPoint.y, cdto.lookAtWorldPoint.z);
-                                        if (cdto.lookAtTargetEntityUuid != null) {
-                                            ParseUtils.setUuidIfValid(cdto.lookAtTargetEntityUuid, "lc.setTargetEntityUuid", lc::setTargetEntityUuid);
-                                        }
-                                        if (cdto.lookAtStrength != null) lc.setStrength(cdto.lookAtStrength);
-                                    }
-                                    case com.director.timeline.model.entity.EntityAnimationClip ac -> {
-                                        if (cdto.animationSource != null) {
-                                            ParseUtils.setEnumIfValid(cdto.animationSource, com.director.timeline.model.entity.EntityAnimationClip.AnimationSource.class, "AnimationSource", ac::setSource);
-                                        }
-                                        if (cdto.animationId != null) ac.setAnimationId(cdto.animationId);
-                                        if (cdto.animationLoop != null) ac.setLoop(cdto.animationLoop);
-                                        if (cdto.animationSpeed != null) ac.setSpeed(cdto.animationSpeed);
-                                    }
-                                    case com.director.timeline.model.entity.EntityStateClip stc -> {
-                                        if (cdto.sneaking != null) stc.setSneaking(cdto.sneaking);
-                                        if (cdto.sprinting != null) stc.setSprinting(cdto.sprinting);
-                                        if (cdto.glowing != null) stc.setGlowing(cdto.glowing);
-                                        if (cdto.invulnerable != null) stc.setInvulnerable(cdto.invulnerable);
-                                        if (cdto.stateVisibility != null) stc.setVisibility(cdto.stateVisibility);
-                                    }
-                                    case com.director.timeline.model.entity.EntityActionClip xac -> {
-                                        if (cdto.actionType != null) {
-                                            ParseUtils.setEnumIfValid(cdto.actionType, com.director.timeline.model.entity.EntityActionClip.ActionType.class, "ActionType", xac::setActionType);
-                                        }
-                                        if (cdto.actionParams != null) cdto.actionParams.forEach(xac::setParam);
-                                        if (cdto.triggerOnce != null) xac.setTriggerOnce(cdto.triggerOnce);
-                                    }
-                                    case com.director.timeline.model.entity.EntityDespawnClip dc -> {
-                                        if (cdto.despawnMode != null) {
-                                            ParseUtils.setEnumIfValid(cdto.despawnMode, com.director.timeline.model.entity.EntityDespawnClip.DespawnMode.class, "DespawnMode", dc::setMode);
-                                        }
-                                    }
-                                    case com.director.timeline.model.entity.ActorActionClip aac -> {
-                                        if (cdto.actorActionType != null) {
-                                            ParseUtils.setEnumIfValid(cdto.actorActionType, com.director.actor.action.ActorActionType.class, "ActorActionType", aac::setActionType);
-                                        }
-                                        if (cdto.actorActionIntensity != null) aac.setIntensity(cdto.actorActionIntensity);
-                                        if (cdto.actorActionLoop != null) aac.setLoop(cdto.actorActionLoop);
-                                    }
-                                    case com.director.timeline.model.entity.ActorPoseClip pc -> {
-                                        if (cdto.poseOverrideBody != null) pc.setOverrideBody(cdto.poseOverrideBody);
-                                        if (cdto.poseOverrideHead != null) pc.setOverrideHead(cdto.poseOverrideHead);
-                                        if (cdto.poseOverrideArms != null) pc.setOverrideArms(cdto.poseOverrideArms);
-                                        if (cdto.poseOverrideLegs != null) pc.setOverrideLegs(cdto.poseOverrideLegs);
-                                        if (cdto.poseBodyPitch != null) pc.setBodyPitch(cdto.poseBodyPitch);
-                                        if (cdto.poseBodyYaw != null) pc.setBodyYaw(cdto.poseBodyYaw);
-                                        if (cdto.poseBodyRoll != null) pc.setBodyRoll(cdto.poseBodyRoll);
-                                        if (cdto.poseHeadPitch != null) pc.setHeadPitch(cdto.poseHeadPitch);
-                                        if (cdto.poseHeadYaw != null) pc.setHeadYaw(cdto.poseHeadYaw);
-                                        if (cdto.poseLeftArmPitch != null) pc.setLeftArmPitch(cdto.poseLeftArmPitch);
-                                        if (cdto.poseLeftArmYaw != null) pc.setLeftArmYaw(cdto.poseLeftArmYaw);
-                                        if (cdto.poseLeftArmRoll != null) pc.setLeftArmRoll(cdto.poseLeftArmRoll);
-                                        if (cdto.poseRightArmPitch != null) pc.setRightArmPitch(cdto.poseRightArmPitch);
-                                        if (cdto.poseRightArmYaw != null) pc.setRightArmYaw(cdto.poseRightArmYaw);
-                                        if (cdto.poseRightArmRoll != null) pc.setRightArmRoll(cdto.poseRightArmRoll);
-                                        if (cdto.poseLeftLegPitch != null) pc.setLeftLegPitch(cdto.poseLeftLegPitch);
-                                        if (cdto.poseRightLegPitch != null) pc.setRightLegPitch(cdto.poseRightLegPitch);
-                                    }
-                                    case com.director.timeline.model.entity.ActorRouteClip rc -> {
-                                        if (cdto.routeWaypoints != null) {
-                                            java.util.List<org.joml.Vector3f> points = new java.util.ArrayList<>();
-                                            for (Vec3DTO point : cdto.routeWaypoints) {
-                                                if (point != null) {
-                                                    points.add(point.toVector3f());
-                                                }
-                                            }
-                                            rc.setWaypoints(points);
-                                        }
-                                        if (cdto.routeInterpolationMode != null) {
-                                            ParseUtils.setEnumIfValid(cdto.routeInterpolationMode, com.director.timeline.model.entity.ActorRouteClip.InterpolationMode.class, "InterpolationMode", rc::setInterpolationMode);
-                                        }
-                                        if (cdto.routeLoopMode != null) {
-                                            ParseUtils.setEnumIfValid(cdto.routeLoopMode, com.director.timeline.model.entity.ActorRouteClip.LoopMode.class, "LoopMode", rc::setLoopMode);
-                                        }
-                                        if (cdto.routeSourcePathId != null) {
-                                            try { rc.setSourcePathId(java.util.UUID.fromString(cdto.routeSourcePathId)); }
-                                            catch (IllegalArgumentException invalid) { /* Keep old geometry fallback. */ }
-                                        }
-                                        if (cdto.routeSmoothTravel != null) rc.setSmoothTravel(cdto.routeSmoothTravel);
-                                        if (cdto.routeSpeed != null) rc.setSpeed(cdto.routeSpeed);
-                                        if (cdto.routeAlignRotation != null) rc.setAlignRotationToRoute(cdto.routeAlignRotation);
-                                        if (cdto.routeJumpStart != null) rc.setJumpStart(cdto.routeJumpStart);
-                                        if (cdto.routeJumpDuration != null) rc.setJumpDuration(cdto.routeJumpDuration);
-                                        if (cdto.routeJumpHeight != null) rc.setJumpHeight(cdto.routeJumpHeight);
-                                    }
-                                    case com.director.timeline.model.entity.ActorRelationClip rel -> {
-                                        if (cdto.relationTargetActorId != null) {
-                                            ParseUtils.setUuidIfValid(cdto.relationTargetActorId, "rel.setTargetActorId", rel::setTargetActorId);
-                                        }
-                                        if (cdto.relationType != null) {
-                                            ParseUtils.setEnumIfValid(cdto.relationType, com.director.timeline.model.entity.ActorRelationClip.RelationType.class, "RelationType", rel::setRelationType);
-                                        }
-                                        if (cdto.relationDistance != null) rel.setDistance(cdto.relationDistance);
-                                        if (cdto.relationAngle != null) rel.setAngle(cdto.relationAngle);
-                                        if (cdto.relationHeightOffset != null) rel.setHeightOffset(cdto.relationHeightOffset);
-                                        if (cdto.relationMaintainLookAt != null) rel.setMaintainLookAt(cdto.relationMaintainLookAt);
-                                    }
-                                    default -> {
-                                    }
-                                }
-
-                                actorTrack.addClip(clip);
+                                actorTrack.addClip(entityClipFromDTO(cdto));
                             } catch (Exception e) {
                                 LOGGER.error("[TimelineModelPersistence] 加载 EntityClip 时发生错误: {}", cdto.name, e);
                             }
@@ -1637,12 +1342,319 @@ public class TimelineModelPersistence {
         LOGGER.info("[TimelineModelPersistence] 成功恢复 {} 条轨道", restoredTrackCount);
     
         } finally {
-            model.setSuppressPersistenceWrites(false);
+            model.setSuppressPersistenceWrites(previousPersistenceSuppression);
             audioHook.setSuppressAutoCreate(prevSuppress);
         }
         audioHook.setTimelineModel(model);
     }
 
+
+    public static EntityClipDTO entityClipToDTO(EntityClip clip) {
+        EntityClipDTO cdto = new EntityClipDTO();
+        cdto.id = clip.getId().toString();
+        cdto.clipType = clip.getClipType().name();
+        cdto.name = clip.getName();
+        cdto.startTime = clip.getStartTime();
+        cdto.endTime = clip.getEndTime();
+        cdto.muted = clip.isMuted();
+        cdto.weight = clip.getWeight();
+
+        // 关键帧
+        for (com.director.timeline.model.entity.EntityClipKeyframe kf : clip.getKeyframes()) {
+            if (kf == null) continue;
+            EntityClipKeyframeDTO kfdto = new EntityClipKeyframeDTO();
+            kfdto.id = kf.getId().toString();
+            kfdto.time = kf.getTime();
+            kfdto.interpolation = kf.getInterpolation() != null ? kf.getInterpolation().name() : null;
+            kfdto.position = Vec3DTO.from(kf.getPosition());
+            kfdto.rotation = Vec3DTO.from(kf.getRotation());
+            kfdto.scale = Vec3DTO.from(kf.getScale());
+            kfdto.channels = kf.getChannels();
+            kfdto.actionType = kf.getActionType() != null ? kf.getActionType().name() : null;
+            kfdto.actionSpeed = kf.getActionSpeed();
+            kfdto.actionLoop = kf.isActionLoop();
+            kfdto.visibility = kf.getVisibility();
+            kfdto.active = kf.isActive();
+            kfdto.displayName = kf.getDisplayName();
+            kfdto.showNameTag = kf.isShowNameTag();
+            kfdto.entityType = kf.getEntityType() != null ? kf.getEntityType().name() : null;
+            cdto.keyframes.add(kfdto);
+        }
+
+        // 类型特定字段
+        switch (clip) {
+            case com.director.timeline.model.entity.EntitySpawnClip sc -> {
+                cdto.spawnX = sc.getPosition().x;
+                cdto.spawnY = sc.getPosition().y;
+                cdto.spawnZ = sc.getPosition().z;
+                cdto.yawDeg = sc.getYawDeg();
+                cdto.pitchDeg = sc.getPitchDeg();
+                cdto.spawnBoneAnimationId = sc.getBoneAnimationId();
+                cdto.spawnRoll = sc.getRollDeg();
+                cdto.spawnScaleX = sc.getScale().x; cdto.spawnScaleY = sc.getScale().y; cdto.spawnScaleZ = sc.getScale().z;
+                cdto.visibleOnSpawn = sc.isVisibleOnSpawn();
+            }
+            case com.director.timeline.model.entity.EntityTransformClip tc -> {
+                cdto.transformInterpolation = tc.getInterpolation() != null ? tc.getInterpolation().name() : null;
+                cdto.fromPos = Vec3DTO.from(tc.getFromPos());
+                cdto.toPos = Vec3DTO.from(tc.getToPos());
+                cdto.fromRot = Vec3DTO.from(tc.getFromRot());
+                cdto.toRot = Vec3DTO.from(tc.getToRot());
+                cdto.fromScale = Vec3DTO.from(tc.getFromScale());
+                cdto.toScale = Vec3DTO.from(tc.getToScale());
+                cdto.pathId = tc.getPathId();
+                cdto.followPath = tc.isFollowPath();
+            }
+            case com.director.timeline.model.entity.EntityLookAtClip lc -> {
+                cdto.lookAtMode = lc.getMode() != null ? lc.getMode().name() : null;
+                cdto.lookAtWorldPoint = Vec3DTO.from(lc.getWorldPoint());
+                cdto.lookAtTargetEntityUuid = lc.getTargetEntityUuid() != null ? lc.getTargetEntityUuid().toString() : null;
+                cdto.lookAtStrength = lc.getStrength();
+            }
+            case com.director.timeline.model.entity.EntityAnimationClip ac -> {
+                cdto.animationSource = ac.getSource() != null ? ac.getSource().name() : null;
+                cdto.animationId = ac.getAnimationId();
+                cdto.animationLoop = ac.isLoop();
+                cdto.animationSpeed = ac.getSpeed();
+            }
+            case com.director.timeline.model.entity.EntityStateClip stc -> {
+                cdto.sneaking = stc.isSneaking();
+                cdto.sprinting = stc.isSprinting();
+                cdto.glowing = stc.isGlowing();
+                cdto.invulnerable = stc.isInvulnerable();
+                cdto.stateVisibility = stc.getVisibility();
+            }
+            case com.director.timeline.model.entity.EntityActionClip xac -> {
+                cdto.actionType = xac.getActionType() != null ? xac.getActionType().name() : null;
+                cdto.actionParams.putAll(com.director.actor.prop.PropEventParameters.copy(xac.getParams(), false));
+                cdto.triggerOnce = xac.isTriggerOnce();
+            }
+            case com.director.timeline.model.entity.EntityDespawnClip dc -> cdto.despawnMode = dc.getMode() != null ? dc.getMode().name() : null;
+            case com.director.timeline.model.entity.ActorActionClip aac -> {
+                cdto.actorActionType = aac.getActionType() != null ? aac.getActionType().name() : null;
+                cdto.actorActionIntensity = aac.getIntensity();
+                cdto.actorActionLoop = aac.isLoop();
+            }
+            case com.director.timeline.model.entity.ActorPoseClip pc -> {
+                cdto.poseOverrideBody = pc.isOverrideBody();
+                cdto.poseOverrideHead = pc.isOverrideHead();
+                cdto.poseOverrideArms = pc.isOverrideArms();
+                cdto.poseOverrideLegs = pc.isOverrideLegs();
+                cdto.poseBodyPitch = pc.getBodyPitch();
+                cdto.poseBodyYaw = pc.getBodyYaw();
+                cdto.poseBodyRoll = pc.getBodyRoll();
+                cdto.poseHeadPitch = pc.getHeadPitch();
+                cdto.poseHeadYaw = pc.getHeadYaw();
+                cdto.poseLeftArmPitch = pc.getLeftArmPitch();
+                cdto.poseLeftArmYaw = pc.getLeftArmYaw();
+                cdto.poseLeftArmRoll = pc.getLeftArmRoll();
+                cdto.poseRightArmPitch = pc.getRightArmPitch();
+                cdto.poseRightArmYaw = pc.getRightArmYaw();
+                cdto.poseRightArmRoll = pc.getRightArmRoll();
+                cdto.poseLeftLegPitch = pc.getLeftLegPitch();
+                cdto.poseRightLegPitch = pc.getRightLegPitch();
+            }
+            case com.director.timeline.model.entity.ActorRouteClip rc -> {
+                for (org.joml.Vector3f waypoint : rc.getWaypoints()) {
+                    cdto.routeWaypoints.add(Vec3DTO.from(waypoint));
+                }
+                cdto.routeInterpolationMode = rc.getInterpolationMode() != null ? rc.getInterpolationMode().name() : null;
+                cdto.routeLoopMode = rc.getLoopMode() != null ? rc.getLoopMode().name() : null;
+                cdto.routeSourcePathId = rc.getSourcePathId() == null ? null : rc.getSourcePathId().toString();
+                cdto.routeSmoothTravel = rc.isSmoothTravel();
+                cdto.routeSpeed = rc.getSpeed();
+                cdto.routeAlignRotation = rc.isAlignRotationToRoute();
+                cdto.routeJumpStart = rc.getJumpStart();
+                cdto.routeJumpDuration = rc.getJumpDuration();
+                cdto.routeJumpHeight = rc.getJumpHeight();
+            }
+            case com.director.timeline.model.entity.ActorRelationClip rel -> {
+                cdto.relationTargetActorId = rel.getTargetActorId() != null ? rel.getTargetActorId().toString() : null;
+                cdto.relationType = rel.getRelationType() != null ? rel.getRelationType().name() : null;
+                cdto.relationDistance = rel.getDistance();
+                cdto.relationAngle = rel.getAngle();
+                cdto.relationHeightOffset = rel.getHeightOffset();
+                cdto.relationMaintainLookAt = rel.isMaintainLookAt();
+            }
+            default -> {
+            }
+        }
+
+        return cdto;
+    }
+
+    public static EntityClip entityClipFromDTO(EntityClipDTO cdto) {
+        com.director.timeline.model.entity.EntityClipType clipType =
+            com.director.timeline.model.entity.EntityClipType.valueOf(cdto.clipType);
+        EntityClip clip = getEntityClip(cdto, clipType);
+
+        // 恢复关键帧
+        if (cdto.keyframes != null) {
+            for (EntityClipKeyframeDTO kfdto : cdto.keyframes) {
+                if (kfdto == null) continue;
+                try {
+                    com.director.timeline.model.entity.EntityClipKeyframe kf = new com.director.timeline.model.entity.EntityClipKeyframe(kfdto.time);
+                    if (kfdto.interpolation != null) {
+                        ParseUtils.setEnumIfValid(kfdto.interpolation, com.director.timeline.model.TimelineInterpolation.class, "TimelineInterpolation", kf::setInterpolation);
+                    }
+                    if (kfdto.position != null) kf.setPosition(kfdto.position.x, kfdto.position.y, kfdto.position.z);
+                    if (kfdto.rotation != null) kf.setRotation(kfdto.rotation.x, kfdto.rotation.y, kfdto.rotation.z);
+                    if (kfdto.scale != null) kf.setScale(kfdto.scale.x, kfdto.scale.y, kfdto.scale.z);
+                    kf.setChannels(kfdto.channels);
+                    if (kfdto.actionType != null) {
+                        ParseUtils.setEnumIfValid(kfdto.actionType, com.director.timeline.model.entity.EntityKeyframe.ActionType.class, "ActionType", kf::setActionType);
+                    }
+                    if (kfdto.actionSpeed != null) kf.setActionSpeed(kfdto.actionSpeed);
+                    if (kfdto.actionLoop != null) kf.setActionLoop(kfdto.actionLoop);
+                    if (kfdto.visibility != null) kf.setVisibility(kfdto.visibility);
+                    if (kfdto.active != null) kf.setActive(kfdto.active);
+                    if (kfdto.displayName != null) kf.setDisplayName(kfdto.displayName);
+                    if (kfdto.showNameTag != null) kf.setShowNameTag(kfdto.showNameTag);
+                    if (kfdto.entityType != null) {
+                        ParseUtils.setEnumIfValid(kfdto.entityType, com.director.timeline.model.entity.EntityKeyframe.EntityType.class, "EntityType", kf::setEntityType);
+                    }
+                    clip.addKeyframe(kf);
+                } catch (RuntimeException e) {
+                    LOGGER.debug("[TimelineModelPersistence] Skip invalid entity clip keyframe at {}: {}",
+                            kfdto.time, e.getMessage());
+                }
+            }
+        }
+
+        // 类型特定字段
+        switch (clip) {
+            case com.director.timeline.model.entity.EntitySpawnClip sc -> {
+                if (cdto.spawnX != null && cdto.spawnY != null && cdto.spawnZ != null)
+                    sc.setPosition(cdto.spawnX, cdto.spawnY, cdto.spawnZ);
+                if (cdto.yawDeg != null) sc.setYawDeg(cdto.yawDeg);
+                if (cdto.pitchDeg != null) sc.setPitchDeg(cdto.pitchDeg);
+                sc.setBoneAnimationId(cdto.spawnBoneAnimationId);
+                if (cdto.spawnRoll != null) sc.setRollDeg(cdto.spawnRoll);
+                if (cdto.spawnScaleX != null && cdto.spawnScaleY != null && cdto.spawnScaleZ != null)
+                    sc.setScale(cdto.spawnScaleX, cdto.spawnScaleY, cdto.spawnScaleZ);
+                if (cdto.visibleOnSpawn != null) sc.setVisibleOnSpawn(cdto.visibleOnSpawn);
+            }
+            case com.director.timeline.model.entity.EntityTransformClip tc -> {
+                if (cdto.transformInterpolation != null) {
+                    ParseUtils.setEnumIfValid(cdto.transformInterpolation, com.director.timeline.model.TimelineInterpolation.class, "TimelineInterpolation", tc::setInterpolation);
+                }
+                if (cdto.fromPos != null) tc.setFromPos(cdto.fromPos.x, cdto.fromPos.y, cdto.fromPos.z);
+                if (cdto.toPos != null) tc.setToPos(cdto.toPos.x, cdto.toPos.y, cdto.toPos.z);
+                if (cdto.fromRot != null) tc.setFromRot(cdto.fromRot.x, cdto.fromRot.y, cdto.fromRot.z);
+                if (cdto.toRot != null) tc.setToRot(cdto.toRot.x, cdto.toRot.y, cdto.toRot.z);
+                if (cdto.fromScale != null) tc.setFromScale(cdto.fromScale.x, cdto.fromScale.y, cdto.fromScale.z);
+                if (cdto.toScale != null) tc.setToScale(cdto.toScale.x, cdto.toScale.y, cdto.toScale.z);
+                if (cdto.pathId != null) tc.setPathId(cdto.pathId);
+                if (cdto.followPath != null) tc.setFollowPath(cdto.followPath);
+            }
+            case com.director.timeline.model.entity.EntityLookAtClip lc -> {
+                if (cdto.lookAtMode != null) {
+                    ParseUtils.setEnumIfValid(cdto.lookAtMode, com.director.timeline.model.entity.EntityLookAtClip.TargetMode.class, "TargetMode", lc::setMode);
+                }
+                if (cdto.lookAtWorldPoint != null) lc.setWorldPoint(cdto.lookAtWorldPoint.x, cdto.lookAtWorldPoint.y, cdto.lookAtWorldPoint.z);
+                if (cdto.lookAtTargetEntityUuid != null) {
+                    ParseUtils.setUuidIfValid(cdto.lookAtTargetEntityUuid, "lc.setTargetEntityUuid", lc::setTargetEntityUuid);
+                }
+                if (cdto.lookAtStrength != null) lc.setStrength(cdto.lookAtStrength);
+            }
+            case com.director.timeline.model.entity.EntityAnimationClip ac -> {
+                if (cdto.animationSource != null) {
+                    ParseUtils.setEnumIfValid(cdto.animationSource, com.director.timeline.model.entity.EntityAnimationClip.AnimationSource.class, "AnimationSource", ac::setSource);
+                }
+                if (cdto.animationId != null) ac.setAnimationId(cdto.animationId);
+                if (cdto.animationLoop != null) ac.setLoop(cdto.animationLoop);
+                if (cdto.animationSpeed != null) ac.setSpeed(cdto.animationSpeed);
+            }
+            case com.director.timeline.model.entity.EntityStateClip stc -> {
+                if (cdto.sneaking != null) stc.setSneaking(cdto.sneaking);
+                if (cdto.sprinting != null) stc.setSprinting(cdto.sprinting);
+                if (cdto.glowing != null) stc.setGlowing(cdto.glowing);
+                if (cdto.invulnerable != null) stc.setInvulnerable(cdto.invulnerable);
+                if (cdto.stateVisibility != null) stc.setVisibility(cdto.stateVisibility);
+            }
+            case com.director.timeline.model.entity.EntityActionClip xac -> {
+                if (cdto.actionType != null) {
+                    ParseUtils.setEnumIfValid(cdto.actionType, com.director.timeline.model.entity.EntityActionClip.ActionType.class, "ActionType", xac::setActionType);
+                }
+                if (cdto.actionParams != null) cdto.actionParams.forEach(xac::setParam);
+                if (cdto.triggerOnce != null) xac.setTriggerOnce(cdto.triggerOnce);
+            }
+            case com.director.timeline.model.entity.EntityDespawnClip dc -> {
+                if (cdto.despawnMode != null) {
+                    ParseUtils.setEnumIfValid(cdto.despawnMode, com.director.timeline.model.entity.EntityDespawnClip.DespawnMode.class, "DespawnMode", dc::setMode);
+                }
+            }
+            case com.director.timeline.model.entity.ActorActionClip aac -> {
+                if (cdto.actorActionType != null) {
+                    ParseUtils.setEnumIfValid(cdto.actorActionType, com.director.actor.action.ActorActionType.class, "ActorActionType", aac::setActionType);
+                }
+                if (cdto.actorActionIntensity != null) aac.setIntensity(cdto.actorActionIntensity);
+                if (cdto.actorActionLoop != null) aac.setLoop(cdto.actorActionLoop);
+            }
+            case com.director.timeline.model.entity.ActorPoseClip pc -> {
+                if (cdto.poseOverrideBody != null) pc.setOverrideBody(cdto.poseOverrideBody);
+                if (cdto.poseOverrideHead != null) pc.setOverrideHead(cdto.poseOverrideHead);
+                if (cdto.poseOverrideArms != null) pc.setOverrideArms(cdto.poseOverrideArms);
+                if (cdto.poseOverrideLegs != null) pc.setOverrideLegs(cdto.poseOverrideLegs);
+                if (cdto.poseBodyPitch != null) pc.setBodyPitch(cdto.poseBodyPitch);
+                if (cdto.poseBodyYaw != null) pc.setBodyYaw(cdto.poseBodyYaw);
+                if (cdto.poseBodyRoll != null) pc.setBodyRoll(cdto.poseBodyRoll);
+                if (cdto.poseHeadPitch != null) pc.setHeadPitch(cdto.poseHeadPitch);
+                if (cdto.poseHeadYaw != null) pc.setHeadYaw(cdto.poseHeadYaw);
+                if (cdto.poseLeftArmPitch != null) pc.setLeftArmPitch(cdto.poseLeftArmPitch);
+                if (cdto.poseLeftArmYaw != null) pc.setLeftArmYaw(cdto.poseLeftArmYaw);
+                if (cdto.poseLeftArmRoll != null) pc.setLeftArmRoll(cdto.poseLeftArmRoll);
+                if (cdto.poseRightArmPitch != null) pc.setRightArmPitch(cdto.poseRightArmPitch);
+                if (cdto.poseRightArmYaw != null) pc.setRightArmYaw(cdto.poseRightArmYaw);
+                if (cdto.poseRightArmRoll != null) pc.setRightArmRoll(cdto.poseRightArmRoll);
+                if (cdto.poseLeftLegPitch != null) pc.setLeftLegPitch(cdto.poseLeftLegPitch);
+                if (cdto.poseRightLegPitch != null) pc.setRightLegPitch(cdto.poseRightLegPitch);
+            }
+            case com.director.timeline.model.entity.ActorRouteClip rc -> {
+                if (cdto.routeWaypoints != null) {
+                    java.util.List<org.joml.Vector3f> points = new java.util.ArrayList<>();
+                    for (Vec3DTO point : cdto.routeWaypoints) {
+                        if (point != null) {
+                            points.add(point.toVector3f());
+                        }
+                    }
+                    rc.setWaypoints(points);
+                }
+                if (cdto.routeInterpolationMode != null) {
+                    ParseUtils.setEnumIfValid(cdto.routeInterpolationMode, com.director.timeline.model.entity.ActorRouteClip.InterpolationMode.class, "InterpolationMode", rc::setInterpolationMode);
+                }
+                if (cdto.routeLoopMode != null) {
+                    ParseUtils.setEnumIfValid(cdto.routeLoopMode, com.director.timeline.model.entity.ActorRouteClip.LoopMode.class, "LoopMode", rc::setLoopMode);
+                }
+                if (cdto.routeSourcePathId != null) {
+                    try { rc.setSourcePathId(java.util.UUID.fromString(cdto.routeSourcePathId)); }
+                    catch (IllegalArgumentException invalid) { /* Keep old geometry fallback. */ }
+                }
+                if (cdto.routeSmoothTravel != null) rc.setSmoothTravel(cdto.routeSmoothTravel);
+                if (cdto.routeSpeed != null) rc.setSpeed(cdto.routeSpeed);
+                if (cdto.routeAlignRotation != null) rc.setAlignRotationToRoute(cdto.routeAlignRotation);
+                if (cdto.routeJumpStart != null) rc.setJumpStart(cdto.routeJumpStart);
+                if (cdto.routeJumpDuration != null) rc.setJumpDuration(cdto.routeJumpDuration);
+                if (cdto.routeJumpHeight != null) rc.setJumpHeight(cdto.routeJumpHeight);
+            }
+            case com.director.timeline.model.entity.ActorRelationClip rel -> {
+                if (cdto.relationTargetActorId != null) {
+                    ParseUtils.setUuidIfValid(cdto.relationTargetActorId, "rel.setTargetActorId", rel::setTargetActorId);
+                }
+                if (cdto.relationType != null) {
+                    ParseUtils.setEnumIfValid(cdto.relationType, com.director.timeline.model.entity.ActorRelationClip.RelationType.class, "RelationType", rel::setRelationType);
+                }
+                if (cdto.relationDistance != null) rel.setDistance(cdto.relationDistance);
+                if (cdto.relationAngle != null) rel.setAngle(cdto.relationAngle);
+                if (cdto.relationHeightOffset != null) rel.setHeightOffset(cdto.relationHeightOffset);
+                if (cdto.relationMaintainLookAt != null) rel.setMaintainLookAt(cdto.relationMaintainLookAt);
+            }
+            default -> {
+            }
+        }
+
+        return clip;
+    }
     private static @NotNull EntityClip getEntityClip(EntityClipDTO cdto, EntityClipType clipType) {
         String cname = cdto.name != null ? cdto.name : cdto.clipType;
         EntityClip clip = switch (clipType) {

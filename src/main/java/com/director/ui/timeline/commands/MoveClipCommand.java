@@ -23,6 +23,8 @@ public class MoveClipCommand extends BaseTimelineCommand {
     }
 
     private final Clip clip;
+    private com.director.timeline.model.TimelineTrack oldTrack;
+    private com.director.timeline.model.TimelineTrack newTrack;
     private final float oldStartTime;
     private final float oldEndTime;
     private final float newStartTime;
@@ -69,6 +71,27 @@ public class MoveClipCommand extends BaseTimelineCommand {
         this.newEndTime = newEndTime;
     }
 
+    public MoveClipCommand(TimelineModel model, TimelineClip clip,
+            com.director.timeline.model.TimelineTrack oldTrack, com.director.timeline.model.TimelineTrack newTrack,
+            float oldStart, float oldEnd, float newStart, float newEnd) {
+        this(model, new ClipAdapter(clip), oldStart, oldEnd, newStart, newEnd);
+        this.oldTrack = oldTrack; this.newTrack = newTrack;
+    }
+
+    private void moveTo(com.director.timeline.model.TimelineTrack target) {
+        if (!(clip instanceof ClipAdapter adapter) || target == null) return;
+        TimelineClip item = adapter.getTimelineClip();
+        var current = item.getParentTrack();
+        if (current != target) {
+            if (current != null) current.removeClip(item);
+            if (!target.addClip(item)) {
+                if (current != null) current.addClip(item);
+                throw new IllegalStateException("Target track rejected clip");
+            }
+        }
+        com.director.ui.timeline.audio.TimelineAudioService.getInstance().moveLinkedEventsToTrack(item, target);
+    }
+
     @Override
     protected void doExecute() {
         if (clip == null) {
@@ -76,6 +99,7 @@ public class MoveClipCommand extends BaseTimelineCommand {
             return;
         }
         TimelineClip timelineClip = (clip instanceof ClipAdapter adapter) ? adapter.getTimelineClip() : null;
+        moveTo(newTrack);
         if(timelineClip!=null)timelineClip.setTimeRange(newStartTime,newEndTime);
         else { clip.setStartTime(newStartTime); clip.setEndTime(newEndTime); }
         // 同步：自动生成的音频事件默认跟随片段移动（可对单个事件取消链接）
@@ -94,6 +118,7 @@ public class MoveClipCommand extends BaseTimelineCommand {
             return;
         }
         TimelineClip timelineClip = (clip instanceof ClipAdapter adapter) ? adapter.getTimelineClip() : null;
+        moveTo(oldTrack);
         if(timelineClip!=null)timelineClip.setTimeRange(oldStartTime,oldEndTime);
         else { clip.setStartTime(oldStartTime); clip.setEndTime(oldEndTime); }
         if (timelineClip != null) {

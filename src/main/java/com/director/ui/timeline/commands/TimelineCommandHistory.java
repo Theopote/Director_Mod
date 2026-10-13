@@ -29,13 +29,18 @@ public class TimelineCommandHistory {
     
     // 可选的 TimelineModel 引用（用于自动触发模型更新）
     private TimelineModel model;
+    private final TimelineModel.ModelChangeListener workspaceListener = change -> {
+        if ("timeline_reset".equals(change)) clear();
+    };
     
     /**
      * 设置 TimelineModel（可选）
      * 如果设置了，命令执行/撤销/重做后会自动调用 model.markDirty()
      */
     public void setModel(TimelineModel model) {
+        if (this.model != null) this.model.removeModelChangeListener(workspaceListener);
         this.model = model;
+        if (model != null) model.addModelChangeListener(workspaceListener);
     }
     
     /**

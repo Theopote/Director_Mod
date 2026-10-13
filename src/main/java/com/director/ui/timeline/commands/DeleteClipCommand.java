@@ -34,6 +34,8 @@ public class DeleteClipCommand extends BaseTimelineCommand {
     private final TimelineClip clip;
     private final List<TimelineClip> clipList;
     private int removedIndex = -1;
+    private Runnable restoreAudio = () -> {};
+    private Runnable restoreInterpolations = () -> {};
     private TimelineTrack ownerTrack;
     private EntityClip linkedEntityClip;
     private ActorTrack linkedActorTrack;
@@ -65,6 +67,7 @@ public class DeleteClipCommand extends BaseTimelineCommand {
             // 记录容器ID（删除前）
             java.util.UUID containerId = clip.getBoundContainerId();
             
+            restoreAudio = com.director.ui.timeline.audio.TimelineAudioService.getInstance().captureRemovalState(clip);
             // 移除片段关联的声音事件（在删除片段前）
             com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                     .onClipRemoved(clip);
@@ -85,6 +88,7 @@ public class DeleteClipCommand extends BaseTimelineCommand {
             }
             // Clip deletion removes animation data, not the project actor instance.
             // 清理插值映射，避免内存泄漏
+            restoreInterpolations = ChangeKeyframeInterpolationCommand.captureInterpolations(clip);
             ChangeKeyframeInterpolationCommand.clearInterpolationsForClip(clip);
             LOGGER.debug("[Timeline] 删除片段，索引: {}", removedIndex);
             
@@ -116,7 +120,10 @@ public class DeleteClipCommand extends BaseTimelineCommand {
         }
         if (removedIndex >= 0 && removedIndex <= clipList.size()) {
             if (ownerTrack != null) {
-                ownerTrack.addClip(clip);
+                var audio = com.director.ui.timeline.audio.TimelineAudioService.getInstance();
+                boolean previous = audio.isSuppressAutoCreate();
+                audio.setSuppressAutoCreate(true);
+                try { ownerTrack.addClip(clip); } finally { audio.setSuppressAutoCreate(previous); }
             } else {
                 clipList.add(removedIndex, clip);
             }
@@ -124,6 +131,8 @@ public class DeleteClipCommand extends BaseTimelineCommand {
             if (linkedActorTrack != null && linkedEntityClip != null) {
                 linkedActorTrack.addClip(linkedEntityClip);
             }
+            restoreAudio.run();
+            restoreInterpolations.run();
             LOGGER.debug("[Timeline] 恢复片段到索引: {}", removedIndex);
         }
     }

@@ -24,6 +24,7 @@ public final class ClipboardManager {
     
     private TimelineClip clip;
     private boolean isCut;
+    private java.util.function.Consumer<TimelineClip> initializeAudio = ignored -> {};
 
     private ClipboardManager() {
     }
@@ -43,7 +44,8 @@ public final class ClipboardManager {
         }
         
         // 复制到剪贴板
-        this.clip = new TimelineClip(clip);
+        this.clip = com.director.timeline.model.TimelineClipCopies.copy(clip);
+        this.initializeAudio = com.director.ui.timeline.audio.TimelineAudioService.getInstance().captureAudioCopy(clip);
         this.isCut = true;
         
         // 删除原片段（使用命令支持撤销）
@@ -61,7 +63,8 @@ public final class ClipboardManager {
         if (clip == null) {
             return;
         }
-        this.clip = new TimelineClip(clip);
+        this.clip = com.director.timeline.model.TimelineClipCopies.copy(clip);
+        this.initializeAudio = com.director.ui.timeline.audio.TimelineAudioService.getInstance().captureAudioCopy(clip);
         this.isCut = false;
         LOGGER.info("[Timeline] 复制片段: {}", clip.getLabel());
     }
@@ -70,7 +73,7 @@ public final class ClipboardManager {
      * 粘贴片段到指定轨道
      */
     public void pasteToTrack(TimelineTrack track, TimelineModel model) {
-        if (!hasClip() || track == null) {
+        if (!hasClip() || track == null || track.isLocked()) {
             return;
         }
 
@@ -81,16 +84,17 @@ public final class ClipboardManager {
         }
         
         // 创建副本
-        TimelineClip newClip = new TimelineClip(clip);
+        TimelineClip newClip = com.director.timeline.model.TimelineClipCopies.copy(clip);
         
         // 调整时间以避免重叠
         float pasteTime = model.getCurrentTime();
-        newClip.setStartTime(pasteTime);
-        newClip.setEndTime(pasteTime + newClip.getLength());
+        float delta = pasteTime - newClip.getStartTime();
+        newClip.offsetTime(delta);
         
         // 添加到轨道
-        boolean added = track.addClip(newClip);
-        if (!added) {
+        var insertion = new com.director.ui.timeline.commands.InsertClipCommand(model, track, newClip, initializeAudio);
+        com.director.ui.timeline.commands.TimelineCommandBridge.execute(insertion);
+        if (!insertion.canUndo()) {
             LOGGER.info("[Timeline] 粘贴片段失败，轨道拒绝接收: {} -> {}",
                 newClip.getLabel(), track.getName());
             return;
@@ -158,6 +162,7 @@ public final class ClipboardManager {
 
     public void clear() {
         clip = null;
+        initializeAudio = ignored -> {};
         isCut = false;
     }
 
@@ -169,6 +174,8 @@ public final class ClipboardManager {
         if (clip == null || track == null) {
             return false;
         }
+        if (clip instanceof com.director.timeline.model.entity.EntityTimelineClip) return track.getType() == TrackType.ACTOR;
+        if (clip instanceof com.director.timeline.model.audio.AudioTimelineClip) return track.getType() == TrackType.AUDIO;
         if (clip.getBoundContainerId() == null) {
             return true;
         }

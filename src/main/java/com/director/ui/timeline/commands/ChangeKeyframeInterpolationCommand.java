@@ -170,6 +170,13 @@ public class ChangeKeyframeInterpolationCommand extends BaseTimelineCommand {
      * @param clip 片段
      * @param time 关键帧时间
      */
+    static Runnable captureInterpolations(TimelineClip clip) {
+        Map<Float, TimelineInterpolation> snapshot = new java.util.HashMap<>(keyframeInterpolations.getOrDefault(clip, Map.of()));
+        return () -> {
+            if (!snapshot.isEmpty()) keyframeInterpolations.put(clip, new ConcurrentHashMap<>(snapshot));
+        };
+    }
+
     public static void removeKeyframeInterpolation(TimelineClip clip, float time) {
         if (clip == null) {
             return;

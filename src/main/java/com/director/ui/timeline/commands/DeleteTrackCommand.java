@@ -28,6 +28,7 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
     private final TimelineTrack track;
     private final List<TimelineTrack> trackList;
     private int removedIndex = -1;
+    private final List<Runnable> restoreAudio = new java.util.ArrayList<>();
     
     // 记录删除 Track 后，Actor 是否还在其他地方被使用
     private UUID orphanedActorId = null; // 如果删除 Track 后 Actor 未被使用，记录其 ID
@@ -69,13 +70,15 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
         removedIndex = trackList.indexOf(track);
         if (removedIndex >= 0) {
             // 清理轨道中所有 clips 的插值映射，避免内存泄漏
-            for (com.director.timeline.model.TimelineClip clip : track.getClips()) {
-                if (track.getType() == TrackType.CONTAINER && clip.getBoundContainerId() != null) {
-                    com.director.ui.timeline.audio.TimelineAudioService.getInstance().onClipRemoved(clip);
-                }
+            restoreAudio.clear();
+            for (com.director.timeline.model.TimelineClip clip : new java.util.ArrayList<>(track.getClips())) {
+                restoreAudio.add(com.director.ui.timeline.audio.TimelineAudioService.getInstance().captureRemovalState(clip));
+                com.director.ui.timeline.audio.TimelineAudioService.getInstance().onClipRemoved(clip);
+                restoreAudio.add(ChangeKeyframeInterpolationCommand.captureInterpolations(clip));
                 ChangeKeyframeInterpolationCommand.clearInterpolationsForClip(clip);
             }
-            trackList.remove(removedIndex);
+            if (trackList == model.getTracks()) model.removeTrack(track);
+            else trackList.remove(removedIndex);
             // Removing an animation owner must not delete the project actor instance.
             LOGGER.info("[Timeline] 删除轨道，索引: {}", removedIndex);
         } else {
@@ -90,7 +93,9 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
             return;
         }
         if (removedIndex >= 0 && removedIndex <= trackList.size()) {
-            trackList.add(removedIndex, track);
+            if (trackList == model.getTracks()) model.insertTrack(removedIndex, track);
+            else trackList.add(removedIndex, track);
+            restoreAudio.forEach(Runnable::run);
 
             LOGGER.info("[Timeline] 恢复轨道到索引: {}", removedIndex);
         }

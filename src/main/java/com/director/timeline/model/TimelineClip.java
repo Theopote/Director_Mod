@@ -97,6 +97,8 @@ public class TimelineClip {
         this.autoFadeOpacity = other.autoFadeOpacity;
         this.postAnimationFadeStart = other.postAnimationFadeStart;
         this.postAnimationFadeEnd = other.postAnimationFadeEnd;
+        for (var key : other.visibilityKeyframes)
+            this.visibilityKeyframes.add(new VisibilityKeyframe(key.getTime(), key.getAlpha(), key.getMode()));
     }
 
     // ========== 时间操作 ==========
@@ -120,6 +122,7 @@ public class TimelineClip {
         if (newStart > newEnd) {
             throw new IllegalArgumentException("Start time cannot be after end time.");
         }
+        this.cachedRestoreTime = null;
         this.startTime = newStart;
         this.endTime = newEnd;
         pruneOrphanedKeyframes(); // 确保关键帧在范围内
@@ -130,6 +133,7 @@ public class TimelineClip {
      * @param delta 时间偏移量
      */
     public void offsetTime(float delta) {
+        this.cachedRestoreTime = null;
         this.startTime += delta;
         this.endTime += delta;
 

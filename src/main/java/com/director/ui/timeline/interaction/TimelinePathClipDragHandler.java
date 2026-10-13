@@ -203,7 +203,7 @@ public final class TimelinePathClipDragHandler {
         float candidateStart = Math.max(0f, originalStart + delta);
 
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
-                model, candidateStart, handle.track, null, 0f);
+                model, candidateStart, handle.track, null, 0f, handle.clip);
         float snappedStart = Math.max(0f, snap.snappedTime);
         float snappedEnd = snappedStart + length;
 
@@ -249,7 +249,7 @@ public final class TimelinePathClipDragHandler {
         if (leftEdge) {
             float candidateStart = Math.max(0f, Math.min(originalStart + delta, originalEnd - minLength));
             TimelineSnapping.Result snap = TimelineSnapping.snapTime(
-                    model, candidateStart, handle.track, null, 0f);
+                    model, candidateStart, handle.track, null, 0f, handle.clip);
             float snappedStart = Math.max(0f, Math.min(snap.snappedTime, originalEnd - minLength));
             if (handle.track != null) {
                 var occupied = TimelineClipLayoutResolver.pathClipIntervalsOnTrack(handle.track, handle.clip);
@@ -264,7 +264,7 @@ public final class TimelinePathClipDragHandler {
         } else {
             float candidateEnd = Math.max(originalStart + minLength, originalEnd + delta);
             TimelineSnapping.Result snap = TimelineSnapping.snapTime(
-                    model, candidateEnd, handle.track, null, 0f);
+                    model, candidateEnd, handle.track, null, 0f, handle.clip);
             float snappedEnd = Math.max(snap.snappedTime, originalStart + minLength);
             if (handle.track != null) {
                 var occupied = TimelineClipLayoutResolver.pathClipIntervalsOnTrack(handle.track, handle.clip);

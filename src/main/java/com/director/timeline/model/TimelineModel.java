@@ -46,6 +46,16 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     }
     private boolean playing = false;
     private float currentTime = 0f;
+    private long audioSeekRevision;
+    public long getAudioSeekRevision() { return audioSeekRevision; }
+
+    /** Playback progression is distinct from an editor seek. */
+    public void advancePlaybackTime(float time) {
+        long revision = audioSeekRevision;
+        setCurrentTime(time);
+        audioSeekRevision = revision;
+    }
+
     private float duration = 20.0f; // 默认持续时间
     private boolean loopEnabled = false; // 循环播放
     private float playbackSpeed = 1.0f; // 播放速度倍率（0.5x/1x/2x/3x...）
@@ -237,6 +247,8 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     /**
      * 设置是否抑制持久化写入（仅供持久化层在加载阶段使用）。
      */
+    public boolean isSuppressPersistenceWrites() { return suppressPersistenceWrites; }
+
     public void setSuppressPersistenceWrites(boolean suppress) {
         this.suppressPersistenceWrites = suppress;
     }
@@ -349,6 +361,8 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         cachedDynamicDuration = 0f;
         isDurationDirty = true;
         tracks.clear();
+        audioSeekRevision++;
+        notifyModelChanged("timeline_reset");
         markers.clear();
         selectedItems.clear();
         com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().clear();
@@ -694,7 +708,11 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     // ========== 轨道管理 ==========
     
     public void addTrack(TimelineTrack track) {
-        tracks.add(track);
+        insertTrack(tracks.size(), track);
+    }
+
+    public void insertTrack(int index, TimelineTrack track) {
+        tracks.add(Math.clamp(index, 0, tracks.size()), track);
         markDurationDirty(); // 轨道添加可能影响总时长
         notifyModelChanged("track_added"); // ⭐ 通知监听器（如 TimelineCameraController）轨道已添加
         trackPlaybackListener.onTrackAdded(track);
@@ -933,7 +951,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      */
     public void setCurrentTime(float currentTime) { 
         float nextTime = clamp(currentTime, getDuration());
-        if(Float.compare(this.currentTime,nextTime)!=0) actorEditContextRevision++;
+        if(Float.compare(this.currentTime,nextTime)!=0) { actorEditContextRevision++; audioSeekRevision++; }
         this.currentTime = nextTime;
     }
     
@@ -1076,6 +1094,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         this.duration = Math.max(0.1f, duration); 
         // 标记为需要重新计算，这样下次 getDuration() 时会重新计算并自动扩张
         this.isDurationDirty = true;
+        markDirty();
     }
     
     public TimelineViewportState getViewportState() {

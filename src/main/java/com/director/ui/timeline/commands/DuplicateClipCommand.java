@@ -21,6 +21,7 @@ public class DuplicateClipCommand extends BaseTimelineCommand {
     private final TimelineTrack track;
     private final TimelineClip originalClip;
     private TimelineClip duplicatedClip;
+    private InsertClipCommand insertion;
 
     public DuplicateClipCommand(TimelineModel model, TimelineTrack track, TimelineClip clip) {
         super(model, "clip_duplicated");
@@ -42,7 +43,8 @@ public class DuplicateClipCommand extends BaseTimelineCommand {
         }
 
         // 创建副本（拷贝构造函数已实现深拷贝，包括 keyframes）
-        duplicatedClip = new TimelineClip(originalClip);
+        if (insertion != null) { insertion.execute(); return; }
+        duplicatedClip = com.director.timeline.model.TimelineClipCopies.copy(originalClip);
         duplicatedClip.setLabel(originalClip.getLabel() + " (副本)");
 
         // 偏移时间以避免重叠
@@ -62,7 +64,10 @@ public class DuplicateClipCommand extends BaseTimelineCommand {
         }
 
         // 添加到轨道
-        if (!track.addClip(duplicatedClip)) {
+        insertion = new InsertClipCommand(model, track, duplicatedClip,
+                com.director.ui.timeline.audio.TimelineAudioService.getInstance().captureClipEvents(originalClip), offset);
+        insertion.execute();
+        if (!insertion.canUndo()) {
             duplicatedClip = null;
             LOGGER.warn("[Timeline] 复制片段失败：轨道拒绝接收 {}", originalClip.getLabel());
             return;
@@ -74,8 +79,7 @@ public class DuplicateClipCommand extends BaseTimelineCommand {
     @Override
     protected void doUndo() {
         if (duplicatedClip != null && track != null) {
-            track.removeClip(duplicatedClip);
-            duplicatedClip = null;
+            insertion.undo();
             LOGGER.debug("[Timeline] 撤销复制片段");
         }
     }

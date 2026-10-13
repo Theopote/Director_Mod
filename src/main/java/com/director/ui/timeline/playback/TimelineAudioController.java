@@ -47,6 +47,10 @@ public class TimelineAudioController implements TimelineTrackPlaybackListener {
     
     /** 是否正在播放 */
     private boolean playing = false;
+    private long seekRevision;
+    private final TimelineModel.ModelChangeListener structureListener = change -> {
+        if (change.startsWith("track_") || change.equals("timeline_reset")) rebuildSamplers();
+    };
     
     private TimelineAudioController() {
     }
@@ -65,7 +69,12 @@ public class TimelineAudioController implements TimelineTrackPlaybackListener {
      * 设置时间线模型
      */
     public void setTimelineModel(TimelineModel model) {
+        if (this.timelineModel != null) this.timelineModel.removeModelChangeListener(structureListener);
         this.timelineModel = model;
+        if (model != null) model.addModelChangeListener(structureListener);
+        this.playing = false;
+        samplers.clear();
+        seekRevision = model != null ? model.getAudioSeekRevision() : 0;
         
         // 重新构建采样器映射
         rebuildSamplers();
@@ -89,25 +98,22 @@ public class TimelineAudioController implements TimelineTrackPlaybackListener {
             setPlaying(isPlaying);
         }
         
-        // 如果未播放，不处理声音
-        if (!isPlaying) {
+        rebuildSamplers();
+        boolean seek = seekRevision != timelineModel.getAudioSeekRevision();
+        seekRevision = timelineModel.getAudioSeekRevision();
+        if (seek || !isPlaying) {
+            for (AudioTrackSampler sampler : samplers.values()) sampler.seek(currentTime);
             return;
         }
         
-        // 检查是否有轨道处于独奏模式
-        boolean hasSolo = hasSoloTrack();
-        
+
         // 遍历所有采样器并采样
         for (AudioTrackSampler sampler : samplers.values()) {
             AudioTrack track = sampler.getTrack();
             
-            // 检查轨道是否被锁定或不可见
-            if (track.isLocked() || !track.isVisible()) {
-                continue;
-            }
-            
-            // 检查独奏模式
-            if (hasSolo && !track.isSolo()) {
+            // 锁定只限制编辑，发声规则与导出共享
+            if (!com.director.timeline.audio.TimelineAudioPlaybackPolicy.isAudible(timelineModel.getTracks(), track)) {
+                sampler.seek(currentTime);
                 continue;
             }
             
@@ -166,25 +172,19 @@ public class TimelineAudioController implements TimelineTrackPlaybackListener {
         }
     }
     
-    /**
-     * 检查是否有轨道处于独奏模式
-     */
-    private boolean hasSoloTrack() {
-        if (timelineModel == null) {
-            return false;
+    /** Samples a forward playback window, including loop boundaries when requested. */
+    public void playWindow(float from, float to, boolean includeStart) {
+        if (timelineModel == null) return;
+        rebuildSamplers();
+        setPlaying(true);
+        for (AudioTrackSampler sampler : samplers.values()) {
+            if (com.director.timeline.audio.TimelineAudioPlaybackPolicy.isAudible(timelineModel.getTracks(), sampler.getTrack()))
+                sampler.sampleWindow(from, to, includeStart);
+            else sampler.seek(to);
         }
-        
-        for (TimelineTrack track : timelineModel.getAllTracks()) {
-            if (track != null && track.isSolo()) {
-                return true;
-            }
-        }
-        return false;
     }
-    
-    /**
-     * 重置播放状态（当时间线停止或重置时调用）
-     */
+
+    /** Resets sampler clocks when playback stops or the workspace changes. */
     public void reset() {
         // 重置所有采样器
         for (AudioTrackSampler sampler : samplers.values()) {

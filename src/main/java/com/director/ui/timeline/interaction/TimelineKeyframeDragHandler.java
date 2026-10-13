@@ -203,7 +203,7 @@ public final class TimelineKeyframeDragHandler {
         }
 
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
-                model, renderer.xToTime(mouseX, contentX), handle.track, handle.clip, 0f);
+                model, renderer.xToTime(mouseX, contentX), handle.track, handle.clip, 0f, handle.keyframe);
         snapGuideState.update(snap);
 
         float eps = 0.001f;
@@ -270,7 +270,7 @@ public final class TimelineKeyframeDragHandler {
         }
 
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
-                model, renderer.xToTime(mouseX, contentX), handle.currentTrack, null, 0f);
+                model, renderer.xToTime(mouseX, contentX), handle.currentTrack, null, 0f, handle.keyframe);
         snapGuideState.update(snap);
         float newTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
 

@@ -272,7 +272,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         // 旧逻辑假设“AudioEvent 不落盘”，但现在我们会从持久化中恢复 AudioEvent。
         // - 如果 events 已存在：只重建链接关系（用于跟随/颜色/属性面板）
         // - 如果 events 为空：才从容器片段自动重建（保底）
-        boolean hasPersistedEvents = audioTrack.hasEvents();
+        boolean hasPersistedEvents = getAllAudioTracks().stream().anyMatch(AudioTrack::hasEvents);
 
         for (TimelineTrack track : timelineModel.getAllTracks()) {
             if (track == null) {
@@ -313,40 +313,43 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         // 3) 如果事件是从持久化恢复的：按“音频片段时间范围”把事件重新链接到容器片段
         // 这样容器片段移动/缩放时，音频点能正确跟随；清除轨道的点也能正确染色。
         if (hasPersistedEvents) {
-            // 先收集所有 audioClip -> containerClip 的已知映射
-            List<TimelineClip> audioClips = audioTrack.getClips();
-            if (audioClips != null && !audioClips.isEmpty()) {
-                for (TimelineClip ac : audioClips) {
-                    TimelineClip cc = linkedContainerClipsByAudioClip.get(ac);
-                    if (cc == null) {
-                        // 兜底：按 boundContainerId 匹配
-                        UUID bid = ac != null ? ac.getBoundContainerId() : null;
-                        if (bid != null) {
-                            for (TimelineTrack t : timelineModel.getAllTracks()) {
-                                if (t == null) continue;
-                                TrackType tt = t.getType();
-                                if (tt != TrackType.CONTAINER) continue;
-                                for (TimelineClip c : t.getClips()) {
-                                    if (c != null && bid.equals(c.getBoundContainerId())) {
-                                        cc = c;
-                                        linkedAudioClipsByClip.put(c, ac);
-                                        linkedContainerClipsByAudioClip.put(ac, c);
-                                        break;
+            for (AudioTrack persistedTrack : getAllAudioTracks()) {
+                // 先收集所有 audioClip -> containerClip 的已知映射
+                List<TimelineClip> audioClips = persistedTrack.getClips();
+                if (audioClips != null && !audioClips.isEmpty()) {
+                    for (TimelineClip ac : audioClips) {
+                        TimelineClip cc = linkedContainerClipsByAudioClip.get(ac);
+                        if (cc == null) {
+                            // 兜底：按 boundContainerId 匹配
+                            UUID bid = ac != null ? ac.getBoundContainerId() : null;
+                            if (bid != null) {
+                                for (TimelineTrack t : timelineModel.getAllTracks()) {
+                                    if (t == null) continue;
+                                    TrackType tt = t.getType();
+                                    if (tt != TrackType.CONTAINER) continue;
+                                    for (TimelineClip c : t.getClips()) {
+                                        if (c != null && bid.equals(c.getBoundContainerId())) {
+                                            cc = c;
+                                            linkedAudioClipsByClip.put(c, ac);
+                                            linkedContainerClipsByAudioClip.put(ac, c);
+                                            break;
+                                        }
                                     }
+                                    if (cc != null) break;
                                 }
-                                if (cc != null) break;
                             }
                         }
-                    }
-                    if (cc == null) continue;
+                        if (cc == null && ac instanceof AudioTimelineClip) cc = ac;
+                        if (cc == null) continue;
 
-                    float a0 = ac.getStartTime();
-                    float a1 = ac.getEndTime();
-                    for (AudioEvent ev : audioTrack.getEvents()) {
-                        if (ev == null) continue;
-                        float t = ev.getTime();
-                        if (t >= a0 - 0.0005f && t <= a1 + 0.0005f) {
-                            linkEventToClip(cc, ev);
+                        float a0 = ac.getStartTime();
+                        float a1 = ac.getEndTime();
+                        for (AudioEvent ev : persistedTrack.getEvents()) {
+                            if (ev == null) continue;
+                            float t = ev.getTime();
+                            if (t >= a0 - 0.0005f && t <= a1 + 0.0005f) {
+                                linkEventToClip(cc, ev);
+                            }
                         }
                     }
                 }
@@ -490,33 +493,34 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         }
 
         List<UUID> ids = linkedEventIdsByClip.getOrDefault(containerClip, Collections.emptyList());
-        AudioTrack audioTrack = findAudioTrack();
-        if (audioTrack != null && !ids.isEmpty()) {
-            var blockStarts = isContainer ? perBlockStartTimes(containerClip, newStartTime, newEndTime) : Map.<net.minecraft.util.math.BlockPos, Float>of();
-            for (UUID id : ids) {
-                AudioEvent ev = audioTrack.getEventById(id);
-                if (ev == null) {
-                    continue;
+        for (AudioTrack audioTrack : getAllAudioTracks()) {
+            if (!ids.isEmpty()) {
+                var blockStarts = isContainer ? perBlockStartTimes(containerClip, newStartTime, newEndTime) : Map.<net.minecraft.util.math.BlockPos, Float>of();
+                for (UUID id : ids) {
+                    AudioEvent ev = audioTrack.getEventById(id);
+                    if (ev == null) {
+                        continue;
+                    }
+                    if (isContainer && containerClip.getAnimationConfig().isWholeContainer()) {
+                        var config = containerClip.getAnimationConfig();
+                        float oldAnchor = AnimationSoundCollector.wholeContainerEventTime(config, oldStartTime, oldEndTime);
+                        float newAnchor = AnimationSoundCollector.wholeContainerEventTime(config, newStartTime, newEndTime);
+                        ev.setTime(Math.max(0, newAnchor + ev.getTime() - oldAnchor));
+                        continue;
+                    }
+                    var timing = blockSoundTimingByEventId.get(id);
+                    if (timing != null && blockStarts.containsKey(timing.pos())) {
+                        ev.setTime(Math.max(0, blockStarts.get(timing.pos()) + timing.actionOffset()));
+                        continue;
+                    }
+                    float t = ev.getTime();
+                    float u = (t - oldStartTime) / oldLen;
+                    u = Math.clamp(u, 0f, 1f);
+                    ev.setTime(newStartTime + u * newLen);
                 }
-                if (isContainer && containerClip.getAnimationConfig().isWholeContainer()) {
-                    var config = containerClip.getAnimationConfig();
-                    float oldAnchor = AnimationSoundCollector.wholeContainerEventTime(config, oldStartTime, oldEndTime);
-                    float newAnchor = AnimationSoundCollector.wholeContainerEventTime(config, newStartTime, newEndTime);
-                    ev.setTime(Math.max(0, newAnchor + ev.getTime() - oldAnchor));
-                    continue;
-                }
-                var timing = blockSoundTimingByEventId.get(id);
-                if (timing != null && blockStarts.containsKey(timing.pos())) {
-                    ev.setTime(Math.max(0, blockStarts.get(timing.pos()) + timing.actionOffset()));
-                    continue;
-                }
-                float t = ev.getTime();
-                float u = (t - oldStartTime) / oldLen;
-                u = Math.clamp(u, 0f, 1f);
-                ev.setTime(newStartTime + u * newLen);
-            }
 
-            audioTrack.sortEvents();
+                audioTrack.sortEvents();
+            }
         }
 
         if (isAudio) {
@@ -559,13 +563,14 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         }
 
         Map<UUID, Float> original = new java.util.HashMap<>();
-        for (UUID id : ids) {
-            AudioEvent ev = audioTrack.getEventById(id);
-            if (ev != null) {
-                original.put(id, ev.getTime());
+        for (AudioTrack previewTrack : getAllAudioTracks()) {
+            for (UUID id : ids) {
+                AudioEvent ev = previewTrack.getEventById(id);
+                if (ev != null) {
+                    original.put(id, ev.getTime());
+                }
             }
         }
-
         if (original.isEmpty()) {
             return;
         }
@@ -678,7 +683,13 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         if (clip == null || event == null || event.getId() == null) {
             return;
         }
-        linkedEventIdsByClip.computeIfAbsent(clip, c -> new ArrayList<>()).add(event.getId());
+        TimelineClip previous = linkedClipByEventId.get(event.getId());
+        if (previous != null && previous != clip) {
+            var ids = linkedEventIdsByClip.get(previous);
+            if (ids != null) ids.remove(event.getId());
+        }
+        var ids = linkedEventIdsByClip.computeIfAbsent(clip, c -> new ArrayList<>());
+        if (!ids.contains(event.getId())) ids.add(event.getId());
         linkedClipByEventId.put(event.getId(), clip);
     }
 
@@ -1098,8 +1109,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         if (Math.abs(oldStart - newStart) < 0.0005f && Math.abs(oldEnd - newEnd) < 0.0005f) {
             return;
         }
-        audioClip.setStartTime(newStart);
-        audioClip.setEndTime(newEnd);
+        audioClip.setTimeRange(newStart, newEnd);
         float actualStart = audioClip.getStartTime();
         float actualEnd = audioClip.getEndTime();
         updateAudioClipKeyframes(audioClip, oldStart, oldEnd, actualStart, actualEnd);
@@ -1114,11 +1124,12 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         if (audioClip == null) {
             return;
         }
-        audioClip.setStartTime(newStartTime);
-        audioClip.setEndTime(com.director.core.animation.PerBlockAnimationTiming.completionLimit(containerClip.getAnimationConfig(), newStartTime, newEndTime));
+        float audioOldStart = audioClip.getStartTime();
+        float audioOldEnd = audioClip.getEndTime();
+        audioClip.setTimeRange(newStartTime, com.director.core.animation.PerBlockAnimationTiming.completionLimit(containerClip.getAnimationConfig(), newStartTime, newEndTime));
         float actualStart = audioClip.getStartTime();
         float actualEnd = audioClip.getEndTime();
-        updateAudioClipKeyframes(audioClip, oldStartTime, oldEndTime, actualStart, actualEnd);
+        updateAudioClipKeyframes(audioClip, audioOldStart, audioOldEnd, actualStart, actualEnd);
     }
 
     private void updateAudioClipKeyframes(TimelineClip audioClip,
@@ -1157,7 +1168,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         if (containerClip == null) {
             return 1.0f;
         }
-        TimelineClip audioClip = linkedAudioClipsByClip.get(containerClip);
+        TimelineClip audioClip = isAudioClip(containerClip) ? containerClip : linkedAudioClipsByClip.get(containerClip);
         if (audioClip == null) {
             return 1.0f;
         }
@@ -1279,6 +1290,87 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
      * @param clip 时间线片段
      */
     
+    public Runnable captureRemovalState(TimelineClip clip) {
+        TimelineClip linkedContainer = linkedContainerClipsByAudioClip.get(clip);
+        TimelineClip owner = linkedContainer != null ? linkedContainer : clip;
+        TimelineClip audio = linkedAudioClipsByClip.get(owner);
+        TimelineTrack audioTrack = audio != null ? audio.getParentTrack() : null;
+        List<UUID> ids = new ArrayList<>(linkedEventIdsByClip.getOrDefault(owner, List.of()));
+        Map<AudioTrack, List<AudioEvent>> events = new IdentityHashMap<>();
+        Map<UUID, BlockSoundTiming> timings = new HashMap<>();
+        for (AudioTrack track : getAllAudioTracks()) {
+            List<AudioEvent> found = new ArrayList<>();
+            for (UUID id : ids) {
+                AudioEvent event = track.getEventById(id);
+                if (event != null) found.add(event);
+                if (blockSoundTimingByEventId.containsKey(id)) timings.put(id, blockSoundTimingByEventId.get(id));
+            }
+            if (!found.isEmpty()) events.put(track, found);
+        }
+        Integer signature = autoSoundSignatureByClip.get(owner);
+        return () -> {
+            if (audio != null) {
+                if (audioTrack != null && !audioTrack.getClips().contains(audio)) audioTrack.addClip(audio);
+                linkedAudioClipsByClip.put(owner, audio);
+                linkedContainerClipsByAudioClip.put(audio, owner);
+            }
+            if (!ids.isEmpty()) linkedEventIdsByClip.put(owner, new ArrayList<>(ids));
+            for (UUID id : ids) linkedClipByEventId.put(id, owner);
+            blockSoundTimingByEventId.putAll(timings);
+            if (signature != null) autoSoundSignatureByClip.put(owner, signature);
+            events.forEach((track, saved) -> { for (AudioEvent event : saved) track.addEvent(event); track.sortEvents(); });
+        };
+    }
+
+    /** Captures detached audio contents before a cut removes their links. */
+    public java.util.function.Consumer<TimelineClip> captureAudioCopy(TimelineClip source) {
+        float sourceStart = source.getStartTime();
+        List<AudioEvent> events = captureClipEvents(source);
+        TimelineClip linked = linkedAudioClipsByClip.get(source);
+        TimelineTrack linkedTrack = linked != null ? linked.getParentTrack() : null;
+        TimelineClip template = linked != null ? new AudioTimelineClip(linked) : null;
+        return destination -> {
+            float delta = destination.getStartTime() - sourceStart;
+            TimelineTrack target = destination.getParentTrack();
+            if (template != null && linkedTrack != null) {
+                TimelineClip copy = new AudioTimelineClip(template);
+                copy.offsetTime(delta);
+                copy.setBoundContainerId(destination.getBoundContainerId());
+                linkedTrack.addClip(copy);
+                linkAudioClip(destination, copy);
+                target = linkedTrack;
+            }
+            insertClipEvents(destination, target, events, delta);
+        };
+    }
+
+    public List<AudioEvent> captureClipEvents(TimelineClip clip) {
+        TimelineClip owner = linkedContainerClipsByAudioClip.getOrDefault(clip, clip);
+        List<AudioEvent> copies = new ArrayList<>();
+        for (UUID id : linkedEventIdsByClip.getOrDefault(owner, List.of())) {
+            for (AudioTrack track : getAllAudioTracks()) {
+                AudioEvent event = track.getEventById(id);
+                if (event != null) {
+                    AudioEvent copy = new AudioEvent(event.getLabel(), event.getSoundId(), event.getTime());
+                    copy.setVolume(event.getVolume()); copy.setPitch(event.getPitch()); copy.setEnabled(event.isEnabled());
+                    copies.add(copy);
+                }
+            }
+        }
+        return copies;
+    }
+
+    public void insertClipEvents(TimelineClip clip, TimelineTrack track, List<AudioEvent> events, float delta) {
+        AudioTrack audioTrack = resolveAudioTrack(track);
+        if (audioTrack == null) return;
+        for (AudioEvent template : events) {
+            AudioEvent event = new AudioEvent(template.getLabel(), template.getSoundId(), template.getTime() + delta);
+            event.setVolume(template.getVolume()); event.setPitch(template.getPitch()); event.setEnabled(template.isEnabled());
+            audioTrack.addEvent(event);
+            linkEventToClip(clip, event);
+        }
+    }
+
     public void onClipRemoved(TimelineClip clip) {
         if (clip == null) {
             return;
@@ -1452,18 +1544,6 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
                         audioTrack.removeEvent(ev);
                         removed++;
                     }
-                }
-            }
-        } else {
-            // 向后兼容：如果没有建立链接关系（旧数据），回退到按时间范围移除
-            for (AudioTrack audioTrack : audioTracks) {
-                List<AudioEvent> eventsToRemove = audioTrack.getEventsInRange(clip.getStartTime(), clip.getEndTime());
-                for (AudioEvent event : eventsToRemove) {
-                    if (event != null && event.getId() != null) {
-                        linkedClipByEventId.remove(event.getId());
-                    }
-                    audioTrack.removeEvent(event);
-                    removed++;
                 }
             }
         }
