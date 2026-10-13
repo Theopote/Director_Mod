@@ -56,7 +56,7 @@ public final class PointLightController {
         finishDrag(); enter(); placing=false; draft.clear();anchorIndex=-1;PointLightEditor.select(light); attach(light);
     }
     public void inspectTimeline() {
-        finishDrag();enter();placing=false;draft.clear();anchorIndex=-1;
+        finishDrag();stop();enter();placing=false;draft.clear();anchorIndex=-1;
         var light=PointLightEditor.selected();if(light!=null) attach(light);
     }
     public void stop() {

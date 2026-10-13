@@ -126,6 +126,11 @@ public final class TimelineKeyframeDragHandler {
             return;
         }
 
+        if(kf instanceof com.director.lighting.LightKeyframe) {
+            com.director.ui.lighting.PointLightParameterEditing.finish();
+            model.setPlaying(false);model.setCurrentTime(kf.getTime());
+            com.director.lighting.PointLightRuntime.update(model);
+        }
         ImGuiIO io = ImGui.getIO();
         model.selectItem(kf, io.getKeyCtrl());
         selectionSync.syncPropertiesSelection(kf);

@@ -1,4 +1,7 @@
 {
+  "gui.director.light.animation_hint": "This clip is animated by parameter keyframes. Select a timeline key or a row below to edit its values. Playback interpolates between keys.",
+  "gui.director.light.transition_hint": "Interpolation controls the transition from this key to the next: linear, smooth ease-in/out, or a step switch.",
+
   "gui.director.light.properties": "Light properties",
   "gui.director.light.clip_properties": "Light clip properties",
   "gui.director.light.key_properties": "Light keyframe properties",

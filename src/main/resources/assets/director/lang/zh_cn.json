@@ -1,4 +1,7 @@
 {
+  "gui.director.light.animation_hint": "此片段由参数关键帧驱动。点击时间线上的关键帧，或在下面选择一帧，修改该帧参数；播放时自动过渡。",
+  "gui.director.light.transition_hint": "插值方式控制当前关键帧到下一关键帧的过渡：线性为匀速变化，平滑为缓入缓出，阶梯为直接切换。",
+
   "gui.director.light.properties": "灯光属性",
   "gui.director.light.clip_properties": "灯光片段属性",
   "gui.director.light.key_properties": "灯光关键帧属性",

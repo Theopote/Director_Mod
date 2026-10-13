@@ -18,6 +18,8 @@ public class AddKeyframeCommand extends BaseTimelineCommand {
     private final TimelineClip clip;
     private final float time;
     private boolean added = false;
+    private com.director.lighting.LightKeyframe lightKey;
+    public com.director.lighting.LightKeyframe getLightKeyframe() { return lightKey; }
 
     public AddKeyframeCommand(TimelineModel model, TimelineClip clip, float time) {
         super(model, "keyframe_added");
@@ -30,6 +32,15 @@ public class AddKeyframeCommand extends BaseTimelineCommand {
         if (clip == null) {
             LOGGER.warn("[Timeline] 添加关键帧失败：clip 为 null");
             return;
+        }
+        if(clip instanceof com.director.lighting.LightTimelineClip light) {
+            added=false;
+            if(!com.director.lighting.LightLifecycle.containsClip(model,light) || light.getParentTrack().isLocked()
+                || !Float.isFinite(time) || time<clip.getStartTime() || time>clip.getEndTime()
+                || clip.findKeyframeAt(time,KEYFRAME_TOLERANCE)!=null) return;
+            var base=model.getPointLight(light.lightId());if(base==null) return;
+            if(lightKey==null) lightKey=new com.director.lighting.LightKeyframe(time,light.sample(base,time));
+            clip.addKeyframe(lightKey);added=true;return;
         }
         if (clip.hasKeyframeAt(time, KEYFRAME_TOLERANCE)) {
             added = false;
@@ -50,7 +61,7 @@ public class AddKeyframeCommand extends BaseTimelineCommand {
         if (!added) {
             return;
         }
-        clip.removeKeyframe(time);
+        if(lightKey!=null) clip.removeKeyframe(lightKey.getId());else clip.removeKeyframe(time);
         LOGGER.debug("[Timeline] 撤销关键帧 {:.2f}", time);
     }
 

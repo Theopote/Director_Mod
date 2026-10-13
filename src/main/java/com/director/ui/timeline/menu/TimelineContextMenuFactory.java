@@ -168,6 +168,7 @@ public class TimelineContextMenuFactory {
                     key=new com.director.lighting.LightKeyframe(time,lightClip.sample(base,time));
                     commandHistory.executeCommand(new com.director.ui.timeline.commands.AddClipKeyframeCommand(model,track,clip,key));
                 }
+                model.setPlaying(false);model.selectItem(key,false);
                 com.director.core.DirectorServices.get().uiSelection().setSelection(com.director.ui.selection.SelectionType.KEYFRAME,key);
             });
             if(panel!=null) builder.item(tr(DirectorLang.Timeline.ContextMenu.RENAME_CLIP),() -> panel.requestClipRename(clip));

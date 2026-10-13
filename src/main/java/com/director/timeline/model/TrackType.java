@@ -98,7 +98,7 @@ public enum TrackType {
      *   <li>状态控制 - 控制实体的状态、动画、行为等</li>
      * </ul>
      */
-    LIGHT(Icons.COLOR, rgba(240,220,100), rgba(150,130,60), EnumSet.of(TrackFeature.CLIPS)),
+    LIGHT(Icons.COLOR, rgba(240,220,100), rgba(150,130,60), EnumSet.of(TrackFeature.CLIPS, TrackFeature.KEYFRAMES)),
 
     ACTOR(
         Icons.SMILE,

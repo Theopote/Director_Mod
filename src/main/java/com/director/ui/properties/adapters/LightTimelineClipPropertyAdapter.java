@@ -35,11 +35,29 @@ public final class LightTimelineClipPropertyAdapter implements IPropertyAdapter<
             PointLightParameterEditing.finish();
             var key=clip.findKeyframeAt(time,1e-4f);
             if(key==null) {key=new LightKeyframe(time,clip.sample(base,time));TimelineCommandBridge.execute(new AddClipKeyframeCommand(model,track,clip,key));}
+            model.setPlaying(false);model.selectItem(key,false);
             com.director.core.DirectorServices.get().uiSelection().setSelection(SelectionType.KEYFRAME,key);
         }
         ImGui.endDisabled();ImGui.endDisabled();
-        ImGui.separator();ImGui.textWrapped(LightsPanel.tr("base_hint"));
-        ImGui.beginDisabled(locked);baseProperties.renderProperties(base);ImGui.endDisabled();
+        ImGui.separator();
+        var keys=clip.getClipKeyframes();
+        if(keys.isEmpty()) {
+            ImGui.textWrapped(LightsPanel.tr("base_hint"));
+            ImGui.beginDisabled(locked);baseProperties.renderProperties(base);ImGui.endDisabled();
+        } else {
+            ImGui.textWrapped(LightsPanel.tr("animation_hint"));
+            for(var item:keys) {
+                var key=(LightKeyframe)item;
+                ImGui.pushID(key.getId().toString());
+                String label=String.format(java.util.Locale.ROOT,"%.3f s · %s %.2f",key.getTime(),LightsPanel.tr("brightness"),key.value().brightness());
+                if(ImGui.selectable(label,false)) {
+                    PointLightParameterEditing.finish();model.setPlaying(false);model.setCurrentTime(key.getTime());model.selectItem(key,false);
+                    com.director.core.DirectorServices.get().uiSelection().setSelection(SelectionType.KEYFRAME,key);
+                    PointLightRuntime.update(model);
+                }
+                ImGui.popID();
+            }
+        }
         return false;
     }
 }

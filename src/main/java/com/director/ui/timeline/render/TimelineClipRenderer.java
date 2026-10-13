@@ -244,7 +244,8 @@ public final class TimelineClipRenderer {
                 float kxAligned = (float) Math.floor(kx) + 0.5f;
 
                 boolean hovering = isMouseHoveringCircle(kxAligned, centerY);
-                int kfCol = hovering ? TimelineColors.COLOR_KEYFRAME_HOVER : TimelineColors.COLOR_KEYFRAME;
+                boolean selectedKey=keyframe instanceof com.director.lighting.LightKeyframe && model.getSelectedItems().contains(keyframe);
+                int kfCol = selectedKey ? TimelineColors.COLOR_KEYFRAME_SELECTED : hovering ? TimelineColors.COLOR_KEYFRAME_HOVER : TimelineColors.COLOR_KEYFRAME;
 
                 // ✅ 像素级对齐：不要用粗线 addLine（会出现“看起来偏左/偏右”的抗锯齿错觉）
                 // 改为明确宽度的填充矩形：1px 主线 + 3px 阴影，中心都严格对齐 kxAligned。

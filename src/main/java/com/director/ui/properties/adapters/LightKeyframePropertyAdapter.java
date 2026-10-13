@@ -31,6 +31,7 @@ public final class LightKeyframePropertyAdapter implements IPropertyAdapter<Ligh
         if(ImGui.combo(LightsPanel.tr("interpolation"),mode,labels)) {
             PointLightParameterEditing.finish();TimelineCommandBridge.execute(new ChangeClipKeyframeInterpolationCommand(model,track,clip,key,modes[mode.get()]));
         }
+        ImGui.textWrapped(LightsPanel.tr("transition_hint"));
         ImGui.endDisabled();
         controls.render(key.value(),locked,value -> PointLightParameterEditing.previewKey(model,clip,key,value),PointLightParameterEditing::finish);
         return false;

@@ -1133,13 +1133,17 @@ public class TimelinePanel extends AbstractPanel
         final float clickTime = clamp(model.screenToTime(mouseX, contentX),
                 clip.getStartTime(), clip.getEndTime());
 
-        if (clip instanceof com.director.lighting.LightTimelineClip lightClip) {
+        if (clip instanceof com.director.lighting.LightTimelineClip) {
+            com.director.ui.lighting.PointLightParameterEditing.finish();
             var existing=clip.findKeyframeAt(clickTime,KEYFRAME_TOLERANCE);
             if(existing!=null) commandHistory.executeCommand(new RemoveClipKeyframeCommand(model,track,clip,existing));
             else {
-                var base=model.getPointLight(lightClip.lightId());
-                if(base!=null) commandHistory.executeCommand(new AddClipKeyframeCommand(model,track,clip,
-                    new com.director.lighting.LightKeyframe(clickTime,lightClip.sample(base,clickTime))));
+                var command=new AddKeyframeCommand(model,clip,clickTime);commandHistory.executeCommand(command);
+                var key=command.getLightKeyframe();
+                if(key!=null) {
+                    model.setPlaying(false);model.setCurrentTime(key.getTime());model.selectItem(key,false);
+                    com.director.core.DirectorServices.get().uiSelection().setSelection(com.director.ui.selection.SelectionType.KEYFRAME,key);
+                }
             }
             markDataChanged();return;
         }
@@ -1584,7 +1588,16 @@ public class TimelinePanel extends AbstractPanel
         }
 
         float clampedTime = clamp(time, targetClip.getStartTime(), targetClip.getEndTime());
-        commandHistory.executeCommand(new AddKeyframeCommand(model, targetClip, clampedTime));
+        if(targetClip instanceof com.director.lighting.LightTimelineClip) {
+            if(time<targetClip.getStartTime() || time>targetClip.getEndTime()) return;
+            com.director.ui.lighting.PointLightParameterEditing.finish();
+            var command=new AddKeyframeCommand(model,targetClip,clampedTime);commandHistory.executeCommand(command);
+            var key=targetClip.findKeyframeAt(clampedTime,1e-4f);
+            if(key!=null) {
+                model.setPlaying(false);model.selectItem(key,false);
+                com.director.core.DirectorServices.get().uiSelection().setSelection(com.director.ui.selection.SelectionType.KEYFRAME,key);
+            }
+        } else commandHistory.executeCommand(new AddKeyframeCommand(model, targetClip, clampedTime));
     }
 
     private static @NotNull TimeKeyframe getTimeKeyframe(String timeLabel, float time) {
