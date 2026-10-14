@@ -175,10 +175,11 @@ public final class CameraRuntime {
             return;
         }
 
+        this.lerpState = LerpState.INACTIVE;
         this.owner = newOwner;
         publishRenderOverride();
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.player == null) return;
+        if (mc == null || mc.player == null) return;
 
         if (newOwner == Owner.TIMELINE) {
             lockPlayerInput(mc);
@@ -197,7 +198,9 @@ public final class CameraRuntime {
      * 等场景调用。
      */
     public void reset() {
+        lerpState = LerpState.INACTIVE;
         setOwner(Owner.PLAYER);
+        CameraRenderOverride.publishTimelineActive(false);
         publishRenderOverride();
     }
 

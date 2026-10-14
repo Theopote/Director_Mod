@@ -80,7 +80,12 @@ public final class VideoExportManager {
         exporting.set(true);
 
         workerThread = new Thread(() -> {
+            com.director.timeline.playback.camera.TimelineCameraController.ExportState cameraState = null;
             try {
+                var client = net.minecraft.client.MinecraftClient.getInstance();
+                if (client != null) cameraState = client.submit(() ->
+                        com.director.timeline.playback.camera.TimelineCameraController.getInstance()
+                                .saveStateForExport()).get(10, java.util.concurrent.TimeUnit.SECONDS);
                 LOGGER.info("[VideoExport] 开始导出任务：{}x{} @{}fps, format={}, output={}",
                         settings.width, settings.height, settings.fps, settings.format, settings.outputPath);
                 VideoExportTask task = new VideoExportTask(settings, listener, this);
@@ -90,6 +95,13 @@ public final class VideoExportManager {
                 listener.onCompleted(false, "导出失败：" + e.getMessage());
             } finally {
                 exporting.set(false);
+                var state = cameraState;
+                var client = net.minecraft.client.MinecraftClient.getInstance();
+                if (client != null) client.execute(() -> {
+                    com.director.timeline.playback.camera.TimelineCameraController.getInstance()
+                            .restoreStateAfterExport(state);
+                    com.director.client.RenderOverrideSnapshots.resyncAfterVideoExport();
+                });
             }
         }, "Director-VideoExport");
         workerThread.setDaemon(true);

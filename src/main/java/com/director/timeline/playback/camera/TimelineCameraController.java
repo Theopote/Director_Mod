@@ -60,17 +60,6 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
     private float previewTimeSeconds = 0f;
     private CameraSample previewSample = null;
 
-    /**
-     * ⭐ 属性面板实时预览：选中关键帧并编辑属性时，直接将关键帧转换为 CameraSample 应用到相机，
-     * 无需重建 PathManager，低延迟。
-     * <p>
-     * keyframeEditFramesRemaining 倒计时：每次 previewKeyframeDirect() 被调用时重置为 N，
-     * 每帧 updateOwnerAndSample() 递减。当 renderProperties 不再被调用（关键帧取消选中）时，
-     * 倒计时归零，预览自动结束。
-     */
-    private CameraSample keyframeEditSample = null;
-    private int keyframeEditFramesRemaining = 0;
-
     // scrubbing 状态完全由 TimelineModel.isScrubbing() 管理
 
     /** 帧间隔计时器：用于计算精确的 delta seconds */
@@ -100,6 +89,11 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
         sampler.setKeyframes(new ArrayList<>());
         pathManager.setKeyframes(new ArrayList<>());
         cameraDataDirty = false;
+        sampler.setCameraTrack(null);
+        sampler.resetPathState();
+        CameraRuntime.getInstance().reset();
+        CameraRenderOverride.publishTimelineActive(false);
+        setCameraInputHidden(false);
         previewing = false;
         previewSample = null;
     }
@@ -123,6 +117,9 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
 
     @Override
     protected synchronized void activateTrack(TimelineTrack track) {
+        if (track == activeTrack) return;
+        previewSample = null;
+        sampler.resetPathState();
         cameraDataDirty = true;
         super.activateTrack(track);
     }
@@ -134,6 +131,9 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
      */
     @Override
     public synchronized void init(TimelineModel model) {
+        if (this.timelineModel == model) return;
+        if (this.timelineModel != null) onTimelineUiClosed();
+        sampler.resetPathState(); previewSample = null;
         cameraDataDirty = true;
         super.init(model);
     }
@@ -171,12 +171,15 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
     @Override
     public synchronized void rebuildFromActiveTrack() {
         if (!isValidTrack(activeTrack)) {
+            sampler.setCameraTrack(null);
             sampler.setKeyframes(new ArrayList<>());
+            previewSample = null;
             pathManager.setKeyframes(new ArrayList<>());
             cameraDataDirty = false;
             return;
         }
 
+        previewSample = null;
         markCustomPathClipsDirty(activeTrack);
         List<CameraKeyframe> trackKeyframes = collectTrackCameraKeyframes(activeTrack);
         List<CameraKeyframe> pathPreviewKeyframes = collectAllCameraKeyframes(activeTrack);
@@ -219,7 +222,7 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
         this.previewSample = null;
         ensureCameraDataBuilt();
         // ⭐ 使用 tick() 统一入口（deltaSec=0，因为 scrubbing 不推进时间）
-        sampler.tick(timelineModel, 0f).ifPresent(CameraRuntime.getInstance()::applyTimelineSample);
+        updateOwnerAndSample(0f);
         LOGGER.debug("[TimelineCameraController] 开始 scrubbing @ {}s", String.format("%.2f", timeSeconds));
     }
 
@@ -243,7 +246,7 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
 
         ensureCameraDataBuilt();
         // ⭐ 使用 tick() 统一入口（deltaSec=0，因为 scrubbing 不推进时间）
-        sampler.tick(timelineModel, 0f).ifPresent(sample -> CameraRuntime.getInstance().applyTimelineSample(sample));
+        updateOwnerAndSample(0f);
     }
 
     /**
@@ -269,31 +272,9 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
      * ⭐ 修复：使用 tick() 统一入口，立即应用当前时间的采样并设置 owner
      */
     public void startPlayback() {
-        this.previewing = false;
-        this.previewSample = null;
+        clearPreviewState();
         ensureCameraDataBuilt();
-
-        // ⭐ 修复：检查是否有摄像机数据（关键帧或 PathClip）
-        boolean hasKeyframes = isValidTrack(activeTrack) && !sampler.getKeyframes().isEmpty();
-        boolean hasPathClips = isValidTrack(activeTrack) && activeTrack != null
-                && activeTrack.hasCameraPathClips();
-        boolean hasCameraData = hasKeyframes || hasPathClips;
-
-        // ⭐ 修复：如果有摄像机数据，使用 tick() 立即应用采样并设置 owner
-        if (hasCameraData && timelineModel != null) {
-            CameraRuntime runtime = CameraRuntime.getInstance();
-            // ⭐ 使用 tick() 统一入口（deltaSec=0，因为只是初始化，不推进时间）
-            sampler.tick(timelineModel, 0f).ifPresent(runtime::applyTimelineSample);
-
-            // 确保 owner 被设置为 TIMELINE
-            if (!runtime.isTimelineOwner()) {
-                runtime.setOwner(CameraRuntime.Owner.TIMELINE);
-                DirectorClientController.getInstance().setHideCrosshair(true);
-                LOGGER.debug("[CameraController] 开始播放：接管相机");
-            }
-        }
-
-        LOGGER.debug("[TimelineCameraController] 开始播放");
+        updateOwnerAndSample(0f);
     }
 
     /**
@@ -304,8 +285,6 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
      * ⭐ 修复：清空 PathClip 状态，确保下次播放时 onEnter() 能重新触发
      */
     public void stopPlayback() {
-        this.keyframeEditFramesRemaining = 0;
-        this.keyframeEditSample = null;
         if (timelineModel != null) {
             setStaticPreviewAt(timelineModel.getCurrentTime());
         } else {
@@ -332,7 +311,12 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
             timelineModel.setPlaying(false);
             timelineModel.setScrubbing(false);
         }
+        clearPreviewState();
+        sampler.resetPathState();
         CameraRuntime.getInstance().reset();
+        CameraRenderOverride.publishTimelineActive(false);
+        setCameraInputHidden(false);
+        commitState();
         LOGGER.debug("[TimelineCameraController] UI 关闭，释放摄像机控制权");
     }
 
@@ -352,103 +336,39 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
      */
     public synchronized void updateOwnerAndSample(float deltaSeconds) {
         if (timelineModel == null) {
-            return;
-        }
-
-        // 先判断当前应该由谁控制相机：玩家 or 时间线
-        boolean playing = timelineModel.isPlaying();
-        boolean scrubbing = timelineModel.isScrubbing();
-
-        if (!playing && !scrubbing && keyframeEditFramesRemaining > 0) {
-            keyframeEditFramesRemaining = 0;
-            keyframeEditSample = null;
-        }
-
-        // ⭐ 属性面板实时预览：倒计时管理
-        // 当 renderProperties() 每帧调用 previewKeyframeDirect() 时，计数器被重置。
-        // 当关键帧取消选中（renderProperties 不再被调用），计数器自然递减归零。
-        boolean keyframeEditActive = false;
-        if (playing || scrubbing) {
-            // 播放/Scrubbing 时强制停止关键帧编辑预览
-            keyframeEditFramesRemaining = 0;
-            keyframeEditSample = null;
-        }
-
-        boolean previewActive = previewing && !playing && !scrubbing;
-        CameraRuntime runtime = CameraRuntime.getInstance();
-        boolean wantsTimeline = playing || scrubbing || previewActive;
-        if (wantsTimeline) {
-            ensureCameraDataBuilt();
-        }
-        // ⭐ 修复：检查是否有摄像机数据（关键帧或 PathClip）
-        // PathClip 不需要关键帧就能工作，所以需要单独检查
-        boolean hasKeyframes = isValidTrack(activeTrack) && !sampler.getKeyframes().isEmpty();
-        boolean hasPathClips = isValidTrack(activeTrack) && activeTrack != null
-                && activeTrack.hasCameraPathClips();
-        boolean hasCameraData = hasKeyframes || hasPathClips;
-        boolean isExporting = com.director.export.video.VideoExportManager.getInstance().isExporting();
-
-        // 🔒 导出期间：强制禁用预览状态，避免 UI 循环采样“游标时间”与导出采样“导出时间”冲突。
-        if (isExporting && previewing) {
-            this.previewing = false;
-            this.previewSample = null;
-        }
-
-        boolean shouldTimeline = (wantsTimeline || isExporting) && hasCameraData;
-
-        // ⭐ 调试日志：检查 owner 切换逻辑
-        if (LOGGER.isDebugEnabled() && (wantsTimeline || isExporting)) {
-            LOGGER.debug(
-                    "[CameraController] wantsTimeline={}, isExporting={}, hasKeyframes={}, hasPathClips={}, hasCameraData={}, shouldTimeline={}, keyframeEditActive={}, isTimelineOwner={}",
-                    wantsTimeline, isExporting, hasKeyframes, hasPathClips, hasCameraData, shouldTimeline,
-                    keyframeEditActive, runtime.isTimelineOwner());
-        }
-
-        if (shouldTimeline && !runtime.isTimelineOwner()) {
-            runtime.setOwner(CameraRuntime.Owner.TIMELINE);
-            DirectorClientController.getInstance().setHideCrosshair(true);
-            LOGGER.debug("[CameraController] 接管相机");
-        } else if (!shouldTimeline && runtime.isTimelineOwner()) {
-            // 退出时轻微 lerp 回玩家相机，避免瞬移
-            CameraSample lastSample = runtime.getCurrentSample();
-            runtime.applyLerpToPlayer(lastSample, 0.1f);
-            runtime.setOwner(CameraRuntime.Owner.PLAYER);
-            DirectorClientController.getInstance().setHideCrosshair(false);
-            LOGGER.debug("[CameraController] 恢复玩家控制");
-        }
-
-        // ⭐ 时间线模式：根据当前时间采样相机（播放/scrubbing/预览时）
-        // ⭐ 关键修复：使用 tick() 统一入口，确保播放时每帧都采样
-        if (shouldTimeline) {
-            // ✅ 性能关键：播放时不要每帧 rebuild（会导致 FPS 大幅下降）
-            ensureCameraDataBuilt();
-
-            if (playing || scrubbing) {
-                // ⭐ 播放/Scrubbing：使用 tick() 统一驱动
-                // tick() 负责采样当前时间（时间推进由 TimelinePanel.updatePlayback() 负责）
-                sampler.tick(timelineModel, 0f).ifPresent(runtime::applyTimelineSample);
-            } else if (previewActive) {
-                if (previewSample == null) {
-                    previewSample = sampler.sample(previewTimeSeconds).orElse(null);
-                }
-                if (previewSample != null) {
-                    runtime.applyTimelineSample(previewSample);
-                }
-            }
-        } else {
-            // ⭐ 玩家模式：只负责处理平滑过渡
-            // 玩家真实相机位置由 CameraMixin → CameraRenderOverride.reportPlayerView() 维护
-            // Controller 这里只负责 lerp（如果正在进行平滑过渡）
-            runtime.tickPlayerLerp(deltaSeconds);
-        }
-
-        if (timelineModel != null) {
-            CameraRenderOverride.publishTimelineActive(
-                    timelineModel.isPlaying() || timelineModel.isScrubbing());
-        } else {
+            CameraRuntime.getInstance().reset();
             CameraRenderOverride.publishTimelineActive(false);
+            commitState(); return;
         }
+        // Export publishes its camera explicitly; ordinary preview must not overwrite it.
+        if (com.director.export.video.VideoExportManager.getInstance().isExporting()) return;
+        boolean playing = timelineModel.isPlaying(), scrubbing = timelineModel.isScrubbing();
+        CameraSample sampled = null;
+        if (isValidTrack(activeTrack) && (playing || scrubbing || previewing)) {
+            ensureCameraDataBuilt();
+            if (playing || scrubbing) {
+                sampled = sampler.tick(timelineModel, 0f).orElse(null);
+            } else {
+                if (previewSample == null) previewSample = sampler.sample(previewTimeSeconds).orElse(null);
+                sampled = previewSample;
+            }
+        }
+        var runtime = CameraRuntime.getInstance();
+        if (sampled != null) {
+            runtime.applyTimelineSample(sampled);
+            runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+            setCameraInputHidden(true);
+        } else {
+            runtime.reset();
+            setCameraInputHidden(false);
+        }
+        CameraRenderOverride.publishTimelineActive(playing || scrubbing);
         commitState();
+    }
+
+    private static void setCameraInputHidden(boolean hidden) {
+        if (MinecraftClient.getInstance() != null)
+            DirectorClientController.getInstance().setHideCrosshair(hidden);
     }
 
     @Override
@@ -509,8 +429,6 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
             LOGGER.debug("[TimelineCameraController] 清除预览状态");
         }
         // ⭐ 同时清除关键帧编辑预览，避免残留状态导致下一帧又切回 TIMELINE
-        keyframeEditFramesRemaining = 0;
-        keyframeEditSample = null;
     }
 
     public synchronized void releaseCameraToPlayer() {
@@ -522,9 +440,8 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
         sampler.onStop();
         this.previewing = false;
         this.previewSample = null;
-        this.keyframeEditFramesRemaining = 0;
-        this.keyframeEditSample = null;
-        DirectorClientController.getInstance().setHideCrosshair(false);
+        setCameraInputHidden(false);
+        CameraRenderOverride.publishTimelineActive(false);
         commitState();
     }
 
@@ -584,7 +501,7 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
         if (!runtime.isTimelineOwner()) {
             runtime.setOwner(CameraRuntime.Owner.TIMELINE);
         }
-        DirectorClientController.getInstance().setHideCrosshair(true);
+        setCameraInputHidden(true);
     }
 
     // ================== 属性面板实时预览 ==================
@@ -593,13 +510,20 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
      * 属性面板实时预览：将关键帧直接转换为 CameraSample 并应用到 CameraRuntime。
      * <p>
      * 无需重建 PathManager，适合拖拽编辑时的低延迟实时预览。
-     * 每次调用重置存活帧计数器，保证在 renderProperties 不再被调用后自动停止。
+     * 仅在控件修改时调用；保留最终预览，玩家输入可释放接管。
      *
      * @param kf 当前正在编辑的关键帧
      */
     public synchronized void previewKeyframeDirect(CameraKeyframe kf) {
-        keyframeEditFramesRemaining = 0;
-        keyframeEditSample = null;
+        if (kf == null || timelineModel == null || timelineModel.isPlaying() || timelineModel.isScrubbing()
+                || com.director.export.video.VideoExportManager.getInstance().isExporting()) return;
+        previewing = true; previewTimeSeconds = kf.getTime();
+        previewSample = pathManager.toSample(kf);
+        var runtime = CameraRuntime.getInstance();
+        runtime.applyTimelineSample(previewSample);
+        runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+        setCameraInputHidden(true);
+        commitState();
     }
 
     /**
@@ -617,33 +541,55 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
         LOGGER.debug("[TimelineCamera] jumpToTimeAsPlayer @ {}s", timeSeconds);
     }
 
-    /**
-     * 🎥 导出专用：将指定时间点的 CameraSample 应用到 {@link CameraRuntime}，并强制 owner=TIMELINE。
-     *
-     * <p>
-     * 为什么要这样做？
-     * </p>
-     * <ul>
-     * <li>如果把采样写到 player 实体上（{@link #jumpToTimeAsPlayer(float)}），渲染会使用 tickDelta
-     * 对实体做插值，
-     * 只要 prev/lastRender 没同步，就会产生“每帧跳一下”的抖动。</li>
-     * <li>导出时我们需要每一帧完全确定：由 {@code CameraMixin} 在 {@code Camera.update(TAIL)} 直接覆盖
-     * Camera 的 pos/rot，
-     * 不走实体插值路径，从而避免 jitter。</li>
-     * </ul>
-     */
+    /** State belongs to the editor session that started the export. */
+    public record ExportState(TimelineModel model, float time, boolean playing,
+            TimelineTrack track, boolean previewing, float previewTime, CameraSample previewSample) {}
+
+    public synchronized ExportState saveStateForExport() {
+        var state = new ExportState(timelineModel,
+                timelineModel == null ? 0 : timelineModel.getCurrentTime(),
+                timelineModel != null && timelineModel.isPlaying(),
+                activeTrack, previewing, previewTimeSeconds, previewSample);
+        if (timelineModel != null) timelineModel.setPlaying(false);
+        return state;
+    }
+
+    /** Caller clears the exporting flag before restoring, on the client thread. */
+    public synchronized void restoreStateAfterExport(ExportState state) {
+        if (state == null || state.model() != timelineModel) return;
+        setActiveCameraTrack(state.track());
+        previewing = state.previewing(); previewTimeSeconds = state.previewTime();
+        previewSample = state.previewSample();
+        if (timelineModel != null) {
+            timelineModel.setCurrentTime(state.time());
+            timelineModel.setPlaying(state.playing());
+        }
+        updateOwnerAndSample(0f);
+    }
+
+    public synchronized void preparePlayerCameraForExport() {
+        clearPreviewState();
+        CameraRuntime.getInstance().reset();
+        CameraRenderOverride.publishTimelineActive(false);
+        setCameraInputHidden(false);
+        commitState();
+    }
+
+    /** Export owns the camera only when this frame has a valid shot. */
     public synchronized void applySampleForExport(float timeSeconds) {
-        if (!isValidTrack(activeTrack)) {
+        clearPreviewState();
+        ensureCameraDataBuilt();
+        CameraSample sample = isValidTrack(activeTrack) ? sampler.sample(timeSeconds).orElse(null) : null;
+        var runtime = CameraRuntime.getInstance();
+        if (sample == null) {
+            preparePlayerCameraForExport();
             return;
         }
-        ensureCameraDataBuilt();
-        CameraRuntime runtime = CameraRuntime.getInstance();
-        sampler.sample(timeSeconds).ifPresent(runtime::applyTimelineSample);
-        if (!runtime.isTimelineOwner()) {
-            runtime.setOwner(CameraRuntime.Owner.TIMELINE);
-        }
-        // 导出期间保持隐藏十字星（避免 UI/输入干扰），可按需调整
-        DirectorClientController.getInstance().setHideCrosshair(true);
+        runtime.applyTimelineSample(sample);
+        runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+        CameraRenderOverride.publishTimelineActive(true);
+        setCameraInputHidden(true);
+        commitState();
     }
 
 

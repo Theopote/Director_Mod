@@ -2,25 +2,17 @@ package com.director.ui.timeline.commands;
 
 import com.director.core.DirectorServices;
 import com.director.actor.Actor;
-import com.director.actor.ActorRef;
-import com.director.actor.ActorRegistry;
-import com.director.actor.ActorRegistryManager;
-import com.director.actor.preview.ActorPreviewManager;
-import com.director.core.container.ContainerManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
-import com.director.timeline.model.TrackType;
 import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.entity.ActorTrack;
 
 import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
 
 /**
  * 删除片段命令。

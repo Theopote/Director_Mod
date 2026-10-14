@@ -159,6 +159,7 @@ public final class VideoRenderPipeline {
 
     private void applyCamera(float timeSeconds, VideoExportSettings settings) {
         if (settings.cameraMode == VideoExportSettings.CAMERA_PLAYER) {
+            TimelineCameraController.getInstance().preparePlayerCameraForExport();
             return;
         }
 
@@ -169,6 +170,7 @@ public final class VideoRenderPipeline {
 
         List<TimelineTrack> cameraTracks = getCameraTracks(model);
         if (cameraTracks.isEmpty()) {
+            TimelineCameraController.getInstance().preparePlayerCameraForExport();
             return;
         }
 

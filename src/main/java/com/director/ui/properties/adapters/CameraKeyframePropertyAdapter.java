@@ -83,10 +83,11 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
             TimelineCameraController.getInstance().onKeyframeChanged();
         }
 
-        // ⭐ 属性面板实时预览：只要关键帧在属性面板中显示，就持续将其状态应用到相机。
-        // 每帧刷新计数器，当关键帧取消选中（renderProperties 不再被调用）时计数器自然耗尽、相机回归玩家控制。
-        if (!CameraPathEditTool.ID.equals(ToolRegistry.get().getActiveNonSelectionToolId())) {
-            TimelineCameraController.getInstance().previewKeyframeDirect(kf);
+        // 修改时预览当前参数；仅显示属性时不重新夺取玩家控制权。
+        if (editing.get()) {
+            TimelineCameraController.getInstance().onKeyframePreviewMoved();
+            if (!CameraPathEditTool.ID.equals(ToolRegistry.get().getActiveNonSelectionToolId()))
+                TimelineCameraController.getInstance().previewKeyframeDirect(kf);
         }
 
         return changed.get();
@@ -111,10 +112,8 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
                 f1.set(clampedTime);
             }
             kf.setTime(clampedTime);
-            if (ImGui.isItemDeactivatedAfterEdit()) {
-                changed.set(true);
-            }
         }
+        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.TIME_TOOLTIP));
 
         ImGui.spacing();
@@ -127,6 +126,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
             kf.setKeyType(CameraKeyframe.KeyType.values()[i1.get()]);
             changed.set(true);
         }
+        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.KEY_TYPE_TOOLTIP));
         ImGui.unindent();
     }
@@ -162,6 +162,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
             changed.set(true);
             editing.set(true);
         }
+        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.POSITION_CURVE_TOOLTIP));
 
         ImGui.spacing();
@@ -175,6 +176,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
             changed.set(true);
             editing.set(true);
         }
+        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION_CURVE_TOOLTIP));
         ImGui.unindent();
     }
@@ -197,6 +199,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
                 changed.set(true);
             }
         }
+        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.CAPTURE_TOOLTIP));
 
         ImGui.spacing();
@@ -240,6 +243,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
             kf.setHandleMode(CameraKeyframe.HandleMode.values()[i1.get()]);
             changed.set(true);
         }
+        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_MODE_TOOLTIP));
 
         ImGui.spacing();
@@ -321,24 +325,22 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
             kf.setFov(f1.get());
             editing.set(true); // ⭐ 拖拽中实时预览
             // 只在鼠标松开时才标记为 changed，避免拖动时频繁刷新 PathManager
-            if (ImGui.isItemDeactivatedAfterEdit()) {
-                changed.set(true);
-            }
         }
+        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOV_TOOLTIP));
 
         ImGui.spacing();
 
+        ImGui.textDisabled(CameraPropertyAdapterI18n.tr("gui.director.camera.projection_unsupported"));
+        ImGui.beginDisabled();
         // near plane
         f1.set(kf.getNearPlane());
         if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.NEAR),
                 f1, 0.001f, 0.001f, 10f, "%.3f")) {
             kf.setNearPlane(f1.get());
             editing.set(true); // ⭐ 拖拽中实时预览
-            if (ImGui.isItemDeactivatedAfterEdit()) {
-                changed.set(true);
-            }
         }
+        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.NEAR_TOOLTIP));
 
         ImGui.spacing();
@@ -349,10 +351,8 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
                 f2, 0.1f, 1f, 10000f, "%.1f")) {
             kf.setFarPlane(f2.get());
             editing.set(true); // ⭐ 拖拽中实时预览
-            if (ImGui.isItemDeactivatedAfterEdit()) {
-                changed.set(true);
-            }
         }
+        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FAR_TOOLTIP));
 
         // near < far 校验
@@ -360,6 +360,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
             UITheme.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.NEAR_FAR_WARNING),
                     UITheme.DarkTheme.TEXT_WARNING);
         }
+        ImGui.endDisabled();
         ImGui.unindent();
     }
 
@@ -372,6 +373,8 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
             return;
         ImGui.indent();
 
+        ImGui.textDisabled(CameraPropertyAdapterI18n.tr("gui.director.camera.dof_unsupported"));
+        ImGui.beginDisabled();
         // 复用 ImBoolean 对象
         dofEnabled.set(kf.isDepthOfFieldEnabled());
         if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.DOF_ENABLED),
@@ -379,9 +382,11 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
             kf.setDepthOfFieldEnabled(dofEnabled.get());
             changed.set(true);
         }
+        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.DOF_TOOLTIP));
 
         if (!dofEnabled.get()) {
+            ImGui.endDisabled();
             ImGui.unindent();
             return;
         }
@@ -392,10 +397,8 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
                 f1, 0.05f, 0f, 2000f, "%.2f")) {
             kf.setFocusDistance(f1.get());
             editing.set(true); // ⭐ 拖拽中实时预览
-            if (ImGui.isItemDeactivatedAfterEdit()) {
-                changed.set(true);
-            }
         }
+        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOCUS_TOOLTIP));
 
         ImGui.spacing();
@@ -406,14 +409,12 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
                 f1, 0.01f, 0.01f, 10f, "%.2f")) {
             kf.setAperture(f1.get());
             editing.set(true); // ⭐ 拖拽中实时预览
-            if (ImGui.isItemDeactivatedAfterEdit()) {
-                changed.set(true);
-            }
         }
+        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.APERTURE_TOOLTIP));
 
-        ImGui.unindent(); // 嵌套的启用景深后的缩进
-        ImGui.unindent(); // collapsingHeader 的缩进
+        ImGui.endDisabled();
+        ImGui.unindent();
     }
 
     // ============================================================================
@@ -450,26 +451,13 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     private boolean vector3(String label, Vector3f vec, VectorSetter setter, float speed,
                             String tooltipText, AtomicBoolean editing) {
         float[] arr = {vec.x, vec.y, vec.z};
-        boolean changed = ImGui.dragFloat3(label, arr, speed);
-        
-        if (changed) {
+        if (ImGui.dragFloat3(label, arr, speed)) {
             setter.set(new Vector3f(arr[0], arr[1], arr[2]));
-            editing.set(true); // ⭐ 拖拽中实时标记，用于相机预览
-            // 只有鼠标松开时才返回 true，避免拖动时频繁触发刷新
-            if (ImGui.isItemDeactivatedAfterEdit()) {
-                if (ImGui.isItemHovered() && tooltipText != null) {
-                    ImGui.setTooltip(tooltipText);
-                }
-                return true;
-            }
-        } else {
-            // 即使没有改变，也要检查是否需要显示 tooltip
-            if (ImGui.isItemHovered() && tooltipText != null) {
-                ImGui.setTooltip(tooltipText);
-            }
+            editing.set(true);
         }
-        
-        return false;
+        boolean committed = ImGui.isItemDeactivatedAfterEdit();
+        if (ImGui.isItemHovered() && tooltipText != null) ImGui.setTooltip(tooltipText);
+        return committed;
     }
 
     /**

@@ -1,4 +1,6 @@
 {
+  "gui.director.camera.projection_unsupported": "Custom clipping planes are not supported in this version. Existing values are preserved.",
+  "gui.director.camera.dof_unsupported": "Depth-of-field rendering is not implemented in this version. Existing values are preserved.",
   "gui.director.light.animation_hint": "This clip is animated by parameter keyframes. Select a timeline key or a row below to edit its values. Playback interpolates between keys.",
   "gui.director.light.transition_hint": "Interpolation controls the transition from this key to the next: linear, smooth ease-in/out, or a step switch.",
 

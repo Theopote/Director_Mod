@@ -122,7 +122,7 @@ public abstract class CameraPathClip implements TimelineSelectable {
         if (!enabled) {
             return false;
         }
-        return timeSeconds >= startTime && timeSeconds <= endTime;
+        return timeSeconds >= startTime && timeSeconds < endTime;
     }
     
     /**

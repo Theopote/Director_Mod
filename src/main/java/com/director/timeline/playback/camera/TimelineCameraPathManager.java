@@ -143,7 +143,7 @@ public final class TimelineCameraPathManager {
     /** 找到“当前时间处于其后方”的关键帧索引，若超出范围返回 keyframes.size()。 */
     private int findNextKeyframeIndex(float timeSeconds) {
         for (int i = 0; i < keyframes.size(); i++) {
-            if (timeSeconds <= keyframes.get(i).getTime()) {
+            if (timeSeconds < keyframes.get(i).getTime()) {
                 return i;
             }
         }
@@ -456,7 +456,7 @@ public final class TimelineCameraPathManager {
 
     // ======================= 基础工具方法 =======================
 
-    private CameraSample toSample(CameraKeyframe keyframe) {
+    public CameraSample toSample(CameraKeyframe keyframe) {
         Vec3d pos = vec(keyframe.getPosition());
         Vector3f rot = keyframe.getRotation();
 

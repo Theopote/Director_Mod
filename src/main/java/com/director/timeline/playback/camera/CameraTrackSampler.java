@@ -61,6 +61,13 @@ public final class CameraTrackSampler {
 
     /** ⭐ 是否正在接管摄像机控制权（用于 tick() 状态管理） */
     private boolean active = false;
+    private final Map<CameraPathClip, CameraPathEnterContext> entries = new IdentityHashMap<>();
+    private final Set<CameraPathClip> resolving = Collections.newSetFromMap(new IdentityHashMap<>());
+    private CameraSample entrySeed;
+    public void resetPathState() {
+        entries.clear(); resolving.clear(); lastActivePathClip = null;
+        entryOrientationClip = null; lastSample = null; entrySeed = null;
+    }
 
     public CameraTrackSampler() {
     }
@@ -78,6 +85,7 @@ public final class CameraTrackSampler {
             this.lastSample = null;
             this.entryOrientationClip = null;
         }
+        if (this.cameraTrack != track) resetPathState();
         this.cameraTrack = track;
     }
 
@@ -85,6 +93,8 @@ public final class CameraTrackSampler {
      * 设置关键帧列表（会自动排序）
      */
     public void setKeyframes(Collection<CameraKeyframe> frames) {
+        entries.clear(); resolving.clear();
+        lastActivePathClip = null; entryOrientationClip = null;
         keyframes.clear();
         if (frames != null && !frames.isEmpty()) {
             keyframes.addAll(frames);
@@ -430,57 +440,39 @@ public final class CameraTrackSampler {
      * 直接 scrub 到片段中间时也不会把“当前 scrub 位置”误当成起点。
      */
     private CameraPathEnterContext resolvePathClipEnterContext(CameraPathClip enteringClip) {
-        if (enteringClip == null) {
-            return null;
-        }
-
-        float entryTime = enteringClip.getStartTime();
-        if (entryTime > 1e-4f) {
-            Optional<CameraSample> beforeStart = sampleAtTimeExcludingPathClip(entryTime - 1e-4f, enteringClip);
-            if (beforeStart.isPresent()) {
-                CameraSample sample = beforeStart.get();
-                return new CameraPathEnterContext(sample.position(), sample.yaw(), sample.pitch());
-            }
-        }
-
-        if (!keyframes.isEmpty()) {
-            Optional<CameraSample> keyframeSample = pathManager.sample(entryTime);
-            if (keyframeSample.isPresent()) {
-                CameraSample sample = keyframeSample.get();
-                return new CameraPathEnterContext(sample.position(), sample.yaw(), sample.pitch());
-            }
-        }
-
-        if (lastSample != null) {
-            return new CameraPathEnterContext(lastSample.position(), lastSample.yaw(), lastSample.pitch());
-        }
-
+        if (enteringClip == null) return null;
+        var cached = entries.get(enteringClip);
+        if (cached != null) return cached;
+        if (!resolving.add(enteringClip)) return null;
         try {
-            CameraSample currentSample = CameraRuntime.getInstance().getCurrentSample();
-            if (currentSample != null && currentSample != CameraSample.EMPTY) {
-                return new CameraPathEnterContext(
-                        currentSample.position(),
-                        currentSample.yaw(),
-                        currentSample.pitch());
+            float entryTime = enteringClip.getStartTime();
+            // Select the predecessor just before the cut, then sample its exact endpoint.
+            var previous = cameraTrack == null ? null
+                    : cameraTrack.findActivePathClip(Math.nextDown(entryTime));
+            Optional<CameraSample> before = Optional.empty();
+            if (previous != null && previous != enteringClip
+                    && previous.getStartTime() < entryTime) {
+                before = samplePredecessorAt(entryTime, previous);
             }
-        } catch (Exception e) {
-            LOGGER.warn("[CameraTrackSampler] resolvePathClipEnterContext fallback 获取 CameraRuntime 状态失败", e);
-        }
-
-        return null;
+            if (before.isEmpty() && !keyframes.isEmpty()) before = pathManager.sample(entryTime);
+            CameraSample seed = before.orElseGet(() -> {
+                if (entrySeed == null) {
+                    var runtime = CameraRuntime.getInstance().getCurrentSample();
+                    entrySeed = runtime == null ? CameraSample.EMPTY : runtime;
+                }
+                return entrySeed;
+            });
+            var ctx = new CameraPathEnterContext(seed.position(), seed.yaw(), seed.pitch());
+            entries.put(enteringClip, ctx);
+            return ctx;
+        } finally { resolving.remove(enteringClip); }
     }
 
     /**
-     * 在指定时间采样，但忽略 {@code excludeClip} 的路径贡献（用于解析片段入口状态）。
+     * 按时间线递归初始化前序片段，并采样其边界值。
      */
-    private Optional<CameraSample> sampleAtTimeExcludingPathClip(float timeSeconds, CameraPathClip excludeClip) {
-        CameraPathClip activePathClip = null;
-        if (cameraTrack != null && cameraTrack.hasCameraPathClips()) {
-            activePathClip = cameraTrack.findActivePathClip(timeSeconds);
-            if (activePathClip == excludeClip) {
-                activePathClip = null;
-            }
-        }
+    private Optional<CameraSample> samplePredecessorAt(float timeSeconds, CameraPathClip predecessor) {
+        CameraPathClip activePathClip = predecessor;
 
         if (activePathClip == null) {
             if (keyframes.isEmpty()) {
@@ -497,6 +489,8 @@ public final class CameraTrackSampler {
             return pathManager.sample(timeSeconds);
         }
 
+        var context = resolvePathClipEnterContext(activePathClip);
+        if (context != null) activePathClip.onEnter(context);
         CameraPathSample pathSample = activePathClip.sample(timeSeconds);
         if (pathSample == null) {
             return pathManager.sample(timeSeconds);
@@ -510,6 +504,8 @@ public final class CameraTrackSampler {
             Vec3d direction = pathSample.getDirection();
             yaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
             pitch = (float) Math.toDegrees(Math.asin(-direction.y));
+        } else if (context != null) {
+            yaw = context.yaw; pitch = context.pitch;
         } else if (!keyframes.isEmpty()) {
             Optional<CameraSample> keyframeSample = pathManager.sample(timeSeconds);
             if (keyframeSample.isPresent()) {

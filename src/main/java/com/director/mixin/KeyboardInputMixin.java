@@ -36,6 +36,15 @@ public class KeyboardInputMixin extends Input {
                 return;
             }
 
+            // Playback and scrubbing must not move the hidden player behind the timeline camera.
+            var cameraState = CameraRenderOverride.get();
+            if (cameraState.isTimelineOwner() && cameraState.isTimelineActive()) {
+                this.movementVector = Vec2f.ZERO;
+                this.playerInput = new PlayerInput(false, false, false, false, false, false, false);
+                ci.cancel();
+                return;
+            }
+
             // 直接检查鼠标是否在UI上
             boolean mouseOverGui = screen.isMouseOverDirectorGui(client.mouse.getX(), client.mouse.getY());
             
@@ -50,7 +59,6 @@ public class KeyboardInputMixin extends Input {
                         || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_SHIFT)
                         || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_CONTROL);
                 if (anyMovementKey) {
-                    CameraRenderOverride cameraState = CameraRenderOverride.get();
                     if (cameraState.isTimelineOwner() && !cameraState.isTimelineActive()) {
                         CameraRenderOverride.releaseToPlayerOnMovementInput();
                     }

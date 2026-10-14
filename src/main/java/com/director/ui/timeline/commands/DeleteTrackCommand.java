@@ -1,10 +1,6 @@
 package com.director.ui.timeline.commands;
 
-import com.director.actor.Actor;
 import com.director.actor.ActorRef;
-import com.director.actor.ActorRegistry;
-import com.director.actor.ActorRegistryManager;
-import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.query.ActorUsageQuery;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
