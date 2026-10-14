@@ -26,4 +26,13 @@ class ActorPosePresetsTest {
         assertEquals(3f,result.localTransform(HumanoidRig.HEAD).scale().x);
         assertFalse(result.isAuthored(HumanoidRig.DEFINITION.requireBoneIndex(HumanoidRig.ROOT)));
     }
+    @Test void articulatedSitBendsKneesAndCarryBendsElbows() {
+        var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
+        var bones=pose.rig().bones().stream().map(BoneDefinition::id).toList();
+        var sit=ActorPosePresets.apply(pose,ActorPosePresets.Preset.SIT,bones);
+        assertTrue(sit.localTransform(ArticulatedPlayerRig.LEFT_SHIN).rotation().equals(new Quaternionf().rotateX((float)java.lang.Math.PI/2),1e-5f));
+        var carry=ActorPosePresets.apply(pose,ActorPosePresets.Preset.CARRY,bones);
+        assertTrue(carry.localTransform(ArticulatedPlayerRig.RIGHT_FOREARM).rotation().equals(new Quaternionf().rotateX(-(float)java.lang.Math.PI/2),1e-5f));
+        assertTrue(carry.localTransform(HumanoidRig.RIGHT_ARM).rotation().equals(new Quaternionf(),1e-5f));
+    }
 }

@@ -732,8 +732,15 @@ public final class ActorRuntimeController {
                 if (actor.getType() == com.director.actor.ActorType.PLAYER)
                     ActorJointGait.apply(proceduralPose, action, s.actionIntensity, gaitTime, rig.getStyle(),
                             !s.poseOverrideArms, !s.poseOverrideLegs);
+                var authoredPose = asset.sample(sampleTime, playbackMode);
                 var finalRigPose = ActorRigPoseComposition.compose(proceduralPose,
-                        asset.sample(sampleTime, playbackMode), pose -> applyRigPoseOverrides(pose, s));
+                        authoredPose, pose -> applyRigPoseOverrides(pose, s));
+                if (actor.getType() == com.director.actor.ActorType.PLAYER) {
+                    var authoredBones = new java.util.HashSet<String>();
+                    for (int i=0;i<authoredPose.rig().boneCount();i++)
+                        if (authoredPose.isAuthored(i)) authoredBones.add(authoredPose.rig().bone(i).id());
+                    ActorRouteFootContact.apply(finalRigPose,s,authoredBones);
+                }
                 applyPoseToRuntime(rigPose.pose);
                 Entity preview = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
                 if (preview instanceof com.director.actor.preview.ActorPosePreview previewEntity) {

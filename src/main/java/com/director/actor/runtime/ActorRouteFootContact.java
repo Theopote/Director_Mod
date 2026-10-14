@@ -6,17 +6,23 @@ import com.director.timeline.model.entity.ActorRouteClip;
 import org.joml.Vector3f;
 import org.joml.Quaternionf;
 
-/** Bounded contact correction for the standard rigid-legged player, not knee IK. */
+/** Bounded contact correction using the complete leg chain, not terrain IK. */
 public final class ActorRouteFootContact {
     private ActorRouteFootContact() {}
     public static void apply(RigPose pose, EntitySample sample) {
+        apply(pose,sample,java.util.Set.of());
+    }
+    public static void apply(RigPose pose, EntitySample sample, java.util.Set<String> authoredBones) {
+        if (authoredBones.contains(HumanoidRig.ROOT)) return;
         if (sample.routeClip == null || sample.routeClip.getLoopMode() != ActorRouteClip.LoopMode.ONCE
                 || !sample.routeClip.isAlignRotationToRoute() || sample.actionExplicit || sample.relationEnabled
-                || sample.poseOverrideEnabled || sample.speed <= .02f || !pose.rig().id().equals(HumanoidRig.DEFINITION.id())
+                || sample.poseOverrideEnabled || sample.speed <= .02f || !HumanoidTopology.matches(pose.rig())
                 || sample.scale.x <= .001f || sample.scale.y <= .001f || sample.scale.z <= .001f) return;
         float distance = ActorRouteMotion.once(sample.routeClip, sample.actionLocalTime).distance();
-        correct(pose, sample, HumanoidRig.LEFT_LEG, distance, 0);
-        correct(pose, sample, HumanoidRig.RIGHT_LEG, distance, .5f);
+        if (!authoredBones.contains(HumanoidRig.LEFT_LEG) && !authoredBones.contains(ArticulatedPlayerRig.LEFT_SHIN))
+            correct(pose, sample, HumanoidRig.LEFT_LEG, distance, 0);
+        if (!authoredBones.contains(HumanoidRig.RIGHT_LEG) && !authoredBones.contains(ArticulatedPlayerRig.RIGHT_SHIN))
+            correct(pose, sample, HumanoidRig.RIGHT_LEG, distance, .5f);
     }
     private static void correct(RigPose pose, EntitySample sample, String bone, float distance, float shift) {
         float stride = .8f * sample.scale.z;
@@ -33,10 +39,25 @@ public final class ActorRouteFootContact {
         new Quaternionf().rotateY((float)Math.toRadians(sample.rotation.x)).transform(target);
         target.div(sample.scale);
         var current = pose.localTransform(bone);
-        var sole = current.rotation().transform(new Vector3f(0, -.75f * current.scale().y, 0)).add(current.translation());
+        var sole = solePosition(pose, bone);
         var correction = target.sub(sole);
         if (correction.length() > .3f) correction.normalize().mul(.3f);
+        // Correction is measured in model space; the leg translation is parent-local.
+        int parent = pose.rig().bone(pose.rig().requireBoneIndex(bone)).parentIndex();
+        if (parent >= 0) {
+            var inverse = pose.calculateModelTransforms()[parent].invert();
+            inverse.transformDirection(correction);
+        }
+        if (!correction.isFinite()) return;
         var translation = current.translation().add(correction.mul(weight));
         pose.setLocalTransform(pose.rig().requireBoneIndex(bone), new BoneTransform(translation, current.rotation(), current.scale()), RigPose.TRANSLATION);
+    }
+    /** Model-space foot endpoint, including thigh, knee and segment scales. */
+    public static Vector3f solePosition(RigPose pose, String leg) {
+        String shin = HumanoidRig.LEFT_LEG.equals(leg) ? ArticulatedPlayerRig.LEFT_SHIN : ArticulatedPlayerRig.RIGHT_SHIN;
+        int index = pose.rig().findBoneIndex(shin);
+        float length = .375f;
+        if (index < 0) { index = pose.rig().requireBoneIndex(leg); length = .75f; }
+        return pose.calculateModelTransforms()[index].transformPosition(new Vector3f(0,-length,0));
     }
 }

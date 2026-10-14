@@ -26,4 +26,38 @@ class ActorRouteFootContactTest {
         a.actionExplicit=true; var manual=new RigPose(HumanoidRig.DEFINITION); ActorRouteFootContact.apply(manual,a);
         assertEquals(new Vector3f(.125f,.75f,0),manual.localTransform(HumanoidRig.LEFT_LEG).translation());
     }
+    @Test void articulatedSoleIncludesKneeRotationAndScale() {
+        var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
+        int knee=pose.rig().requireBoneIndex(ArticulatedPlayerRig.LEFT_SHIN);
+        pose.setLocalTransform(knee,new BoneTransform(pose.localTransform(knee).translation(),
+                new org.joml.Quaternionf().rotateX((float)Math.PI/2),new Vector3f(2)),RigPose.ROTATION|RigPose.SCALE);
+        var sole=ActorRouteFootContact.solePosition(pose,HumanoidRig.LEFT_LEG);
+        assertEquals(.125f,sole.x,1e-5f);
+        assertEquals(.375f,sole.y,1e-5f);
+        assertEquals(-.75f,sole.z,1e-5f);
+    }
+    @Test void articulatedStanceCorrectionRunsAndKeepsJointRotation() {
+        var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
+        var sample=sample(.2f);
+        int knee=pose.rig().requireBoneIndex(ArticulatedPlayerRig.LEFT_SHIN);
+        var rotation=new org.joml.Quaternionf().rotateX(.2f);
+        pose.setLocalTransform(knee,pose.localTransform(knee).withRotation(rotation),RigPose.ROTATION);
+        var before=ActorRouteFootContact.solePosition(pose,HumanoidRig.LEFT_LEG).add(sample.position);
+        ActorRouteFootContact.apply(pose,sample);
+        var after=ActorRouteFootContact.solePosition(pose,HumanoidRig.LEFT_LEG).add(sample.position);
+        assertTrue(after.distance(new Vector3f(.125f,0,.2f)) < before.distance(new Vector3f(.125f,0,.2f)));
+        assertTrue(pose.localTransform(knee).rotation().equals(rotation,1e-6f));
+        var replay=new RigPose(ArticulatedPlayerRig.DEFINITION);
+        replay.setLocalTransform(knee,replay.localTransform(knee).withRotation(rotation),RigPose.ROTATION);
+        ActorRouteFootContact.apply(replay,sample);
+        assertEquals(pose.localTransform(HumanoidRig.LEFT_LEG).translation(),replay.localTransform(HumanoidRig.LEFT_LEG).translation());
+    }
+    @Test void keyedLegIsUntouchedWhileOtherLegCanReceiveContactCorrection() {
+        var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
+        var left=pose.localTransform(HumanoidRig.LEFT_LEG).translation();
+        var right=pose.localTransform(HumanoidRig.RIGHT_LEG).translation();
+        ActorRouteFootContact.apply(pose,sample(.56f),java.util.Set.of(ArticulatedPlayerRig.LEFT_SHIN));
+        assertEquals(left,pose.localTransform(HumanoidRig.LEFT_LEG).translation());
+        assertNotEquals(right,pose.localTransform(HumanoidRig.RIGHT_LEG).translation());
+    }
 }
