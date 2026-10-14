@@ -36,7 +36,7 @@ public final class PreviewPlayerActorEntity extends OtherClientPlayerEntity impl
     @Override public void tickMovement() {}
     @Override public void setActorRuntime(ActorRuntime value) { runtime=value; }
     @Override public ActorRuntime getActorRuntime() { return runtime; }
-    @Override public void setFinalPose(Pose value) { pose=value; setFinalRigPose(value==null ? null : LegacyHumanoidPoseAdapter.convert(value)); }
+    @Override public void setFinalPose(Pose value) { pose=value; setFinalRigPose(value==null ? null : LegacyHumanoidPoseAdapter.convert(value, com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION)); }
     @Override public Pose getFinalPose() { return pose; }
     @Override public void setFinalRigPose(RigPose value) { rigPose=value==null ? null : value.copy(); }
     @Override public RigPose getFinalRigPose() { return rigPose==null ? null : rigPose.copy(); }

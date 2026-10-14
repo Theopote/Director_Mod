@@ -28,7 +28,7 @@ class ActorAnimationAuthoringServiceTest {
         track = new TimelineTrack("Player", TrackType.ACTOR);
         ActorTrack payload = new ActorTrack(); payload.setActorRef(new ActorRef(actor.getActorId()));
         track.setActorTrackPayload(payload); model.addTrack(track);
-        asset = new AnimationAsset("test:authoring", "Animation", HumanoidRig.DEFINITION, 5, AnimationLoopMode.ONCE);
+        asset = new AnimationAsset("test:authoring", "Animation", ArticulatedPlayerRig.DEFINITION, 5, AnimationLoopMode.ONCE);
         AnimationAssetLibrary.getInstance().register(asset);
         clip = new EntityAnimationClip("Animation", 0, 15); clip.setAnimationId(asset.id());
         payload.addClip(clip); track.addClip(new EntityTimelineClip(clip, payload.getColorRgba()));
@@ -109,7 +109,7 @@ class ActorAnimationAuthoringServiceTest {
         assertTrue(history.undo()); assertTrue(head.rotation().findAt(1).isPresent()); assertTrue(head.rotation().findAt(3).isEmpty());
     }
     @Test void locksPlaybackAndStaleContextsRejectNumericKeying() {
-        var pose = new RigPose(HumanoidRig.DEFINITION);
+        var pose = new RigPose(ArticulatedPlayerRig.DEFINITION);
         track.setLocked(true); assertFalse(ActorAnimationAuthoringService.keyPose(context, pose, List.of("head"), InterpolationMode.LINEAR, RigPose.ROTATION));
         track.setLocked(false); model.setPlaying(true); assertFalse(context.isCurrent());
         model.setPlaying(false); track.setMuted(true); assertFalse(context.isCurrent()); track.setMuted(false);
@@ -121,7 +121,7 @@ class ActorAnimationAuthoringServiceTest {
         assertTrue(asset.boneTracks().isEmpty()); assertFalse(history.undo());
     }
     @Test void assetReplacementAndActorRebindingInvalidateCapturedTarget() {
-        var replacement = new AnimationAsset(asset.id(), "Replacement", HumanoidRig.DEFINITION, 5, AnimationLoopMode.ONCE);
+        var replacement = new AnimationAsset(asset.id(), "Replacement", ArticulatedPlayerRig.DEFINITION, 5, AnimationLoopMode.ONCE);
         AnimationAssetLibrary.getInstance().register(replacement); assertFalse(context.isCurrent());
         AnimationAssetLibrary.getInstance().register(asset); assertTrue(context.isCurrent());
         track.getActorTrackPayload().setActorRef(new ActorRef(UUID.randomUUID())); assertFalse(context.isCurrent());
@@ -139,7 +139,7 @@ class ActorAnimationAuthoringServiceTest {
     @Test void loopingClipKeysAtNormalizedAssetTime() {
         clip.setLoop(true); asset.setLoopMode(AnimationLoopMode.LOOP); model.setCurrentTime(7);
         context = ActorAnimationEditContext.resolve(model, actor.getActorId()); assertEquals(2, context.assetTime());
-        assertTrue(ActorAnimationAuthoringService.keyPose(context, new RigPose(HumanoidRig.DEFINITION), List.of("head"), InterpolationMode.LINEAR, RigPose.ROTATION));
+        assertTrue(ActorAnimationAuthoringService.keyPose(context, new RigPose(ArticulatedPlayerRig.DEFINITION), List.of("head"), InterpolationMode.LINEAR, RigPose.ROTATION));
         assertTrue(asset.findBoneTrack("head").orElseThrow().rotation().findAt(2).isPresent());
     }
     @Test void mirrorUndoRemovesNewTracksAndPreservesOriginalSparseKeys() {
@@ -151,7 +151,7 @@ class ActorAnimationAuthoringServiceTest {
     }
     @Test void timelineRoundTripRejectsFrozenKeyframeEditWithoutHistory() {
         model.setCurrentTime(2); model.setCurrentTime(1);
-        assertFalse(ActorAnimationAuthoringService.keyPose(context,new RigPose(HumanoidRig.DEFINITION),List.of("head"),InterpolationMode.LINEAR,RigPose.ROTATION));
+        assertFalse(ActorAnimationAuthoringService.keyPose(context,new RigPose(ArticulatedPlayerRig.DEFINITION),List.of("head"),InterpolationMode.LINEAR,RigPose.ROTATION));
         assertTrue(asset.boneTracks().isEmpty()); assertEquals(0,history.getUndoSize());
     }
     @Test void numericContextDetectsSelectionAndSettingsRoundTripsButNotHover() {
@@ -167,7 +167,7 @@ class ActorAnimationAuthoringServiceTest {
         } finally { selection.deactivate(); }
     }
     @Test void undoRefusesExternalKeyframeChangesWithoutPartialRollback() {
-        var pose=new RigPose(HumanoidRig.DEFINITION);
+        var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
         assertTrue(ActorAnimationAuthoringService.keyPose(context,pose,List.of("head","body"),InterpolationMode.LINEAR,RigPose.ROTATION));
         var head=asset.findBoneTrack("head").orElseThrow(); var body=asset.findBoneTrack("body").orElseThrow();
         head.rotation().put(2,new Quaternionf().rotateY(.3f),InterpolationMode.LINEAR);
@@ -176,14 +176,14 @@ class ActorAnimationAuthoringServiceTest {
         assertTrue(head.rotation().findAt(2).isPresent());
     }
     @Test void undoRedoIgnoreSelectionTimeButRejectReplacementAsset() {
-        assertTrue(ActorAnimationAuthoringService.keyPose(context,new RigPose(HumanoidRig.DEFINITION),List.of("head"),InterpolationMode.LINEAR,RigPose.ROTATION));
+        assertTrue(ActorAnimationAuthoringService.keyPose(context,new RigPose(ArticulatedPlayerRig.DEFINITION),List.of("head"),InterpolationMode.LINEAR,RigPose.ROTATION));
         model.selectItem(track,false); model.setCurrentTime(8); assertTrue(history.undo()); assertTrue(history.redo());
-        var replacement=new AnimationAsset(asset.id(),"Replacement",HumanoidRig.DEFINITION,5,AnimationLoopMode.ONCE);
+        var replacement=new AnimationAsset(asset.id(),"Replacement",ArticulatedPlayerRig.DEFINITION,5,AnimationLoopMode.ONCE);
         AnimationAssetLibrary.getInstance().register(replacement); assertThrows(IllegalArgumentException.class,history::undo);
         assertTrue(replacement.boneTracks().isEmpty()); assertEquals(1,history.getUndoSize());
     }
     @Test void redoRefusesExternalTrackInsertionAndWrapperRemovalIsReadOnly() {
-        assertTrue(ActorAnimationAuthoringService.keyPose(context,new RigPose(HumanoidRig.DEFINITION),List.of("head"),InterpolationMode.LINEAR,RigPose.ROTATION));
+        assertTrue(ActorAnimationAuthoringService.keyPose(context,new RigPose(ArticulatedPlayerRig.DEFINITION),List.of("head"),InterpolationMode.LINEAR,RigPose.ROTATION));
         assertTrue(history.undo()); var external=asset.getOrCreateBoneTrack("head");
         assertThrows(IllegalArgumentException.class,history::redo); assertSame(external,asset.findBoneTrack("head").orElseThrow());
         track.removeClip(clip.getTimelineClip());
@@ -382,7 +382,7 @@ class ActorAnimationAuthoringServiceTest {
         track.getActorTrackPayload().addClip(other); track.addClip(new EntityTimelineClip(other,track.getActorTrackPayload().getColorRgba()));
         model.setSelectedClip(other.getTimelineClip()); assertNull(selection.snapshot(model));
         model.setSelectedClip(clip.getTimelineClip()); selection.replace(model,track,clip,asset,keys,true);
-        AnimationAssetLibrary.getInstance().register(new AnimationAsset(asset.id(),"Replacement",HumanoidRig.DEFINITION,5,AnimationLoopMode.ONCE));
+        AnimationAssetLibrary.getInstance().register(new AnimationAsset(asset.id(),"Replacement",ArticulatedPlayerRig.DEFINITION,5,AnimationLoopMode.ONCE));
         assertNull(selection.snapshot(model));
     }
     @Test void sharedSelectionChangesInvalidatePendingNumericDraft() {

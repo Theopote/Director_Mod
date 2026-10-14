@@ -34,6 +34,9 @@ public final class ActorPropSocketResolver {
         return socket.isFinite()?Optional.of(socket):Optional.empty();
     }
     private static Matrix4f hand(RigWorldPose pose,String bone) {
+        String joint=HumanoidRig.LEFT_ARM.equals(bone)?ArticulatedPlayerRig.LEFT_FOREARM:ArticulatedPlayerRig.RIGHT_FOREARM;
+        int index=pose.rig().findBoneIndex(joint);
+        if(index>=0) return pose.transform(index).translate(0,-.375f,0);
         return pose.transform(pose.rig().requireBoneIndex(bone)).translate(0,-.625f,0);
     }
 }

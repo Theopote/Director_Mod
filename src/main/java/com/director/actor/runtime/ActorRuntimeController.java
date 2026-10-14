@@ -729,6 +729,9 @@ public final class ActorRuntimeController {
                 var proceduralPose = com.director.actor.rig.skeleton.HumanoidTopology.matches(asset.rig())
                         ? com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(rigPose.pose, asset.rig())
                         : null;
+                if (actor.getType() == com.director.actor.ActorType.PLAYER)
+                    ActorJointGait.apply(proceduralPose, action, s.actionIntensity, gaitTime, rig.getStyle(),
+                            !s.poseOverrideArms, !s.poseOverrideLegs);
                 var finalRigPose = ActorRigPoseComposition.compose(proceduralPose,
                         asset.sample(sampleTime, playbackMode), pose -> applyRigPoseOverrides(pose, s));
                 applyPoseToRuntime(rigPose.pose);
@@ -768,9 +771,12 @@ public final class ActorRuntimeController {
                 boolean boneDragging = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
                         && actor.getActorId().equals(com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().getActorId());
                 if (!boneDragging) {
-                    if (actor.getType() == com.director.actor.ActorType.PLAYER && animPose == null && !s.actionExplicit) {
-                        var contactPose = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(finalPose);
-                        ActorRouteFootContact.apply(contactPose, s);
+                    if (actor.getType() == com.director.actor.ActorType.PLAYER) {
+                        var contactPose = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(finalPose,
+                                com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION);
+                        if (animPose == null) ActorJointGait.apply(contactPose, action, s.actionIntensity, gaitTime,
+                                rig.getStyle(), !s.poseOverrideArms, !s.poseOverrideLegs);
+                        if (animPose == null && !s.actionExplicit) ActorRouteFootContact.apply(contactPose, s);
                         previewEntity.setFinalRigPose(contactPose);
                     } else previewEntity.setFinalPose(finalPose);
                 }

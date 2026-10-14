@@ -12,7 +12,13 @@ public final class HumanoidTopology {
     private HumanoidTopology() {}
 
     public static boolean matches(RigDefinition rig) {
-        if (rig == null || rig.boneCount() != HumanoidRig.DEFINITION.boneCount()) return false;
+        if (rig == null) return false;
+        if (rig.boneCount() == 11) {
+            if (!sameParent(rig,ArticulatedPlayerRig.LEFT_FOREARM,HumanoidRig.LEFT_ARM)
+                    || !sameParent(rig,ArticulatedPlayerRig.RIGHT_FOREARM,HumanoidRig.RIGHT_ARM)
+                    || !sameParent(rig,ArticulatedPlayerRig.LEFT_SHIN,HumanoidRig.LEFT_LEG)
+                    || !sameParent(rig,ArticulatedPlayerRig.RIGHT_SHIN,HumanoidRig.RIGHT_LEG)) return false;
+        } else if (rig.boneCount() != HumanoidRig.DEFINITION.boneCount()) return false;
         return sameParent(rig, HumanoidRig.ROOT, null)
                 && sameParent(rig, HumanoidRig.BODY, HumanoidRig.ROOT)
                 && sameParent(rig, HumanoidRig.HEAD, HumanoidRig.BODY)

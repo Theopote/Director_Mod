@@ -1,0 +1,39 @@
+package com.director.actor.preview;
+
+import net.minecraft.client.model.*;
+import com.director.actor.rig.skeleton.*;
+
+/** Alternate segmented cuboids are visible only for authored player joints. */
+public final class PlayerJointModel {
+    private static final String UPPER="director_upper", LOWER="director_lower";
+    private PlayerJointModel() {}
+    public static void build(ModelData data,Dilation dilation,boolean slim) {
+        var root=data.getRoot();
+        split(root.getChild("left_arm"),32,48,-1,-2,slim?3:4,dilation);
+        split(root.getChild("right_arm"),40,16,slim?-2:-3,-2,slim?3:4,dilation);
+        split(root.getChild("left_arm").getChild("left_sleeve"),48,48,-1,-2,slim?3:4,dilation.add(.25f));
+        split(root.getChild("right_arm").getChild("right_sleeve"),40,32,slim?-2:-3,-2,slim?3:4,dilation.add(.25f));
+        split(root.getChild("left_leg"),16,48,-2,0,4,dilation);
+        split(root.getChild("right_leg"),0,16,-2,0,4,dilation);
+        split(root.getChild("left_leg").getChild("left_pants"),0,48,-2,0,4,dilation.add(.25f));
+        split(root.getChild("right_leg").getChild("right_pants"),0,32,-2,0,4,dilation.add(.25f));
+    }
+    private static void split(ModelPartData part,int u,int v,float x,float y,float width,Dilation dilation) {
+        part.addChild(UPPER,ModelPartBuilder.create().uv(u,v).cuboid(x,y,-2,width,6,4,dilation),ModelTransform.NONE);
+        part.addChild(LOWER,ModelPartBuilder.create().uv(u,v+6).cuboid(x,0,-2,width,6,4,dilation),ModelTransform.origin(0,y+6,0));
+    }
+    public static void apply(ModelPart part,RigPose pose,String joint) {
+        if (!part.hasChild(UPPER)) return;
+        boolean active=pose!=null && pose.rig().findBoneIndex(joint)>=0
+                && pose.isAuthored(pose.rig().requireBoneIndex(joint));
+        part.hidden=active;
+        part.getChild(UPPER).visible=active;
+        var lower=part.getChild(LOWER); lower.visible=active;
+        if(active) {
+            var value=pose.localTransform(joint);
+            var angles=ArmorStandEulerAngles.fromQuaternion(value.rotation());
+            lower.pitch=angles.x; lower.yaw=angles.y; lower.roll=angles.z;
+            lower.xScale=value.scale().x; lower.yScale=value.scale().y; lower.zScale=value.scale().z;
+        }
+    }
+}

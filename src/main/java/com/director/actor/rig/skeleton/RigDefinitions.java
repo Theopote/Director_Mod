@@ -7,6 +7,7 @@ public final class RigDefinitions {
     private RigDefinitions() {}
 
     public static Optional<RigDefinition> find(String id) {
+        if (ArticulatedPlayerRig.DEFINITION.id().equals(id)) return Optional.of(ArticulatedPlayerRig.DEFINITION);
         if (HumanoidRig.DEFINITION.id().equals(id)) return Optional.of(HumanoidRig.DEFINITION);
         return CustomRigLibrary.getInstance().find(id);
     }

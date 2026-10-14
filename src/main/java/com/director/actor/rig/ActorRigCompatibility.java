@@ -24,7 +24,8 @@ public final class ActorRigCompatibility {
         };
     }
     public static boolean accepts(ActorType type, String rigId) {
-        return family(type) == Family.HUMANOID && HumanoidRig.DEFINITION.id().equals(rigId);
+        return family(type) == Family.HUMANOID && (HumanoidRig.DEFINITION.id().equals(rigId)
+                || type == ActorType.PLAYER && com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION.id().equals(rigId));
     }
     /** Instance-aware: CUSTOM actors resolve their own bound rig instead of the built-in humanoid. */
     public static boolean accepts(Actor actor, String rigId) {
@@ -34,6 +35,7 @@ public final class ActorRigCompatibility {
     public static Optional<RigDefinition> resolveRig(Actor actor) {
         if (actor == null) return Optional.empty();
         Family fam = family(actor.getType());
+        if (actor.getType() == ActorType.PLAYER) return Optional.of(com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION);
         if (fam == Family.HUMANOID) return Optional.of(HumanoidRig.DEFINITION);
         if (fam == Family.CUSTOM) {
             String rigId = actor.getCustomRigId();

@@ -14,6 +14,8 @@ public final class ActorBonePropertiesPanel {
     private static final BoneTransformDraft draft = new BoneTransformDraft();
     private static NumericContext numericContext;
     private String message = "";
+    private boolean presetSelectedOnly = true;
+    private final imgui.type.ImString savedPoseName = new imgui.type.ImString(128);
     record NumericContext(ActorAnimationEditContext context, String boneId,
                                   ActorAnimationAuthoringSettings.EditTarget target, BoneKeys keys, long selectionRevision, long settingsRevision) {
         static NumericContext capture(ActorAnimationEditContext context,String bone) {
@@ -79,6 +81,8 @@ public final class ActorBonePropertiesPanel {
         }
         ImGui.textWrapped("Ctrl+点击可多选部位；数值和 Gizmo 编辑最后选中的部位，打帧与恢复姿态作用于全部所选部位。");
         ImGui.textDisabled("已选择 " + selection.getSelectedBoneIds().size() + " 个部位");
+        String activeBone = selection.getSelectedBoneId();
+        if (activeBone != null) renderSelectionControls(model, actorId, actorRig, activeBone);
         if(ActorAnimationAuthoringSettings.getInstance().getEditTarget()!=ActorAnimationAuthoringSettings.EditTarget.ANIMATION) {
             cancelNumericDraft();
             ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.authoring.numeric_asset_target"));
@@ -95,7 +99,16 @@ public final class ActorBonePropertiesPanel {
         String boneId = selection.getSelectedBoneId();
         if (context == null || boneId == null || !context.isCurrent()) {
             draft.clear();
-            ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.authoring.unavailable"));
+            var owner = ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
+            if (context == null && boneId != null && ActorEmbeddedAnimation.target(model, owner) != null) {
+                ImGui.textWrapped("此演员尚未建立骨骼关键帧。选择一个通道开始编辑，动画会保存在原演员片段中。");
+                for (int channel : new int[]{RigPose.TRANSLATION, RigPose.ROTATION, RigPose.SCALE}) {
+                    if (!ActorBoneInspector.supports(actorRig, boneId, channel)) continue;
+                    if (ImGui.button("建立" + ActorBoneInspector.label(channel) + "关键帧##firstBone" + channel))
+                        ActorEmbeddedAnimation.firstKey(model, owner, boneId, channel,
+                                ActorAnimationAuthoringSettings.getInstance().getInterpolation());
+                }
+            } else ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.authoring.unavailable"));
             ImGui.treePop();
             return;
         }
@@ -137,15 +150,65 @@ public final class ActorBonePropertiesPanel {
             ImGui.treePop();
             return;
         }
+        if (HumanoidTopology.matches(asset.rig())) {
+            ImGui.separator();
+            ImGui.text("姿态预设");
+            if (ImGui.checkbox("仅作用于所选部位##presetScope", presetSelectedOnly)) presetSelectedOnly = !presetSelectedOnly;
+            ImGui.textDisabled("在当前时间写入旋转关键帧，保留位置与缩放；这是静态姿态，不是循环动作。");
+            for (var preset : ActorPosePresets.Preset.values()) {
+                if (ImGui.button(preset.label() + "##posePreset" + preset.name())) {
+                    var bones = presetSelectedOnly ? selection.getSelectedBoneIds()
+                            : asset.rig().bones().stream().map(BoneDefinition::id).toList();
+                    var presetPose = ActorPosePresets.apply(pose, preset, bones);
+                    boolean applied = ActorAnimationAuthoringService.keyPose(context, presetPose, bones, mode, RigPose.ROTATION);
+                    message = applied ? "姿态已写入当前关键帧，可撤销。" : "没有可修改的旋转通道，或姿态未变化。";
+                }
+            }
+        }
+        if (ImGui.treeNode("自定义姿态库##savedPoses")) {
+            ImGui.textWrapped("保存当前动画资产中的旋转姿态；不会保存自动步态、注视结果、位置或缩放。");
+            ImGui.inputText("姿态名称##savedPoseName", savedPoseName);
+            if (ImGui.checkbox("仅所选部位##savedPoseScope", presetSelectedOnly)) presetSelectedOnly = !presetSelectedOnly;
+            var scope = presetSelectedOnly ? selection.getSelectedBoneIds()
+                    : asset.rig().bones().stream().map(BoneDefinition::id).toList();
+            if (ImGui.button("保存当前旋转姿态##savePose")) {
+                try {
+                    String name = savedPoseName.get().split("\\u0000", 2)[0];
+                    ActorSavedPoseLibrary.add(ActorSavedPoseLibrary.capture(name, pose, scope));
+                    message = "姿态已保存到当前存档。";
+                } catch (java.io.IOException | IllegalArgumentException failure) { message = failure.getMessage(); }
+            }
+            try {
+                for (var saved : ActorSavedPoseLibrary.current()) {
+                    if (!saved.rigId().equals(asset.rigId())) continue;
+                    if (ImGui.button("应用 " + saved.name() + "##savedPose:" + saved.name())) {
+                        var bones = scope.stream().filter(saved.rotations()::containsKey).toList();
+                        boolean applied = ActorAnimationAuthoringService.keyPose(context, saved.apply(pose,bones),
+                                bones, mode, RigPose.ROTATION);
+                        message = applied ? "保存的姿态已写入当前关键帧。" : "所选部位未包含在此姿态中，或姿态未变化。";
+                    }
+                }
+            } catch (java.io.IOException failure) { ImGui.textWrapped(failure.getMessage()); }
+            ImGui.treePop();
+        }
         ImGui.textDisabled("按通道给所选部位打帧（仅写入支持的通道）");
+        ImGui.beginDisabled(selection.getSelectedBoneIds().stream().noneMatch(id ->
+                ActorBoneInspector.supports(asset.rig(), id, RigPose.TRANSLATION)));
         if (ImGui.button("位置##keyBoneT")) ActorAnimationAuthoringService.keyPose(context, pose,
                 selection.getSelectedBoneIds(), mode, RigPose.TRANSLATION);
+        ImGui.endDisabled();
         ImGui.sameLine();
+        ImGui.beginDisabled(selection.getSelectedBoneIds().stream().noneMatch(id ->
+                ActorBoneInspector.supports(asset.rig(), id, RigPose.ROTATION)));
         if (ImGui.button("旋转##keyBoneR")) ActorAnimationAuthoringService.keyPose(context, pose,
                 selection.getSelectedBoneIds(), mode, RigPose.ROTATION);
+        ImGui.endDisabled();
         ImGui.sameLine();
+        ImGui.beginDisabled(selection.getSelectedBoneIds().stream().noneMatch(id ->
+                ActorBoneInspector.supports(asset.rig(), id, RigPose.SCALE)));
         if (ImGui.button("缩放##keyBoneS")) ActorAnimationAuthoringService.keyPose(context, pose,
                 selection.getSelectedBoneIds(), mode, RigPose.SCALE);
+        ImGui.endDisabled();
         if (ImGui.button("所选部位批量打帧##keyBone")) ActorAnimationAuthoringService.keyPose(context, pose, selection.getSelectedBoneIds(), mode, RigPose.ALL_CHANNELS);
         if (ImGui.button("全身打帧##keyPose")) ActorAnimationAuthoringService.keyPose(context, pose,
                 asset.rig().bones().stream().map(BoneDefinition::id).toList(), mode, RigPose.ALL_CHANNELS);
@@ -155,6 +218,42 @@ public final class ActorBonePropertiesPanel {
             ActorAnimationAuthoringService.keyPose(context, pose, selection.getSelectedBoneIds(), mode, RigPose.ALL_CHANNELS);
         }
         ImGui.treePop();
+    }
+
+    private static void renderSelectionControls(TimelineModel model, UUID actorId, RigDefinition rig, String boneId) {
+        var settings = ActorAnimationAuthoringSettings.getInstance();
+        var bone = rig.bone(rig.requireBoneIndex(boneId));
+        ImGui.separator();
+        ImGui.text("当前部位：" + bone.displayName());
+        for (int channel : new int[]{RigPose.TRANSLATION, RigPose.ROTATION, RigPose.SCALE}) {
+            if (!ActorBoneInspector.supports(rig, boneId, channel)) continue;
+            var mode = ActorBoneInspector.mode(channel);
+            ImGui.beginDisabled(ActorBoneGizmoController.getInstance().isDragging() || hasNumericDraft());
+            if (ImGui.radioButton(ActorBoneInspector.label(channel) + "##boneMode" + channel,
+                    settings.getBoneGizmoMode() == mode)) settings.setBoneGizmoMode(mode);
+            ImGui.endDisabled();
+            ImGui.sameLine();
+        }
+        ImGui.newLine();
+        if (ImGui.checkbox("新通道自动打帧##boneAutoKey", settings.isAutoKeyframe()))
+            settings.setAutoKeyframe(!settings.isAutoKeyframe());
+        ImGui.textDisabled("已有关键帧的通道：拖动松开即保存；新通道：按自动打帧设置或应用草稿。");
+        var context = ActorAnimationEditContext.resolve(model, actorId);
+        if (context != null) {
+            var track = context.asset().findBoneTrack(boneId).orElse(null);
+            ImGui.textDisabled("关键帧：位置 " + (track == null ? 0 : track.translation().keyframes().size())
+                    + " / 旋转 " + (track == null ? 0 : track.rotation().keyframes().size())
+                    + " / 缩放 " + (track == null ? 0 : track.scale().keyframes().size()));
+        }
+        if (HumanoidRig.HEAD.equals(boneId)) {
+            var owner = ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
+            if (owner != null) {
+                var sample = new com.director.timeline.playback.entity.EntityClipSampler(owner.getActorTrackPayload())
+                        .sampleAt(model.getCurrentTime());
+                if (sample.lookAtEnabled && sample.lookAtStrength > 0)
+                    ImGui.textWrapped("注视约束正在控制头部朝向。制作手工转头动画时，请关闭注视约束。");
+            }
+        }
     }
 
     private static void renderChildren(RigDefinition rig, int parent, ActorBoneSelectionController selection, UUID actorId) {
