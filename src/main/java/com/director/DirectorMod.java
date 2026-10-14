@@ -376,20 +376,6 @@ public class DirectorMod implements ModInitializer {
             // 注意：MagicWandTool.THREAD_POOL 是私有的，且使用 daemon 线程
             // 会在 JVM 关闭时自动终止，无需手动清理
             
-            // 清理 WaterFreezeManager 的线程池
-            try {
-                com.director.season.WaterFreezeManager.get().shutdown();
-            } catch (Exception e) {
-                LOGGER.warn("[Director] 清理 WaterFreezeManager 线程池失败", e);
-            }
-            
-            // 清理 SeasonSnowManager 的线程池
-            try {
-                com.director.season.SeasonSnowManager.get().shutdown();
-            } catch (Exception e) {
-                LOGGER.warn("[Director] 清理 SeasonSnowManager 线程池失败", e);
-            }
-            
             LOGGER.debug("[Director] 所有线程池清理完成");
         } catch (Exception e) {
             LOGGER.error("[Director] 清理线程池时发生错误", e);

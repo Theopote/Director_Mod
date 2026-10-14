@@ -24,6 +24,8 @@ public final class TimelineSeasonController extends AbstractModelTimelinePlaybac
 
     private final SeasonTrackSampler sampler = new SeasonTrackSampler();
     private long lastRerenderTimestamp = 0;
+    private boolean rerenderPending;
+    private Float previewTime;
 
     private TimelineSeasonController() {
         super(LOGGER, true);
@@ -49,25 +51,27 @@ public final class TimelineSeasonController extends AbstractModelTimelinePlaybac
     }
 
     public void setActiveSeasonTrack(TimelineTrack track) {
+        previewTime = null;
         activateTrack(track);
     }
 
     @Override
     public synchronized void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        if (!enabled) {
-            currentSample = SeasonSample.disabled();
+        previewTime = null;
+        if (enabled) rebuildFromActiveTrack();
+        else {
+            setCurrentSample(SeasonSample.disabled());
+            cleanupSeasonEffects();
         }
-        commitState();
-        logger.info("[TimelineSeason] 季节控制 {}", enabled ? "已启用" : "已禁用");
     }
 
     @Override
     protected void onModelDetached() {
+        previewTime = null;
         sampler.clear();
-        currentSample = SeasonSample.disabled();
-        commitState();
-        logger.info("[TimelineSeason] init(null) → 关闭季节控制");
+        setCurrentSample(SeasonSample.disabled());
+        cleanupSeasonEffects();
     }
 
     @Override
@@ -109,6 +113,7 @@ public final class TimelineSeasonController extends AbstractModelTimelinePlaybac
     }
 
     public synchronized void onTimelineTick(float timelineTime) {
+        previewTime = null;
         if (!enabled || timelineModel == null) {
             if (currentSample == null || !currentSample.enabled) {
                 return;
@@ -142,6 +147,7 @@ public final class TimelineSeasonController extends AbstractModelTimelinePlaybac
 
     @Override
     public synchronized void previewAt(float timeSeconds) {
+        previewTime = Float.isFinite(timeSeconds) ? Math.max(0, timeSeconds) : 0;
         if (!enabled || !isValidTrack(activeTrack)) {
             return;
         }
@@ -154,15 +160,7 @@ public final class TimelineSeasonController extends AbstractModelTimelinePlaybac
     }
 
     public synchronized void previewAtKeyframeTime(float keyframeTime) {
-        if (!enabled || !isValidTrack(activeTrack)) {
-            return;
-        }
-        SeasonSample sample = sampler.sampleAt(keyframeTime);
-        if (sample.enabled) {
-            setCurrentSample(sample);
-            propagateToWorld();
-            logger.debug("[TimelineSeason] 预览关键帧季节 @ {}s: {}", keyframeTime, sample);
-        }
+        previewAt(keyframeTime);
     }
 
     @Override
@@ -177,8 +175,8 @@ public final class TimelineSeasonController extends AbstractModelTimelinePlaybac
 
         sampler.setFromTrack(activeTrack);
 
-        if (timelineModel != null && !sampler.isEmpty()) {
-            setCurrentSample(sampler.sampleAt(currentTimelineTime()));
+        if (enabled && timelineModel != null && !sampler.isEmpty()) {
+            setCurrentSample(sampler.sampleAt(previewTime != null ? previewTime : currentTimelineTime()));
             propagateToWorld();
             logger.debug("[TimelineSeason] 重新构建轨道，已更新当前时间点的季节状态");
         } else {
@@ -209,16 +207,15 @@ public final class TimelineSeasonController extends AbstractModelTimelinePlaybac
 
     @Override
     public synchronized void clear() {
+        init(null);
         sampler.clear();
         setCurrentSample(SeasonSample.disabled());
-        propagateToWorld();
         cleanupSeasonEffects();
-        logger.info("[TimelineSeason] Cleared season override state - 恢复游戏默认渲染");
     }
 
     @Override
     protected boolean computeHasOverride() {
-        if (!enabled || !isValidTrack(activeTrack) || !sampler.hasKeyframes() || currentSample == null) {
+        if (!enabled || !isValidTrack(activeTrack) || !sampler.hasKeyframes() || currentSample == null || !currentSample.enabled) {
             return false;
         }
         return currentSample.hasAnyEffect();
@@ -247,9 +244,14 @@ public final class TimelineSeasonController extends AbstractModelTimelinePlaybac
     }
 
     private void setCurrentSample(SeasonSample sample) {
+        SeasonSample before = currentSample;
         currentSample = sample;
         commitState();
-        scheduleThrottledRerender();
+        if (before == null || !before.grassTint.equals(sample.grassTint) || !before.foliageTint.equals(sample.foliageTint)) {
+            rerenderPending = true;
+            com.director.season.SeasonWorldEffects.terrainChanged();
+        }
+        flushRerender(false);
     }
 
     private void propagateToWorld() {
@@ -278,52 +280,23 @@ public final class TimelineSeasonController extends AbstractModelTimelinePlaybac
         }
     }
 
-    private void scheduleThrottledRerender() {
+    /** Keep the final tint request pending when updates arrive inside the throttle window. */
+    public synchronized void flushRerender(boolean force) {
+        if (!rerenderPending) return;
         long now = System.currentTimeMillis();
-        if (now - lastRerenderTimestamp < RERENDER_THROTTLE_MS) {
-            return;
-        }
-        lastRerenderTimestamp = now;
-
+        if (!force && now - lastRerenderTimestamp < RERENDER_THROTTLE_MS) return;
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null || client.worldRenderer == null) {
-            return;
-        }
-        try {
-            net.minecraft.util.math.BlockPos playerPos = client.player != null
-                    ? client.player.getBlockPos()
-                    : new net.minecraft.util.math.BlockPos(0, 64, 0);
-            int renderDistance = client.player != null
-                    ? Math.max(client.options.getViewDistance().getValue(), 8)
-                    : 8;
-            int chunkRadius = renderDistance * 16;
-            int minX = playerPos.getX() - chunkRadius;
-            int minY = Math.max(playerPos.getY() - 64, -64);
-            int minZ = playerPos.getZ() - chunkRadius;
-            int maxX = playerPos.getX() + chunkRadius;
-            int maxY = Math.min(playerPos.getY() + 256, 320);
-            int maxZ = playerPos.getZ() + chunkRadius;
-            client.worldRenderer.scheduleBlockRenders(minX, minY, minZ, maxX, maxY, maxZ);
-            if (logger.isDebugEnabled()) {
-                logger.debug("[TimelineSeason] 已调度区域重渲染 (节流) - hasOverride() = {}", cachedHasOverride);
-            }
-        } catch (Exception e) {
-            logger.warn("[TimelineSeason] 调度区域重渲染失败: {}", e.getMessage(), e);
-        }
+        if (client == null || client.world == null || client.worldRenderer == null) return;
+        var storage = ((com.director.mixin.accessor.LightWorldRendererAccessor)client.worldRenderer).director$getLightChunkStorage();
+        if (storage != null) for (var chunk : storage.chunks) chunk.scheduleRebuild(false);
+        lastRerenderTimestamp = now;
+        rerenderPending = false;
     }
 
     private void cleanupSeasonEffects() {
-        try {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.world != null) {
-                com.director.season.SeasonSnowManager.get().onSeasonSampleUpdated(null);
-                com.director.season.WaterFreezeManager.get().applySeasonSample(null);
-                com.director.season.SeasonSnowManager.get().restoreAll(client.world);
-                com.director.season.WaterFreezeManager.get().clearAll();
-                logger.info("[TimelineSeason] 已清理所有季节效果（积雪 + 冰冻水面）");
-            }
-        } catch (Exception e) {
-            logger.warn("[TimelineSeason] 清理季节效果时出错", e);
-        }
+        com.director.season.SeasonSnowManager.get().shutdown();
+        com.director.season.WaterFreezeManager.get().clearAll();
+        com.director.season.SeasonWorldEffects.terrainChanged();
+        flushRerender(true);
     }
 }

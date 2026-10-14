@@ -11,5 +11,6 @@ public abstract class WeatherWorldRendererMixin {
     @Inject(method="render",at=@At("HEAD"))
     private void director$sampleWeatherParticles(CallbackInfo ci) {
         WeatherParticleController.getInstance().tick();
+        com.director.season.SeasonWorldEffects.tick();
     }
 }

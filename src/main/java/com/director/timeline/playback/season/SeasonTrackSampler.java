@@ -41,7 +41,7 @@ public class SeasonTrackSampler {
     public SeasonTrackSampler(List<SeasonKeyframe> keyframes) {
         if (keyframes != null) {
             this.keyframes.addAll(keyframes);
-            this.keyframes.sort(Comparator.comparingDouble(SeasonKeyframe::getTime));
+            this.keyframes.sort(Comparator.comparingDouble(SeasonKeyframe::getTime).thenComparing(SeasonKeyframe::getId));
         }
     }
 
@@ -79,7 +79,7 @@ public class SeasonTrackSampler {
             }
         }
 
-        keyframes.sort(Comparator.comparingDouble(SeasonKeyframe::getTime));
+        keyframes.sort(Comparator.comparingDouble(SeasonKeyframe::getTime).thenComparing(SeasonKeyframe::getId));
     }
 
     /**
@@ -92,7 +92,7 @@ public class SeasonTrackSampler {
         this.keyframes.clear();
         if (keyframes != null) {
             this.keyframes.addAll(keyframes);
-            this.keyframes.sort(Comparator.comparingDouble(SeasonKeyframe::getTime));
+            this.keyframes.sort(Comparator.comparingDouble(SeasonKeyframe::getTime).thenComparing(SeasonKeyframe::getId));
         }
     }
 
@@ -101,12 +101,13 @@ public class SeasonTrackSampler {
      * 如果没有任何关键帧，返回 disabled()。
      */
     public SeasonSample sampleAt(float timeSeconds) {
+        timeSeconds = Float.isFinite(timeSeconds) ? Math.max(0, timeSeconds) : 0;
         SeasonSample out = new SeasonSample();
 
         if (keyframes.isEmpty()) {
             // 无关键帧 → 默认世界
             out.enabled = false;
-            return out;
+            return sanitized(out);
         }
 
         // 单关键帧 → 直接应用，无需插值
@@ -143,40 +144,40 @@ public class SeasonTrackSampler {
         // ========== 基础气候参数 ==========
         // 注意：当前 SeasonKeyframe 没有 temperature 字段，使用 humidity 代替
         out.humidity = MathHelper.clamp(
-            MathHelper.lerp(t, kf0.getHumidity(), kf1.getHumidity()),
+            blend(kf0, kf1, t, k -> k.getHumidity()),
             0f, 1f
         );
-        out.snowlineHeight = MathHelper.lerp(t, kf0.getSnowlineHeight(), kf1.getSnowlineHeight());
+        out.snowlineHeight = blend(kf0, kf1, t, k -> k.getSnowlineHeight());
 
         // ========== 颜色插值 ==========
         out.grassTint.set(
-            MathHelper.lerp(t, kf0.getGrassTint().x, kf1.getGrassTint().x),
-            MathHelper.lerp(t, kf0.getGrassTint().y, kf1.getGrassTint().y),
-            MathHelper.lerp(t, kf0.getGrassTint().z, kf1.getGrassTint().z)
+            blend(kf0, kf1, t, k -> k.getGrassTint().x),
+            blend(kf0, kf1, t, k -> k.getGrassTint().y),
+            blend(kf0, kf1, t, k -> k.getGrassTint().z)
         );
 
         out.foliageTint.set(
-            MathHelper.lerp(t, kf0.getFoliageTint().x, kf1.getFoliageTint().x),
-            MathHelper.lerp(t, kf0.getFoliageTint().y, kf1.getFoliageTint().y),
-            MathHelper.lerp(t, kf0.getFoliageTint().z, kf1.getFoliageTint().z)
+            blend(kf0, kf1, t, k -> k.getFoliageTint().x),
+            blend(kf0, kf1, t, k -> k.getFoliageTint().y),
+            blend(kf0, kf1, t, k -> k.getFoliageTint().z)
         );
 
         out.skyTint.set(
-            MathHelper.lerp(t, kf0.getSkyTint().x, kf1.getSkyTint().x),
-            MathHelper.lerp(t, kf0.getSkyTint().y, kf1.getSkyTint().y),
-            MathHelper.lerp(t, kf0.getSkyTint().z, kf1.getSkyTint().z)
+            blend(kf0, kf1, t, k -> k.getSkyTint().x),
+            blend(kf0, kf1, t, k -> k.getSkyTint().y),
+            blend(kf0, kf1, t, k -> k.getSkyTint().z)
         );
 
         out.fogTint.set(
-            MathHelper.lerp(t, kf0.getFogTint().x, kf1.getFogTint().x),
-            MathHelper.lerp(t, kf0.getFogTint().y, kf1.getFogTint().y),
-            MathHelper.lerp(t, kf0.getFogTint().z, kf1.getFogTint().z)
+            blend(kf0, kf1, t, k -> k.getFogTint().x),
+            blend(kf0, kf1, t, k -> k.getFogTint().y),
+            blend(kf0, kf1, t, k -> k.getFogTint().z)
         );
 
         out.lightTint.set(
-            MathHelper.lerp(t, kf0.getLightTint().x, kf1.getLightTint().x),
-            MathHelper.lerp(t, kf0.getLightTint().y, kf1.getLightTint().y),
-            MathHelper.lerp(t, kf0.getLightTint().z, kf1.getLightTint().z)
+            blend(kf0, kf1, t, k -> k.getLightTint().x),
+            blend(kf0, kf1, t, k -> k.getLightTint().y),
+            blend(kf0, kf1, t, k -> k.getLightTint().z)
         );
 
         // ======================================================
@@ -184,29 +185,26 @@ public class SeasonTrackSampler {
         // ======================================================
         // 映射：snowCoverageStrength → snowAmount
         out.snowAmount = MathHelper.clamp(
-            MathHelper.lerp(t, kf0.getSnowAmount(), kf1.getSnowAmount()), 
+            blend(kf0, kf1, t, k -> k.getSnowAmount()),
             0f, 1f
         );
 
         // 映射：snowLayerDepth → snowThickness (int)
         // 注意：snowThickness 是 int [0, 10]，需要四舍五入
-        float snowThicknessFloat = MathHelper.lerp(t, 
-            (float) kf0.getSnowThickness(), 
-            (float) kf1.getSnowThickness()
-        );
+        float snowThicknessFloat = blend(kf0, kf1, t, k -> k.getSnowThickness());
         out.snowThickness = Math.round(MathHelper.clamp(snowThicknessFloat, 0f, 10f));
 
         // ================================
         // 🧊 冰冻强度插值
         // ================================
         // 映射：iceCoverageStrength → freezeStrength
-        // 使用严格线性插值（使用原始 t，而不是经过插值模式处理的 t），确保冰冻效果平滑连续
+        // 冰、雪与颜色遵循相同的关键帧插值模式。
         out.freezeStrength = MathHelper.clamp(
-            MathHelper.lerp(t, kf0.getFreezeStrength(), kf1.getFreezeStrength()),
+            blend(kf0, kf1, t, k -> k.getFreezeStrength()),
             0f, 1f
         );
 
-        return out;
+        return sanitized(out);
     }
 
     /**
@@ -243,7 +241,7 @@ public class SeasonTrackSampler {
         s.fogTint.set(kf.getFogTint());
         s.lightTint.set(kf.getLightTint());
 
-        return s;
+        return sanitized(s);
     }
 
     /**
@@ -259,7 +257,7 @@ public class SeasonTrackSampler {
         return switch (kf0.getInterpolation()) {
             case LINEAR -> t;
             case SMOOTH -> smoothStep(t);
-            case CATMULL_ROM -> catmullRom(kf0, kf1, time);
+            case CATMULL_ROM -> t;
             case DEFAULT -> smoothStep(t); // DEFAULT 使用 SMOOTH
         };
     }
@@ -268,40 +266,29 @@ public class SeasonTrackSampler {
         return t * t * (3f - 2f * t);
     }
 
-    private float catmullRom(SeasonKeyframe kf0, SeasonKeyframe kf1, float time) {
-        // 真正的 Catmull-Rom 样条插值：利用前后关键帧实现更平滑的曲线过渡。
-        // 找到当前区间两侧的关键帧索引
-        int idx0 = keyframes.indexOf(kf0);
-        int idx1 = keyframes.indexOf(kf1);
-        
-        float dt = kf1.getTime() - kf0.getTime();
-        if (dt <= 0) return 0f;
-        float t = MathHelper.clamp((time - kf0.getTime()) / dt, 0f, 1f);
-        
-        // 获取四个控制点的时间值（用于确定切线方向）
-        float t0 = (idx0 > 0) ? keyframes.get(idx0 - 1).getTime() : kf0.getTime() - dt;
-        float t1 = kf0.getTime();
-        float t2 = kf1.getTime();
-        float t3 = (idx1 < keyframes.size() - 1) ? keyframes.get(idx1 + 1).getTime() : kf1.getTime() + dt;
-        
-        // Catmull-Rom 计算切线影响的 t 曲线
-        // m1 = (p2 - p0) / (t2 - t0), m2 = (p3 - p1) / (t3 - t1)
-        // 用时间作为插值的值（p）来生成曲线形状的 t
-        float pDelta = t2 - t1; // 当前区间宽度
-        float m1 = 0.5f * (t2 - t0) / ((t2 - t0) != 0 ? 1f : 0.001f) * pDelta / (t2 - t0 != 0 ? t2 - t0 : 0.001f);
-        float m2 = 0.5f * (t3 - t1) / ((t3 - t1) != 0 ? 1f : 0.001f) * pDelta / (t3 - t1 != 0 ? t3 - t1 : 0.001f);
-        
-        // Hermite 基函数
-        float t2f = t * t;
-        float t3f = t2f * t;
-        float h00 = 2 * t3f - 3 * t2f + 1;
-        float h10 = t3f - 2 * t2f + t;
-        float h01 = -2 * t3f + 3 * t2f;
-        float h11 = t3f - t2f;
-        
-        // 计算结果并 clamp
-        float result = h00 * 0f + h10 * m1 + h01 * 1f + h11 * m2; // p1=0, p2=1 的标准化插值
-        return MathHelper.clamp(result, 0f, 1f);
+    /** Hermite form of Catmull-Rom: neighbour values supply the endpoint tangents. */
+    private float blend(SeasonKeyframe a, SeasonKeyframe b, float t,
+                        java.util.function.ToDoubleFunction<SeasonKeyframe> value) {
+        float av = finite(value.applyAsDouble(a)), bv = finite(value.applyAsDouble(b));
+        if (a.getInterpolation() != SeasonKeyframe.Interpolation.CATMULL_ROM) return MathHelper.lerp(t, av, bv);
+        int i = keyframes.indexOf(a);
+        SeasonKeyframe prev = i > 0 ? keyframes.get(i-1) : a;
+        SeasonKeyframe next = i+2 < keyframes.size() ? keyframes.get(i+2) : b;
+        float dt = b.getTime()-a.getTime();
+        float m1 = (bv-finite(value.applyAsDouble(prev))) / Math.max(.0001f,b.getTime()-prev.getTime()) * dt;
+        float m2 = (finite(value.applyAsDouble(next))-av) / Math.max(.0001f,next.getTime()-a.getTime()) * dt;
+        float tt=t*t, ttt=tt*t;
+        return finite((2*ttt-3*tt+1)*av+(ttt-2*tt+t)*m1+(-2*ttt+3*tt)*bv+(ttt-tt)*m2);
+    }
+    private static float finite(double value) { return Double.isFinite(value) && Math.abs(value)<=Float.MAX_VALUE ? (float)value : 0; }
+    private static SeasonSample sanitized(SeasonSample s) {
+        s.humidity=MathHelper.clamp(finite(s.humidity),0,1);
+        s.snowAmount=MathHelper.clamp(finite(s.snowAmount),0,1);
+        s.freezeStrength=MathHelper.clamp(finite(s.freezeStrength),0,1);
+        s.snowlineHeight=finite(s.snowlineHeight);
+        for(var tint:List.of(s.grassTint,s.foliageTint,s.skyTint,s.fogTint,s.lightTint))
+            tint.set(MathHelper.clamp(finite(tint.x),-.99f,3),MathHelper.clamp(finite(tint.y),-.99f,3),MathHelper.clamp(finite(tint.z),-.99f,3));
+        return s;
     }
 
     /**

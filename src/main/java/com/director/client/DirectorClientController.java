@@ -86,8 +86,7 @@ public class DirectorClientController {
             // ⭐ 清除季节效果（导演模式关闭时）
             if (client != null && client.world != null) {
                 try {
-                    com.director.season.SeasonSnowManager.get().restoreAll(client.world);
-                    com.director.season.WaterFreezeManager.get().clearAll();
+                    com.director.season.SeasonWorldEffects.clear();
                     // 节流：避免异常路径下重复刷屏（同时减少字符串构造成本）
                     long now = System.currentTimeMillis();
                     if (now - lastDeactivateLogMs > 2000L) {

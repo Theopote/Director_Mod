@@ -21,34 +21,8 @@ import java.util.concurrent.*;
 import java.util.Queue;
 import java.util.Collections;
 
-/**
- * SeasonSnowManager v3.0
- *
- * <p>❄ 支持动态融雪动画（逐层融化/堆积）：
- * <ul>
- *   <li>✅ 0~10 层雪（根据 snowThickness 自动计算，带大小扰动）</li>
- *   <li>✅ 逐层增加/减少动画（每 2~10 tick 更新一次）</li>
- *   <li>✅ 随机延迟使融雪更自然、不同步</li>
- *   <li>✅ Chunk 分区扫描（13×13 chunk）</li>
- *   <li>✅ 原始方块缓存，确保 100% 可恢复</li>
- *   <li>✅ 覆盖概率控制（snowAmount 表示覆盖概率）</li>
- * </ul>
- *
- * <p>动画效果：
- * <ul>
- *   <li>spring → 雪慢慢融化（逐层减少）</li>
- *   <li>winter → 雪在地表慢慢堆积（逐层增加）</li>
- *   <li>夏天完全没雪</li>
- * </ul>
- *
- * <p>注意：
- * <ul>
- *   <li>这里只是客户端视觉效果（ClientWorld），不改服务器地形</li>
- *   <li>所有积雪都可以 100% 恢复为原始方块（无破坏性）</li>
- * </ul>
- *
- * @author Director Team
- * @version 3.0 - 动态融雪动画（逐层融化/堆积）
+/** Client-thread geometry discovery and bounded application of timeline snow targets.
+ * Only owned visual changes are restored; server/user edits take precedence.
  */
 public class SeasonSnowManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(SeasonSnowManager.class);
@@ -73,7 +47,6 @@ public class SeasonSnowManager {
     private static final float MAX_EFFECTIVE_COVERAGE = 0.97f;
 
     /** 每 tick 处理的最大主线程任务数（避免卡顿） */
-    private static final int MAX_MAIN_THREAD_TASKS_PER_TICK = 128;
 
     /** 每 tick 最多推进多少个雪层动画记录，避免大雪场景全量遍历。 */
     private static final int MAX_SNOW_ANIMATIONS_PER_TICK = 512;
@@ -90,7 +63,6 @@ public class SeasonSnowManager {
     // ========= 状态 =========
 
     /** 主线程任务队列（用于安全的方块写操作） */
-    private final Queue<Runnable> mainThreadTasks = new ConcurrentLinkedQueue<>();
 
     /** 当前的季节采样（由 TimelineSeasonController 推送） */
     private volatile SeasonSample currentSample = SeasonSample.disabled();
@@ -108,7 +80,8 @@ public class SeasonSnowManager {
     private volatile boolean scanRunning = false;
 
     /** 动画 tick 计数器 */
-    private int tickCounter = 0;
+    private ClientWorld ownerWorld;
+    private int loadedChunkStamp;
 
     // ========= 两阶段扫描状态 =========
 
@@ -224,7 +197,7 @@ public class SeasonSnowManager {
         }
         
         SeasonSample oldSample = this.currentSample;
-        this.currentSample = newSample;
+        this.currentSample = newSample.copy();
         
         // ⭐ 两阶段架构：只标记覆盖计算需要更新
         // 几何缓存（可放雪的位置）不受 snowAmount/thickness 变化影响
@@ -263,10 +236,21 @@ public class SeasonSnowManager {
             return;
         }
 
-        // 1) 执行主线程任务（放雪/融雪）
-        runMainThreadTasks(world);
+        if (ownerWorld != world) {
+            SeasonSample desired = currentSample.copy();
+            restoreAll(ownerWorld);
+            ownerWorld = world;
+            currentSample = desired;
+            geometryCacheDirty = true;
+            coverageNeedsUpdate = true;
+        }
+        int stamp = SeasonWorldEffects.loadedChunkStamp(world, BlockPos.ofFloored(cameraPos), SCAN_RADIUS_CHUNKS);
+        if (stamp != loadedChunkStamp) { loadedChunkStamp = stamp; geometryCacheDirty = true; }
 
-        tickCounter++;
+        // 1) 执行主线程任务（放雪/融雪）
+
+
+
 
         // 2) 判断当前是否需要积雪
         boolean noSnowDesired = !currentSample.enabled
@@ -278,7 +262,7 @@ public class SeasonSnowManager {
             // 不需要积雪
             if (!snowMap.isEmpty()) {
                 // ⭐ 有残留雪需要融化 → 目标设 0，继续运行动画逐层移除
-                meltAllSnow(world, true);
+                meltAllSnow();
             } else {
                 // 确实没有任何残留雪，跳过后续逻辑
                 return;
@@ -306,6 +290,8 @@ public class SeasonSnowManager {
                 if (!cache.isEmpty()) {
                     coverageNeedsUpdate = false;
                     updateCoverageFromCache(world, cache, currentSample);
+                } else if (!scanRunning && lastGeometryScanCenter != null) {
+                    coverageNeedsUpdate = false;
                 }
             }
         }
@@ -394,6 +380,7 @@ public class SeasonSnowManager {
         int wx = scan.chunkX * 16 + scan.blockX;
         int wz = scan.chunkZ * 16 + scan.blockZ;
 
+        if (!scan.world.getChunkManager().isChunkLoaded(scan.chunkX, scan.chunkZ)) return;
         BlockPos snowPlacePos = findSnowPlacePosition(scan.world, wx, wz);
         if (snowPlacePos == null) {
             return;
@@ -402,7 +389,8 @@ public class SeasonSnowManager {
         float noiseValue = NoiseField.snowCoverage(snowPlacePos);
         float thicknessNoise = (float) new Random(Objects.hash(wx, wz)).nextGaussian();
         boolean isLeaf = isLeafSurface(scan.world, snowPlacePos);
-        BlockState originalState = scan.world.getBlockState(snowPlacePos);
+        SnowRecord owned = snowMap.get(snowPlacePos);
+        BlockState originalState = owned != null ? owned.originalState : scan.world.getBlockState(snowPlacePos);
 
         scan.cache.put(snowPlacePos, new CachedSnowPos(
                 snowPlacePos, noiseValue, thicknessNoise, isLeaf, originalState));
@@ -545,81 +533,38 @@ public class SeasonSnowManager {
     // 动画更新（主线程）
     // ====================================================
 
-    /**
-     * 更新雪层动画（逐层增加/减少）。
-     */
+    /** Apply the latest timeline target directly; no game-tick layer animation or stale write queue. */
     private void animateSnowLayers(ClientWorld world) {
-        if (world == null) return;
-
         int processed = 0;
         Iterator<BlockPos> it = snowAnimationQueue.iterator();
-
-        while (it.hasNext() && processed < MAX_SNOW_ANIMATIONS_PER_TICK) {
+        while (it.hasNext() && processed++ < MAX_SNOW_ANIMATIONS_PER_TICK) {
             BlockPos pos = it.next();
             SnowRecord rec = snowMap.get(pos);
-            processed++;
-
-            if (rec == null) {
-                it.remove();
-                continue;
+            if (rec == null) { it.remove(); continue; }
+            if (!world.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) {
+                it.remove(); snowMap.remove(pos); continue;
             }
-
-            // 处理延迟（避免所有雪同步变化）
-            // 注意：当 targetLayers = 0 时，跳过延迟以立即开始融化
+            BlockState actual = world.getBlockState(pos);
+            if (rec.currentLayers > 0 && (!actual.isOf(Blocks.SNOW) || actual.get(SnowBlock.LAYERS) != rec.currentLayers)) {
+                it.remove(); snowMap.remove(pos); geometryCacheDirty = true; continue;
+            }
+            if (rec.currentLayers == 0 && rec.originalState != null && !actual.equals(rec.originalState)) {
+                it.remove(); snowMap.remove(pos); geometryCacheDirty = true; continue;
+            }
             if (rec.targetLayers == 0) {
-                rec.meltDelay = 0; // 清除延迟，立即开始融化
-            } else if (rec.meltDelay > 0) {
-                rec.meltDelay--;
-                continue;
-            }
-
-            // 当前层数 == 目标层数，无需更新
-            if (rec.currentLayers == rec.targetLayers) {
-                it.remove();
-                continue;
-            }
-
-            // 更新层数（逐层变化）
-            if (rec.currentLayers < rec.targetLayers) {
-                // 堆雪（加厚）
-                rec.currentLayers = Math.min(MAX_LAYERS, rec.currentLayers + 1);
-            } else if (rec.currentLayers > rec.targetLayers) {
-                // 融雪（减薄）
-                rec.currentLayers = Math.max(0, rec.currentLayers - 1);
-            }
-
-            final int finalLayers = rec.currentLayers;
-
-            if (finalLayers <= 0) {
-                // 完全融化 → 恢复原始方块
-                final BlockState originalState = rec.originalState;
-                if (originalState != null) {
-                    enqueueMainThread(world, () -> world.setBlockState(pos, originalState, 3));
-                } else {
-                    enqueueMainThread(world, () -> {
-                        BlockState currentState = world.getBlockState(pos);
-                        if (currentState.isOf(Blocks.SNOW)) {
-                            world.removeBlock(pos, false);
-                        }
-                    });
-                }
-                it.remove(); // 从映射中移除
+                if (rec.originalState != null) world.setBlockState(pos, rec.originalState, 3);
                 snowMap.remove(pos);
             } else {
-                // 更新雪层数
-                // finalLayers 范围：1~8（直接对应 SnowBlock.LAYERS 值）
-                final int snowLayersProp = finalLayers;
-                enqueueMainThread(world, () -> {
-                    BlockState snowState = Blocks.SNOW.getDefaultState()
-                            .with(SnowBlock.LAYERS, snowLayersProp);
-                    world.setBlockState(pos, snowState, 3);
-                });
-
-                if (rec.currentLayers == rec.targetLayers) {
-                    it.remove();
-                }
+                world.setBlockState(pos, Blocks.SNOW.getDefaultState().with(SnowBlock.LAYERS, rec.targetLayers), 3);
+                rec.currentLayers = rec.targetLayers;
             }
+            it.remove();
         }
+    }
+
+    public boolean hasPendingWork() {
+        boolean desired = currentSample.enabled && currentSample.snowAmount > .01f && currentSample.snowThickness > 0;
+        return !snowAnimationQueue.isEmpty() || (desired && (geometryCacheDirty || lastGeometryScanCenter == null || scanRunning || coverageNeedsUpdate));
     }
 
     private static class GeometryScanState {
@@ -664,34 +609,8 @@ public class SeasonSnowManager {
      * 
      * @param animate 是否使用动画（false = 立即恢复，true = 设置目标为 0 让动画处理）
      */
-    private void meltAllSnow(ClientWorld world, boolean animate) {
-        if (!animate) {
-            // 立即恢复所有原始方块
-            for (Map.Entry<BlockPos, SnowRecord> entry : snowMap.entrySet()) {
-                BlockPos pos = entry.getKey();
-                SnowRecord rec = entry.getValue();
-                final BlockState originalState = rec.originalState;
-                
-                enqueueMainThread(world, () -> {
-                    if (originalState != null) {
-                        world.setBlockState(pos, originalState, 3);
-                    } else {
-                        BlockState currentState = world.getBlockState(pos);
-                        if (currentState.isOf(Blocks.SNOW)) {
-                            world.removeBlock(pos, false);
-                        }
-                    }
-                });
-            }
-            snowMap.clear();
-        } else {
-            // 动画融化 → 设置所有目标层数为 0，并清除延迟以立刻开始融化
-            for (Map.Entry<BlockPos, SnowRecord> entry : snowMap.entrySet()) {
-                SnowRecord rec = entry.getValue();
-                setTargetLayers(entry.getKey(), rec, 0);
-                rec.meltDelay = 0;
-            }
-        }
+    private void meltAllSnow() {
+        for (var entry : snowMap.entrySet()) setTargetLayers(entry.getKey(), entry.getValue(), 0);
     }
 
     /**
@@ -700,10 +619,6 @@ public class SeasonSnowManager {
      * <p>此方法会立即执行清理，不等待下一次 tick。
      */
     public void restoreAll(ClientWorld world) {
-        if (world == null) {
-            LOGGER.warn("[SeasonSnowManager] restoreAll: world 为 null，跳过清理");
-            return;
-        }
         
         // 立即禁用季节采样，避免后续 tick 重新生成雪
         this.currentSample = SeasonSample.disabled();
@@ -723,6 +638,9 @@ public class SeasonSnowManager {
             final BlockState originalState = rec.originalState;
             
             try {
+                if (world == null || !world.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) continue;
+                BlockState actual = world.getBlockState(pos);
+                if (rec.currentLayers == 0 || !actual.isOf(Blocks.SNOW) || actual.get(SnowBlock.LAYERS) != rec.currentLayers) continue;
                 if (originalState != null) {
                     world.setBlockState(pos, originalState, 3);
                 } else {
@@ -742,7 +660,7 @@ public class SeasonSnowManager {
         snowAnimationQueue.clear();
         
         // 清空主线程任务队列（避免执行已过期的任务）
-        mainThreadTasks.clear();
+
         
         LOGGER.info("[SeasonSnowManager] 已立即清除所有积雪并恢复原始方块，共恢复 {} 个位置", restoredCount);
     }
@@ -754,26 +672,6 @@ public class SeasonSnowManager {
     /**
      * 将任务加入主线程队列。
      */
-    private void enqueueMainThread(ClientWorld world, Runnable task) {
-        mainThreadTasks.offer(() -> {
-            if (world != null && world == MinecraftClient.getInstance().world) {
-                task.run();
-            }
-        });
-    }
-
-    /**
-     * 执行主线程任务（每 tick 调用）。
-     */
-    private void runMainThreadTasks(ClientWorld world) {
-        int count = 0;
-        Runnable task;
-        while (count < MAX_MAIN_THREAD_TASKS_PER_TICK && (task = mainThreadTasks.poll()) != null) {
-            task.run();
-            count++;
-        }
-    }
-
     /**
      * 将覆盖度限制在安全范围内，保证即便参数为 1 也会保留少量未覆盖区域。
      */
@@ -835,7 +733,7 @@ public class SeasonSnowManager {
         try {
             // 使用 Minecraft 1.21.4 的 API：getTopPosition() 作为起始点
             BlockPos topPos = world.getTopPosition(Heightmap.Type.WORLD_SURFACE, new BlockPos(x, 0, z));
-            int startY = Math.min(topPos.getY() + 10, 256); // 从顶部向下检查，允许检查上方10格
+            int startY = Math.min(topPos.getY() + 10, world.getTopYInclusive()); // 从顶部向下检查，允许检查上方10格
             int endY = Math.max(world.getBottomY(), -64);
 
             BlockPos.Mutable mutable = new BlockPos.Mutable(x, startY, z);
@@ -974,12 +872,8 @@ public class SeasonSnowManager {
      * 关闭工作线程（在世界卸载时调用，可选）。
      */
     public void shutdown() {
-        mainThreadTasks.clear();
-        snowMap.clear();
-        snowAnimationQueue.clear();
-        geometryCache = Collections.emptyMap();
-        lastGeometryScanCenter = null;
-        cancelGeometryScan();
+        restoreAll(ownerWorld);
+        ownerWorld = null;
     }
 
     private void setTargetLayers(BlockPos pos, SnowRecord rec, int targetLayers) {

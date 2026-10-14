@@ -18,7 +18,8 @@ public abstract class PointLightRebuildTaskMixin {
     private SectionBuilder.RenderData director$pinLightSection(SectionBuilder builder,
             ChunkSectionPos pos, ChunkRendererRegion region, VertexSorter sorter,
             BlockBufferAllocatorStorage buffers) {
-        try (var scope = PointLightRuntime.buildSnapshots().openScope()) {
+        try (var scope = PointLightRuntime.buildSnapshots().openScope();
+             var season = com.director.season.SeasonTintContext.openScope()) {
             return builder.build(pos, region, sorter, buffers);
         }
     }

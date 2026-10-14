@@ -179,7 +179,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     public SeasonKeyframe(String name, float time) {
         this.id = UUID.randomUUID();
         this.name = name;
-        this.time = time;
+        this.time = Float.isFinite(time) ? Math.max(0f, time) : 0f;
     }
 
     @Override
@@ -240,7 +240,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
      * 设置关键帧时间（秒）
      */
     public void setTime(float time) {
-        this.time = time;
+        this.time = Float.isFinite(time) ? Math.max(0f, time) : 0f;
     }
     
     public SeasonType getSeasonType() {
@@ -252,7 +252,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     }
 
     public void setHumidity(float humidity) {
-        this.humidity = Math.max(0.0f, Math.min(1.0f, humidity));
+        this.humidity = unit(humidity);
     }
 
     public float getSnowlineHeight() {
@@ -260,7 +260,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     }
     
     public void setSnowlineHeight(float snowlineHeight) {
-        this.snowlineHeight = snowlineHeight;
+        this.snowlineHeight = Float.isFinite(snowlineHeight) ? snowlineHeight : 90f;
     }
     
     public float getSnowAmount() {
@@ -271,7 +271,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
      * 设置雪覆盖度 [0.0, 1.0]，表示覆盖的概率。
      */
     public void setSnowAmount(float snowAmount) {
-        this.snowAmount = Math.max(0.0f, Math.min(1.0f, snowAmount));
+        this.snowAmount = unit(snowAmount);
     }
     
     // ========== v4.0 新增：积雪控制参数 ==========
@@ -294,7 +294,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
      * 设置冰覆盖度 [0.0, 1.0]，表示覆盖的概率。
      */
     public void setFreezeStrength(float freezeStrength) {
-        this.freezeStrength = Math.max(0.0f, Math.min(1.0f, freezeStrength));
+        this.freezeStrength = unit(freezeStrength);
     }
     
     // ========== 颜色偏移 Getter（返回引用，注意复制） ==========
@@ -305,7 +305,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     
     public void setGrassTint(Vector3f tint) {
         if (tint != null) {
-            this.grassTint.set(tint);
+            this.grassTint.set(tintValue(tint.x), tintValue(tint.y), tintValue(tint.z));
         }
     }
     
@@ -315,7 +315,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     
     public void setFoliageTint(Vector3f tint) {
         if (tint != null) {
-            this.foliageTint.set(tint);
+            this.foliageTint.set(tintValue(tint.x), tintValue(tint.y), tintValue(tint.z));
         }
     }
     
@@ -325,7 +325,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     
     public void setSkyTint(Vector3f tint) {
         if (tint != null) {
-            this.skyTint.set(tint);
+            this.skyTint.set(tintValue(tint.x), tintValue(tint.y), tintValue(tint.z));
         }
     }
     
@@ -335,7 +335,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     
     public void setFogTint(Vector3f tint) {
         if (tint != null) {
-            this.fogTint.set(tint);
+            this.fogTint.set(tintValue(tint.x), tintValue(tint.y), tintValue(tint.z));
         }
     }
     
@@ -345,7 +345,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     
     public void setLightTint(Vector3f tint) {
         if (tint != null) {
-            this.lightTint.set(tint);
+            this.lightTint.set(tintValue(tint.x), tintValue(tint.y), tintValue(tint.z));
         }
     }
     
@@ -570,6 +570,9 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
         lightTint.set(0.12f, 0.08f, 0.02f);
     }
     
+    private static float unit(float value) { return Float.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0; }
+    private static float tintValue(float value) { return Float.isFinite(value) ? Math.max(-.99f, Math.min(3, value)) : 0; }
+
     // ========== 调试输出 ==========
     
     @Override

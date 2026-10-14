@@ -102,8 +102,10 @@ public class DirectorClient implements ClientModInitializer {
             registerEventHandlers();
         });
 
-        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
-                com.director.actor.runtime.ActorRuntimeController.getInstance().clearPropPreviews());
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            com.director.actor.runtime.ActorRuntimeController.getInstance().clearPropPreviews();
+            client.execute(com.director.season.SeasonWorldEffects::clear);
+        });
 
         // 注册客户端停止事件
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
@@ -198,24 +200,10 @@ public class DirectorClient implements ClientModInitializer {
      * 注册季节积雪管理器 tick 事件
      */
     private void registerSeasonSnowManager() {
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (client.world != null && client.player != null) {
-                try {
-                    Vec3d pos = client.player.getEntityPos();
-                    
-                    // ⭐ v3.0：使用新的 tick(world, cameraPos) API，传入摄像机位置
-                    com.director.season.SeasonSnowManager.get().tick(client.world, pos);
-                    
-                    // ⭐ v3.6：WaterFreezeManager 需要 tick 来检测玩家位置变化，动态更新冰冻效果
-                    com.director.season.WaterFreezeManager.get().tick(client.world, pos);
-                } catch (Exception e) {
-                    LOGGER.error("[Director] Season system tick error", e);
-                }
-            }
-        });
-        LOGGER.info("[Director] Season system tick handlers registered (Snow + WaterFreeze)");
+        ClientTickEvents.END_CLIENT_TICK.register(client ->
+                com.director.timeline.playback.season.TimelineSeasonController.getInstance().flushRerender(false));
     }
-    
+
     /**
      * 注册优化的物品使用事件处理器
      */

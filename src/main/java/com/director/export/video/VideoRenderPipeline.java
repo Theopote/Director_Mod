@@ -140,6 +140,7 @@ public final class VideoRenderPipeline {
         // Light changes (including switching off) are baked into terrain meshes.
         // Wait at the requested time until visible rebuilds/uploads settle.
         if (com.director.lighting.PointLightRuntime.awaitTerrain()) return;
+        if (com.director.season.SeasonWorldEffects.awaitTerrain()) return;
         try {
             captureMainFramebuffer(head);
         } catch (Exception e) {
