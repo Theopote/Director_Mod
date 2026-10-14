@@ -116,8 +116,8 @@ public final class VideoRenderPipeline {
             return;
         }
         try {
-            applyTimelineTime(head.timeSeconds);
             applyCamera(head.timeSeconds, head.settings);
+            applyTimelineTime(head.timeSeconds);
         } catch (Exception e) {
             head.future.completeExceptionally(e);
         }

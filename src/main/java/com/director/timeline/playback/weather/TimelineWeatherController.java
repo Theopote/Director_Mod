@@ -6,8 +6,6 @@ import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.weather.WeatherKeyframe;
 import com.director.timeline.playback.AbstractTrackTimelinePlaybackController;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.world.ClientWorld;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +21,8 @@ public final class TimelineWeatherController extends AbstractTrackTimelinePlayba
     private static final TimelineWeatherController INSTANCE = new TimelineWeatherController();
 
     private WeatherTrackSampler sampler;
+    private float sampledTime;
+    public synchronized float getSampledTime() { return sampledTime; }
 
     private TimelineWeatherController() {
         super(LOGGER);
@@ -56,14 +56,41 @@ public final class TimelineWeatherController extends AbstractTrackTimelinePlayba
     }
 
     @Override
+    public synchronized void checkAndAutoActivate() {
+        super.checkAndAutoActivate();
+        // Model notifications include key deletion, undo and redo, not just track changes.
+        rebuildFromActiveTrack();
+    }
+
+    @Override
+    public synchronized void bindActiveTrack(TimelineTrack track) {
+        if (track != null && track.getType() != TrackType.WEATHER) return;
+        super.bindActiveTrack(track);
+    }
+
+    @Override
+    protected boolean computeHasOverride() {
+        return super.computeHasOverride() && currentSample.enabled;
+    }
+
+    public synchronized float cloudPhase(float time) {
+        return sampler == null ? 0 : sampler.effects().cloudPhase(time);
+    }
+
+    public synchronized WeatherEffectSampler effects() {
+        return sampler == null ? null : sampler.effects();
+    }
+
+    @Override
     protected void rebuildSampler(TimelineTrack track) {
         sampler = new WeatherTrackSampler(track);
-        sampler.rebuildKeyframeList();
+
     }
 
     @Override
     protected void disposeSampler() {
         sampler = null;
+        clearWeatherSubsystems();
     }
 
     @Override
@@ -84,14 +111,14 @@ public final class TimelineWeatherController extends AbstractTrackTimelinePlayba
 
     @Override
     protected WeatherSample sampleAt(float timelineTimeSeconds) {
+        sampledTime = Float.isFinite(timelineTimeSeconds) ? Math.max(0,timelineTimeSeconds) : 0;
         return sampler.sample(timelineTimeSeconds);
     }
 
     @Override
     protected void onRebuildComplete(int keyframeCount) {
-        if (enabled && keyframeCount > 0) {
-            applySample(sampleAt(resolveCurrentTimelineTime()));
-        }
+        if (enabled) applySample(sampleAt(resolveCurrentTimelineTime()));
+        else clearWeatherSubsystems();
     }
 
     @Override
@@ -106,10 +133,12 @@ public final class TimelineWeatherController extends AbstractTrackTimelinePlayba
 
     public synchronized void tickEvents(float timelineTimeSeconds) {
         if (!enabled || !hasOverride() || currentSample == null) {
+            WeatherEventController.getInstance().clear();
+            publishRenderSnapshot();
             return;
         }
         try {
-            WeatherEventController.getInstance().tick(currentSample, timelineTimeSeconds);
+            WeatherEventController.getInstance().tick(currentSample, sampledTime);
         } catch (Exception e) {
             logger.debug("[WeatherController] 无法更新事件子系统", e);
         }
@@ -121,31 +150,14 @@ public final class TimelineWeatherController extends AbstractTrackTimelinePlayba
         logger.debug("[WeatherController] init() 已弃用，请使用 bindActiveTrack()");
     }
 
-    public synchronized void forceDisableVanillaWeather() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null) {
-            return;
-        }
-        ClientWorld world = client.world;
-
-        if (hasOverride() && currentSample != null && currentSample.enabled) {
-            float rain = currentSample.rainIntensity;
-            float thunder = currentSample.thunderIntensity;
-            world.setRainGradient(rain);
-            world.setThunderGradient(thunder);
-            world.getLevelProperties().setRaining(rain > 0.01f);
-        } else {
-            world.setRainGradient(0.0f);
-            world.setThunderGradient(0.0f);
-            world.getLevelProperties().setRaining(false);
-        }
-    }
+    /** Compatibility entry point; render overrides leave server weather untouched. */
+    public synchronized void forceDisableVanillaWeather() {}
 
     @Override
     protected void onDisabled() {
         currentSample = null;
         clearWeatherSubsystems();
-        logger.info("[WeatherController] 清除天气 override，并尝试恢复 Vanilla 晴天状态");
+        logger.info("[WeatherController] 清除天气覆盖，原版天气继续由服务端状态驱动");
     }
 
     @Override
@@ -155,34 +167,22 @@ public final class TimelineWeatherController extends AbstractTrackTimelinePlayba
 
     @Override
     protected void onOverrideCleared(boolean fullReset) {
-        if (!fullReset) {
-            try {
-                com.director.client.renderer.weather.WeatherRenderer.get().onWeatherSampleUpdated(null);
-            } catch (Exception e) {
-                logger.debug("[WeatherController] 无法清除 WeatherRenderer", e);
-            }
-            return;
-        }
         clearWeatherSubsystems();
     }
 
     @Override
     protected void publishRenderSnapshot() {
         WorldRenderOverride.publishWeather(
-                hasWeatherTrack(),
+                hasOverride(),
                 hasOverride(),
                 currentSample,
-                WeatherEventController.getInstance().getCurrentFlashBrightness()
+                hasOverride() ? WeatherEventController.getInstance().getCurrentFlashBrightness() : 0
         );
     }
 
     private void applyToWorld(WeatherSample sample) {
         if (sample == null || !sample.enabled) {
-            return;
-        }
-
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null) {
+            clearWeatherSubsystems();
             return;
         }
 

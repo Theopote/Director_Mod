@@ -72,42 +72,6 @@ public abstract class WorldMixin {
         cir.setReturnValue(sample.getSkyAngle() * (float) (Math.PI * 2.0));
     }
 
-    @Inject(method = "setRainGradient(F)V", at = @At("HEAD"), cancellable = true)
-    private void blockExternalRainGradientUpdate(float gradient, CallbackInfo ci) {
-        if (!((Object) this instanceof ClientWorld)) {
-            return;
-        }
-        DirectorClientController controller = DirectorClientController.getInstance();
-        if (controller == null || !controller.isDirectorModeActive()) {
-            return;
-        }
-        WorldRenderOverride state = WorldRenderOverride.get();
-        if (state.hasWeatherOverride()) {
-            return;
-        }
-        if (gradient > 0.0f) {
-            ci.cancel();
-        }
-    }
-
-    @Inject(method = "setThunderGradient(F)V", at = @At("HEAD"), cancellable = true)
-    private void blockExternalThunderGradientUpdate(float gradient, CallbackInfo ci) {
-        if (!((Object) this instanceof ClientWorld)) {
-            return;
-        }
-        DirectorClientController controller = DirectorClientController.getInstance();
-        if (controller == null || !controller.isDirectorModeActive()) {
-            return;
-        }
-        WorldRenderOverride state = WorldRenderOverride.get();
-        if (state.hasWeatherOverride()) {
-            return;
-        }
-        if (gradient > 0.0f) {
-            ci.cancel();
-        }
-    }
-
     @Inject(method = "getRainGradient(F)F", at = @At("RETURN"), cancellable = true)
     private void overrideRainGradient(float delta, CallbackInfoReturnable<Float> cir) {
         if (!((Object) this instanceof ClientWorld)) {

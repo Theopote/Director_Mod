@@ -54,19 +54,6 @@ public class WeatherEventController {
     /** 当前天空闪白强度（用于瞬时亮度变化） */
     private float currentFlashBrightness = 0f;
     
-    /** 闪白衰减速度（每 tick 衰减量） — 原来 0.15 衰减太快，改为 0.08 让闪白持续更久 */
-    private static final float FLASH_DECAY = 0.08f;
-    
-    /**
-     * ✅ v1.2 修复：使用内部 tick 计数器替代 world.getTime()。
-     * 导演模式下 ClientWorldMixin.onTickTime() 冻结了世界时间，
-     * 导致 world.getTime() 每帧返回相同值，闪电只触发一次就永远不再触发。
-     */
-    private long internalTickCounter = 0;
-    
-    /** 上次触发闪电的内部 tick */
-    private long lastLightningTick = -1000;
-    
     /** 随机数生成器 */
     private final Random random = new Random();
     
@@ -85,59 +72,29 @@ public class WeatherEventController {
      * @param sample 天气采样
      * @param timelineTimeSeconds 时间线时间（秒）
      */
-    public void tick(WeatherSample sample, float timelineTimeSeconds) {
-        if (sample == null || !sample.enabled) {
-            // 清除闪白状态
-            currentFlashBrightness = 0f;
-            return;
+    private float lastTimelineTime = Float.NaN;
+    public void tick(WeatherSample sample, float time) {
+        var effects = TimelineWeatherController.getInstance().effects();
+        if (sample == null || !sample.enabled || effects == null || !Float.isFinite(time)) {
+            clear(); return;
         }
-        
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null || client.player == null) {
-            return;
+        currentFlashBrightness = effects.flash(time);
+        float previous = lastTimelineTime; lastTimelineTime = time;
+        var client = MinecraftClient.getInstance();
+        if (client == null || client.world == null || client.player == null) return;
+        var model = com.director.timeline.playback.TimelinePlaybackSampler.resolveModel();
+        // Seeking, preview and export never replay live sounds or world-side effects.
+        if (model == null || !model.isPlaying() || !Float.isFinite(previous)
+                || time <= previous || time-previous > .25f
+                || com.director.export.video.VideoExportManager.getInstance().isExporting()) return;
+        long start=(long)Math.floor(previous*20d)+1, end=(long)Math.floor(time*20d);
+        for(long tick=start;tick<=end;tick++) if(effects.lightningAt(tick)) {
+            random.setSeed(effects.seedFor(tick));
+            triggerLightning(client.world, client, sample, sample.thunderIntensity);
         }
-        
-        ClientWorld world = client.world;
-        
-        // ✅ v1.2 修复：使用内部 tick 计数器，不依赖 world.getTime()
-        // 导演模式下世界时间被冻结，world.getTime() 永远返回相同值
-        internalTickCounter++;
-        long currentTick = internalTickCounter;
-        
-        // 闪白亮度衰减
-        if (currentFlashBrightness > 0f) {
-            currentFlashBrightness = Math.max(0f, currentFlashBrightness - FLASH_DECAY);
-        }
-        
-        // 检查是否应该触发闪电事件
-        float thunderIntensity = sample.thunderIntensity;
-        float lightningFrequency = sample.lightningFrequency;
-        
-        if (thunderIntensity <= 0.01f || lightningFrequency <= 0.01f) {
-            return;
-        }
-        
-        // 计算触发间隔（每秒 lightningFrequency 次）
-        // 使用概率模型：每个 tick 有 probability 的概率触发
-        float probabilityPerTick = lightningFrequency / 20f; // 每秒 lightningFrequency 次，每 tick 概率
-        probabilityPerTick = Math.min(1f, probabilityPerTick); // 限制最大概率为 1
-        
-        // 为了避免过于频繁，增加最小间隔限制
-        long minInterval = Math.max(10, (long) (20f / lightningFrequency)); // 最小间隔（tick）
-        if (currentTick - lastLightningTick < minInterval) {
-            return;
-        }
-        
-        // 概率触发
-        if (random.nextFloat() > probabilityPerTick) {
-            return;
-        }
-        
-        // 触发闪电事件
-        triggerLightning(world, client, sample, thunderIntensity);
-        lastLightningTick = currentTick;
+        currentFlashBrightness = effects.flash(time);
     }
-    
+
     /**
      * ✅ 重构：触发闪电事件（雷声 + 闪白 + 可选真实闪电实体）。
      * 
@@ -152,7 +109,9 @@ public class WeatherEventController {
     private void triggerLightning(ClientWorld world, MinecraftClient client, WeatherSample sample, float thunderIntensity) {
         Vec3d playerPos = null;
         if (client.player != null) {
-            playerPos = client.player.getEntityPos();
+            var camera = com.director.timeline.playback.camera.CameraRuntime.getInstance();
+            playerPos = camera.isTimelineOwner() ? camera.getCurrentSample().position()
+                    : client.gameRenderer.getCamera().getPos();
         }
 
         // === 1️⃣ 屏幕/天空闪白（永远触发） ===
@@ -291,7 +250,6 @@ public class WeatherEventController {
      */
     public void clear() {
         currentFlashBrightness = 0f;
-        lastLightningTick = -1000;
-        internalTickCounter = 0;
+        lastTimelineTime = Float.NaN;
     }
 }

@@ -150,7 +150,7 @@ public class WeatherSample {
         }
 
         if (interpolation == TimelineInterpolation.STEP) {
-            copyFrom(t < 0.5f ? a : b);
+            copyFrom(t < 1f ? a : b);
             return;
         }
 
@@ -256,10 +256,10 @@ public class WeatherSample {
      */
     private float lerpAngle(float a, float b, float t) {
         // 归一化到 [0, 360)
-        while (a < 0f) a += 360f;
-        while (a >= 360f) a -= 360f;
-        while (b < 0f) b += 360f;
-        while (b >= 360f) b -= 360f;
+        a = Float.isFinite(a) ? a % 360f : 0f;
+        b = Float.isFinite(b) ? b % 360f : 0f;
+        if (a < 0) a += 360;
+        if (b < 0) b += 360;
 
         // 计算两个方向的距离
         float diff = b - a;
@@ -271,8 +271,8 @@ public class WeatherSample {
 
         float result = a + diff * t;
         // 归一化结果
-        while (result < 0f) result += 360f;
-        while (result >= 360f) result -= 360f;
+        result = Float.isFinite(result) ? result % 360f : 0f;
+        if (result < 0) result += 360;
         return result;
     }
 

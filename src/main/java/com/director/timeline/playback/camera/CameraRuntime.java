@@ -251,7 +251,7 @@ public final class CameraRuntime {
     }
 
     private CameraSample lerpSamples(CameraSample a, CameraSample b, float t) {
-        t = Math.max(0f, Math.min(1f, t));
+        t = Math.clamp(t, 0f, 1f);
         Vec3d pa = a.position();
         Vec3d pb = b.position();
         Vec3d pos = new Vec3d(
@@ -274,12 +274,12 @@ public final class CameraRuntime {
     }
 
     private float lerp(double a, double b, float t) {
-        return (float) (a + (b - a) * Math.max(0f, Math.min(1f, t)));
+        return (float) (a + (b - a) * Math.clamp(t, 0f, 1f));
     }
 
     private float lerpAngle(float a, float b, float t) {
         float delta = wrapDegrees(b - a);
-        return a + delta * Math.max(0f, Math.min(1f, t));
+        return a + delta * Math.clamp(t, 0f, 1f);
     }
 
     private float wrapDegrees(float degrees) {

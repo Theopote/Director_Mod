@@ -223,8 +223,6 @@ public final class PlaybackOrchestrator {
         // ActorGizmoController：改由 DirectorScreen.tick 驱动（与 Gizmo 交互同帧）
         runSubsystem("WeatherRenderer", () ->
                 com.director.client.renderer.weather.WeatherRenderer.get().tick());
-        runSubsystem("WeatherParticleController", () ->
-                com.director.timeline.playback.weather.WeatherParticleController.getInstance().tick());
 
         float currentTime = model.getCurrentTime();
         runSubsystem("TimelineWeatherController.tickEvents", () ->

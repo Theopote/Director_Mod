@@ -31,6 +31,8 @@ public class WeatherTrackSampler {
 
     /** 要采样的轨道（属 TimelineModel） */
     private final TimelineTrack track;
+    private WeatherEffectSampler effects;
+    public WeatherEffectSampler effects() { return effects; }
 
     /** 轨道中所有天气关键帧的缓存（按时间排序） */
     private List<WeatherKeyframe> keyframes = Collections.emptyList();
@@ -64,6 +66,7 @@ public class WeatherTrackSampler {
         }
         list.sort(Comparator.comparingDouble(WeatherKeyframe::getTime));
         this.keyframes = list;
+        this.effects = new WeatherEffectSampler(this);
     }
 
     /**

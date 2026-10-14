@@ -569,7 +569,7 @@ public final class TimelineCameraPathManager {
 
         // pitch (X) = asin(-R[1][2]) = asin(2(wx - yz))
         float t2 = +2.0f * (q.w * q.x - q.z * q.y);
-        t2 = Math.max(-1.0f, Math.min(1.0f, t2));
+        t2 = Math.clamp(t2, -1.0f, 1.0f);
         float pitch = (float) Math.toDegrees(Math.asin(t2));
 
         // yaw (Y) = atan2(R[0][2], R[2][2])

@@ -61,7 +61,6 @@ public final class TimelinePlaybackSampler {
         run("演员运行时", () -> com.director.actor.runtime.ActorRuntimeController.getInstance().update());
         run("演员轨道", () -> TimelineActorController.getInstance().updateForPlayback(timeSeconds));
         run("WeatherRenderer", () -> com.director.client.renderer.weather.WeatherRenderer.get().tick());
-        run("WeatherParticle", () -> WeatherParticleController.getInstance().tick());
         run("天气事件", () -> TimelineWeatherController.getInstance().tickEvents(timeSeconds));
     }
 

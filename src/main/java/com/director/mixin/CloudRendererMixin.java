@@ -110,10 +110,10 @@ public abstract class CloudRendererMixin {
             return cloudPhase;
         }
 
-        float speed = MathHelper.clamp(sample.cloudSpeed, 0f, 4f);
-        float windBoost = MathHelper.clamp(sample.windStrength, 0f, 1f) * 0.6f;
-        speed = MathHelper.clamp(speed * (1f + windBoost), 0f, 4f);
-        return cloudPhase * speed;
+        var model = com.director.timeline.playback.TimelinePlaybackSampler.resolveModel();
+        return model == null ? cloudPhase
+                : com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
+                        .cloudPhase(com.director.timeline.playback.weather.TimelineWeatherController.getInstance().getSampledTime());
     }
 
     @Unique
