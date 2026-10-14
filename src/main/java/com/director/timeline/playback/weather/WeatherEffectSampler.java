@@ -57,6 +57,7 @@ public final class WeatherEffectSampler {
     }
     private double speed(float time) {
         var s=sample(time);
-        return Math.max(0,Math.min(4,s.cloudSpeed*(1+Math.max(0,Math.min(1,s.windStrength))*.6)));
+        if (!s.enabled) return 0;
+        return Math.clamp(s.cloudSpeed * (1 + Math.clamp(s.windStrength, 0, 1) * .6), 0, 4);
     }
 }

@@ -409,7 +409,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
     }
 
     public void setLightningFrequency(float lightningFrequency) {
-        this.lightningFrequency = Float.isFinite(lightningFrequency) ? Math.max(0.0f, Math.min(20f, lightningFrequency)) : 0f;
+        this.lightningFrequency = Float.isFinite(lightningFrequency) ? Math.clamp(lightningFrequency, 0.0f, 20f) : 0f;
     }
 
     /**
@@ -477,7 +477,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
     }
 
     public void setCloudSpeed(float cloudSpeed) {
-        this.cloudSpeed = Float.isFinite(cloudSpeed) ? Math.max(0.0f, Math.min(4f, cloudSpeed)) : 1f;
+        this.cloudSpeed = Float.isFinite(cloudSpeed) ? Math.clamp(cloudSpeed, 0.0f, 4f) : 1f;
     }
 
     /**
@@ -493,7 +493,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
      * 范围：[0.3, 1.2]，0.3 = 很暗，1.0 = 正常，1.2 = 很亮
      */
     public void setCloudBrightness(float cloudBrightness) {
-        this.cloudBrightness = Float.isFinite(cloudBrightness) ? Math.max(0.3f, Math.min(1.2f, cloudBrightness)) : 1f;
+        this.cloudBrightness = Float.isFinite(cloudBrightness) ? Math.clamp(cloudBrightness, 0.3f, 1.2f) : 1f;
     }
 
     public float getFogDensity() {
@@ -521,7 +521,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
     }
 
     public void setTempBias(float tempBias) {
-        this.tempBias = Float.isFinite(tempBias) ? Math.max(-1.0f, Math.min(1.0f, tempBias)) : 0f;
+        this.tempBias = Float.isFinite(tempBias) ? Math.clamp(tempBias, -1.0f, 1.0f) : 0f;
     }
 
     public float getHumidityBias() {
@@ -529,7 +529,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
     }
 
     public void setHumidityBias(float humidityBias) {
-        this.humidityBias = Float.isFinite(humidityBias) ? Math.max(-1.0f, Math.min(1.0f, humidityBias)) : 0f;
+        this.humidityBias = Float.isFinite(humidityBias) ? Math.clamp(humidityBias, -1.0f, 1.0f) : 0f;
     }
 
     public SpecialWeatherType getSpecialWeatherType() {
@@ -734,14 +734,14 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 rainParticleDensity = clamp01(rainParticleDensity);
                 puddleLevel = clamp01(puddleLevel);
                 thunderStrength = clamp01(thunderStrength);
-                lightningFrequency = Float.isFinite(lightningFrequency) ? Math.max(0.0f, Math.min(20f, lightningFrequency)) : 0f;
+                lightningFrequency = Float.isFinite(lightningFrequency) ? Math.clamp(lightningFrequency, 0.0f, 20f) : 0f;
                 windStrength = clamp01(windStrength);
                 stormDarkness = clamp01(stormDarkness);
                 cloudDensity = clamp01(cloudDensity);
-                cloudSpeed = Float.isFinite(cloudSpeed) ? Math.max(0.0f, Math.min(4f, cloudSpeed)) : 1f;
+                cloudSpeed = Float.isFinite(cloudSpeed) ? Math.clamp(cloudSpeed, 0.0f, 4f) : 1f;
                 fogDensity = clamp01(fogDensity);
-                tempBias = Float.isFinite(tempBias) ? Math.max(-1.0f, Math.min(1.0f, tempBias)) : 0f;
-                humidityBias = Float.isFinite(humidityBias) ? Math.max(-1.0f, Math.min(1.0f, humidityBias)) : 0f;
+                tempBias = Float.isFinite(tempBias) ? Math.clamp(tempBias, -1.0f, 1.0f) : 0f;
+                humidityBias = Float.isFinite(humidityBias) ? Math.clamp(humidityBias, -1.0f, 1.0f) : 0f;
                 specialWeatherIntensity = clamp01(specialWeatherIntensity);
                 if (fogColor.lengthSquared() == 0.0f) {
                     fogColor.set(0.7f, 0.7f, 0.8f);

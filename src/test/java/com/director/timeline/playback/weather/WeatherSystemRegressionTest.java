@@ -150,4 +150,23 @@ class WeatherSystemRegressionTest {
         assertEquals(0,key.getLightningFrequency());assertEquals(0,key.getFogColor().x);
         assertEquals(0,key.getTime());assertEquals(0,key.getTempBias());assertEquals(0,key.getHumidityBias());
     }
+
+    @Test void propertyPreviewUsesItsOwnTimeWithoutMovingPlaybackHead() {
+        var model=new TimelineModel(new TimelineViewportState());model.setSuppressPersistenceWrites(true);
+        var a=rain(0);var b=new WeatherKeyframe("clear",10);var track=track(a,b);model.addTrack(track);
+        com.director.core.DirectorServices.get().containerTimeline().setTimelineModel(model);
+        var controller=TimelineWeatherController.getInstance();controller.bindActiveTrack(track);controller.setEnabled(true);
+        controller.previewAt(10);
+        assertEquals(0,model.getCurrentTime());assertEquals(10,controller.getSampledTime());
+        assertEquals(0,controller.getCurrentSample().rainIntensity);
+        controller.previewAt(Float.NaN);
+        assertEquals(0,controller.getSampledTime());assertEquals(.9f,controller.getCurrentSample().rainIntensity);
+    }
+    @Test void clearingSamplerAlsoClearsEffectTimeline() {
+        var key=rain(0);key.setThunderStrength(1);key.setLightningFrequency(20);
+        var sampler=new WeatherTrackSampler(track(key));assertTrue(sampler.effects().flash(1)>0);
+        sampler.clear();
+        assertEquals(0,sampler.effects().flash(1));assertEquals(0,sampler.effects().cloudPhase(1));
+        assertTrue(WeatherParticleField.sample(sampler.effects(),1).isEmpty());
+    }
 }

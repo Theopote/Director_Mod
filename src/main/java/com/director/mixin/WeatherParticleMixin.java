@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Particle.class)
 public abstract class WeatherParticleMixin {
     @Shadow @Final protected Random random;
-    @Inject(method="<init>",at=@At("RETURN"))
+    @Inject(method= "<init>*",at=@At("RETURN"))
     private void director$seedOwnedWeather(CallbackInfo ci) {
         Long seed=WeatherParticleSeed.current(); if(seed!=null)random.setSeed(seed);
     }

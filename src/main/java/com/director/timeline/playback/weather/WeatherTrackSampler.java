@@ -74,6 +74,7 @@ public class WeatherTrackSampler {
      */
     public void clear() {
         this.keyframes = Collections.emptyList();
+        this.effects = new WeatherEffectSampler(this);
     }
 
     /**
@@ -156,7 +157,7 @@ public class WeatherTrackSampler {
         }
 
         float t = (time - a.getTime()) / dt;
-        t = Math.max(0f, Math.min(1f, t));
+        t = Math.clamp(t, 0f, 1f);
 
         WeatherSample sampleA = toSample(a);
         WeatherSample sampleB = toSample(b);

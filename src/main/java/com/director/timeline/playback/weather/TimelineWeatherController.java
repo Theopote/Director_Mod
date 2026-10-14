@@ -112,7 +112,7 @@ public final class TimelineWeatherController extends AbstractTrackTimelinePlayba
     @Override
     protected WeatherSample sampleAt(float timelineTimeSeconds) {
         sampledTime = Float.isFinite(timelineTimeSeconds) ? Math.max(0,timelineTimeSeconds) : 0;
-        return sampler.sample(timelineTimeSeconds);
+        return sampler.sample(sampledTime);
     }
 
     @Override

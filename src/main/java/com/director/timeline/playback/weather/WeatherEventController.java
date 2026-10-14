@@ -68,9 +68,7 @@ public class WeatherEventController {
      *   <li>触发时：播放雷声、增加闪白亮度、生成粒子效果</li>
      *   <li>闪白亮度每 tick 衰减</li>
      * </ul>
-     * 
-     * @param sample 天气采样
-     * @param timelineTimeSeconds 时间线时间（秒）
+     *
      */
     private float lastTimelineTime = Float.NaN;
     public void tick(WeatherSample sample, float time) {
