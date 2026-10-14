@@ -13,14 +13,15 @@ import java.util.*;
 /** Client-thread, bounded surface scanning. No world reads or writes run on a worker. */
 public final class WaterFreezeManager {
     private static final WaterFreezeManager INSTANCE = new WaterFreezeManager();
-    private static final int RADIUS = 128, WIDTH = RADIUS * 2 + 1, BUDGET = 1024;
+    private static final int RADIUS = 128, BUDGET = 1024;
     private final Map<BlockPos, BlockState> originalWaterStates = new LinkedHashMap<>();
     private final Map<BlockPos, BlockState> ownedIceStates = new HashMap<>();
     private final List<BlockPos> candidates = new ArrayList<>();
     private SeasonSample lastSample;
     private ClientWorld ownerWorld;
     private BlockPos center;
-    private int scanColumn, evaluationCursor, remainingEvaluations, chunkStamp;
+    private int evaluationCursor, remainingEvaluations, chunkStamp;
+    private final SeasonScanWindow scanWindow = new SeasonScanWindow(RADIUS);
     private WaterFreezeManager() {}
     public static WaterFreezeManager get() { return INSTANCE; }
     public void onSeasonSampleUpdated(SeasonSample sample) { applySeasonSample(sample); }
@@ -41,17 +42,21 @@ public final class WaterFreezeManager {
         if (coverage() <= .01f) return;
         BlockPos pos = BlockPos.ofFloored(cameraPos);
         int stamp = SeasonWorldEffects.loadedChunkStamp(world, pos, 8);
-        if (center == null || Math.abs(pos.getX()-center.getX()) >= 16 || Math.abs(pos.getZ()-center.getZ()) >= 16 || stamp != chunkStamp) {
-            restoreOwned(); resetGeometry(); center = pos; chunkStamp = stamp;
+        if (center == null || Math.floorDiv(pos.getX(),16) != Math.floorDiv(center.getX(),16) || Math.floorDiv(pos.getZ(),16) != Math.floorDiv(center.getZ(),16) || stamp != chunkStamp) {
+            scanWindow.moveTo(pos,c->world.getChunkManager().isChunkLoaded(SeasonScanWindow.x(c)>>4,SeasonScanWindow.z(c)>>4));
+            retireOutsideWindow();
+            center = new BlockPos(Math.floorDiv(pos.getX(),16)*16+8,0,Math.floorDiv(pos.getZ(),16)*16+8);
+            chunkStamp = stamp;
         }
-        for (int n=0; n<BUDGET && scanColumn<WIDTH*WIDTH; n++,scanColumn++) {
-            int x=center.getX()-RADIUS+scanColumn/WIDTH, z=center.getZ()-RADIUS+scanColumn%WIDTH;
-            if (!world.getChunkManager().isChunkLoaded(x>>4,z>>4)) continue;
+        for (int n=0; n<BUDGET; n++) {
+            Long column=scanWindow.poll();if(column==null)break;
+            int x=SeasonScanWindow.x(column),z=SeasonScanWindow.z(column);
+            if(!world.getChunkManager().isChunkLoaded(x>>4,z>>4))continue;
+            scanWindow.visited(column);
             BlockPos surface=world.getTopPosition(Heightmap.Type.WORLD_SURFACE,new BlockPos(x,0,z)).down();
             BlockState state=world.getBlockState(surface);
-            if (state.isOf(Blocks.WATER) && !originalWaterStates.containsKey(surface)) {
-                originalWaterStates.put(surface,state); candidates.add(surface);
-                evaluate(surface);
+            if(state.isOf(Blocks.WATER) && !originalWaterStates.containsKey(surface)) {
+                originalWaterStates.put(surface,state);candidates.add(surface);evaluate(surface);
             }
         }
         for (int n=0; n<BUDGET && remainingEvaluations>0 && !candidates.isEmpty(); n++,remainingEvaluations--) {
@@ -85,8 +90,20 @@ public final class WaterFreezeManager {
         }
         ownedIceStates.clear();
     }
-    private void resetGeometry() { originalWaterStates.clear(); candidates.clear(); center=null; scanColumn=0; evaluationCursor=0; remainingEvaluations=0; }
-    public boolean hasPendingWork() { return coverage()>.01f && (center==null || scanColumn<WIDTH*WIDTH || remainingEvaluations>0); }
+    private void retireOutsideWindow() {
+        Iterator<BlockPos> it=candidates.iterator();
+        while(it.hasNext()) {
+            BlockPos pos=it.next();
+            if(scanWindow.contains(pos) && ownerWorld.getChunkManager().isChunkLoaded(pos.getX()>>4,pos.getZ()>>4))continue;
+            BlockState owned=ownedIceStates.remove(pos),original=originalWaterStates.remove(pos);
+            if(owned!=null && ownerWorld.getChunkManager().isChunkLoaded(pos.getX()>>4,pos.getZ()>>4)
+                    && ownerWorld.getBlockState(pos).equals(owned))ownerWorld.setBlockState(pos,original,3);
+            it.remove();
+        }
+        evaluationCursor=0;remainingEvaluations=candidates.size();
+    }
+    private void resetGeometry() { originalWaterStates.clear(); candidates.clear(); center=null; scanWindow.clear(); evaluationCursor=0; remainingEvaluations=0; }
+    public boolean hasPendingWork() { return coverage()>.01f && (center==null || scanWindow.pending() || remainingEvaluations>0); }
     public void clearAll() { lastSample=null; restoreOwned(); resetGeometry(); ownerWorld=null; }
     /** World unload is reusable; there is no permanently closed singleton executor. */
     public void shutdown() { clearAll(); }
