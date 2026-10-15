@@ -31,4 +31,29 @@ class ActorSavedPoseLibraryTest {
         assertThrows(IllegalArgumentException.class,()->ActorSavedPoseLibrary.capture("",pose,List.of(HumanoidRig.HEAD)));
         assertThrows(IllegalArgumentException.class,()->ActorSavedPoseLibrary.capture("根",pose,List.of(HumanoidRig.ROOT)));
     }
+    @Test void renameDeleteAndRestorationPersistWithoutChangingPose() throws Exception {
+        var pose=ActorSavedPoseLibrary.capture("a",new RigPose(HumanoidRig.DEFINITION),List.of("head"));
+        var before=List.of(pose);
+        var renamed=ActorSavedPoseLibrary.edit(before,pose,"b");
+        assertEquals(pose.rotations(),renamed.getFirst().rotations());
+        var deleted=ActorSavedPoseLibrary.edit(renamed,renamed.getFirst(),null);
+        Path file=directory.resolve("managed.json");
+        ActorSavedPoseLibrary.save(file,before);
+        ActorSavedPoseLibrary.replaceFile(file,before,renamed);
+        ActorSavedPoseLibrary.replaceFile(file,renamed,deleted);
+        assertTrue(ActorSavedPoseLibrary.read(file).isEmpty());
+        ActorSavedPoseLibrary.replaceFile(file,deleted,renamed);
+        ActorSavedPoseLibrary.replaceFile(file,renamed,before);
+        assertEquals(before,ActorSavedPoseLibrary.read(file));
+        assertThrows(java.io.IOException.class,()->ActorSavedPoseLibrary.replaceFile(file,deleted,renamed));
+        assertEquals(before,ActorSavedPoseLibrary.read(file));
+    }
+    @Test void rejectsDuplicateNamesAndStaleTargetsAndCleansInputBuffer() {
+        var pose=new RigPose(HumanoidRig.DEFINITION);
+        var a=ActorSavedPoseLibrary.capture("a",pose,List.of("head"));
+        var b=ActorSavedPoseLibrary.capture("b",pose,List.of("head"));
+        assertThrows(IllegalArgumentException.class,()->ActorSavedPoseLibrary.edit(List.of(a,b),a,"b"));
+        assertThrows(IllegalArgumentException.class,()->ActorSavedPoseLibrary.edit(List.of(b),a,null));
+        assertEquals("new",ActorSavedPoseLibrary.edit(List.of(a),a,"new\u0000r").getFirst().name());
+    }
 }

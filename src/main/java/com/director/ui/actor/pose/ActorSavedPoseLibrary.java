@@ -20,7 +20,7 @@ public final class ActorSavedPoseLibrary {
     }
     public record Saved(String name, String rigId, Map<String, Rotation> rotations) {
         public Saved {
-            name = name == null ? "" : name.strip();
+            name = com.director.util.DisplayNames.clean(name);
             if (name.isEmpty() || rigId == null || rotations == null || rotations.isEmpty())
                 throw new IllegalArgumentException("姿态名称和部位不能为空");
             rotations = Map.copyOf(rotations);
@@ -66,6 +66,44 @@ public final class ActorSavedPoseLibrary {
         next.add(pose);
         save(loadedFile,next);
         loaded = List.copyOf(next);
+    }
+    /** Prepare a checked replacement without mutating the live library. Null name deletes. */
+    static List<Saved> edit(List<Saved> source, Saved target, String newName) {
+        int index = source.indexOf(target);
+        if (index < 0) throw new IllegalArgumentException("姿态已变化，请重新选择");
+        List<Saved> next = new ArrayList<>(source);
+        if (newName == null) next.remove(index);
+        else {
+            Saved renamed = new Saved(newName,target.rigId(),target.rotations());
+            if (source.stream().anyMatch(p -> p != target && p.name().equals(renamed.name())))
+                throw new IllegalArgumentException("姿态名称已存在");
+            next.set(index,renamed);
+        }
+        return List.copyOf(next);
+    }
+    public static void edit(com.director.timeline.model.TimelineModel model, Saved target, String name) throws IOException {
+        List<Saved> before = current(), after = edit(before,target,name);
+        if (before.equals(after)) return;
+        Path file = loadedFile;
+        com.director.ui.timeline.commands.TimelineCommandBridge.execute(
+            new com.director.ui.timeline.commands.BaseTimelineCommand(model,"actor_pose_library") {
+                @Override protected void doExecute() { replace(file,before,after); }
+                @Override protected void doUndo() { replace(file,after,before); }
+                @Override public String getDescription() { return name == null ? "Delete saved actor pose" : "Rename actor pose"; }
+            });
+    }
+    private static void replace(Path file,List<Saved> expected,List<Saved> next) {
+        try {
+            var current = current();
+            if (!file.equals(loadedFile) || !expected.equals(current))
+                throw new IllegalArgumentException("姿态库或存档已变化，无法修改");
+            replaceFile(file,expected,next);
+            loaded = next;
+        } catch (IOException failure) { throw new java.io.UncheckedIOException(failure); }
+    }
+    static void replaceFile(Path file,List<Saved> expected,List<Saved> next) throws IOException {
+        if (!read(file).equals(expected)) throw new IOException("姿态文件已在外部修改，请重新加载后操作");
+        save(file,next);
     }
     public static void save(Path file, List<Saved> poses) throws IOException {
         AtomicFileWriter.writeString(file,new GsonBuilder().setPrettyPrinting().create().toJson(poses));

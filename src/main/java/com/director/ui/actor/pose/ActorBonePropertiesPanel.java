@@ -15,6 +15,10 @@ public final class ActorBonePropertiesPanel {
     private static NumericContext numericContext;
     private String message = "";
     private boolean presetSelectedOnly = true;
+    private ActorSavedPoseLibrary.Saved editingSavedPose;
+    private boolean deletingSavedPose;
+    private List<ActorSavedPoseLibrary.Saved> savedPoseEditSource;
+    private final imgui.type.ImString renameSavedPose = new imgui.type.ImString(128);
     private final imgui.type.ImString savedPoseName = new imgui.type.ImString(128);
     record NumericContext(ActorAnimationEditContext context, String boneId,
                                   ActorAnimationAuthoringSettings.EditTarget target, BoneKeys keys, long selectionRevision, long settingsRevision) {
@@ -212,11 +216,39 @@ public final class ActorBonePropertiesPanel {
             try {
                 for (var saved : ActorSavedPoseLibrary.current()) {
                     if (!saved.rigId().equals(asset.rigId())) continue;
+                    ImGui.pushID(saved.name());
+                    if (ImGui.smallButton("重命名##renameSaved")) {
+                        editingSavedPose = saved; savedPoseEditSource = ActorSavedPoseLibrary.current(); deletingSavedPose = false; renameSavedPose.set(saved.name());
+                    }
+                    ImGui.sameLine();
+                    if (ImGui.smallButton("删除##deleteSaved")) {
+                        editingSavedPose = saved; savedPoseEditSource = ActorSavedPoseLibrary.current(); deletingSavedPose = true;
+                    }
+                    ImGui.sameLine();
                     if (ImGui.button("应用 " + saved.name() + "##savedPose:" + saved.name())) {
                         var bones = scope.stream().filter(saved.rotations()::containsKey).toList();
                         boolean applied = ActorAnimationAuthoringService.keyPose(context, saved.apply(pose,bones),
                                 bones, mode, RigPose.ROTATION);
                         message = applied ? "保存的姿态已写入当前关键帧。" : "所选部位未包含在此姿态中，或姿态未变化。";
+                    }
+                    ImGui.popID();
+                }
+                if (editingSavedPose != null) {
+                    if (savedPoseEditSource != ActorSavedPoseLibrary.current() || !ActorSavedPoseLibrary.current().contains(editingSavedPose)
+                            || !editingSavedPose.rigId().equals(asset.rigId())) editingSavedPose = null;
+                    else {
+                        ImGui.separator();
+                        if (deletingSavedPose) ImGui.textWrapped("删除保存的姿态：" + editingSavedPose.name()
+                                + "？已写入时间线的关键帧会保留，删除可以撤销。");
+                        else ImGui.inputText("新姿态名称##renameSavedName", renameSavedPose);
+                        if (ImGui.button(deletingSavedPose ? "确认删除##confirmSaved" : "保存名称##confirmSaved")) {
+                            try {
+                                ActorSavedPoseLibrary.edit(model, editingSavedPose, deletingSavedPose ? null : renameSavedPose.get());
+                                editingSavedPose = null; message = "姿态库已更新，可撤销。";
+                            } catch (java.io.IOException | RuntimeException failure) { message = failure.getMessage(); }
+                        }
+                        ImGui.sameLine();
+                        if (ImGui.button("取消##cancelSaved")) editingSavedPose = null;
                     }
                 }
             } catch (java.io.IOException failure) { ImGui.textWrapped(failure.getMessage()); }

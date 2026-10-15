@@ -11,13 +11,11 @@ import net.minecraft.entity.Entity;
 import com.director.actor.prop.*;
 import com.director.timeline.actor.ActorTimelineSource;
 import com.director.timeline.model.TimelineTrack;
-import com.director.timeline.model.entity.ActorRelationClip;
 import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.playback.entity.EntityClipSampler;
 import com.director.timeline.playback.entity.EntitySample;
 import com.director.timeline.playback.entity.EntityActionEvent;
 import net.minecraft.util.math.Vec3d;
-import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
