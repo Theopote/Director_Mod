@@ -308,15 +308,25 @@ public final class ActorBonePropertiesPanel {
                     + " / 旋转 " + (track == null ? 0 : track.rotation().keyframes().size())
                     + " / 缩放 " + (track == null ? 0 : track.scale().keyframes().size()));
         }
-        if (HumanoidRig.HEAD.equals(boneId)) {
-            var owner = ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
-            if (owner != null) {
-                var sample = new com.director.timeline.playback.entity.EntityClipSampler(owner.getActorTrackPayload())
-                        .sampleAt(model.getCurrentTime());
-                if (sample.lookAtEnabled && sample.lookAtStrength > 0)
-                    ImGui.textWrapped("注视约束正在控制头部朝向。制作手工转头动画时，请关闭注视约束。");
+        var owner = ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
+        if (owner != null) {
+            var sample = new com.director.timeline.playback.entity.EntityClipSampler(owner.getActorTrackPayload())
+                    .sampleAt(model.getCurrentTime());
+            RigPose authored = new RigPose(rig);
+            var asset = AnimationAssetLibrary.getInstance().find(sample.animationId)
+                    .filter(value -> value.rigId().equals(rig.id())).orElse(null);
+            if (asset != null) authored = asset.sample(sample.animationLocalTime * Math.max(.01f,sample.animationSpeed),
+                    sample.animationLoop ? asset.loopMode() : AnimationLoopMode.ONCE);
+            ImGui.textDisabled("局部通道控制来源（不含未保存草稿）");
+            for (int channel : new int[]{RigPose.TRANSLATION,RigPose.ROTATION,RigPose.SCALE}) {
+                if (ActorBoneInspector.supports(rig,boneId,channel))
+                    ImGui.textWrapped(ActorBoneInspector.label(channel)+"："+ActorBoneControlSource.source(boneId,channel,sample,authored));
             }
+            if (sample.routeClip != null) ImGui.textDisabled("整体移动：沿路径；路径只控制整体，不直接控制局部骨骼。");
+            if (HumanoidRig.HEAD.equals(boneId) && sample.lookAtEnabled && sample.lookAtStrength > 0)
+                ImGui.textWrapped("注视约束正在控制头部朝向。制作手工转头动画时，请关闭注视约束。");
         }
+
     }
 
     private static void renderChildren(RigDefinition rig, int parent, ActorBoneSelectionController selection, UUID actorId) {

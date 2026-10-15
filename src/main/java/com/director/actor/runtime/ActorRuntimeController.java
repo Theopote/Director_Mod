@@ -148,10 +148,10 @@ public final class ActorRuntimeController {
         }
     }
 
-    /**
-     * 检查是否启用
-     *
-     * @return 如果启用则返回 true
+    /*
+      检查是否启用
+
+      @return 如果启用则返回 true
      */
     /** Release only prop visual resources when leaving a client world. */
     public void clearPropPreviews() {
@@ -966,8 +966,6 @@ public final class ActorRuntimeController {
         /**
          * 应用 LookAt
          *
-         * @param entity PreviewActorEntity
-         * @param s EntitySample
          */
         void updateGaze() {
             if (ownerTrack.isMuted() || actor == null || !spawned || lastSample == null
@@ -1002,7 +1000,7 @@ public final class ActorRuntimeController {
             float yaw = (float) (Math.atan2(dir.z, dir.x) * 180 / Math.PI) - 90;
             float pitch = (float) (-Math.asin(dir.y) * 180 / Math.PI);
 
-            float strength=Math.max(0f,Math.min(1f,s.lookAtStrength));
+            float strength= Math.clamp(s.lookAtStrength, 0f, 1f);
             if(!Float.isFinite(strength) || !Float.isFinite(yaw) || !Float.isFinite(pitch)) return;
             // Gaze changes the head, never the actor root or armor-stand base plate.
             float relativeYaw=net.minecraft.util.math.MathHelper.wrapDegrees(yaw-s.rotation.x)*strength;
