@@ -358,7 +358,8 @@ public class GizmoManager {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client != null && client.gameRenderer != null && client.gameRenderer.getCamera() != null) {
             Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
-            double ringRadius = com.director.client.gizmo.util.GizmoVisualScale.rotationRingRadius(newPivot, cameraPos);
+            double ringRadius = com.director.client.gizmo.util.GizmoVisualScale.rotationRingRadius(newPivot, cameraPos)
+                    * context.getRotationRadiusScale();
             for (com.director.client.gizmo.handles.RotationHandle rotHandle : controller.getRotationHandles()) {
                 rotHandle.setCenter(newPivot);
                 rotHandle.setRadius(ringRadius);
@@ -511,9 +512,14 @@ public class GizmoManager {
      * 设置 Gizmo 中心点（Pivot）
      * 用于实时同步选区中心
      */
+    public void setRotationRadiusScale(double scale) {
+        if(context!=null) { context.setRotationRadiusScale(scale); updateHandlePositions(); }
+    }
+
     public void setPivot(Vec3d pivot) {
         if (context != null) {
             context.setPivot(pivot);
+            updateHandlePositions();
             LOGGER.debug("[GizmoManager] 🎯 设置 Pivot: {}", pivot);
         } else {
             LOGGER.warn("[GizmoManager] ⚠️ 无法设置 Pivot：Gizmo 未激活");

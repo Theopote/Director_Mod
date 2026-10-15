@@ -79,6 +79,11 @@ public class GizmoContext {
         this.snapStep = snapStep;
     }
 
+    private double rotationRadiusScale = 1;
+    public double getRotationRadiusScale() { return rotationRadiusScale; }
+    public void setRotationRadiusScale(double value) {
+        rotationRadiusScale = Double.isFinite(value) ? Math.max(.1,Math.min(2,value)) : 1;
+    }
     private final org.joml.Quaternionf orientation = new org.joml.Quaternionf();
     public org.joml.Quaternionf getOrientation() { return new org.joml.Quaternionf(orientation); }
     public void setOrientation(org.joml.Quaternionf value) {

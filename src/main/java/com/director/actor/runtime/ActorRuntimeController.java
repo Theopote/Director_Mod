@@ -1056,7 +1056,7 @@ public final class ActorRuntimeController {
                 
                 // 处理 Prop 相关 Action
                 if (com.director.actor.prop.PropEventParameters.supports(e.type())) {
-                    continue; // Prop state is reconstructed from timeline time below.
+                    // Prop state is reconstructed from timeline time below.
                 }
                 
                 // TODO: 未来可以在这里触发声音、粒子效果等
@@ -1094,7 +1094,7 @@ public final class ActorRuntimeController {
      * @return 插值结果
      */
     private static float lerp(float a, float b, float t) {
-        return a + (b - a) * Math.max(0f, Math.min(1f, t));
+        return a + (b - a) * Math.clamp(t, 0f, 1f);
     }
 }
 

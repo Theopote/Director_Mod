@@ -202,7 +202,7 @@ public class GizmoInteractionController {
             return;
         }
         boolean moveHit = allowsMoveHandles() && hoveredHandle != null;
-        if (!moveHit || hoveredHandle == null) {
+        if (!moveHit) {
             return;
         }
 
@@ -373,6 +373,7 @@ public class GizmoInteractionController {
             // 角点手柄：从角点调整选区大小
             transformApplier.applyResizeFromCorner(delta, corner.getCornerSign());
         } else if (activeHandle instanceof com.director.client.gizmo.handles.CenterHandle) {
+            assert context != null;
             if(context.getType()==GizmoType.TRANSFORM && currentMode()==GizmoMode.SCALE) {
                 double amount=delta.dotProduct(scaleRight)/scaleUnit;
                 transformApplier.applyResize(new Vec3d(amount,amount,amount));

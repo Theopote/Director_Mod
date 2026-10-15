@@ -123,6 +123,7 @@ public final class ActorBoneGizmoController {
         Vector3f p = worldPose.position(boneId);
         Vec3d pivot = new Vec3d(p.x, p.y, p.z);
         configureGizmo(pivot, desiredMode);
+        if (!dragging) GizmoManager.get().setRotationRadiusScale(.45);
         if (!dragging && GizmoManager.get().getContext()!=null) {
             int index=worldPose.rig().requireBoneIndex(boneId);
             int frame=desiredMode==GizmoMode.TRANSLATE ? worldPose.rig().bone(index).parentIndex() : index;

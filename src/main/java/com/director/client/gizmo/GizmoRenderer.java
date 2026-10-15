@@ -309,31 +309,22 @@ public class GizmoRenderer {
                                          double arrowRadius,
                                          Vec3d cameraPos,
                                          double time) {
-        if(context.getMode()==GizmoMode.SCALE) {
-            var lines=vcp.getBuffer(RenderLayer.getLines());
-            var fill=vcp.getBuffer(com.director.client.renderer.RenderLayers.getPreviewLayer());
-            for(var axis:Axis.values()) {
-                var center=getAxisEndPoint(pivot,axis,axisLength,cameraPos);
-                var color=axisColor(axis,time);
-                drawSolidCube(fill,posMat,center,color,arrowRadius*2);
-                drawCube(lines,posMat,center,color,arrowRadius*2);
+        // Finish the complete solid pass before requesting a different layer. The provider
+        // may flush its previous BufferBuilder when getBuffer switches layers.
+        for (boolean solid : new boolean[]{true,false}) {
+            VertexConsumer buffer=vcp.getBuffer(solid
+                    ? com.director.client.renderer.RenderLayers.getPreviewLayer() : RenderLayer.getLines());
+            for (Axis axis:Axis.values()) {
+                var tip=getAxisEndPoint(pivot,axis,axisLength,cameraPos);
+                var color=axisColor(axis,time).clone();
+                if(solid) color[3]=.55f;
+                if(context.getMode()==GizmoMode.SCALE) {
+                    if(solid) drawSolidCube(buffer,posMat,tip,color,arrowRadius*2);
+                    else drawCube(buffer,posMat,tip,color,arrowRadius*2);
+                } else drawArrowHead(posMat,buffer,tip,axis,color,arrowHeight,arrowRadius,
+                        axisFacingSign(axis,pivot,cameraPos),solid);
             }
-            return;
         }
-        drawArrowHead(posMat, vcp,
-                getAxisEndPoint(pivot, Axis.X, axisLength, cameraPos),
-                Axis.X, axisColor(Axis.X, time), arrowHeight, arrowRadius,
-                axisFacingSign(Axis.X, pivot, cameraPos));
-
-        drawArrowHead(posMat, vcp,
-                getAxisEndPoint(pivot, Axis.Y, axisLength, cameraPos),
-                Axis.Y, axisColor(Axis.Y, time), arrowHeight, arrowRadius,
-                axisFacingSign(Axis.Y, pivot, cameraPos));
-
-        drawArrowHead(posMat, vcp,
-                getAxisEndPoint(pivot, Axis.Z, axisLength, cameraPos),
-                Axis.Z, axisColor(Axis.Z, time), arrowHeight, arrowRadius,
-                axisFacingSign(Axis.Z, pivot, cameraPos));
     }
 
     private float[] axisColor(Axis axis, double time) {
@@ -364,14 +355,13 @@ public class GizmoRenderer {
      * 修复：确保箭头使用正确的颜色（X=红，Y=绿，Z=蓝）
      */
     private void drawArrowHead(Matrix4f matrix,
-                               VertexConsumerProvider vcp,
+                               VertexConsumer buffer,
                                Vec3d tip,
                                Axis axis,
                                float[] color,
                                double arrowHeight,
                                double arrowRadius,
-                               double directionSign) {
-        VertexConsumer buffer = vcp.getBuffer(RenderLayer.getLines());
+                               double directionSign, boolean solid) {
 
         Vec3d axisDir = getAxisDirection(axis).multiply(directionSign).normalize();
         Vec3d baseCenter = tip.subtract(axisDir.multiply(arrowHeight));
@@ -394,13 +384,15 @@ public class GizmoRenderer {
                     .add(tangent2.multiply(arrowRadius * sin));
         }
 
-        VertexConsumer fill = vcp.getBuffer(com.director.client.renderer.RenderLayers.getPreviewLayer());
-        for (int i=0;i<segments;i++) {
-            Vec3d a=basePoints[i], b=basePoints[(i+1)%segments];
-            drawQuad(fill,matrix,tip,a,b,b,color);
-            drawQuad(fill,matrix,baseCenter,b,a,a,color);
+        if(solid) {
+            for (int i=0;i<segments;i++) {
+                Vec3d a=basePoints[i], b=basePoints[(i+1)%segments];
+                drawQuad(buffer,matrix,tip,a,b,b,color);
+                drawQuad(buffer,matrix,baseCenter,b,a,a,color);
+            }
+            return;
         }
-        // Keep a crisp outline over the solid head.
+        // Keep a crisp outline over the translucent head.
         for (Vec3d p : basePoints) {
             drawLineToBuffer(buffer, matrix, tip, p, color);
         }
@@ -637,6 +629,13 @@ public class GizmoRenderer {
                                    double distanceMultiplier) {
         VertexConsumer lineConsumer = vcp.getBuffer(RenderLayer.getLines());
 
+        // A small cross makes the exact joint pivot visible inside the rings.
+        double marker=.045*distanceMultiplier;
+        for(Axis axis:Axis.values()) {
+            var offset=getAxisDirection(axis).multiply(marker);
+            drawLineToBuffer(lineConsumer,posMat,center.subtract(offset),center.add(offset),COLOR_CENTER);
+        }
+
         List<com.director.client.gizmo.handles.RotationHandle> rotationHandles =
                 controller.getRotationHandles();
 
@@ -658,14 +657,14 @@ public class GizmoRenderer {
             double ringRadius = rotHandle.getRadius();
             if (ringRadius <= 0.0) {
                 ringRadius = com.director.client.gizmo.util.GizmoVisualScale.BASE_ROTATION_RING_RADIUS
-                        * distanceMultiplier;
+                        * distanceMultiplier * context.getRotationRadiusScale();
             }
 
             // 使用 SelectionRenderer 的 drawRing 方法
             OverlayRenderHelper.drawRing(
                     lineConsumer,
                     posMat,
-                    rotHandle.getCenter(),
+                    center,
                     rotHandle.getAxis(),
                     ringRadius,
                     color
