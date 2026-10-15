@@ -34,6 +34,7 @@ public final class PlayerJointModel {
             var angles=ArmorStandEulerAngles.fromQuaternion(value.rotation());
             lower.pitch=angles.x; lower.yaw=angles.y; lower.roll=angles.z;
             lower.xScale=value.scale().x; lower.yScale=value.scale().y; lower.zScale=value.scale().z;
+            PlayerJointSeam.update(part.getChild(UPPER),lower,value.rotation(),value.scale());
         }
     }
 }
