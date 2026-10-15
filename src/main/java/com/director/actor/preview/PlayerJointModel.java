@@ -5,7 +5,7 @@ import com.director.actor.rig.skeleton.*;
 
 /** Alternate segmented cuboids are visible only for authored player joints. */
 public final class PlayerJointModel {
-    private static final String UPPER="director_upper", LOWER="director_lower";
+    private static final String UPPER="director_upper", LOWER="director_lower", CONNECTOR="director_joint_connector";
     private PlayerJointModel() {}
     public static void build(ModelData data,Dilation dilation,boolean slim) {
         var root=data.getRoot();
@@ -24,6 +24,8 @@ public final class PlayerJointModel {
     private static void split(ModelPartData part,int u,int v,float x,float y,float width,Dilation dilation) {
         part.addChild(UPPER,ModelPartBuilder.create().uv(u,v).cuboid(x,y,-2,width,6,4,dilation),ModelTransform.NONE);
         part.addChild(LOWER,ModelPartBuilder.create().uv(u,v+6).cuboid(x,0,-2,width,6,4,dilation),ModelTransform.origin(0,y+6,0));
+        // Placeholder gives ModelPart a render call; its geometry is replaced by the connector renderer.
+        part.addChild(CONNECTOR,ModelPartBuilder.create().uv(u,v).cuboid(0,0,0,1,1,1),ModelTransform.origin(0,y+6,0));
     }
     public static void torso(ModelPart part,boolean active) {
         if(!part.hasChild("director_torso")) return;
@@ -36,12 +38,13 @@ public final class PlayerJointModel {
         part.hidden=active;
         part.getChild(UPPER).visible=active;
         var lower=part.getChild(LOWER); lower.visible=active;
+        var connector=part.getChild(CONNECTOR); connector.visible=active;
         if(active) {
             var value=pose.localTransform(joint);
             var angles=ArmorStandEulerAngles.fromQuaternion(value.rotation());
             lower.pitch=angles.x; lower.yaw=angles.y; lower.roll=angles.z;
             lower.xScale=value.scale().x; lower.yScale=value.scale().y; lower.zScale=value.scale().z;
-            PlayerJointSeam.update(part.getChild(UPPER),lower,value.rotation(),value.scale());
+            PlayerJointSeam.update(part,part.getChild(UPPER),lower,connector,value.rotation(),value.scale());
         }
     }
 }

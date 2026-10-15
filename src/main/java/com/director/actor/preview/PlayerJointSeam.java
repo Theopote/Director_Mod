@@ -1,76 +1,81 @@
 package com.director.actor.preview;
 
 import net.minecraft.client.model.ModelPart;
+import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.util.math.MatrixStack;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
+import org.joml.*;
 import java.util.*;
 
-/** Weld the two cut rings to their common midpoint; retain the skin's per-face UVs. */
+/** Rigid limb UV slicing and a separate exposed joint connector. */
 public final class PlayerJointSeam {
-    private record Surface(ModelPart.Cuboid cuboid, ModelPart.Quad[] original) {}
-    private static final Map<ModelPart,List<Surface>> SOURCES = new WeakHashMap<>();
+    private static final Map<ModelPart,State> STATES=new WeakHashMap<>();
+    private static final class State {
+        final ModelPart.Cuboid template;
+        final float pivot,dilation;
+        Quaternionf rotation;
+        Vector3f scale;
+        List<Vector3f[]> triangles=List.of();
+        State(ModelPart parent,ModelPart upper,ModelPart lower) {
+            template=cuboids(parent).getFirst(); pivot=lower.originY;
+            float min=Float.POSITIVE_INFINITY;
+            for(var face:template.sides) for(var v:face.vertices()) min=java.lang.Math.min(min,v.x());
+            dilation=template.minX-min;
+            remap(upper,template,0); remap(lower,template,pivot);
+        }
+    }
     private PlayerJointSeam() {}
-
-    public static Vector3f seamPoint(Vector3f cut, Quaternionf rotation, Vector3f scale) {
-        // For an ordinary elbow/knee bend use a miter cut: preserve the limb's width
-        // and depth instead of averaging corners, which narrows the whole segment.
-        if (Math.abs(rotation.y)<1e-5f && Math.abs(rotation.z)<1e-5f
-                && scale.equals(new Vector3f(1),1e-5f)) {
-            var normal=rotation.transform(new Vector3f(0,1,0)).add(0,1,0);
-            if (Math.abs(normal.y)>1e-4f) {
-                float extension=-(normal.x*cut.x+normal.z*cut.z)/normal.y;
-                if(Math.abs(extension)<=5.5f) return new Vector3f(cut.x,extension,cut.z);
+    private static List<ModelPart.Cuboid> cuboids(ModelPart part) {
+        List<ModelPart.Cuboid> result=new ArrayList<>();
+        part.forEachCuboid(new MatrixStack(),(entry,path,index,cuboid)->result.add(cuboid));
+        return result;
+    }
+    public static void update(ModelPart parent,ModelPart upper,ModelPart lower,ModelPart connector,
+                              Quaternionf rotation,Vector3f scale) {
+        var state=STATES.computeIfAbsent(connector,key->new State(parent,upper,lower));
+        if(state.rotation!=null && state.rotation.equals(rotation,1e-6f) && state.scale.equals(scale,1e-6f)) return;
+        state.triangles=JointConnectorGeometry.build(state.template.minX,state.template.maxX-state.template.minX,
+                state.dilation,rotation,scale);
+        state.rotation=new Quaternionf(rotation); state.scale=new Vector3f(scale);
+    }
+    private static void remap(ModelPart part,ModelPart.Cuboid template,float pivot) {
+        for(var cuboid:cuboids(part)) for(int i=0;i<cuboid.sides.length;i++) {
+            var face=cuboid.sides[i]; var vertices=new ModelPart.Vertex[4];
+            for(int j=0;j<4;j++) {
+                var v=face.vertices()[j];
+                var uv=uv(template,new Vector3f(v.x(),v.y()+pivot,v.z()),new Vector3f(face.direction()),false);
+                vertices[j]=new ModelPart.Vertex(v.x(),v.y(),v.z(),uv.x,uv.y);
+            }
+            cuboid.sides[i]=new ModelPart.Quad(vertices,face.direction());
+        }
+    }
+    /** Sample the original full limb face rather than inventing new cuboid UV layouts. */
+    public static Vector2f uv(ModelPart.Cuboid template,Vector3f position,Vector3f normal,boolean joint) {
+        var direction=new Vector3f(normal);
+        if(joint) {
+            if(java.lang.Math.abs(direction.x)>java.lang.Math.abs(direction.z)) direction.set(direction.x>=0?1:-1,0,0);
+            else direction.set(0,0,direction.z>=0?1:-1);
+        }
+        ModelPart.Quad selected=template.sides[0]; float best=-Float.MAX_VALUE;
+        for(var face:template.sides) if(face.direction().dot(direction)>best) { best=face.direction().dot(direction); selected=face; }
+        var a=selected.vertices()[0]; var b=selected.vertices()[1]; var d=selected.vertices()[3];
+        var edge1=new Vector3f(b.x()-a.x(),b.y()-a.y(),b.z()-a.z());
+        var edge2=new Vector3f(d.x()-a.x(),d.y()-a.y(),d.z()-a.z());
+        var offset=new Vector3f(position).sub(a.x(),a.y(),a.z());
+        float s=java.lang.Math.max(0,java.lang.Math.min(1,offset.dot(edge1)/edge1.lengthSquared()));
+        float t=java.lang.Math.max(0,java.lang.Math.min(1,offset.dot(edge2)/edge2.lengthSquared()));
+        return new Vector2f(a.u()+s*(b.u()-a.u())+t*(d.u()-a.u()),a.v()+s*(b.v()-a.v())+t*(d.v()-a.v()));
+    }
+    public static boolean render(ModelPart part,MatrixStack.Entry entry,VertexConsumer consumer,int light,int overlay,int color) {
+        var state=STATES.get(part); if(state==null) return false;
+        for(var triangle:state.triangles) {
+            var normal=new Vector3f(triangle[1]).sub(triangle[0]).cross(new Vector3f(triangle[2]).sub(triangle[0])).normalize();
+            var worldNormal=entry.transformNormal(normal,new Vector3f());
+            for(int i:new int[]{0,1,2,2}) {
+                var p=triangle[i]; var uv=uv(state.template,new Vector3f(p).add(0,state.pivot,0),normal,true);
+                var world=entry.getPositionMatrix().transformPosition(new Vector3f(p).div(16));
+                consumer.vertex(world.x,world.y,world.z,color,uv.x,uv.y,overlay,light,worldNormal.x,worldNormal.y,worldNormal.z);
             }
         }
-        return new Vector3f(cut).add(rotation.transform(new Vector3f(cut).mul(scale))).mul(.5f);
-    }
-    public static void update(ModelPart upper,ModelPart lower,Quaternionf rotation,Vector3f scale) {
-        if (!scale.isFinite() || scale.x<=0 || scale.y<=0 || scale.z<=0) return;
-        deform(upper,lower.originY,rotation,scale,false);
-        deform(lower,lower.originY,rotation,scale,true);
-    }
-    private static List<Surface> source(ModelPart part) {
-        return SOURCES.computeIfAbsent(part,p -> {
-            List<Surface> surfaces=new ArrayList<>();
-            p.forEachCuboid(new MatrixStack(),(matrix,path,index,cuboid)->
-                    surfaces.add(new Surface(cuboid,cuboid.sides.clone())));
-            return surfaces;
-        });
-    }
-    private static void deform(ModelPart part,float pivotY,Quaternionf rotation,Vector3f scale,boolean lower) {
-        var inverse=new Quaternionf(rotation).conjugate();
-        for (var surface:source(part)) {
-            float cut=lower ? surface.cuboid.minY : surface.cuboid.maxY;
-            for(int i=0;i<surface.original.length;i++) {
-                var original=surface.original[i];
-                var vertices=new ModelPart.Vertex[4];
-                boolean cap=lower ? original.direction().y()<-.9f : original.direction().y()>.9f;
-                for(int j=0;j<4;j++) {
-                    var v=original.vertices()[j];
-                    Vector3f p=new Vector3f(v.x(),v.y(),v.z());
-                    // Dilation expands cut caps; choose the entire end ring using side normals.
-                    boolean atCut=lower ? v.y()<=cut+.001f : v.y()>=cut-.001f;
-                    if(atCut) {
-                        var local=new Vector3f(v.x(),0,v.z());
-                        var seam=seamPoint(local,rotation,scale);
-                        p=lower ? inverse.transform(seam).div(scale) : seam.add(0,pivotY,0);
-                    }
-                    vertices[j]=new ModelPart.Vertex(p.x,p.y,p.z,v.u(),v.v());
-                }
-                // The two old end caps are now internal. Degenerate them to avoid flickering.
-                if(cap) Arrays.fill(vertices,vertices[0]);
-                var normal=new Vector3f(vertices[1].x()-vertices[0].x(),vertices[1].y()-vertices[0].y(),vertices[1].z()-vertices[0].z())
-                        .cross(new Vector3f(vertices[2].x()-vertices[0].x(),vertices[2].y()-vertices[0].y(),vertices[2].z()-vertices[0].z()));
-                if(normal.lengthSquared()<1e-10f) normal.set(original.direction());
-                else {
-                    var a=original.vertices()[0]; var b=original.vertices()[1]; var c=original.vertices()[2];
-                    var winding=new Vector3f(b.x()-a.x(),b.y()-a.y(),b.z()-a.z())
-                            .cross(new Vector3f(c.x()-a.x(),c.y()-a.y(),c.z()-a.z()));
-                    normal.normalize(); if(winding.dot(original.direction())<0) normal.negate();
-                }
-                surface.cuboid.sides[i]=new ModelPart.Quad(vertices,normal);
-            }
-        }
+        return true;
     }
 }

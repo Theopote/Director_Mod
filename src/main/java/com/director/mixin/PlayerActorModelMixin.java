@@ -7,6 +7,7 @@ import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -41,7 +42,8 @@ public abstract class PlayerActorModelMixin {
         copy(model.leftSleeve,model.leftArm); copy(model.rightSleeve,model.rightArm);
         copy(model.leftPants,model.leftLeg); copy(model.rightPants,model.rightLeg);
     }
-    private static void copy(ModelPart target,ModelPart source) {
+    @Unique
+    private static void copy(ModelPart target, ModelPart source) {
         // Clothing is a child of its limb and already inherits its transform.
         target.resetTransform();
     }
@@ -59,7 +61,8 @@ public abstract class PlayerActorModelMixin {
         var scale=value.scale(); matrices.scale(scale.x,scale.y,scale.z);
         matrices.translate(0,-.25f,0);
     }
-    private static void apply(ModelPart part,RigPose pose,String bone) {
+    @Unique
+    private static void apply(ModelPart part, RigPose pose, String bone) {
         var matrix=PlayerRenderWorldPose.modelTransforms(pose)[pose.rig().requireBoneIndex(bone)];
         var angles=ArmorStandEulerAngles.fromQuaternion(matrix.getUnnormalizedRotation(new org.joml.Quaternionf()));
         part.pitch=angles.x; part.yaw=angles.y; part.roll=angles.z;
