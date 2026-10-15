@@ -48,6 +48,13 @@ public final class ActorBonePropertiesPanel {
         return draft.isDirty();
     }
     public static void cancelNumericDraft() { draft.clear(); numericContext = null; }
+    /** A transient render layer only; never writes asset keys or history. */
+    public static RigPose previewPose(UUID actorId, RigPose sampled) {
+        if (!hasNumericDraft() || numericContext == null || !numericContext.context().actorId().equals(actorId)
+                || sampled == null || !sampled.rig().id().equals(numericContext.context().asset().rigId())) return sampled;
+        return draft.preview(sampled, numericContext.boneId());
+    }
+
 
 
     public static void render(TimelineModel model, UUID actorId) {
@@ -124,7 +131,25 @@ public final class ActorBonePropertiesPanel {
         if (ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) draft.reset();
         int changed = 0;
         if (bone.capabilities().translation() && ImGui.inputFloat3("位置 XYZ##boneT", draft.translation, "%.3f")) changed |= RigPose.TRANSLATION;
-        if (bone.capabilities().rotation() && !(HumanoidTopology.matches(asset.rig()) && HumanoidRig.ROOT.equals(boneId))
+        boolean joint = ActorJointBend.isJoint(boneId);
+        if (joint) {
+            float[] bend = {ActorJointBend.degrees(boneId, draft.rotation[0])};
+            ImGui.textDisabled("局部关节弯曲；修改后点击应用并打帧。");
+            if (bend[0] < 0 || bend[0] > 160)
+                ImGui.textWrapped("当前角度超出常用弯曲范围，可在高级旋转中编辑；滑条使用 0–160 度。");
+            if (ImGui.sliderFloat("弯曲角度（度）##jointBend", bend, 0f, 160f, "%.1f")) {
+                ActorJointBend.set(boneId, bend[0], draft.rotation);
+                changed |= RigPose.ROTATION;
+            }
+            if (ImGui.smallButton("恢复伸直##straightJoint")) {
+                ActorJointBend.set(boneId, 0f, draft.rotation);
+                changed |= RigPose.ROTATION;
+            }
+            if (ImGui.treeNode("高级：三轴旋转##jointAdvanced")) {
+                if (ImGui.inputFloat3("旋转 XYZ（度）##boneR", draft.rotation, "%.2f")) changed |= RigPose.ROTATION;
+                ImGui.treePop();
+            }
+        } else if (bone.capabilities().rotation() && !(HumanoidTopology.matches(asset.rig()) && HumanoidRig.ROOT.equals(boneId))
                 && ImGui.inputFloat3("旋转 XYZ（度）##boneR", draft.rotation, "%.2f")) changed |= RigPose.ROTATION;
         if (bone.capabilities().scale() && ImGui.inputFloat3("缩放 XYZ##boneS", draft.scale, "%.3f")) changed |= RigPose.SCALE;
         if (changed != 0) {
@@ -133,6 +158,12 @@ public final class ActorBonePropertiesPanel {
             draft.markChannelsChanged(changed); message = ""; }
         var mode = ActorAnimationAuthoringSettings.getInstance().getInterpolation();
         if (draft.isDirty()) {
+            if (draft.isValid()) {
+                var entity = com.director.actor.preview.ActorPreviewManager.getInstance().getPreview(actorId);
+                if (entity instanceof com.director.actor.preview.ActorPosePreview preview)
+                    preview.setFinalRigPose(previewPose(actorId, preview.getFinalRigPose()));
+            }
+            ImGui.textDisabled("当前显示未保存的姿态预览；应用后写入关键帧，取消则恢复。");
             if (!draft.isValid()) ImGui.textWrapped("请输入有限数值，且缩放必须大于零。");
             if (ImGui.button("应用并打帧##applyBone") && draft.isValid() && hasNumericDraft()) {
                 pose.setLocalTransform(boneId, draft.value());

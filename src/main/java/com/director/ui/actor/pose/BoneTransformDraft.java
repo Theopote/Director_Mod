@@ -57,6 +57,13 @@ final class BoneTransformDraft {
         return new BoneTransform(new Vector3f(translation), q, new Vector3f(scale));
     }
 
+    com.director.actor.rig.skeleton.RigPose preview(com.director.actor.rig.skeleton.RigPose base, String boneId) {
+        if (!dirty || !isValid() || base == null || base.rig().findBoneIndex(boneId) < 0) return base;
+        var result = base.copy();
+        result.setLocalTransform(base.rig().requireBoneIndex(boneId), value(), changedChannels);
+        return result;
+    }
+
     void reset() {
         copy(source.translation(), translation);
         copy(source.rotation().getEulerAnglesZYX(new Vector3f()).mul((float)(180 / Math.PI)), rotation);

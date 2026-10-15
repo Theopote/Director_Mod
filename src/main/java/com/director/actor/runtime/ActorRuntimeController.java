@@ -200,6 +200,16 @@ public final class ActorRuntimeController {
 
         // Resolve gaze only after every actor has its current-time root position.
         for (TrackRuntime rt : runtimes.values()) rt.updateGaze();
+        // Numeric pose drafts are the final transient layer, after gaze constraints.
+        for (var id : ActorPreviewManager.getInstance().previewActorIds()) {
+            var entity = ActorPreviewManager.getInstance().getPreview(id);
+            if (entity instanceof com.director.actor.preview.ActorPosePreview preview) {
+                var sampled = preview.getFinalRigPose();
+                var edited = com.director.ui.actor.pose.ActorBonePropertiesPanel.previewPose(id, sampled);
+                if (edited != sampled) preview.setFinalRigPose(edited);
+            }
+        }
+
 
         // 更新投掷物（每帧更新，使用 deltaTime）
         projectileManager.update(deltaTime);
@@ -747,7 +757,8 @@ public final class ActorRuntimeController {
                     boolean boneDragging = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
                             && actor.getActorId().equals(com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().getActorId());
                     if (!boneDragging) {
-                        applyRootAnimationOffset((Entity)previewEntity, finalRigPose,s);
+                        var displayPose = com.director.ui.actor.pose.ActorBonePropertiesPanel.previewPose(actor.getActorId(), finalRigPose);
+                        applyRootAnimationOffset((Entity)previewEntity, displayPose,s);
                         previewEntity.setFinalRigPose(finalRigPose);
                     }
                 }

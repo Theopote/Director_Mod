@@ -53,4 +53,30 @@ class BoneTransformDraftTest {
         assertEquals(0, draft.changedChannels());
         assertFalse(draft.isDirty());
     }
+    @Test void previewChangesOnlyEditedChannelWithoutMutatingSampleAndCancelRemovesLayer() {
+        var rig=com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION;
+        var base=new com.director.actor.rig.skeleton.RigPose(rig);
+        String bone=com.director.actor.rig.skeleton.ArticulatedPlayerRig.LEFT_FOREARM;
+        var sampled=base.localTransform(bone);
+        var draft=new BoneTransformDraft();
+        draft.synchronize("target",sampled);
+        draft.rotation[0]=-90;
+        draft.markChannelsChanged(com.director.actor.rig.skeleton.RigPose.ROTATION);
+        var preview=draft.preview(base,bone);
+        assertNotSame(base,preview);
+        assertTrue(preview.localTransform(bone).rotation().equals(new Quaternionf().rotateX(-(float)Math.PI/2),1e-5f));
+        assertEquals(sampled.translation(),preview.localTransform(bone).translation());
+        assertEquals(sampled.scale(),preview.localTransform(bone).scale());
+        assertTrue(base.localTransform(bone).rotation().equals(new Quaternionf(),1e-5f));
+        draft.clear();
+        assertSame(base,draft.preview(base,bone));
+    }
+    @Test void invalidPreviewDoesNotPropagateNonFiniteValues() {
+        var base=new com.director.actor.rig.skeleton.RigPose(com.director.actor.rig.skeleton.HumanoidRig.DEFINITION);
+        var draft=new BoneTransformDraft();
+        draft.synchronize("target",base.localTransform("head"));
+        draft.rotation[0]=Float.NaN;
+        draft.markChannelsChanged(com.director.actor.rig.skeleton.RigPose.ROTATION);
+        assertSame(base,draft.preview(base,"head"));
+    }
 }
