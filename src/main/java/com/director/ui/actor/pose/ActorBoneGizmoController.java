@@ -268,7 +268,7 @@ public final class ActorBoneGizmoController {
         if (!contextValid() || !changed) { cancelDraft(); return; }
         dragging = false;
         pending = true;
-        if (gestureAutoKey) applyDraft();
+        if (animationGesture || gestureAutoKey) applyDraft();
     }
 
     public boolean hasPendingDraft() { return pending; }

@@ -13,6 +13,16 @@ public final class PlayerJointSeam {
     private PlayerJointSeam() {}
 
     public static Vector3f seamPoint(Vector3f cut, Quaternionf rotation, Vector3f scale) {
+        // For an ordinary elbow/knee bend use a miter cut: preserve the limb's width
+        // and depth instead of averaging corners, which narrows the whole segment.
+        if (Math.abs(rotation.y)<1e-5f && Math.abs(rotation.z)<1e-5f
+                && scale.equals(new Vector3f(1),1e-5f)) {
+            var normal=rotation.transform(new Vector3f(0,1,0)).add(0,1,0);
+            if (Math.abs(normal.y)>1e-4f) {
+                float extension=-(normal.x*cut.x+normal.z*cut.z)/normal.y;
+                if(Math.abs(extension)<=5.5f) return new Vector3f(cut.x,extension,cut.z);
+            }
+        }
         return new Vector3f(cut).add(rotation.transform(new Vector3f(cut).mul(scale))).mul(.5f);
     }
     public static void update(ModelPart upper,ModelPart lower,Quaternionf rotation,Vector3f scale) {

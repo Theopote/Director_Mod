@@ -299,9 +299,9 @@ public final class ActorBonePropertiesPanel {
             ImGui.sameLine();
         }
         ImGui.newLine();
-        if (ImGui.checkbox("新通道自动打帧##boneAutoKey", settings.isAutoKeyframe()))
+        if (ImGui.checkbox("快速姿态自动应用##boneAutoKey", settings.isAutoKeyframe()))
             settings.setAutoKeyframe(!settings.isAutoKeyframe());
-        ImGui.textDisabled("已有关键帧的通道：拖动松开即保存；新通道：按自动打帧设置或应用草稿。");
+        ImGui.textDisabled("骨骼动画：拖动松开即保存；快速姿态：按自动应用设置或应用草稿。");
         var context = ActorAnimationEditContext.resolve(model, actorId);
         if (context != null) {
             var track = context.asset().findBoneTrack(boneId).orElse(null);

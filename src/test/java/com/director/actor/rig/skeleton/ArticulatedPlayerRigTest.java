@@ -16,12 +16,14 @@ class ArticulatedPlayerRigTest {
         var bent=ActorPropSocketResolver.resolve(pose,new Matrix4f(),ActorPropSlot.MAIN_HAND,new Vector3f(),new Vector3f()).orElseThrow().getTranslation(new Vector3f());
         assertTrue(initial.distance(bent)>.1f);
     }
-    @Test void straightHandsMatchRigidRig() {
+    @Test void straightHandsUseCorrectedShoulderWidth() {
         var rigid=new RigPose(HumanoidRig.DEFINITION);
         var bent=new RigPose(ArticulatedPlayerRig.DEFINITION);
         var a=ActorPropSocketResolver.resolve(rigid,new Matrix4f(),ActorPropSlot.MAIN_HAND,new Vector3f(),new Vector3f()).orElseThrow();
         var b=ActorPropSocketResolver.resolve(bent,new Matrix4f(),ActorPropSlot.MAIN_HAND,new Vector3f(),new Vector3f()).orElseThrow();
-        assertTrue(a.equals(b,1e-5f));
+        var hand=b.getTranslation(new Vector3f());
+        assertEquals(-.3125f,hand.x,1e-5f);
+        assertEquals(.75f,hand.y,1e-5f);
     }
     @Test void keyframeAssetSamplesElbowChannelWithoutTakingOverLegs() {
         var asset=new com.director.actor.animation.asset.AnimationAsset("test:joint","joint",ArticulatedPlayerRig.DEFINITION,2,

@@ -30,6 +30,8 @@ public abstract class PlayerActorModelMixin {
         com.director.actor.preview.PlayerJointModel.apply(model.leftPants,joints,ArticulatedPlayerRig.LEFT_SHIN);
         com.director.actor.preview.PlayerJointModel.apply(model.rightLeg,joints,ArticulatedPlayerRig.RIGHT_SHIN);
         com.director.actor.preview.PlayerJointModel.apply(model.rightPants,joints,ArticulatedPlayerRig.RIGHT_SHIN);
+        com.director.actor.preview.PlayerJointModel.torso(model.body,joints!=null);
+        com.director.actor.preview.PlayerJointModel.torso(model.jacket,joints!=null);
         if(joints==null) return;
         apply(model.body,pose,HumanoidRig.BODY);
         apply(model.head,pose,HumanoidRig.HEAD);
@@ -58,11 +60,13 @@ public abstract class PlayerActorModelMixin {
         matrices.translate(0,-.25f,0);
     }
     private static void apply(ModelPart part,RigPose pose,String bone) {
-        var transform=pose.localTransform(bone);
-        var angles=ArmorStandEulerAngles.fromQuaternion(transform.rotation());
+        var matrix=PlayerRenderWorldPose.modelTransforms(pose)[pose.rig().requireBoneIndex(bone)];
+        var angles=ArmorStandEulerAngles.fromQuaternion(matrix.getUnnormalizedRotation(new org.joml.Quaternionf()));
         part.pitch=angles.x; part.yaw=angles.y; part.roll=angles.z;
-        var delta=transform.translation().sub(pose.rig().bone(pose.rig().requireBoneIndex(bone)).restLocal().translation());
-        part.originX+=delta.x*16; part.originY-=delta.y*16; part.originZ+=delta.z*16;
-        var scale=transform.scale(); part.xScale=scale.x; part.yScale=scale.y; part.zScale=scale.z;
+        var position=matrix.getTranslation(new org.joml.Vector3f()).mul(16);
+        part.originX=position.x; part.originY=position.y; part.originZ=position.z;
+        var scale=matrix.getScale(new org.joml.Vector3f());
+        part.xScale=scale.x; part.yScale=scale.y; part.zScale=scale.z;
+
     }
 }

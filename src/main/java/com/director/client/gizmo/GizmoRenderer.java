@@ -646,7 +646,7 @@ public class GizmoRenderer {
             RotationHandle hoveredRotation = controller.getHoveredRotationHandle();
             if (controller.getActiveRotationHandle() == rotHandle) {
                 color = new float[]{1.0f, 1.0f, 1.0f, 1.0f}; // 白色高亮
-                color[3] *= (1.0f + 0.3f * (float) Math.sin(time * 10.0)); // 脉冲效果
+                color[3] = 1.0f; // Stable feedback during a rotation gesture.
             } else if (hoveredRotation == rotHandle) {
                 color = new float[]{color[0], color[1], color[2], 1.0f};
                 color[0] = Math.min(1.0f, color[0] + 0.25f);

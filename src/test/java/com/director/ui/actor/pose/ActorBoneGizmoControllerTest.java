@@ -40,4 +40,11 @@ class ActorBoneGizmoControllerTest {
         assertEquals(1.5f, result.y, 1.0e-5f);
         assertEquals(0.01f, result.z, 1.0e-5f);
     }
+    @Test void successiveLocalAxesComposeInsteadOfReplacingPreviousRotation() {
+        var yaw=ActorBoneGizmoController.rotate(new Quaternionf(),Axis.Y,.6f);
+        var combined=ActorBoneGizmoController.rotate(new Quaternionf(yaw),Axis.X,.4f);
+        var expected=new Quaternionf().rotateY(.6f).rotateX(.4f);
+        org.junit.jupiter.api.Assertions.assertTrue(combined.equals(expected,1e-5f));
+        org.junit.jupiter.api.Assertions.assertFalse(combined.equals(new Quaternionf().rotateX(.4f),1e-5f));
+    }
 }

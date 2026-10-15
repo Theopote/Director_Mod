@@ -23,4 +23,18 @@ class PlayerRenderWorldPoseTest {
         var expected=world.transform(pose.rig().requireBoneIndex(HumanoidRig.LEFT_ARM)).transformPosition(new Vector3f(0,.25f,0));
         assertTrue(world.position(ArticulatedPlayerRig.LEFT_FOREARM).equals(expected,1e-5f));
     }
+    @Test void waistRotationMovesHeadAndArmsWhileLegsStayIndependent() {
+        var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
+        var before=PlayerRenderWorldPose.modelTransforms(pose);
+        int body=pose.rig().requireBoneIndex(HumanoidRig.BODY),head=pose.rig().requireBoneIndex(HumanoidRig.HEAD);
+        int arm=pose.rig().requireBoneIndex(HumanoidRig.LEFT_ARM),leg=pose.rig().requireBoneIndex(HumanoidRig.LEFT_LEG);
+        var rotation=new Quaternionf().rotateZ(.5f).rotateY(.4f);
+        pose.setLocalTransform(body,pose.localTransform(body).withRotation(rotation),RigPose.ROTATION);
+        pose.setLocalTransform(head,pose.localTransform(head).withRotation(new Quaternionf().rotateX(.3f)),RigPose.ROTATION);
+        var after=PlayerRenderWorldPose.modelTransforms(pose);
+        assertEquals(new Vector3f(0,.75f,0),after[body].getTranslation(new Vector3f()));
+        assertTrue(after[leg].equals(before[leg],1e-5f));
+        assertFalse(after[arm].getTranslation(new Vector3f()).equals(before[arm].getTranslation(new Vector3f()),1e-5f));
+        assertTrue(after[head].getUnnormalizedRotation(new Quaternionf()).equals(new Quaternionf(rotation).rotateX(.3f),1e-5f));
+    }
 }

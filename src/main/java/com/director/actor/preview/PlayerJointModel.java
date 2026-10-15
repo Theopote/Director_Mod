@@ -9,6 +9,9 @@ public final class PlayerJointModel {
     private PlayerJointModel() {}
     public static void build(ModelData data,Dilation dilation,boolean slim) {
         var root=data.getRoot();
+        var body=root.getChild("body");
+        body.addChild("director_torso",ModelPartBuilder.create().uv(16,16).cuboid(-4,-12,-2,8,12,4,dilation),ModelTransform.NONE);
+        body.getChild("jacket").addChild("director_torso",ModelPartBuilder.create().uv(16,32).cuboid(-4,-12,-2,8,12,4,dilation.add(.25f)),ModelTransform.NONE);
         split(root.getChild("left_arm"),32,48,-1,-2,slim?3:4,dilation);
         split(root.getChild("right_arm"),40,16,slim?-2:-3,-2,slim?3:4,dilation);
         split(root.getChild("left_arm").getChild("left_sleeve"),48,48,-1,-2,slim?3:4,dilation.add(.25f));
@@ -21,6 +24,10 @@ public final class PlayerJointModel {
     private static void split(ModelPartData part,int u,int v,float x,float y,float width,Dilation dilation) {
         part.addChild(UPPER,ModelPartBuilder.create().uv(u,v).cuboid(x,y,-2,width,6,4,dilation),ModelTransform.NONE);
         part.addChild(LOWER,ModelPartBuilder.create().uv(u,v+6).cuboid(x,0,-2,width,6,4,dilation),ModelTransform.origin(0,y+6,0));
+    }
+    public static void torso(ModelPart part,boolean active) {
+        if(!part.hasChild("director_torso")) return;
+        part.hidden=active; part.getChild("director_torso").visible=active;
     }
     public static void apply(ModelPart part,RigPose pose,String joint) {
         if (!part.hasChild(UPPER)) return;

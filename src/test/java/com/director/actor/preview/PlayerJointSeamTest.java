@@ -39,4 +39,11 @@ class PlayerJointSeamTest {
         }
         return false;
     }
+    @Test void ordinaryElbowMiterPreservesBothSegmentCrossSections() {
+        var rotation=new Quaternionf().rotateX(-(float)Math.PI/2);
+        var point=PlayerJointSeam.seamPoint(new Vector3f(2,0,2),rotation,new Vector3f(1));
+        assertEquals(2,point.x,1e-5f); assertEquals(2,point.z,1e-5f);
+        var lower=new Quaternionf(rotation).conjugate().transform(new Vector3f(point));
+        assertEquals(2,lower.x,1e-5f); assertEquals(2,lower.z,1e-5f);
+    }
 }
