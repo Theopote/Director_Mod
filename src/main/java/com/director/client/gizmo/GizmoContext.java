@@ -79,6 +79,18 @@ public class GizmoContext {
         this.snapStep = snapStep;
     }
 
+    private final org.joml.Quaternionf orientation = new org.joml.Quaternionf();
+    public org.joml.Quaternionf getOrientation() { return new org.joml.Quaternionf(orientation); }
+    public void setOrientation(org.joml.Quaternionf value) {
+        if (value == null || !value.isFinite() || value.lengthSquared()<1e-8f) orientation.identity();
+        else orientation.set(value).normalize();
+    }
+    public Vec3d toHandleDirection(Vec3d world) {
+        var v = new org.joml.Quaternionf(orientation).conjugate().transform(new org.joml.Vector3f((float)world.x,(float)world.y,(float)world.z));
+        return new Vec3d(v.x,v.y,v.z);
+    }
+    public Vec3d toHandlePoint(Vec3d world) { return pivot.add(toHandleDirection(world.subtract(pivot))); }
+
     public GizmoMode getMode() {
         return mode;
     }

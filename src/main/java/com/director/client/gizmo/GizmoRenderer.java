@@ -124,6 +124,10 @@ public class GizmoRenderer {
 
             matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
 
+            matrices.translate(pivot.x,pivot.y,pivot.z);
+            matrices.multiply(context.getOrientation());
+            matrices.translate(-pivot.x,-pivot.y,-pivot.z);
+            cameraPos = context.toHandlePoint(cameraPos);
             Matrix4f posMat = matrices.peek().getPositionMatrix();
 
                 LOGGER.debug("[GizmoRenderer] 🧩 开始渲染: Box={}, Pivot={}, Type={}, Visible={}",
@@ -307,7 +311,13 @@ public class GizmoRenderer {
                                          double time) {
         if(context.getMode()==GizmoMode.SCALE) {
             var lines=vcp.getBuffer(RenderLayer.getLines());
-            for(var axis:Axis.values()) drawCube(lines,posMat,getAxisEndPoint(pivot,axis,axisLength,cameraPos),axisColor(axis,time),arrowRadius*2);
+            var fill=vcp.getBuffer(com.director.client.renderer.RenderLayers.getPreviewLayer());
+            for(var axis:Axis.values()) {
+                var center=getAxisEndPoint(pivot,axis,axisLength,cameraPos);
+                var color=axisColor(axis,time);
+                drawSolidCube(fill,posMat,center,color,arrowRadius*2);
+                drawCube(lines,posMat,center,color,arrowRadius*2);
+            }
             return;
         }
         drawArrowHead(posMat, vcp,
@@ -384,6 +394,13 @@ public class GizmoRenderer {
                     .add(tangent2.multiply(arrowRadius * sin));
         }
 
+        VertexConsumer fill = vcp.getBuffer(com.director.client.renderer.RenderLayers.getPreviewLayer());
+        for (int i=0;i<segments;i++) {
+            Vec3d a=basePoints[i], b=basePoints[(i+1)%segments];
+            drawQuad(fill,matrix,tip,a,b,b,color);
+            drawQuad(fill,matrix,baseCenter,b,a,a,color);
+        }
+        // Keep a crisp outline over the solid head.
         for (Vec3d p : basePoints) {
             drawLineToBuffer(buffer, matrix, tip, p, color);
         }
@@ -584,6 +601,14 @@ public class GizmoRenderer {
         }
     }
 
+
+    private void drawSolidCube(VertexConsumer consumer,Matrix4f matrix,Vec3d center,float[] color,double size) {
+        double h=size/2;
+        Vec3d[] p={center.add(-h,-h,-h),center.add(h,-h,-h),center.add(h,h,-h),center.add(-h,h,-h),
+                center.add(-h,-h,h),center.add(h,-h,h),center.add(h,h,h),center.add(-h,h,h)};
+        for(int[] face:new int[][]{{0,3,2,1},{4,5,6,7},{0,4,7,3},{1,2,6,5},{0,1,5,4},{3,7,6,2}})
+            drawQuad(consumer,matrix,p[face[0]],p[face[1]],p[face[2]],p[face[3]],color);
+    }
 
     private Vec3d getAxisDirection(Axis axis) {
         return switch (axis) {

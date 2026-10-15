@@ -288,6 +288,7 @@ public final class ActorBonePropertiesPanel {
         var bone = rig.bone(rig.requireBoneIndex(boneId));
         ImGui.separator();
         ImGui.text("当前部位：" + bone.displayName());
+        ImGui.textDisabled("旋转／缩放：部位局部轴；位置：父级局部轴。");
         for (int channel : new int[]{RigPose.TRANSLATION, RigPose.ROTATION, RigPose.SCALE}) {
             if (!ActorBoneInspector.supports(rig, boneId, channel)) continue;
             var mode = ActorBoneInspector.mode(channel);

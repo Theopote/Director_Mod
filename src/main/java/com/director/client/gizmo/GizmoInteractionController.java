@@ -70,6 +70,9 @@ public class GizmoInteractionController {
         update(rayOrigin,rayDir,mouseDown,mouseReleased,pressed);
     }
     public void update(Vec3d rayOrigin, Vec3d rayDir, boolean mouseDown, boolean mouseReleased, boolean mousePressed) {
+        // Handles stay canonical; rendering and picking share the same rigid frame.
+        rayOrigin = context.toHandlePoint(rayOrigin);
+        rayDir = context.toHandleDirection(rayDir);
         previousMouseDown = mouseDown;
         if (state == GizmoState.DRAGGING) {
             if (mouseReleased) {

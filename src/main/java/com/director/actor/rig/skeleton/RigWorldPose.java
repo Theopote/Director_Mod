@@ -26,6 +26,13 @@ public final class RigWorldPose {
         return new RigWorldPose(pose.rig(), world);
     }
 
+    public static RigWorldPose fromTransforms(RigDefinition rig, Matrix4f[] transforms) {
+        if (transforms.length != rig.boneCount()) throw new IllegalArgumentException("Bone matrix count mismatch");
+        Matrix4f[] copy=new Matrix4f[transforms.length];
+        for(int i=0;i<copy.length;i++) copy[i]=new Matrix4f(transforms[i]);
+        return new RigWorldPose(rig,copy);
+    }
+
     public RigDefinition rig() { return rig; }
 
     public Matrix4f transform(int boneIndex) {
