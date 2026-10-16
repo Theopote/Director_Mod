@@ -413,14 +413,25 @@ public final class ActorBoneTimelineRows {
             int selectedChannel=selectedMode==com.director.client.gizmo.GizmoMode.TRANSLATE?0:selectedMode==com.director.client.gizmo.GizmoMode.SCALE?2:1;
             boolean selected = actorId.equals(selection.getActorId()) && selection.isBoneSelected(bone.id()) && (row.channel()<0 || row.channel()==selectedChannel);
             draw.addRectFilled(x, top, right, top + CHILD_HEIGHT,
-                    selected ? TimelineColors.rgba(48, 77, 100, 255) : TimelineColors.rgba(29, 32, 37, 255));
+                    selected ? TimelineColors.rgba(48, 77, 100, 255)
+                            : ((ActorRootTimelineRows.COUNT+i)&1)==0 ? TimelineColors.COLOR_ACTOR_CHILD_BG : TimelineColors.COLOR_ACTOR_CHILD_BG_ALT);
+            if(row.channel()<0) draw.addLine(x,(float)Math.floor(top)+.5f,right,(float)Math.floor(top)+.5f,
+                    TimelineColors.COLOR_ACTOR_BONE_SEPARATOR);
             int depth = 0;
             for (int parent = bone.parentIndex(); parent >= 0; parent = rig.bone(parent).parentIndex()) depth++;
+            if(selected) draw.addRectFilled(x+4,top+3,x+7,top+CHILD_HEIGHT-3,
+                    TimelineColors.actorChannelColor(selectedChannel));
             draw.pushClipRect(x, top, contentX - 24, top + CHILD_HEIGHT, true);
+            if(row.channel()>=0) {
+                float branchX=x+22+depth*12;
+                draw.addLine(branchX,top,branchX,top+CHILD_HEIGHT,TimelineColors.COLOR_ACTOR_CHILD_SEPARATOR);
+                draw.addLine(branchX,top+CHILD_HEIGHT/2,branchX+10,top+CHILD_HEIGHT/2,TimelineColors.COLOR_ACTOR_CHILD_SEPARATOR);
+            }
             String label=row.channel()<0 ? (bone.id().equals("root")?"模型根（局部）":bone.displayName()) : new String[]{"位置（局部）","旋转（局部）","缩放（局部）"}[row.channel()];
             if(row.channel()<0) draw.addText(x+12+depth*12,top+4,TimelineColors.COLOR_TEXT_LIGHT,
                     expandedBones.getOrDefault(track,Set.of()).contains(bone.id())?"v":">");
-            draw.addText(x+28+depth*12+(row.channel()<0?0:12),top+4,TimelineColors.COLOR_TEXT_LIGHT,label);
+            draw.addText(x+28+depth*12+(row.channel()<0?0:12),top+4,
+                    row.channel()<0?TimelineColors.COLOR_TEXT_LIGHT:TimelineColors.COLOR_TEXT_MEDIUM,label);
             draw.popClipRect();
             var keyContext=ActorAnimationEditContext.resolve(renderModel,actorId);
             var mode=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getBoneGizmoMode();
@@ -430,7 +441,7 @@ public final class ActorBoneTimelineRows {
                     && !com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
                     && ActorBoneChannelLayout.supports(rig,row.boneIndex(),channel==1?0:channel==2?1:2);
             float bx=contentX-12,by=top+CHILD_HEIGHT/2;
-            int color=canKey?TimelineColors.rgba(255,190,90,255):TimelineColors.rgba(100,100,100,255);
+            int color=canKey?TimelineColors.actorChannelColor(channel==1?0:channel==4?2:1):TimelineColors.rgba(100,100,100,255);
             boolean hasKey=false;
             if(keyContext!=null) {
                 var authored=keyContext.asset().findBoneTrack(bone.id()).orElse(null);
@@ -444,9 +455,16 @@ public final class ActorBoneTimelineRows {
             if(isCanvasWindowHovered() && Math.abs(ImGui.getMousePosX()-bx)<10 && Math.abs(ImGui.getMousePosY()-by)<10)
                 ImGui.setTooltip(canKey ? "记录"+bone.displayName()+new String[]{"位置","旋转","缩放"}[channel==1?0:channel==2?1:2]+"关键帧" : "需要当前时刻可编辑的骨骼动画资源及支持的通道");
             draw.addLine(contentX, top, contentX, top + CHILD_HEIGHT, TimelineColors.COLOR_SEPARATOR_LINE);
-            draw.addLine(x, top + CHILD_HEIGHT, right, top + CHILD_HEIGHT, TimelineColors.COLOR_SEPARATOR_LINE);
+            // Keep the stroke inside this row so the following background cannot cover it.
+            float separatorY=(float)Math.floor(top+CHILD_HEIGHT)-.5f;
+            draw.addLine(x,separatorY,right,separatorY,TimelineColors.COLOR_ACTOR_CHILD_SEPARATOR);
             renderKeys(draw, track, bone.id(), contentX, right, top, math, row.channel());
         }
+        float childrenTop=y+height+gap;
+        float childrenBottom=childrenTop+(ActorRootTimelineRows.COUNT+rows.size())*CHILD_HEIGHT;
+        draw.addRectFilled(x,childrenTop,x+3,childrenBottom,track.getType().getClipColor());
+        draw.addLine(x,(float)Math.floor(childrenBottom)-1,right,(float)Math.floor(childrenBottom)-1,
+                TimelineColors.COLOR_ACTOR_BONE_SEPARATOR,2f);
     }
 
     private void renderKeys(ImDrawList draw, TimelineTrack track, String bone, float left, float right,

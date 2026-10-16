@@ -46,6 +46,11 @@ public final class TimelineColors {
     // 分割线和控件颜色
     /** 轨道分割线颜色（深色缝隙，全贯通） */
     public static final int COLOR_SEPARATOR_LINE = rgba(0, 0, 0, 150);
+    // Expanded actor rows share the same contrast across labels and keyframe lanes.
+    public static final int COLOR_ACTOR_CHILD_BG = rgba(29, 32, 37, 255);
+    public static final int COLOR_ACTOR_CHILD_BG_ALT = rgba(34, 37, 43, 255);
+    public static final int COLOR_ACTOR_CHILD_SEPARATOR = rgba(60, 65, 74, 255);
+    public static final int COLOR_ACTOR_BONE_SEPARATOR = rgba(79, 86, 98, 255);
     public static final int COLOR_RESIZE_HANDLE = rgba(180, 180, 180, 150);
     public static final int COLOR_DROP_HIGHLIGHT = rgba(100, 200, 255, 80);
     
@@ -53,6 +58,15 @@ public final class TimelineColors {
     public static final int COLOR_TEXT_LIGHT = rgba(220, 220, 220, 255);
     public static final int COLOR_TEXT_MEDIUM = rgba(200, 200, 200, 255);
     public static final int COLOR_TEXT_DARK = rgba(10, 10, 10, 255);
+
+    /** Consistent TRS colors for actor row buttons and the active channel marker. */
+    static int actorChannelColor(int channel) {
+        return switch(channel) {
+            case 0 -> rgba(100,190,255,255);
+            case 2 -> rgba(140,220,130,255);
+            default -> rgba(255,190,90,255);
+        };
+    }
 
     // ========== 颜色工具方法 ==========
 

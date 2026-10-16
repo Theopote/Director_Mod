@@ -205,12 +205,17 @@ final class ActorRootTimelineRows {
                 float top, TimelineRenderMath math) {
         float height = ActorBoneTimelineRows.CHILD_HEIGHT;
         String[] labels = {tr("position"), tr("rotation"), tr("scale")};
-        int[] colors = {TimelineColors.rgba(100,190,255,255), TimelineColors.rgba(255,190,90,255), TimelineColors.rgba(140,220,130,255)};
+        int[] colors = {TimelineColors.actorChannelColor(0),TimelineColors.actorChannelColor(1),TimelineColors.actorChannelColor(2)};
         for (int row = 0; row < COUNT; row++) {
             float y = top + row * height;
-            draw.addRectFilled(x, y, right, y + height, channelOwner == track && channelRow == row
-                    && Objects.equals(ActorSelectionHub.getSelectedActorId(),track.getActorTrackPayload().getActorRef().getActorId())
-                    ? TimelineColors.rgba(45,70,92,255) : TimelineColors.rgba(29,32,37,255));
+            boolean selectedChannel=channelOwner == track && channelRow == row
+                    && Objects.equals(ActorSelectionHub.getSelectedActorId(),track.getActorTrackPayload().getActorRef().getActorId());
+            draw.addRectFilled(x, y, right, y + height, selectedChannel
+                    ? TimelineColors.rgba(45,70,92,255)
+                    : (row&1)==0 ? TimelineColors.COLOR_ACTOR_CHILD_BG : TimelineColors.COLOR_ACTOR_CHILD_BG_ALT);
+            if(selectedChannel) draw.addRectFilled(x+4,y+3,x+7,y+height-3,colors[row]);
+            if(row==0) draw.addLine(x,(float)Math.floor(y)+.5f,right,(float)Math.floor(y)+.5f,
+                    TimelineColors.COLOR_ACTOR_BONE_SEPARATOR);
             draw.pushClipRect(x, y, left - 24, y + height, true);
             draw.addText(x + 16, y + 4, TimelineColors.COLOR_TEXT_LIGHT, labels[row]); draw.popClipRect();
             var target = editTarget(model, track);
@@ -225,7 +230,8 @@ final class ActorRootTimelineRows {
             if(ImGui.isWindowHovered() && Math.abs(ImGui.getMousePosX()-bx)<10 && Math.abs(ImGui.getMousePosY()-by)<10)
                 ImGui.setTooltip(allowed ? (has ? "更新" : "插入") + labels[row] + "关键帧" : "当前通道不可写入关键帧");
             draw.addLine(left, y, left, y + height, TimelineColors.COLOR_SEPARATOR_LINE);
-            draw.addLine(x, y + height, right, y + height, TimelineColors.COLOR_SEPARATOR_LINE);
+            float separatorY=(float)Math.floor(y+height)-.5f;
+            draw.addLine(x,separatorY,right,separatorY,TimelineColors.COLOR_ACTOR_CHILD_SEPARATOR);
             draw.pushClipRect(left, y, right, y + height, true);
             try {
                 for (var clip : clips(track)) for (var key : clip.getKeyframes()) {
