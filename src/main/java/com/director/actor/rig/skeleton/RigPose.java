@@ -13,6 +13,9 @@ public final class RigPose {
     public static final int SCALE = 4;
     public static final int ALL_CHANNELS = TRANSLATION | ROTATION | SCALE;
     private final RigDefinition rig;
+    private LimbBendMode limbBendMode=LimbBendMode.SMOOTH;
+    public LimbBendMode limbBendMode() { return limbBendMode; }
+    public void setLimbBendMode(LimbBendMode value) { limbBendMode=Objects.requireNonNull(value); }
     private final BoneTransform[] localTransforms;
     private final BitSet authoredBones;
     private final int[] authoredChannels;
@@ -80,8 +83,10 @@ public final class RigPose {
     }
 
     public RigPose copy() {
-        return new RigPose(rig, Arrays.copyOf(localTransforms, localTransforms.length),
+        RigPose result=new RigPose(rig, Arrays.copyOf(localTransforms, localTransforms.length),
                 (BitSet) authoredBones.clone(), authoredChannels.clone());
+        result.limbBendMode=limbBendMode;
+        return result;
     }
 
     /** Returns a copy with only the authored TRS channels from the higher layer replaced. */
@@ -125,7 +130,7 @@ public final class RigPose {
         }
         Matrix4f local = localTransforms[index].toMatrix();
         if(rig.id().equals(ArticulatedPlayerRig.DEFINITION.id()) && LimbBendTransform.isJoint(rig.bone(index).id())) {
-            var value=localTransforms[index]; var bend=new LimbBendTransform(value.rotation(),value.scale());
+            var value=localTransforms[index]; var bend=new LimbBendTransform(value.rotation(),value.scale(),limbBendMode);
             var offset=bend.lowerOffset().mul(1f/16); offset.y=-offset.y; offset.z=-offset.z;
             local=new Matrix4f().translate(value.translation().add(offset)).rotate(bend.rotation()).scale(value.scale());
         }

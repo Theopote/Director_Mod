@@ -13,6 +13,7 @@ class ActorRegistryPersistenceTest {
         for (Actor.PlayerModel model : Actor.PlayerModel.values()) {
             Actor actor = registry.createActor(model.name(), ActorType.PLAYER);
             actor.setPlayerModel(model);
+            actor.setLimbBendMode(model==Actor.PlayerModel.DEFAULT ? com.director.actor.rig.skeleton.LimbBendMode.SMOOTH : com.director.actor.rig.skeleton.LimbBendMode.SHARP);
             actor.setSkinFileName("skins/" + actor.getActorId() + ".png");
         }
         ActorRegistry restored = new ActorRegistry();
@@ -21,6 +22,7 @@ class ActorRegistryPersistenceTest {
         for (Actor actor : registry.getAllActors()) {
             Actor loaded = restored.getActor(actor.getActorId()).orElseThrow();
             assertEquals(actor.getPlayerModel(), loaded.getPlayerModel());
+            assertEquals(actor.getLimbBendMode(), loaded.getLimbBendMode());
             assertEquals(actor.getSkinFileName(), loaded.getSkinFileName());
         }
     }

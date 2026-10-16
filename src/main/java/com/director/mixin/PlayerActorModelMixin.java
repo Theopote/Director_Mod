@@ -57,7 +57,7 @@ public abstract class PlayerActorModelMixin {
         if(index<0 || !pose.isAuthored(index)) return;
         var value=pose.localTransform(index);
         matrices.translate(0,.25f,0);
-        var bend=new LimbBendTransform(value.rotation(),value.scale());
+        var bend=new LimbBendTransform(value.rotation(),value.scale(),pose.limbBendMode());
         var offset=bend.lowerOffset().div(16);
         matrices.translate(offset.x,offset.y,offset.z);
         matrices.multiply(bend.rotation());

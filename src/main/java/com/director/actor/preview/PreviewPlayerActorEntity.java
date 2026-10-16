@@ -38,7 +38,7 @@ public final class PreviewPlayerActorEntity extends OtherClientPlayerEntity impl
     @Override public ActorRuntime getActorRuntime() { return runtime; }
     @Override public void setFinalPose(Pose value) { pose=value; setFinalRigPose(value==null ? null : LegacyHumanoidPoseAdapter.convert(value, com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION)); }
     @Override public Pose getFinalPose() { return pose; }
-    @Override public void setFinalRigPose(RigPose value) { rigPose=value==null ? null : value.copy(); }
+    @Override public void setFinalRigPose(RigPose value) { rigPose=value==null ? null : value.copy(); if(rigPose!=null) rigPose.setLimbBendMode(actor.getLimbBendMode()); }
     @Override public RigPose getFinalRigPose() { return rigPose==null ? null : rigPose.copy(); }
     @Override public void setActorTransformScale(Vector3f value) { if(value!=null && value.isFinite()) scale.set(value); }
     @Override public Vector3f getActorTransformScale() { return new Vector3f(scale); }

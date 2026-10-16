@@ -694,6 +694,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 modified = true;
             }
             ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.hint"));
+            ImInt bendMode=new ImInt(actor.getLimbBendMode().ordinal());
+            if(ImGui.combo("肘膝弯曲模式##actorLimbBend",bendMode,new String[]{"平滑弯曲","直接折弯"})) {
+                actor.setLimbBendMode(com.director.actor.rig.skeleton.LimbBendMode.values()[bendMode.get()]);
+                ActorRegistryManager.save();
+                modified=true;
+            }
+            ImGui.textWrapped("两种模式共用关节关键帧。直接折弯保留清晰折角，显示角度限制为 110°，避免方形肢体内侧穿插。");
         }
 
         String current = actor.getSkinFileName();

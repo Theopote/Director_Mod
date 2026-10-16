@@ -489,6 +489,7 @@ public final class ActorRuntimeController {
                 pose=pose.overlay(animation.sample(at.animationLocalTime*Math.max(.01f,at.animationSpeed),
                         at.animationLoop?animation.loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE));
             }
+            pose.setLimbBendMode(actor.getLimbBendMode());
             applyRigPoseOverrides(pose,at);
             var root=pose.localTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT);
             if(root.translation().lengthSquared()>1e-10f) {
@@ -743,6 +744,7 @@ public final class ActorRuntimeController {
                 var authoredPose = asset.sample(sampleTime, playbackMode);
                 var finalRigPose = ActorRigPoseComposition.compose(proceduralPose,
                         authoredPose, pose -> applyRigPoseOverrides(pose, s));
+                finalRigPose.setLimbBendMode(actor.getLimbBendMode());
                 if (actor.getType() == com.director.actor.ActorType.PLAYER) {
                     var authoredBones = new java.util.HashSet<String>();
                     for (int i=0;i<authoredPose.rig().boneCount();i++)
@@ -790,6 +792,7 @@ public final class ActorRuntimeController {
                     if (actor.getType() == com.director.actor.ActorType.PLAYER) {
                         var contactPose = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(finalPose,
                                 com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION);
+                        contactPose.setLimbBendMode(actor.getLimbBendMode());
                         if (animPose == null) ActorJointGait.apply(contactPose, action, s.actionIntensity, gaitTime,
                                 rig.getStyle(), !s.poseOverrideArms, !s.poseOverrideLegs);
                         if (animPose == null && !s.actionExplicit) ActorRouteFootContact.apply(contactPose, s);

@@ -11,6 +11,7 @@ public final class PlayerJointSeam {
     private static final class State {
         final ModelPart.Cuboid template; final float pivot;
         Quaternionf rotation; Vector3f scale;
+        com.director.actor.rig.skeleton.LimbBendMode mode;
         List<ContinuousLimbMesh.Vertex[]> mesh=List.of();
         State(ModelPart parent,ModelPart lower) {
             List<ModelPart.Cuboid> cubes=new ArrayList<>();
@@ -20,9 +21,14 @@ public final class PlayerJointSeam {
     }
     private PlayerJointSeam() {}
     public static void update(ModelPart parent,ModelPart upper,ModelPart lower,ModelPart surface,Quaternionf rotation,Vector3f scale) {
+        update(parent,upper,lower,surface,rotation,scale,com.director.actor.rig.skeleton.LimbBendMode.SMOOTH);
+    }
+    public static void update(ModelPart parent,ModelPart upper,ModelPart lower,ModelPart surface,Quaternionf rotation,Vector3f scale,
+                              com.director.actor.rig.skeleton.LimbBendMode mode) {
         var state=STATES.computeIfAbsent(surface,key->new State(parent,lower));
-        if(state.rotation!=null && state.rotation.equals(rotation,1e-6f) && state.scale.equals(scale,1e-6f)) return;
-        state.mesh=ContinuousLimbMesh.build(state.template,state.pivot,rotation,scale);
+        if(state.mode==mode && state.rotation!=null && state.rotation.equals(rotation,1e-6f) && state.scale.equals(scale,1e-6f)) return;
+        state.mesh=ContinuousLimbMesh.build(state.template,state.pivot,rotation,scale,mode);
+        state.mode=mode;
         state.rotation=new Quaternionf(rotation); state.scale=new Vector3f(scale);
     }
     public static boolean render(ModelPart part,MatrixStack.Entry entry,VertexConsumer consumer,int light,int overlay,int color) {

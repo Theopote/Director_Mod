@@ -120,6 +120,7 @@ public class ActorRegistryPersistence {
             actorObj.addProperty("name", actor.getName());
             actorObj.addProperty("type", actor.getType().name());
             actorObj.addProperty("playerModel", actor.getPlayerModel().name());
+            actorObj.addProperty("limbBendMode", actor.getLimbBendMode().name());
             if (actor.getSkinFileName() != null) {
                 actorObj.addProperty("skinFileName", actor.getSkinFileName());
             }
@@ -206,6 +207,8 @@ public class ActorRegistryPersistence {
                     ActorType type = ActorType.valueOf(typeStr);
 
                     Actor actor = new Actor(actorId, name, type);
+                    if(actorObj.has("limbBendMode")) actor.setLimbBendMode(
+                            com.director.actor.rig.skeleton.LimbBendMode.valueOf(actorObj.get("limbBendMode").getAsString()));
                     if (actorObj.has("playerModel") && !actorObj.get("playerModel").isJsonNull()) {
                         try {
                             actor.setPlayerModel(Actor.PlayerModel.valueOf(actorObj.get("playerModel").getAsString()));

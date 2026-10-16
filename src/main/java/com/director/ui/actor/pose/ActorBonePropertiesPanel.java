@@ -137,11 +137,18 @@ public final class ActorBonePropertiesPanel {
         if (bone.capabilities().translation() && ImGui.inputFloat3("位置 XYZ##boneT", draft.translation, "%.3f")) changed |= RigPose.TRANSLATION;
         boolean joint = ActorJointBend.isJoint(boneId);
         if (joint) {
+            if(!draft.isDirty()) {
+                var angles=LimbBendTransform.angles(value.rotation());
+                draft.rotation[0]=(float)Math.toDegrees(angles.x);
+                draft.rotation[1]=(float)Math.toDegrees(angles.y);
+                draft.rotation[2]=0;
+            }
+            float maxBend=actor.getLimbBendMode()==LimbBendMode.SHARP?110f:160f;
             float[] bend = {ActorJointBend.degrees(boneId, draft.rotation[0])};
             ImGui.textDisabled("局部关节弯曲；修改后点击应用并打帧。");
-            if (bend[0] < 0 || bend[0] > 160)
-                ImGui.textWrapped("当前角度超出常用弯曲范围，可在高级旋转中编辑；滑条使用 0–160 度。");
-            if (ImGui.sliderFloat("弯曲角度（度）##jointBend", bend, 0f, 160f, "%.1f")) {
+            if (bend[0] < 0 || bend[0] > maxBend)
+                ImGui.textWrapped("已保留原关键帧角度；当前模式的显示范围为 0–"+(int)maxBend+" 度。");
+            if (ImGui.sliderFloat("弯曲角度（度）##jointBend", bend, 0f, maxBend, "%.1f")) {
                 ActorJointBend.set(boneId, bend[0], draft.rotation);
                 changed |= RigPose.ROTATION;
             }
@@ -150,10 +157,10 @@ public final class ActorBonePropertiesPanel {
                 changed |= RigPose.ROTATION;
             }
             float[] twist={draft.rotation[1]};
-            if (ImGui.sliderFloat("转向 Y（度）##jointTwist",twist,-90f,90f,"%.1f")) {
+            if (ImGui.sliderFloat("弯曲方向 Y（度）##jointTwist",twist,-90f,90f,"%.1f")) {
                 draft.rotation[1]=twist[0]; draft.rotation[2]=0; changed |= RigPose.ROTATION;
             }
-            ImGui.textDisabled("下段仅开放弯曲 X 与转向 Y，避免第三轴引起关节翻折。");
+            ImGui.textDisabled("X 控制弯曲角度，Y 改变弯曲平面，不扭转皮肤。");
         } else if (bone.capabilities().rotation() && !(HumanoidTopology.matches(asset.rig()) && HumanoidRig.ROOT.equals(boneId))
                 && ImGui.inputFloat3("旋转 XYZ（度）##boneR", draft.rotation, "%.2f")) changed |= RigPose.ROTATION;
         if (bone.capabilities().scale() && ImGui.inputFloat3("缩放 XYZ##boneS", draft.scale, "%.3f")) changed |= RigPose.SCALE;

@@ -1714,7 +1714,7 @@
   "gui.director.properties.adapter.actor.live_transform.target_mode": "目标模式",
   "gui.director.properties.adapter.actor.live_transform.strength": "强度",
   "gui.director.properties.adapter.actor.live_transform.apply_look_at_camera": "应用看向摄像机",
-  "gui.director.properties.adapter.actor.live_transform.gizmo_hint": "G/R/S/T：视口 Gizmo 模式；此处与时间线片段编辑等效。",
+  "gui.director.properties.adapter.actor.live_transform.gizmo_hint": "请在工具栏切换演员整体工具与 Gizmo 模式；此处与时间线片段编辑等效。",
 
   "gui.director.properties.adapter.actor.skin.section": "皮肤",
   "gui.director.properties.adapter.actor.skin.default": "（默认皮肤）",

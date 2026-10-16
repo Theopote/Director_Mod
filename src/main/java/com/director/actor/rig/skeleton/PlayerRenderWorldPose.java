@@ -39,7 +39,7 @@ public final class PlayerRenderWorldPose {
             result[i]=root?new Matrix4f():new Matrix4f(parent).translate(origin.add(delta));
             if(!root) {
                 if(LimbBendTransform.isJoint(id)) {
-                    var bend=new LimbBendTransform(value.rotation(),value.scale());
+                    var bend=new LimbBendTransform(value.rotation(),value.scale(),pose.limbBendMode());
                     result[i].translate(bend.lowerOffset().div(16)).rotate(bend.rotation()).scale(value.scale());
                 } else result[i].rotate(value.rotation()).scale(value.scale());
             }

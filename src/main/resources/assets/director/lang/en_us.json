@@ -1714,7 +1714,7 @@
   "gui.director.properties.adapter.actor.live_transform.target_mode": "Target Mode",
   "gui.director.properties.adapter.actor.live_transform.strength": "Strength",
   "gui.director.properties.adapter.actor.live_transform.apply_look_at_camera": "Apply Look At Camera",
-  "gui.director.properties.adapter.actor.live_transform.gizmo_hint": "G/R/S/T: viewport Gizmo modes; edits here are equivalent to timeline clip editing.",
+  "gui.director.properties.adapter.actor.live_transform.gizmo_hint": "Use the toolbar to switch the actor tool and Gizmo mode; edits here match timeline clip editing.",
 
   "gui.director.properties.adapter.actor.skin.section": "Skin",
   "gui.director.properties.adapter.actor.skin.default": "(Default skin)",

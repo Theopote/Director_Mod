@@ -75,11 +75,9 @@ public final class ShortcutBindings {
         
         KEY_BINDINGS.put(GLFW.GLFW_KEY_V, ShortcutAction.TOOL_SELECT);
         KEY_BINDINGS.put(GLFW.GLFW_KEY_B, ShortcutAction.TOOL_BOX_SELECT);
-        KEY_BINDINGS.put(GLFW.GLFW_KEY_G, ShortcutAction.TOOL_MOVE);
-        KEY_BINDINGS.put(GLFW.GLFW_KEY_R, ShortcutAction.TOOL_ROTATE);
-        KEY_BINDINGS.put(GLFW.GLFW_KEY_S, ShortcutAction.GIZMO_SCALE);
-        KEY_BINDINGS.put(GLFW.GLFW_KEY_T, ShortcutAction.GIZMO_LOOK_AT);
-        
+        // S 留给摄像机后退等世界导航，不绑定快捷键。
+        // 演员工具 / Gizmo 模式暂不分配任何快捷键（请用工具栏切换）。
+
         KEY_BINDINGS.put(GLFW.GLFW_KEY_TAB, ShortcutAction.TOOL_NEXT);
         // 注意：Shift 键通常作为修饰键，需要特殊处理
         
@@ -105,10 +103,6 @@ public final class ShortcutBindings {
         // 无修饰 Delete：由 ShortcutDispatcher 按 Container/Timeline 焦点路由到 CONTAINER_DELETE 或 TIMELINE_DELETE，此处不绑定
         // Ctrl+Delete：映射到 TIMELINE_DELETE（需时间线焦点，与裸 Delete 在时间线聚焦时等效）
         registerModifierBinding(GLFW.GLFW_KEY_DELETE, 1, ShortcutAction.TIMELINE_DELETE);
-        
-        // ==================== Actor Gizmo 操作 ====================
-        KEY_BINDINGS.put(GLFW.GLFW_KEY_E, ShortcutAction.GIZMO_ROTATE);
-        // S：演员 Gizmo 缩放（GIZMO_SCALE）；G/R 激活演员选择工具并切换平移/旋转模式
     }
     
     /**
@@ -190,18 +184,13 @@ public final class ShortcutBindings {
             return null;
         }
         
-        // 映射工具 ID 到 ShortcutAction
+        // 映射工具 ID 到 ShortcutAction（演员工具暂无快捷键）
         ShortcutAction action = switch (toolId) {
             case "click" -> ShortcutAction.TOOL_SELECT;
             case "box" -> ShortcutAction.TOOL_BOX_SELECT;
             case "wand" -> ShortcutAction.TOOL_WAND;
             case "brush" -> ShortcutAction.TOOL_BRUSH;
             case "face" -> ShortcutAction.TOOL_FACE;
-            case "move", com.director.ui.tools.ToolRegistry.ACTOR_SELECT_TOOL_ID, "actor_move" -> ShortcutAction.TOOL_MOVE;
-            case "rotate", "actor_rotate" -> ShortcutAction.TOOL_ROTATE;
-            case "scale" -> ShortcutAction.TOOL_SCALE;
-            case "actor_scale" -> ShortcutAction.GIZMO_SCALE;
-            case "actor_look_at" -> ShortcutAction.GIZMO_LOOK_AT;
             default -> null;
         };
         
@@ -252,14 +241,9 @@ public final class ShortcutBindings {
             case GLFW.GLFW_KEY_0 -> "0";
             case GLFW.GLFW_KEY_V -> "V";
             case GLFW.GLFW_KEY_B -> "B";
-            case GLFW.GLFW_KEY_G -> "G";
-            case GLFW.GLFW_KEY_R -> "R";
-            case GLFW.GLFW_KEY_S -> "S";
-            case GLFW.GLFW_KEY_T -> "T";
             case GLFW.GLFW_KEY_L -> "L";
             case GLFW.GLFW_KEY_N -> "N";
             case GLFW.GLFW_KEY_O -> "O";
-            case GLFW.GLFW_KEY_E -> "E";
             case GLFW.GLFW_KEY_Z -> "Z";
             case GLFW.GLFW_KEY_Y -> "Y";
             case GLFW.GLFW_KEY_EQUAL -> "+";
@@ -296,8 +280,6 @@ public final class ShortcutBindings {
         tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_3, DirectorLang.Shortcuts.DESC_TOOL_WAND));
         tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_4, DirectorLang.Shortcuts.DESC_TOOL_BRUSH));
         tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_5, DirectorLang.Shortcuts.DESC_TOOL_FACE));
-        tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_G, DirectorLang.Shortcuts.DESC_TOOL_MOVE));
-        tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_R, DirectorLang.Shortcuts.DESC_TOOL_ROTATE));
         tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_TAB, DirectorLang.Shortcuts.DESC_TOOL_NEXT));
         categories.put(tr(DirectorLang.Shortcuts.CATEGORY_TOOLS), tools);
 
@@ -316,13 +298,6 @@ public final class ShortcutBindings {
         timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_DELETE, DirectorLang.Shortcuts.DESC_DELETE_FOCUS_ROUTED));
         timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_DELETE, DirectorLang.Shortcuts.DESC_TIMELINE_DELETE_MODIFIED));
         categories.put(tr(DirectorLang.Shortcuts.CATEGORY_TIMELINE), timeline);
-
-        List<String> gizmo = new ArrayList<>();
-        gizmo.add(formatShortcut(DirectorLang.Shortcuts.KEY_S, DirectorLang.Shortcuts.DESC_GIZMO_SCALE));
-        gizmo.add(formatShortcut(DirectorLang.Shortcuts.KEY_T, DirectorLang.Shortcuts.DESC_GIZMO_LOOK_AT));
-        gizmo.add(formatShortcut(DirectorLang.Shortcuts.KEY_E, DirectorLang.Shortcuts.DESC_GIZMO_ROTATE));
-        gizmo.add(formatShortcut(DirectorLang.Shortcuts.KEY_G_R, DirectorLang.Shortcuts.DESC_GIZMO_ACTOR_TOOLS));
-        categories.put(tr(DirectorLang.Shortcuts.CATEGORY_GIZMO), gizmo);
 
         List<String> ui = new ArrayList<>();
         ui.add(formatShortcut(DirectorLang.Shortcuts.KEY_F1, DirectorLang.Shortcuts.DESC_HELP_SHORTCUTS));

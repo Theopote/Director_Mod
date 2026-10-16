@@ -9,7 +9,11 @@ public final class ContinuousLimbMesh {
     public record Vertex(Vector3f position,Vector3f normal,float u,float v) {}
     private ContinuousLimbMesh() {}
     public static List<Vertex[]> build(ModelPart.Cuboid template,float pivot,Quaternionf rotation,Vector3f scale) {
-        var bend=new LimbBendTransform(rotation,scale);
+        return build(template,pivot,rotation,scale,com.director.actor.rig.skeleton.LimbBendMode.SMOOTH);
+    }
+    public static List<Vertex[]> build(ModelPart.Cuboid template,float pivot,Quaternionf rotation,Vector3f scale,
+                                      com.director.actor.rig.skeleton.LimbBendMode mode) {
+        var bend=new LimbBendTransform(rotation,scale,mode);
         List<Vertex[]> result=new ArrayList<>();
         for(var face:template.sides) {
             var a=face.vertices()[0]; var b=face.vertices()[1]; var c=face.vertices()[2]; var d=face.vertices()[3];
@@ -19,8 +23,15 @@ public final class ContinuousLimbMesh {
             float sign=new Vector3f(e1).cross(e2).dot(face.direction())<0?-1:1;
             for(int i=0;i<slices;i++) {
                 float t0=(float)i/slices,t1=(float)(i+1)/slices;
+                int start=result.size();
                 result.add(new Vertex[]{vertex(a,d,t0,pivot,bend,e1,e2,sign),vertex(b,c,t0,pivot,bend,e1,e2,sign),
                         vertex(b,c,t1,pivot,bend,e1,e2,sign),vertex(a,d,t1,pivot,bend,e1,e2,sign)});
+                if(mode==com.director.actor.rig.skeleton.LimbBendMode.SHARP) {
+                    var quad=result.get(start);
+                    var normal=new Vector3f(quad[1].position()).sub(quad[0].position())
+                            .cross(new Vector3f(quad[3].position()).sub(quad[0].position())).mul(sign).normalize();
+                    for(int j=0;j<4;j++) quad[j]=new Vertex(quad[j].position(),new Vector3f(normal),quad[j].u(),quad[j].v());
+                }
             }
         }
         return result;

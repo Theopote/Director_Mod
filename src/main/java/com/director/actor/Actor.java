@@ -43,6 +43,12 @@ public final class Actor {
     private String skinFileName;
     public enum PlayerModel { DEFAULT, WIDE, SLIM }
     private PlayerModel playerModel = PlayerModel.DEFAULT;
+    private com.director.actor.rig.skeleton.LimbBendMode limbBendMode = com.director.actor.rig.skeleton.LimbBendMode.SMOOTH;
+
+    public com.director.actor.rig.skeleton.LimbBendMode getLimbBendMode() { return limbBendMode; }
+    public void setLimbBendMode(com.director.actor.rig.skeleton.LimbBendMode value) {
+        limbBendMode = Objects.requireNonNull(value);
+    }
 
     public PlayerModel getPlayerModel() {
         return playerModel == null ? PlayerModel.DEFAULT : playerModel;
