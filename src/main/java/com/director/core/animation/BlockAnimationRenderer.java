@@ -167,12 +167,19 @@ public class BlockAnimationRenderer {
                         : Vec3d.ZERO;
         Map<TimelineClip, Map<BlockPos, BlockState>> assemblies = new IdentityHashMap<>();
         Map<TimelineClip, WholeContainerRenderView> views = new IdentityHashMap<>();
+        Map<TimelineClip, Map<BlockPos, BlockState>> staticAssemblies = new IdentityHashMap<>();
+        Map<TimelineClip, WholeContainerRenderView> staticViews = new IdentityHashMap<>();
         for (var entry : entries) {
             if (entry != null && entry.pos() != null && entry.clip() != null
                     && entry.clip().getAnimationConfig() != null && entry.clip().getAnimationConfig().isWholeContainer()
                     && entry.overrideSnapshot() != null && entry.blockState() != null)
                 assemblies.computeIfAbsent(entry.clip(), key -> new HashMap<>()).put(entry.pos(), entry.blockState());
+            else if (isStaticOpaqueEntry(entry))
+                staticAssemblies.computeIfAbsent(entry.clip(), key -> new HashMap<>()).put(entry.pos(), entry.blockState());
         }
+        for (var group : staticAssemblies.entrySet())
+            staticViews.put(group.getKey(), new WholeContainerRenderView(world, group.getValue(),
+                    group.getValue().keySet().iterator().next(), new org.joml.Matrix4f()));
         for (var entry : entries) {
             if (entry == null || entry.pos() == null || entry.overrideSnapshot() == null
                     || !assemblies.containsKey(entry.clip()) || views.containsKey(entry.clip())) continue;
@@ -208,6 +215,9 @@ public class BlockAnimationRenderer {
                 }
 
                 var renderView = views.get(entry.clip());
+                // Settled opaque blocks share neighbors and one identity transform. Independent
+                // moving/transparent blocks retain the uncullable per-block path below.
+                if (renderView == null && isStaticOpaqueEntry(entry)) renderView = staticViews.get(entry.clip());
                 if (renderView == null && state != null) {
                     var transform = snapshot.getTransform();
                     // Each block has its own transform. Do not cull faces against other moving blocks.
@@ -227,6 +237,14 @@ public class BlockAnimationRenderer {
         } finally {
             matrices.pop();
         }
+    }
+
+    private static boolean isStaticOpaqueEntry(BlockVisualStateManager.RenderEntry entry) {
+        return entry != null && entry.pos() != null && entry.blockState() != null
+                && entry.overrideSnapshot() != null && entry.overrideSnapshot().isVisible()
+                && entry.overrideSnapshot().getTransform() == null && entry.overrideSnapshot().getAlpha() >= 0.999f
+                && entry.visualState() != null && !entry.visualState().isHidden()
+                && entry.visualState().getAlphaMultiplier() >= 0.999f;
     }
 
     private static void renderAnimatedBlockWithVisualState(

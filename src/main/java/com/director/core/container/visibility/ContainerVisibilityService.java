@@ -60,8 +60,7 @@ public class ContainerVisibilityService {
     private record TimelineTarget(Container container, Set<BlockPos> blocks) {}
     // Latest target wins; client frames cannot flood the server executor with full-set conversions.
     private final Map<UUID, TimelineTarget> submittedTargets = new java.util.concurrent.ConcurrentHashMap<>();
-    private final Map<UUID, TimelineTargetConversion> targetConversions = new LinkedHashMap<>();
-    private final Map<UUID, Set<BlockPos>> lastConvertedBlocks = new HashMap<>();
+    private final Map<UUID, Set<BlockPos>> lastAcceptedBlocks = new HashMap<>();
     private final Map<UUID, TimelinePreparation> preparations = new LinkedHashMap<>();
     private final Set<UUID> preparedForTimeline = new HashSet<>();
 
@@ -80,6 +79,7 @@ public class ContainerVisibilityService {
     private final Map<UUID, Long> firstTargetNanos = new HashMap<>();
     private long lastPerfLogNanos;
     private long perfAttempts, perfWrites, perfTicks, perfLightingSchedules;
+    private long perfAcceptedTargets, perfReusedTargets;
     private double perfMaxTickMs;
     private int tickWrites;
 
@@ -96,7 +96,7 @@ public class ContainerVisibilityService {
     public void tick() {
         long started = System.nanoTime();
         boolean hadWork = !preparations.isEmpty() || !submittedTargets.isEmpty()
-                || !targetConversions.isEmpty() || !pendingTasks.isEmpty() || !timelineWork.isEmpty();
+                || !pendingTasks.isEmpty() || !timelineWork.isEmpty();
         tickWrites = 0;
         int initialBudget = getBlocksPerTickBudget();
         int budget = initialBudget;
@@ -120,29 +120,21 @@ public class ContainerVisibilityService {
                 prepareContainerForTimelineOnServer(target.container());
                 continue;
             }
-            if (targetConversions.containsKey(entry.getKey())) continue;
-            if (submittedTargets.remove(entry.getKey(), target)
-                    && lastConvertedBlocks.get(entry.getKey()) != target.blocks())
-                targetConversions.put(entry.getKey(), new TimelineTargetConversion(target));
-        }
-        int conversionBudget = Math.max(1, budget / 3);
-        for (var entry : new ArrayList<>(targetConversions.entrySet())) {
-            if (budget <= 0 || conversionBudget <= 0 || System.nanoTime() >= deadline) break;
-            var conversion = entry.getValue();
-            int used = conversion.process(Math.min(conversionBudget, 4096), deadline);
-            budget -= used;
-            conversionBudget -= used;
-            if (!conversion.positions.hasNext()) {
-                enqueueTimelineVisibilityTarget(conversion.source.container(), conversion.longs);
-                lastConvertedBlocks.put(entry.getKey(), conversion.source.blocks());
-                targetConversions.remove(entry.getKey());
+            if (submittedTargets.remove(entry.getKey(), target)) {
+                if (lastAcceptedBlocks.get(entry.getKey()) == target.blocks()) {
+                    perfReusedTargets++;
+                    continue;
+                }
+                enqueueTimelineVisibilityTarget(target.container(), new BlockPositionTarget(target.blocks()));
+                lastAcceptedBlocks.put(entry.getKey(), target.blocks());
+                perfAcceptedTargets++;
             }
         }
 
         // 1) 优先处理 pendingTasks（hideContainer/showContainer 等整体操作）
-        while (budget > 0 && !pendingTasks.isEmpty()) {
+        while (budget > 0 && !pendingTasks.isEmpty() && System.nanoTime() < deadline) {
             VisibilityTask task = pendingTasks.peekFirst();
-            int consumed = task.process(budget);
+            int consumed = task.process(budget, deadline);
             budget -= Math.max(1, consumed);
             ContainerVisibilityFeedback.onTaskProgress(
                     task.containerName, task.actionLabel, task.remaining());
@@ -170,7 +162,8 @@ public class ContainerVisibilityService {
                     continue;
                 }
                 var affectedChunks = new LongOpenHashSet();
-                int consumed = work.process(Math.min(budget, Math.max(512, budget / ids.size())), deadline, (pos, visible) -> visible
+                int quantum = Math.max(512, budget / ids.size());
+                int consumed = work.process(Math.min(budget, quantum), deadline, (pos, visible) -> visible
                         ? timelineShowAt(world, store, BlockPos.fromLong(pos), affectedChunks)
                         : timelineHideAt(world, store, BlockPos.fromLong(pos), affectedChunks));
                 budget -= Math.max(1, consumed);
@@ -189,7 +182,7 @@ public class ContainerVisibilityService {
         for (var world : lightingWorlds) world.getChunkManager().getLightingProvider().tick();
         lightingWorlds.clear();
         firstTargetNanos.keySet().removeIf(id -> !preparations.containsKey(id) && !submittedTargets.containsKey(id)
-                && !targetConversions.containsKey(id) && !timelineWork.containsKey(id));
+                && !timelineWork.containsKey(id));
         if (hadWork || tickWrites > 0) {
             perfTicks++;
             perfAttempts += initialBudget - budget;
@@ -200,12 +193,13 @@ public class ContainerVisibilityService {
             if (now - lastPerfLogNanos >= 5_000_000_000L) {
                 long oldest = now;
                 for (long time : firstTargetNanos.values()) oldest = Math.min(oldest, time);
-                LOGGER.info("[Perf][ContainerVisibility] ticks={} budgetUsed={} writes={} maxTickMs={} preparing={} converting={} working={} submitted={} lightingSchedules={} oldestTargetMs={}",
+                LOGGER.info("[Perf][ContainerVisibility] ticks={} budgetUsed={} writes={} maxTickMs={} preparing={} working={} submitted={} acceptedTargets={} reusedTargets={} lightingSchedules={} oldestTargetMs={}",
                         perfTicks, perfAttempts, perfWrites, String.format(java.util.Locale.ROOT, "%.2f", perfMaxTickMs),
-                        preparations.size(), targetConversions.size(), timelineWork.size(), submittedTargets.size(),
+                        preparations.size(), timelineWork.size(), submittedTargets.size(), perfAcceptedTargets, perfReusedTargets,
                         perfLightingSchedules, (now - oldest) / 1_000_000L);
                 lastPerfLogNanos = now;
                 perfAttempts = perfWrites = perfTicks = perfLightingSchedules = 0;
+                perfAcceptedTargets = perfReusedTargets = 0;
                 perfMaxTickMs = 0;
             }
         }
@@ -425,27 +419,6 @@ public class ContainerVisibilityService {
      *   <li>目标未变时 early-return：避免重复写入 map</li>
      * </ol>
      */
-    private static final class TimelineTargetConversion {
-        final TimelineTarget source;
-        final Iterator<BlockPos> positions;
-        final LongSet longs = new LongOpenHashSet();
-
-        TimelineTargetConversion(TimelineTarget source) {
-            this.source = source;
-            positions = source.blocks().iterator();
-        }
-
-        int process(int budget, long deadline) {
-            int used = 0;
-            while (used < budget && positions.hasNext() && System.nanoTime() < deadline) {
-                BlockPos pos = positions.next();
-                if (pos != null) longs.add(pos.asLong());
-                used++;
-            }
-            return used;
-        }
-    }
-
     private void enqueueTimelineVisibilityTarget(Container container, LongSet targetLongs) {
         UUID containerId = container.getId();
         cancelPendingTasks(containerId);
@@ -536,13 +509,13 @@ public class ContainerVisibilityService {
         timelineVisibilityTargets.clear();
         timelineWork.clear();
         submittedTargets.clear();
-        targetConversions.clear();
-        lastConvertedBlocks.clear();
+        lastAcceptedBlocks.clear();
         preparations.clear();
         preparedForTimeline.clear();
         lightingWorlds.clear();
         firstTargetNanos.clear();
         perfAttempts = perfWrites = perfTicks = perfLightingSchedules = 0;
+        perfAcceptedTargets = perfReusedTargets = 0;
         perfMaxTickMs = 0;
         lastPerfLogNanos = 0;
         backfilledContainers.clear();
@@ -590,8 +563,7 @@ public class ContainerVisibilityService {
         timelineWork.remove(task.containerId);
         timelineVisibilityTargets.remove(task.containerId);
         submittedTargets.remove(task.containerId);
-        targetConversions.remove(task.containerId);
-        lastConvertedBlocks.remove(task.containerId);
+        lastAcceptedBlocks.remove(task.containerId);
         preparations.remove(task.containerId);
         preparedForTimeline.remove(task.containerId);
         int blockCount = task.remaining();
@@ -705,9 +677,9 @@ public class ContainerVisibilityService {
             this.shown = lastShownBlocks.get(containerId);
         }
 
-        int process(int budget) {
+        int process(int budget, long deadline) {
             int processed = 0;
-            while (processed < budget && index < positions.size()) {
+            while (processed < budget && index < positions.size() && System.nanoTime() < deadline) {
                 BlockPos pos = positions.get(index++);
                 processed++;
                 if (pos == null) continue;

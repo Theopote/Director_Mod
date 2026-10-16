@@ -49,7 +49,9 @@ final class TimelineVisibilityWork {
                 long pos = retry.dequeueLong();
                 inspected++;
                 boolean visible = latestTarget.contains(pos);
-                if (shown.contains(pos) == visible) continue;
+                // Only cancel a retry when a newer target reversed the request. The shown
+                // bookkeeping may already say "visible" while the real chunk is unavailable.
+                if (visible != target.contains(pos) && shown.contains(pos) == visible) continue;
                 if (apply.at(pos, visible)) {
                     if (visible) shown.add(pos);
                     else shown.remove(pos);

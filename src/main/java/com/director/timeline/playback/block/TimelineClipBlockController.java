@@ -125,6 +125,7 @@ public class TimelineClipBlockController {
         float animDuration;
         float totalDelay;
         List<BlockSequenceEntry> entries = List.of();
+        SequenceVisibility visibility;
     }
 
     /**
@@ -161,7 +162,7 @@ public class TimelineClipBlockController {
                 || (cache.blocks.isEmpty() && container.getBlockCount() > 0)) {
             cache.modifiedTime = mod;
             cache.blocks = new ArrayList<>(container.getBlocksView());
-            cache.all = Collections.unmodifiableSet(new HashSet<>(cache.blocks));
+            cache.all = Set.copyOf(cache.blocks);
         }
         return cache.blocks != null ? cache.blocks : List.of();
     }
@@ -227,6 +228,7 @@ public class TimelineClipBlockController {
         next.animDuration = animDuration;
         next.totalDelay = totalDelay;
         next.entries = (generated != null) ? generated : List.of();
+        next.visibility = new SequenceVisibility(next.entries, getCachedAllBlocks(container));
         sequenceCacheByClip.put(clip, next);
 
         return next.entries;
@@ -943,14 +945,13 @@ public class TimelineClipBlockController {
             lastFrameWorldBlocks.put(id, s != null ? s : java.util.Collections.emptySet());
         }
         lastHandledRevision = timelineRevision;
+        lastHandledPreviewTime = currentTime;
         if (!playing && !scrubbing) {
-            lastHandledPreviewTime = currentTime;
             if (!timelineDrivingPaused && visibilityService != null) {
                 visibilityService.pauseTimelineDriving();
                 timelineDrivingPaused = true;
             }
         } else {
-            lastHandledPreviewTime = currentTime;
             timelineDrivingPaused = false;
         }
         visualStateManager.finishFrame();
@@ -1177,7 +1178,7 @@ public class TimelineClipBlockController {
             }
             if (normalizedReveal < 0.0f) {
                 if (isDemolition) {
-                    Set<BlockPos> all = newBlockSet(allBlocks);
+                    Set<BlockPos> all = getCachedAllBlocks(container);
                     return new VisibleBlocksResult(all, all, List.of());
                 }
                 return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), List.of());
@@ -1203,100 +1204,16 @@ public class TimelineClipBlockController {
                 sequenceSpan = timing.sequenceSpan();
             }
 
-            // ✅ 基于容器类型判断（不再依赖轨道类型）
-            Set<BlockPos> renderBlocks;
-            Set<BlockPos> worldBlocks;
-            if (!isDemolition) {
-                renderBlocks = newBlockSetForExpectedSize(Math.min(allBlocks.size(), sequenceEntries.size()));
-                worldBlocks = newBlockSetForExpectedSize(Math.min(allBlocks.size(), sequenceEntries.size()));
-                if (isInstant) {
-                    // ENTER + INSTANT：可见集是序列的前缀，按阈值直接取前缀避免扫描全量 entry
-                    float normalizedThreshold = 0;
-                    if (timing != null) {
-                        normalizedThreshold = timing.threshold(currentTime - clipStart - delay);
-                    }
-                    int cutoff = upperBoundNormalized(sequenceEntries, normalizedThreshold);
-                    for (int i = 0; i < cutoff; i++) {
-                        BlockSequenceEntry entry = sequenceEntries.get(i);
-                        if (entry != null && entry.getPos() != null) {
-                            renderBlocks.add(entry.getPos());
-                            worldBlocks.add(entry.getPos());
-                        }
-                    }
-                } else {
-                    // ENTER + 动画（播放/预览）：render 是 start 前缀；world 是 end 前缀（start+animDuration）
-                    float normalizedThresholdRender = 0;
-                    if (timing != null) {
-                        normalizedThresholdRender = timing.threshold(currentTime - clipStart - delay);
-                    }
-                    float normalizedThresholdWorld = 0;
-                    if (timing != null) {
-                        normalizedThresholdWorld = timing.threshold(currentTime - clipStart - delay - animDuration);
-                    }
-                    int cutoffRender = upperBoundNormalized(sequenceEntries, normalizedThresholdRender);
-                    int cutoffWorld = upperBoundNormalized(sequenceEntries, normalizedThresholdWorld);
-                    for (int i = 0; i < cutoffRender; i++) {
-                        BlockSequenceEntry entry = sequenceEntries.get(i);
-                        if (entry != null && entry.getPos() != null) {
-                            renderBlocks.add(entry.getPos());
-                        }
-                    }
-                    for (int i = 0; i < cutoffWorld; i++) {
-                        BlockSequenceEntry entry = sequenceEntries.get(i);
-                        if (entry != null && entry.getPos() != null) {
-                            worldBlocks.add(entry.getPos());
-                        }
-                    }
-                }
-            } else {
-                renderBlocks = newBlockSet(allBlocks);
-                worldBlocks = newBlockSet(allBlocks);
-
-                if (isInstant) {
-                    // ERASE + INSTANT：移除序列前缀即可
-                    float normalizedThreshold = 0;
-                    if (timing != null) {
-                        normalizedThreshold = timing.threshold(currentTime - clipStart - delay);
-                    }
-                    int cutoff = upperBoundNormalized(sequenceEntries, normalizedThreshold);
-                    for (int i = 0; i < cutoff; i++) {
-                        BlockSequenceEntry entry = sequenceEntries.get(i);
-                        if (entry != null && entry.getPos() != null) {
-                            renderBlocks.remove(entry.getPos());
-                            worldBlocks.remove(entry.getPos());
-                        }
-                    }
-                } else {
-                    // 非 INSTANT 模式：逐步清除（带退出动画窗口）
-                    // ✅ 与容器片段对称：在动画窗口内时，方块只在 renderBlocks 中（用于 overlay），不在 worldBlocks
-                    // 中（避免与真实方块叠加导致黑色）
-                    // 扫描已经开始退出的前缀，动画中移出 world，完成后再移出 render。
-                    float base = currentTime - clipStart - delay;
-                    float normalizedThresholdEnd = 0;
-                    if (timing != null) {
-                        normalizedThresholdEnd = timing.threshold(base);
-                    }
-                    int cutoffEnd = upperBoundNormalized(sequenceEntries, normalizedThresholdEnd);
-                    for (int i = 0; i < cutoffEnd; i++) {
-                        BlockSequenceEntry entry = sequenceEntries.get(i);
-                        if (entry == null || entry.getPos() == null) {
-                            continue;
-                        }
-                        float normalizedTime = entry.getNormalizedTime();
-                        float blockEndTime = clipStart + delay + animDuration
-                                + normalizedTime * sequenceSpan;
-                        float blockStartTime = blockEndTime - animDuration;
-
-                        if (currentTime >= blockEndTime) {
-                            renderBlocks.remove(entry.getPos());
-                            worldBlocks.remove(entry.getPos());
-                        } else if (currentTime >= blockStartTime) {
-                            worldBlocks.remove(entry.getPos());
-                        }
-                    }
-                }
-            }
-            return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
+            // Only the sequence cutoffs affect membership. Moving time within the same
+            // boundaries reuses immutable sets; animation poses still sample the exact time.
+            float base = currentTime - clipStart - delay;
+            int started = upperBoundNormalized(sequenceEntries, timing == null ? 0 : timing.threshold(base));
+            int finished = isInstant ? started
+                    : upperBoundNormalized(sequenceEntries, timing == null ? 0 : timing.threshold(base - animDuration));
+            var visibility = sequenceCacheByClip.get(clip).visibility;
+            var frame = visibility.sample(isDemolition ? finished : started,
+                    isDemolition ? started : finished, isDemolition);
+            return new VisibleBlocksResult(frame.world(), frame.render(), sequenceEntries);
         }
 
         // 片段右侧
@@ -1314,19 +1231,6 @@ public class TimelineClipBlockController {
         return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), sequenceEntries);
     }
 
-    private static Set<BlockPos> newBlockSet(Collection<BlockPos> blocks) {
-        if (blocks == null || blocks.isEmpty()) {
-            return Collections.emptySet();
-        }
-        Set<BlockPos> set = newBlockSetForExpectedSize(blocks.size());
-        set.addAll(blocks);
-        return set;
-    }
-
-    private static Set<BlockPos> newBlockSetForExpectedSize(int expectedSize) {
-        int capacity = Math.max(16, (int) (expectedSize / 0.75f) + 1);
-        return new HashSet<>(capacity);
-    }
 
     /**
      * 🔥 为容器注册所有需要渲染的方块（RenderEntry 2.0）

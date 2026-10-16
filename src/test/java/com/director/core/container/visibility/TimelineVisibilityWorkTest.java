@@ -6,6 +6,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 class TimelineVisibilityWorkTest {
+    @Test void failedVerificationOfRecordedVisibleBlockIsRetriedUntilItsChunkIsReady() {
+        var shown = new LongOpenHashSet(new long[] {1});
+        var work = new TimelineVisibilityWork(shown, new LongOpenHashSet(new long[] {1}));
+        work.process(10, Long.MAX_VALUE, (pos, visible) -> false);
+        assertFalse(work.isComplete());
+        var attempts = new AtomicInteger();
+        work.process(10, Long.MAX_VALUE, (pos, visible) -> { attempts.incrementAndGet(); return true; });
+        assertEquals(1, attempts.get());
+        assertTrue(work.isComplete());
+    }
     @Test void submittedTargetKeepsAdvancingOnServerTicksWithoutAnotherClientFrame() {
         var shown = new LongOpenHashSet();
         var target = new LongOpenHashSet();
