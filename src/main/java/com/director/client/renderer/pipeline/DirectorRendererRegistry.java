@@ -425,7 +425,7 @@ public final class DirectorRendererRegistry {
     // ---------------------------------------------------------------------
 
     private static void renderHoverHighlight(WorldRenderContext context) {
-        if (!isDirectorActive()) {
+        if (!isDirectorActive() || com.director.ui.tools.ToolRegistry.get().suppressesBlockInteractionFeedback()) {
             return;
         }
         MatrixStack matrices = context.matrices();
@@ -454,7 +454,7 @@ public final class DirectorRendererRegistry {
     }
 
     private static void renderInteractionHints(WorldRenderContext context) {
-        if (!isDirectorActive()) {
+        if (!isDirectorActive() || com.director.ui.tools.ToolRegistry.get().suppressesBlockInteractionFeedback()) {
             return;
         }
         MatrixStack matrices = context.matrices();

@@ -160,6 +160,12 @@ public final class ToolRegistry {
                 || Objects.equals(toolId, ACTOR_PATH_TOOL_ID);
     }
 
+    /** These tools own the world pointer; terrain raycasts remain available for placement. */
+    public boolean suppressesBlockInteractionFeedback() {
+        String toolId=getActiveNonSelectionToolId();
+        return isActorToolId(toolId) || Objects.equals(toolId,CameraPathEditTool.ID);
+    }
+
     public static boolean isPlaceholderToolId(String toolId) {
         return Objects.equals(toolId, WORLD_PLACEHOLDER_ID)
                 || Objects.equals(toolId, TIMELINE_PLACEHOLDER_ID);
