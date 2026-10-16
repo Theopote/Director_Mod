@@ -110,6 +110,25 @@ class PlayerJointSeamTest {
         float t=b.dot(q)/det;
         return t>1e-5f && t<1-1e-5f;
     }
+    @Test void eachSelectedHalfHasAClosedOutlineIncludingItsJointCut() {
+        for(var mode:com.director.actor.rig.skeleton.LimbBendMode.values()) for(float degrees:new float[]{0,160}) for(float dilation:new float[]{0,.25f}) {
+            var cube=cuboid(dilation);var template=ContinuousLimbMesh.prepare(cube,6);
+            var q=new Quaternionf().rotateY(.8f).rotateX((float)Math.toRadians(degrees));
+            var mesh=ContinuousLimbMesh.deform(template,q,new Vector3f(1),mode);
+            var cap=ContinuousLimbMesh.selectionCap(cube,q,new Vector3f(1),mode);
+            for(int half:new int[]{1,2}) {
+                var faces=new ArrayList<ContinuousLimbMesh.Vertex[]>();
+                for(int f=0;f<mesh.size();f++) if((template.quadCenterY(f)<=0)==(half==1)) faces.add(mesh.get(f));
+                faces.add(cap);
+                var edges=new HashMap<String,Integer>();
+                for(var face:faces) for(int v=0;v<4;v++) {
+                    String a=key(face[v].position()),b=key(face[(v+1)%4].position());
+                    if(!a.equals(b)) edges.merge(a.compareTo(b)<0?a+"/"+b:b+"/"+a,1,Integer::sum);
+                }
+                for(int uses:edges.values()) assertEquals(2,uses,"Open selected half at "+mode+" / "+degrees);
+            }
+        }
+    }
     @Test void wholeSurfaceRendererReplacesPatchAndOriginalPieces() {
         var full=cuboid(0);
         var parent=new ModelPart(List.of(full),Map.of());

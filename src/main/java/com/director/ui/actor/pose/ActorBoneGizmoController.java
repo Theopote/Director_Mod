@@ -69,6 +69,8 @@ public final class ActorBoneGizmoController {
     private ActorPoseClip editingClip;
     private PoseClipState beforeState;
     private boolean createdClip;
+    private com.director.timeline.model.entity.EntitySpawnClip animationOwner;
+    private String previousAnimationId;
     private final EnumMap<Axis, Float> baseAngles = new EnumMap<>(Axis.class);
     private boolean animationGesture;
     private AnimationAsset editingAsset;
@@ -83,7 +85,7 @@ public final class ActorBoneGizmoController {
     private Vector3f animationBaseScale;
     private float animationKeyTime;
     private boolean createdAsset;
-    private boolean createdAnimationClip;
+    private boolean createdAnimationBinding;
     private GizmoMode activeBoneMode = GizmoMode.ROTATE;
 
     private ActorBoneGizmoController() {}
@@ -310,11 +312,14 @@ public final class ActorBoneGizmoController {
                 && gestureTarget == settings.getEditTarget()
                 && (gestureTarget == ActorAnimationAuthoringSettings.EditTarget.QUICK_POSE
                     || requestedGestureMode == settings.getBoneGizmoMode())
-                && (createdAnimationClip || editingAnimationClip == null
+                && (createdAnimationBinding || editingAnimationClip == null
                     || ActorEmbeddedAnimation.bound(actorTrack, editingAnimationClip) && !editingAnimationClip.isMuted())
                 && (editingAsset == null || (createdAsset
                     ? !AnimationAssetLibrary.getInstance().contains(editingAsset.id())
                     : AnimationAssetLibrary.getInstance().find(editingAsset.id()).orElse(null) == editingAsset))
+                && (animationOwner==null || actorTrack.getClips().contains(animationOwner) && !animationOwner.isMuted()
+                    && animationOwner.getStartTime()==clipStart && animationOwner.getEndTime()==editingAnimationClip.getEndTime()
+                    && Objects.equals(previousAnimationId,animationOwner.getBoneAnimationId()))
                 && animationSourceUnchanged()
                 && (originalPoseClip == null || actorTrack.getClips().contains(originalPoseClip)
                     && !originalPoseClip.isMuted() && beforeState.equals(PoseClipState.capture(originalPoseClip)));
@@ -391,30 +396,27 @@ public final class ActorBoneGizmoController {
     }
 
     private void beginAnimationGesture(TimelineModel model, float timelineTime) {
-        ActorAnimationAuthoringSettings settings = ActorAnimationAuthoringSettings.getInstance();
         AnimationAssetLibrary library = AnimationAssetLibrary.getInstance();
         editingAnimationClip = findActiveAssetClip(actorTrack, timelineTime, library);
         editingAsset = editingAnimationClip == null ? null : library.find(editingAnimationClip.getAnimationId()).orElse(null);
 
         if (editingAsset == null) {
-            String assetId = settings.getAssetId();
-            editingAsset = library.find(assetId).orElse(null);
-            createdAsset = editingAsset == null;
-            if (createdAsset) {
-                var rig = com.director.actor.ActorRegistryManager.getInstance().getActor(actorId)
-                        .flatMap(com.director.actor.rig.ActorRigCompatibility::resolveRig)
-                        .orElse(HumanoidRig.DEFINITION);
-                editingAsset = new AnimationAsset(assetId, assetId, rig,
-                        settings.getNewAssetDuration(), AnimationLoopMode.ONCE);
-
-            }
-            editingAnimationClip = new EntityAnimationClip("Keyframe animation", timelineTime,
-                    timelineTime + Math.max(0.1f, editingAsset.duration()));
+            animationOwner=ActorEmbeddedAnimation.target(model,timelineTrack);
+            if(animationOwner==null) { clearDraft(); return; }
+            previousAnimationId=animationOwner.getBoneAnimationId();
+            var rig=com.director.actor.ActorRegistryManager.getInstance().getActor(actorId)
+                    .flatMap(com.director.actor.rig.ActorRigCompatibility::resolveRig).orElse(null);
+            if(rig==null) { clearDraft(); return; }
+            String assetId="project:actor_"+UUID.randomUUID();
+            editingAsset=new AnimationAsset(assetId,animationOwner.getName()+" 骨骼动作",rig,
+                    Math.max(.1f,animationOwner.getLength()),AnimationLoopMode.ONCE);
+            createdAsset=true;
+            // Detached until release: cancelling a drag must not create a reference or a visible clip.
+            editingAnimationClip=new EntityAnimationClip("骨骼动作",animationOwner.getStartTime(),animationOwner.getEndTime());
             editingAnimationClip.setAnimationId(editingAsset.id());
             editingAnimationClip.setSource(EntityAnimationClip.AnimationSource.CUSTOM);
-            editingAnimationClip.setLoop(editingAsset.loopMode() != AnimationLoopMode.ONCE);
-            new EntityTimelineClip(editingAnimationClip, actorTrack.getColorRgba());
-            createdAnimationClip = true;
+            editingAnimationClip.setLoop(false);
+            createdAnimationBinding=true;
         }
 
         float speed = Math.max(0.01f, editingAnimationClip.getSpeed());
@@ -553,7 +555,6 @@ public final class ActorBoneGizmoController {
         String targetBone = boneId;
         boolean addBoneTrack = !hadBoneTrack;
         EntityAnimationClip clip = editingAnimationClip;
-        EntityTimelineClip wrapper = clip == null ? null : clip.getTimelineClip();
         ChannelKeyframe<Quaternionf> before = beforeRotationKey;
         ChannelKeyframe<Quaternionf> after = draftTrack.rotation().findAt(animationKeyTime).orElse(null);
         ChannelKeyframe<Vector3f> beforeTranslation = beforeTranslationKey;
@@ -564,9 +565,9 @@ public final class ActorBoneGizmoController {
         boolean scaling = animationBaseScale != null;
         float keyTime = animationKeyTime;
         boolean addAsset = createdAsset;
-        boolean addClip = createdAnimationClip;
-        ActorTrack targetActorTrack = actorTrack;
-        TimelineTrack targetTimelineTrack = timelineTrack;
+        boolean addClip = createdAnimationBinding;
+        var spawnOwner=animationOwner;
+        String oldAnimationId=previousAnimationId;
         if ((!translating && !scaling && after == null) || (translating && afterTranslation == null)
                 || (scaling && afterScale == null)) {
             return;
@@ -583,18 +584,14 @@ public final class ActorBoneGizmoController {
                     else boneTrack.rotation().put(before.time(), before.value(), before.interpolation());
                     if (addBoneTrack && boneTrack.isEmpty()) asset.removeBoneTrack(targetBone);
                     if (addClip && clip != null) {
-                        targetActorTrack.removeClip(clip.getId());
-                        if (targetTimelineTrack != null && wrapper != null) targetTimelineTrack.removeClip(wrapper);
+                        spawnOwner.setBoneAnimationId(oldAnimationId);
                     }
                     if (addAsset) AnimationAssetLibrary.getInstance().remove(asset.id());
                 },
                 () -> {
                     if (addAsset) AnimationAssetLibrary.getInstance().register(asset);
                     if (addBoneTrack) asset.attachBoneTrack(targetBone, boneTrack);
-                    if (addClip && clip != null && !targetActorTrack.getClips().contains(clip)) {
-                        targetActorTrack.addClip(clip);
-                        if (targetTimelineTrack != null && wrapper != null && !targetTimelineTrack.getClips().contains(wrapper)) targetTimelineTrack.addClip(wrapper);
-                    }
+                    if (addClip && clip != null) spawnOwner.setBoneAnimationId(asset.id());
                     if (scaling) boneTrack.scale().put(afterScale.time(), afterScale.value(), afterScale.interpolation());
                     else if (translating) boneTrack.translation().put(afterTranslation.time(), afterTranslation.value(), afterTranslation.interpolation());
                     else boneTrack.rotation().put(after.time(), after.value(), after.interpolation());
@@ -615,7 +612,9 @@ public final class ActorBoneGizmoController {
         animationActorBasePosition = null;
         animationBaseScale = null;
         createdAsset = false;
-        createdAnimationClip = false;
+        createdAnimationBinding = false;
+        animationOwner=null;
+        previousAnimationId=null;
         animationKeyTime = 0f;
     }
 

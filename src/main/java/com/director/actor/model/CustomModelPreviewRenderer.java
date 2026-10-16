@@ -37,6 +37,9 @@ public final class CustomModelPreviewRenderer {
     private static final CustomModelPreviewRenderer INSTANCE = new CustomModelPreviewRenderer();
 
     private record SpawnedCuboid(BoneCuboid cuboid, DisplayEntity entity) {}
+    public record SelectionTarget(UUID actorId,String boneId) {}
+    private final Map<net.minecraft.entity.Entity,SelectionTarget> selectionTargets=new java.util.WeakHashMap<>();
+    public SelectionTarget selectionTarget(net.minecraft.entity.Entity entity) { return selectionTargets.get(entity); }
 
     private final Map<UUID, List<SpawnedCuboid>> spawned = new HashMap<>();
     private final Map<UUID, String> spawnedModelId = new HashMap<>();
@@ -55,7 +58,9 @@ public final class CustomModelPreviewRenderer {
         if (!model.id().equals(spawnedModelId.get(actorId))
                 || !revision.equals(spawnedModelRevision.get(actorId))) {
             remove(actorId);
-            spawned.put(actorId, spawnAll(world, model));
+            var parts=spawnAll(world,model);
+            spawned.put(actorId,parts);
+            for(var part:parts) selectionTargets.put(part.entity(),new SelectionTarget(actorId,part.cuboid().boneId()));
             spawnedModelId.put(actorId, model.id());
             spawnedModelRevision.put(actorId, revision);
         }
@@ -140,6 +145,7 @@ public final class CustomModelPreviewRenderer {
         spawnedModelRevision.remove(actorId);
         if (list == null) return;
         for (SpawnedCuboid sc : list) {
+            selectionTargets.remove(sc.entity());
             try {
                 sc.entity().discard();
             } catch (RuntimeException e) {

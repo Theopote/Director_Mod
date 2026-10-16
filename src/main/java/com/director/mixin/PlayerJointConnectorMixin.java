@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class PlayerJointConnectorMixin {
     @Inject(method="renderCuboids",at=@At("HEAD"),cancellable=true)
     private void director$connector(MatrixStack.Entry entry,VertexConsumer consumer,int light,int overlay,int color,CallbackInfo ci) {
+        if(!com.director.actor.preview.ActorSelectionOutline.accepts((ModelPart)(Object)this)) { ci.cancel(); return; }
         if(com.director.actor.preview.PlayerJointSeam.render((ModelPart)(Object)this,entry,consumer,light,overlay,color)) ci.cancel();
     }
 }

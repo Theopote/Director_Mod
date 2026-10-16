@@ -33,7 +33,6 @@ import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.entity.ActorTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
@@ -171,7 +170,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         // 选中的 Actor 编辑器
         if (!projectView && selectedActorId != null) {
-            modified |= renderSelectedActorEditor(actorRegistry);
+            modified = renderSelectedActorEditor(actorRegistry);
         }
         
         return modified;
@@ -689,7 +688,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.wide"),
                     net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.slim")};
             if (ImGui.combo(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model"), model, labels)) {
-                actor.setPlayerModel(Actor.PlayerModel.values()[Math.max(0, Math.min(model.get(), labels.length - 1))]);
+                actor.setPlayerModel(Actor.PlayerModel.values()[Math.clamp(model.get(), 0, labels.length - 1)]);
                 ActorRegistryManager.save();
                 modified = true;
             }

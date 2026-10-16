@@ -17,6 +17,10 @@ public final class ContinuousLimbMesh {
     public static final class Template {
         private final List<RestQuad> quads;
         private Template(List<RestQuad> quads) { this.quads = List.copyOf(quads); }
+        public float quadCenterY(int index) {
+            float y=0; for(var v:quads.get(index).vertices) y+=v.position.y;
+            return y/4;
+        }
     }
     private ContinuousLimbMesh() {}
 
@@ -76,6 +80,24 @@ public final class ContinuousLimbMesh {
             }
             result.add(vertices);
         }
+        return result;
+    }
+    /** Close a selected half at the joint; this face is only emitted into the outline mask. */
+    public static Vertex[] selectionCap(ModelPart.Cuboid cube,Quaternionf rotation,Vector3f scale,LimbBendMode mode) {
+        var bend=new LimbBendTransform(rotation,scale,mode);
+        float minX=Float.POSITIVE_INFINITY,minZ=Float.POSITIVE_INFINITY,maxX=Float.NEGATIVE_INFINITY,maxZ=Float.NEGATIVE_INFINITY;
+        for(var side:cube.sides) for(var v:side.vertices()) {
+            minX=java.lang.Math.min(minX,v.x());maxX=java.lang.Math.max(maxX,v.x());
+            minZ=java.lang.Math.min(minZ,v.z());maxZ=java.lang.Math.max(maxZ,v.z());
+        }
+        var points=new Vector3f[]{new Vector3f(minX,0,minZ),new Vector3f(minX,0,maxZ),
+                new Vector3f(maxX,0,maxZ),new Vector3f(maxX,0,minZ)};
+        var face=cube.sides[0];
+        for(var candidate:cube.sides) if(candidate.direction().y()>.5f) { face=candidate; break; }
+        for(var point:points) bend.map(point).get(point);
+        var n=new Vector3f(points[1]).sub(points[0]).cross(new Vector3f(points[3]).sub(points[0])).normalize();
+        var result=new Vertex[4];
+        for(int i=0;i<4;i++) result[i]=new Vertex(points[i],new Vector3f(n),face.vertices()[i].u(),face.vertices()[i].v());
         return result;
     }
     private static Vector3f normal(Vector3f p,LimbBendTransform bend,RestQuad face) {
