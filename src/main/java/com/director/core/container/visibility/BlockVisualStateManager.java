@@ -295,9 +295,25 @@ public class BlockVisualStateManager {
      * 清除当前帧的所有视觉状态（每帧开始时调用）
      */
     public void clearFrame() {
+        animationBaseStates.clear();
         visualOverrides.clear();
         renderEntries.clear();
         overlayBlocksCacheDirty = true;  // ⭐ 标记缓存为脏
+    }
+
+    private final Map<BlockPos, BlockVisualState> animationBaseStates = new HashMap<>();
+
+    /** Keep persistent visibility deltas, but remove last frame's temporary animation suppression. */
+    public void beginTimelineFrame() {
+        visualOverrides.putAll(animationBaseStates);
+        animationBaseStates.clear();
+        renderEntries.clear();
+        overlayBlocksCacheDirty = true;
+    }
+
+    public void setAnimatedBlockState(BlockPos pos, BlockVisualState state) {
+        animationBaseStates.putIfAbsent(pos, getBlockState(pos));
+        setBlockState(pos, state);
     }
 
     /** 是否存在需要 Mixin / 覆盖层处理的方块状态。 */
@@ -317,6 +333,7 @@ public class BlockVisualStateManager {
                 continue;
             }
             visualOverrides.remove(pos);
+            animationBaseStates.remove(pos);
             renderEntries.remove(pos);
             lastFrameStates.remove(pos);
         }
@@ -525,6 +542,7 @@ public class BlockVisualStateManager {
      * 清除所有状态
      */
     public void clearAll() {
+        animationBaseStates.clear();
         visualOverrides.clear();
         lastFrameStates.clear();
         renderEntries.clear();

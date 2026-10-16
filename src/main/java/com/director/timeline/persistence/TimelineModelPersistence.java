@@ -331,6 +331,7 @@ public class TimelineModelPersistence {
         public String animationPhase;
         public boolean occlusionTransparencyEnabled = true;
         public float postAnimationFadeStart = 0;
+        public boolean postAnimationFadeEnabled = false;
         public float postAnimationFadeEnd = 2;
         public List<com.director.core.animation.effect.EffectInstance> animationEffects = new ArrayList<>();
         public com.director.core.animation.WholeContainerAnimationConfig wholeContainerAnimation;
@@ -702,6 +703,7 @@ public class TimelineModelPersistence {
                 clipDTO.animationPhase = config.getPhase().name();
                 clipDTO.occlusionTransparencyEnabled = config.isOcclusionTransparencyEnabled();
                 clipDTO.postAnimationFadeStart = clip.getPostAnimationFadeStart();
+                clipDTO.postAnimationFadeEnabled = clip.isPostAnimationFadeEnabled();
                 clipDTO.postAnimationFadeEnd = clip.getPostAnimationFadeEnd();
                 for (var effect : config.getEffects()) if (effect != null) clipDTO.animationEffects.add(effect.copy());
                 clipDTO.wholeContainerAnimation = config.getWholeContainer().copy();
@@ -1082,6 +1084,7 @@ public class TimelineModelPersistence {
                         ClipAnimationConfig.AnimationPhase.class, config.getPhase(), "Clip.animationPhase"));
                 config.setOcclusionTransparencyEnabled(clipDTO.occlusionTransparencyEnabled);
                 clip.setPostAnimationFadeStart(clipDTO.postAnimationFadeStart);
+                clip.setPostAnimationFadeEnabled(clipDTO.postAnimationFadeEnabled);
                 clip.setPostAnimationFadeEnd(clipDTO.postAnimationFadeEnd);
                 config.clearEffects();
                 if (clipDTO.animationEffects != null)

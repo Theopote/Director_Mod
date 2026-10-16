@@ -25,7 +25,8 @@ public final class TimelinePlacementBudget {
         } else if (catchUpFramesRemaining > 0 && !timelineScrubbing) {
             catchUpFramesRemaining--;
         }
-        instantWorld = timelineScrubbing || catchUpFramesRemaining > 0 || timelineTimeChanged;
+        // Seeking is distinct from the catch-up window, whose budget has its own settings.
+        instantWorld = timelineTimeChanged && !timelineScrubbing && catchUpFramesRemaining == 0;
     }
 
     public static boolean isScrubbing() {
@@ -38,7 +39,7 @@ public final class TimelinePlacementBudget {
 
     /** 拖动/追帧/定位：应跳过播放节流、提高落地预算。 */
     public static boolean isPlacementAccelerated() {
-        return instantWorld;
+        return scrubbing || instantWorld || isCatchUp();
     }
 
     /** @deprecated 使用 {@link #isPlacementAccelerated()} */

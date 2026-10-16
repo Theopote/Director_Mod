@@ -49,6 +49,7 @@ public class TimelineClip {
     // ========== Post-Animation Fade 状态（问题2修复）==========
     /** 动画结束后的淡化开始时间（相对于片段结束时间，秒）*/
     private float postAnimationFadeStart = 0.0f;
+    private boolean postAnimationFadeEnabled;
     
     /** 动画结束后的淡化结束时间（相对于片段结束时间，秒）。超过此时间后，方块恢复为完全不透明 */
     private float postAnimationFadeEnd = 2.0f; // 默认在片段结束后2秒恢复
@@ -96,6 +97,7 @@ public class TimelineClip {
         this.autoFadePreviousClips = other.autoFadePreviousClips;
         this.autoFadeOpacity = other.autoFadeOpacity;
         this.postAnimationFadeStart = other.postAnimationFadeStart;
+        this.postAnimationFadeEnabled = other.postAnimationFadeEnabled;
         this.postAnimationFadeEnd = other.postAnimationFadeEnd;
         for (var key : other.visibilityKeyframes)
             this.visibilityKeyframes.add(new VisibilityKeyframe(key.getTime(), key.getAlpha(), key.getMode()));
@@ -459,6 +461,7 @@ public class TimelineClip {
         copy.autoFadePreviousClips = this.autoFadePreviousClips;
         copy.autoFadeOpacity = this.autoFadeOpacity;
         copy.postAnimationFadeStart = this.postAnimationFadeStart;
+        copy.postAnimationFadeEnabled = this.postAnimationFadeEnabled;
         copy.postAnimationFadeEnd = this.postAnimationFadeEnd;
         // 复制关键帧
         copy.keyframes.addAll(this.keyframes);
@@ -520,6 +523,10 @@ public class TimelineClip {
     public float getPostAnimationFadeStart() {
         return postAnimationFadeStart;
     }
+
+    public boolean isPostAnimationFadeEnabled() { return postAnimationFadeEnabled; }
+
+    public void setPostAnimationFadeEnabled(boolean enabled) { postAnimationFadeEnabled = enabled; }
     
     /**
      * 设置 post-animation fade 开始时间（相对于片段结束时间）
@@ -576,7 +583,7 @@ public class TimelineClip {
     public boolean isInPostAnimationFade(float time) {
         float fadeStart = endTime + postAnimationFadeStart;
         float fadeEnd = endTime + postAnimationFadeEnd;
-        return time >= fadeStart && time <= fadeEnd;
+        return postAnimationFadeEnabled && fadeEnd > fadeStart && time >= fadeStart && time <= fadeEnd;
     }
     
     /**
@@ -721,7 +728,7 @@ public class TimelineClip {
                 float fadeEnd = endTime + postAnimationFadeEnd;
                 float fadeT = (globalTime - fadeStart) / (fadeEnd - fadeStart);
                 // 从 1.0 淡出到 autoFadeOpacity
-                return 1.0f - (1.0f - autoFadeOpacity) * fadeT;
+                return computeAlphaAt(getLength()) * (1.0f - (1.0f - autoFadeOpacity) * fadeT);
             }
             // 片段结束且已恢复
             return computeAlphaAt(getLength());

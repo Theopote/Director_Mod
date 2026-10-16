@@ -289,6 +289,11 @@ public class TimelineClipPropertyUi {
 
         if (ImGui.collapsingHeader(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_POST_ANIMATION_FADE_HEADER), imgui.flag.ImGuiTreeNodeFlags.None)) {
             ImGui.indent();
+            ImBoolean fadeEnabled = new ImBoolean(clip.isPostAnimationFadeEnabled());
+            if (ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_POST_ANIMATION_FADE_HEADER) + "##enabled", fadeEnabled)) {
+                clip.setPostAnimationFadeEnabled(fadeEnabled.get());
+                modified = true;
+            }
             ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_POST_ANIMATION_FADE_HINT));
             UITheme.spacingSmall();
 

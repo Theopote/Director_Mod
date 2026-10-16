@@ -95,6 +95,8 @@ public class TimelineClipBlockController {
     private long lastHandledRevision = -1L;
     private float lastHandledPreviewTime = Float.NaN;
     private boolean timelineDrivingPaused = true;
+    private boolean worldHandoffPending;
+    private boolean worldPlacementsPending;
     private final WholeContainerEffectCursor wholeEffectCursor = new WholeContainerEffectCursor();
     private TimelineModel observedModel;
     private final TimelineModel.ModelChangeListener modelChangeListener = changeType -> timelineRevision++;
@@ -110,6 +112,7 @@ public class TimelineClipBlockController {
     private static final class ContainerBlocksCache {
         long modifiedTime;
         List<BlockPos> blocks = List.of();
+        Set<BlockPos> all = Set.of();
     }
 
     /**
@@ -165,8 +168,14 @@ public class TimelineClipBlockController {
                 || (cache.blocks.isEmpty() && container.getBlockCount() > 0)) {
             cache.modifiedTime = mod;
             cache.blocks = new ArrayList<>(container.getBlocksView());
+            cache.all = Collections.unmodifiableSet(new HashSet<>(cache.blocks));
         }
         return cache.blocks != null ? cache.blocks : List.of();
+    }
+
+    private Set<BlockPos> getCachedAllBlocks(Container container) {
+        getCachedContainerBlocks(container);
+        return container == null ? Set.of() : blocksCacheByContainer.get(container).all;
     }
 
     private static int hashSequenceParameters(com.director.core.animation.sequence.SequenceParameters p) {
@@ -285,6 +294,7 @@ public class TimelineClipBlockController {
         float opacity;
         boolean occluded;
         long containerModifiedTime;
+        int animationHash;
     }
 
     private final Map<UUID, LastVisualParams> lastVisualParamsByContainerId = new HashMap<>();
@@ -429,6 +439,7 @@ public class TimelineClipBlockController {
         if (model.isPlaying() || model.isScrubbing()) {
             return true;
         }
+        if (worldHandoffPending || worldPlacementsPending || TimelinePlacementBudget.isCatchUp()) return true;
         if (timelineRevision != lastHandledRevision) {
             return true;
         }
@@ -518,17 +529,23 @@ public class TimelineClipBlockController {
         if (!playing
                 && !scrubbing
                 && !previewTimeChanged
+                && !worldHandoffPending
+                && !worldPlacementsPending
+                && !TimelinePlacementBudget.isCatchUp()
                 && timelineRevision == lastHandledRevision) {
+            timelineDrivingPaused = true;
             return;
         }
-        TimelinePlacementBudget.beginFrame(scrubbing, wasScrubbing, previewTimeChanged);
+        TimelinePlacementBudget.beginFrame(scrubbing, wasScrubbing, !playing && previewTimeChanged);
         wasScrubbing = scrubbing;
         final boolean placementAccelerated = TimelinePlacementBudget.isPlacementAccelerated();
+        worldHandoffPending = false;
+        worldPlacementsPending = false;
 
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
 
-        // 每次更新重建当前时间的覆盖层，播放与拖动预览使用同一动画状态。
-        visualStateManager.clearFrame();
+        // 保留持久可见性差量，只清理上一帧临时动画覆盖。
+        visualStateManager.beginTimelineFrame();
 
         // currentFrameVisibleBlocks：保持为“渲染可见集合”（用于遮挡/overlay/视觉状态）
         Map<UUID, Set<BlockPos>> currentFrameVisibleBlocks = new LinkedHashMap<>();
@@ -647,6 +664,10 @@ public class TimelineClipBlockController {
             UUID containerId = entry.getKey();
             Set<BlockPos> now = entry.getValue() != null ? entry.getValue() : java.util.Collections.emptySet();
             Set<BlockPos> prev = lastFrameWorldBlocks.get(containerId);
+            if (prev == now) {
+                worldSetChangedByContainer.put(containerId, false);
+                continue;
+            }
             if (prev == null) {
                 worldSetChangedByContainer.put(containerId, true);
                 continue;
@@ -673,6 +694,10 @@ public class TimelineClipBlockController {
             UUID containerId = entry.getKey();
             Set<BlockPos> now = entry.getValue() != null ? entry.getValue() : java.util.Collections.emptySet();
             Set<BlockPos> prev = lastFrameVisibleBlocks.get(containerId);
+            if (prev == now) {
+                renderSetChangedByContainer.put(containerId, false);
+                continue;
+            }
             if (prev == null) {
                 renderSetChangedByContainer.put(containerId, true);
                 continue;
@@ -765,6 +790,7 @@ public class TimelineClipBlockController {
             boolean visualParamsChanged = lastParams == null
                     || Math.abs(lastParams.opacity - opacity) > 1e-4f
                     || lastParams.occluded != isOccluded
+                    || lastParams.animationHash != visibleAnimationHash(containerToClipMap.get(containerId), currentFrameConfigs.get(containerId))
                     || containerStructureChanged;
 
             // ◆ 关键：先恢复真实方块（即使容器状态是 HIDDEN）
@@ -790,13 +816,7 @@ public class TimelineClipBlockController {
                         || scrubbing
                         || TimelinePlacementBudget.isCatchUp()
                         || (previewMode && previewTimeChanged);
-                boolean deferWorldSync = previewMode
-                        && !scrubbing
-                        && !TimelinePlacementBudget.isCatchUp()
-                        && boundClip != null
-                        && currentTime < boundClip.getStartTime() - 1e-3f
-                        && (worldBlocks == null || worldBlocks.isEmpty());
-                if (needsVisibilitySync && !deferWorldSync) {
+                if (needsVisibilitySync) {
                     visibilityService.resumeTimelineDriving();
                     // 时间线驱动：统一走分帧追平，避免 showContainerBlocks 的 firstCall 全量同步/强制光照刷新卡死主线程
                     visibilityService.showContainerBlocksForTimeline(container, worldBlocks);
@@ -887,6 +907,7 @@ public class TimelineClipBlockController {
             lastParams.opacity = opacity;
             lastParams.occluded = isOccluded;
             lastParams.containerModifiedTime = containerMod;
+            lastParams.animationHash = visibleAnimationHash(containerToClipMap.get(containerId), currentFrameConfigs.get(containerId));
         }
         final long tAfterEntries = System.nanoTime();
 
@@ -948,7 +969,7 @@ public class TimelineClipBlockController {
                 timelineDrivingPaused = true;
             }
         } else {
-            lastHandledPreviewTime = Float.NaN;
+            lastHandledPreviewTime = currentTime;
             timelineDrivingPaused = false;
         }
         visualStateManager.finishFrame();
@@ -1188,6 +1209,7 @@ public class TimelineClipBlockController {
             LOGGER.debug("[TimelineClipBlockController] 节流世界落地: containers={}, deferredPlacements={}, budgetPerTick={}, perContainer={}",
                     throttledContainers, deferredPlacements, TimelinePlacementBudget.getGlobalPerFrame(), perContainerBudget);
         }
+        worldPlacementsPending = deferredPlacements > 0;
     }
 
     private List<BlockPos> collectOrderedAdditions(UUID containerId,
@@ -1309,7 +1331,7 @@ public class TimelineClipBlockController {
         // 轨道禁用：普通容器 => 隐藏；拆除容器 => 不清除（保留全量）
         if (!trackEnabled) {
             if (isDemolition) {
-                Set<BlockPos> all = newBlockSet(allBlocks);
+                Set<BlockPos> all = getCachedAllBlocks(container);
                 return new VisibleBlocksResult(all, all, sequenceEntries);
             }
             return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), sequenceEntries);
@@ -1321,7 +1343,7 @@ public class TimelineClipBlockController {
         // 片段左侧
         if (currentTime < clipStart) {
             if (isDemolition) {
-                Set<BlockPos> all = newBlockSet(allBlocks);
+                Set<BlockPos> all = getCachedAllBlocks(container);
                 return new VisibleBlocksResult(all, all, sequenceEntries);
             }
             return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), sequenceEntries);
@@ -1330,7 +1352,7 @@ public class TimelineClipBlockController {
         if (config != null && config.isWholeContainer()) {
             var frame = com.director.core.animation.WholeContainerAnimation.sample(
                     config, clipStart, clipEnd, currentTime, isDemolition);
-            Set<BlockPos> all = newBlockSet(allBlocks);
+            Set<BlockPos> all = getCachedAllBlocks(container);
             return new VisibleBlocksResult(frame.worldVisible() ? all : Collections.emptySet(),
                     frame.renderVisible() ? all : Collections.emptySet(), List.of());
         }
@@ -1395,7 +1417,7 @@ public class TimelineClipBlockController {
 
             if (sequenceEntries == null || sequenceEntries.isEmpty()) {
                 // 后备：序列为空时，直接视为全量
-                Set<BlockPos> all = newBlockSet(allBlocks);
+                Set<BlockPos> all = getCachedAllBlocks(container);
                 return new VisibleBlocksResult(all, all, sequenceEntries);
             }
 
@@ -1505,7 +1527,7 @@ public class TimelineClipBlockController {
         if (currentTime > clipEnd) {
             if (!isDemolition) {
                 // 普通容器：全量显示
-                Set<BlockPos> all = newBlockSet(allBlocks);
+                Set<BlockPos> all = getCachedAllBlocks(container);
                 return new VisibleBlocksResult(all, all, sequenceEntries);
             } else {
                 // 拆除容器：全清除 => 保持空集合
@@ -1575,6 +1597,7 @@ public class TimelineClipBlockController {
                     : BlockVisualStateManager.BlockVisualState.normal();
             boolean worldReady = MinecraftClient.getInstance().world != null
                     && MinecraftClient.getInstance().world.getBlockState(pos).equals(state);
+            if (!frame.animating() && !worldReady) worldHandoffPending = true;
             boolean overlay = frame.animating() || !worldReady || opacity < 0.999f;
             if (!overlay) {
                 manager.setBlockState(pos, visual);
@@ -1649,6 +1672,27 @@ public class TimelineClipBlockController {
 
     private final Map<TimelineClip, Float> perBlockEffectSampleTime = new java.util.WeakHashMap<>();
 
+    /** Final-pose fallback must not depend on a nonempty animation sequence. */
+    private void registerSettledContainerEntries(BlockVisualStateManager manager, Container container,
+            TimelineClip clip, Set<BlockPos> visibleBlocks) {
+        var world = MinecraftClient.getInstance().world;
+        for (BlockPos pos : visibleBlocks) {
+            var visual = manager.getBlockState(pos);
+            if (visual.isHidden()) continue;
+            BlockState state = resolveBlockStateForRender(container, pos);
+            if (state == null) continue;
+            boolean ready = world != null && state.equals(world.getBlockState(pos));
+            if (!ready) worldHandoffPending = true;
+            if (ready && visual.isNormal() && !visual.shouldSuppressWorldRendering()) continue;
+            var snapshot = new BlockAnimationSnapshot(pos, state);
+            snapshot.markFullyVisible();
+            snapshot.setTransform(null);
+            var overlay = visual.withSuppressWorldRendering(true);
+            manager.setAnimatedBlockState(pos, overlay);
+            manager.addRenderEntry(new BlockVisualStateManager.RenderEntry(pos, state, overlay, clip, null, snapshot));
+        }
+    }
+
     private void registerRenderEntriesForContainer(
             BlockVisualStateManager visualStateManager,
             Container container,
@@ -1674,6 +1718,7 @@ public class TimelineClipBlockController {
             return;
         }
         if (sequenceEntries == null || sequenceEntries.isEmpty()) {
+            registerSettledContainerEntries(visualStateManager, container, clip, visibleBlocks);
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace(
                         "[TimelineClipBlockController] registerRenderEntries: sequenceEntries is empty for container {}",
@@ -1764,6 +1809,7 @@ public class TimelineClipBlockController {
                     var expected = resolveBlockStateForRender(container, pos);
                     var world = MinecraftClient.getInstance().world;
                     if (expected == null || world != null && expected.equals(world.getBlockState(pos))) continue;
+                    worldHandoffPending = true;
                     visualState = visualState.withSuppressWorldRendering(true);
                 }
 
@@ -1836,7 +1882,7 @@ public class TimelineClipBlockController {
             }
 
             visualState = visualState.withSuppressWorldRendering(true);
-            visualStateManager.setBlockState(pos, visualState);
+            visualStateManager.setAnimatedBlockState(pos, visualState);
 
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[TimelineClipBlockController] Adding render entry: pos={} alpha={}",
@@ -2160,22 +2206,8 @@ public class TimelineClipBlockController {
                 return;
             }
 
-            // ◆ 策略1：优先使用容器的 blockStore（如果已有数据）
-            // 容器的 blockStore 是在创建容器时捕获的原始方块状态，即使世界中的方块已经是 AIR，也能恢复
-            if (visibilityService.createSnapshotFromBlockStore(container)) {
-                // 成功从 blockStore 创建快照
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[TimelineClipBlockController] 容器 {} 已从 blockStore 创建快照",
-                            container.getName());
-                }
-            } else {
-                visibilityService.prepareContainerForTimeline(container);
-
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[TimelineClipBlockController] 容器 {} 已通过时间线准备流程创建快照 (方块数: {})",
-                            container.getName(), container.getBlockCount());
-                }
-            }
+            // Preparation is server-owned and bounded; never copy a large snapshot on the render thread.
+            visibilityService.prepareContainerForTimeline(container);
 
             // ✅ 轨道差异：
             // - 普通容器：容器应保持 HIDDEN（世界方块由 showContainerBlocks 控制出现）
