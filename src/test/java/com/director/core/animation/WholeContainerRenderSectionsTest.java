@@ -7,6 +7,48 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class WholeContainerRenderSectionsTest {
+    @Test void boundedFramesEventuallyDrainAllSectionsWithoutDroppingTheRemainder() {
+        var requests = new WholeContainerRenderSections();
+        var world = new Object();
+        for (int i = 0; i < 100; i++) requests.request(world, new BlockPos(5 + i * 16, 5, 5));
+        var rebuilt = new java.util.HashSet<Long>();
+        for (int frame = 0; frame < 50; frame++) {
+            assertEquals(2, requests.drain(world, 2, Long.MAX_VALUE, section -> {
+                assertTrue(rebuilt.add(section));
+                return true;
+            }));
+            assertEquals(100 - rebuilt.size(), requests.pendingCount(world));
+        }
+        assertEquals(100, rebuilt.size());
+        assertEquals(0, requests.pendingCount(world));
+    }
+
+    @Test void expiredDeadlineAndUnavailableRendererRetainRequests() {
+        var requests = new WholeContainerRenderSections();
+        var world = new Object();
+        requests.request(world, new BlockPos(5, 5, 5));
+        assertEquals(0, requests.drain(world, 2, 0, section -> fail("deadline expired")));
+        assertEquals(1, requests.pendingCount(world));
+        requests.drain(world, 2, Long.MAX_VALUE, section -> false);
+        assertEquals(1, requests.pendingCount(world));
+        requests.drain(world, 2, Long.MAX_VALUE, section -> true);
+        assertEquals(0, requests.pendingCount(world));
+    }
+
+    @Test void requestsStayDeduplicatedAcrossFramesAndWorldSwitchDiscardsOnlyOldWorldWork() {
+        var requests = new WholeContainerRenderSections();
+        var world = new Object();
+        var first = new BlockPos(5, 5, 5);
+        var second = new BlockPos(21, 5, 5);
+        requests.request(world, first); requests.request(world, second);
+        requests.drain(world, 1, Long.MAX_VALUE, section -> true);
+        requests.request(world, second);
+        assertEquals(1, requests.pendingCount(world));
+        var nextWorld = new Object();
+        assertEquals(0, requests.pendingCount(nextWorld));
+        requests.request(nextWorld, first);
+        assertEquals(1, requests.pendingCount(nextWorld));
+    }
     @Test void repeatedBlocksInSameSectionProduceOneRebuild() {
         var requests = new WholeContainerRenderSections();
         var world = new Object();

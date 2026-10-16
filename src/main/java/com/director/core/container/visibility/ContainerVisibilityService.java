@@ -76,6 +76,13 @@ public class ContainerVisibilityService {
     private final Set<UUID> backfilledContainers = new HashSet<>();
 
     private final Deque<VisibilityTask> pendingTasks = new ArrayDeque<>();
+    private final Set<ServerWorld> lightingWorlds = new HashSet<>();
+    private final Map<UUID, Long> firstTargetNanos = new HashMap<>();
+    private long lastPerfLogNanos;
+    private long perfAttempts, perfWrites, perfTicks, perfLightingSchedules;
+    private double perfMaxTickMs;
+    private int tickWrites;
+
 
     public ContainerVisibilityService(MinecraftServer server) {
         this.server = server;
@@ -87,8 +94,13 @@ public class ContainerVisibilityService {
     // =========================================================================
 
     public void tick() {
-        int budget = getBlocksPerTickBudget();
-        long deadline = System.nanoTime() + 4_000_000L;
+        long started = System.nanoTime();
+        boolean hadWork = !preparations.isEmpty() || !submittedTargets.isEmpty()
+                || !targetConversions.isEmpty() || !pendingTasks.isEmpty() || !timelineWork.isEmpty();
+        tickWrites = 0;
+        int initialBudget = getBlocksPerTickBudget();
+        int budget = initialBudget;
+        long deadline = started + 4_000_000L;
         for (var entry : new ArrayList<>(preparations.entrySet())) {
             if (budget <= 0 || System.nanoTime() >= deadline) break;
             var preparation = entry.getValue();
@@ -169,6 +181,32 @@ public class ContainerVisibilityService {
                     else if (latest != null) timelineWork.put(containerId,
                             new TimelineVisibilityWork(lastShownBlocks.get(containerId), latest));
                 } else timelineWork.put(containerId, work); // Round-robin across containers.
+            }
+        }
+        int lightingSchedules = lightingWorlds.size();
+        // WorldChunk.setBlockState already queued the affected block/section checks.
+        // ServerLightingProvider.tick dispatches those checks to its own executor.
+        for (var world : lightingWorlds) world.getChunkManager().getLightingProvider().tick();
+        lightingWorlds.clear();
+        firstTargetNanos.keySet().removeIf(id -> !preparations.containsKey(id) && !submittedTargets.containsKey(id)
+                && !targetConversions.containsKey(id) && !timelineWork.containsKey(id));
+        if (hadWork || tickWrites > 0) {
+            perfTicks++;
+            perfAttempts += initialBudget - budget;
+            perfWrites += tickWrites;
+            perfLightingSchedules += lightingSchedules;
+            long now = System.nanoTime();
+            perfMaxTickMs = Math.max(perfMaxTickMs, (now - started) / 1_000_000.0);
+            if (now - lastPerfLogNanos >= 5_000_000_000L) {
+                long oldest = now;
+                for (long time : firstTargetNanos.values()) oldest = Math.min(oldest, time);
+                LOGGER.info("[Perf][ContainerVisibility] ticks={} budgetUsed={} writes={} maxTickMs={} preparing={} converting={} working={} submitted={} lightingSchedules={} oldestTargetMs={}",
+                        perfTicks, perfAttempts, perfWrites, String.format(java.util.Locale.ROOT, "%.2f", perfMaxTickMs),
+                        preparations.size(), targetConversions.size(), timelineWork.size(), submittedTargets.size(),
+                        perfLightingSchedules, (now - oldest) / 1_000_000L);
+                lastPerfLogNanos = now;
+                perfAttempts = perfWrites = perfTicks = perfLightingSchedules = 0;
+                perfMaxTickMs = 0;
             }
         }
     }
@@ -325,6 +363,7 @@ public class ContainerVisibilityService {
         UUID id = container.getId();
         if (preparedForTimeline.contains(id) || preparations.containsKey(id)) return;
         cancelPendingTasks(id);
+        firstTargetNanos.putIfAbsent(id, System.nanoTime());
         preparations.put(id, new TimelinePreparation(container));
     }
 
@@ -411,6 +450,7 @@ public class ContainerVisibilityService {
         UUID containerId = container.getId();
         cancelPendingTasks(containerId);
         LongSet shown = lastShownBlocks.computeIfAbsent(containerId, id -> new LongOpenHashSet());
+        firstTargetNanos.putIfAbsent(containerId, System.nanoTime());
         timelineVisibilityTargets.put(containerId, targetLongs);
         // Retain the current scan's progress; new targets cancel obsolete retries immediately.
         timelineWork.computeIfAbsent(containerId, id -> new TimelineVisibilityWork(shown, targetLongs))
@@ -500,6 +540,11 @@ public class ContainerVisibilityService {
         lastConvertedBlocks.clear();
         preparations.clear();
         preparedForTimeline.clear();
+        lightingWorlds.clear();
+        firstTargetNanos.clear();
+        perfAttempts = perfWrites = perfTicks = perfLightingSchedules = 0;
+        perfMaxTickMs = 0;
+        lastPerfLogNanos = 0;
         backfilledContainers.clear();
         ContainerVisibilityFeedback.reset();
         LOGGER.debug("[ContainerVisibilityService] 清除所有快照");
@@ -517,7 +562,7 @@ public class ContainerVisibilityService {
         if (!store.contains(pos)) store.capture(world, pos);
         net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
         if (be != null) world.removeBlockEntity(pos);
-        world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH);
+        if (world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH)) tickWrites++;
         trackAffectedChunk(affectedChunks, cx, cz);
         return true;
     }
@@ -607,12 +652,7 @@ public class ContainerVisibilityService {
     }
 
     private void flushLightingForChunks(ServerWorld world, LongOpenHashSet affectedChunks) {
-        if (world == null || affectedChunks == null || affectedChunks.isEmpty()) return;
-        try {
-            world.getChunkManager().getLightingProvider().doLightUpdates();
-        } catch (Exception e) {
-            LOGGER.debug("[Visibility] 光照刷新跳过: {}", e.getMessage());
-        }
+        if (world != null && affectedChunks != null && !affectedChunks.isEmpty()) lightingWorlds.add(world);
     }
 
     private void restoreBlockEntry(ServerWorld world, BlockPos pos, BlockStore.Entry entry,
@@ -624,7 +664,7 @@ public class ContainerVisibilityService {
         } catch (Exception ignored) {}
         if (!world.getChunkManager().isChunkLoaded(cx, cz)) return;
 
-        world.setBlockState(pos, entry.state, ContainerBlockUpdateFlags.BATCH);
+        if (world.setBlockState(pos, entry.state, ContainerBlockUpdateFlags.BATCH)) tickWrites++;
         trackAffectedChunk(affectedChunks, cx, cz);
 
         if (entry.beNbt == null) return;
@@ -696,7 +736,7 @@ public class ContainerVisibilityService {
             if (world.getBlockState(pos).isAir()) return;
             var be = world.getBlockEntity(pos);
             if (be != null) world.removeBlockEntity(pos);
-            world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH);
+            if (world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH)) tickWrites++;
             trackAffectedChunk(affectedChunks, cx, cz);
             changed++;
         }

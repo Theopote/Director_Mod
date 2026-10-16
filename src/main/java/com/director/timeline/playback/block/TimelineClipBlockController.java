@@ -96,7 +96,6 @@ public class TimelineClipBlockController {
     private float lastHandledPreviewTime = Float.NaN;
     private boolean timelineDrivingPaused = true;
     private boolean worldHandoffPending;
-    private boolean worldPlacementsPending;
     private final WholeContainerEffectCursor wholeEffectCursor = new WholeContainerEffectCursor();
     private TimelineModel observedModel;
     private final TimelineModel.ModelChangeListener modelChangeListener = changeType -> timelineRevision++;
@@ -144,14 +143,8 @@ public class TimelineClipBlockController {
 
     private final Map<Container, ContainerBlocksCache> blocksCacheByContainer = new IdentityHashMap<>();
     private final Map<TimelineClip, ClipSequenceCache> sequenceCacheByClip = new IdentityHashMap<>();
-    private final Map<UUID, SequenceOrderCache> sequenceOrderCacheByContainerId = new HashMap<>();
     // ⭐ 新增：可见方块结果缓存
     private final Map<TimelineClip, VisibleBlocksCache> visibleBlocksCacheByClip = new IdentityHashMap<>();
-
-    private static final class SequenceOrderCache {
-        List<BlockSequenceEntry> entries;
-        Map<BlockPos, Integer> order = Map.of();
-    }
 
     private List<BlockPos> getCachedContainerBlocks(Container container) {
         if (container == null) {
@@ -338,7 +331,6 @@ public class TimelineClipBlockController {
             blocksCacheByContainer.remove(container);
 
             // 清理序列顺序缓存
-            sequenceOrderCacheByContainerId.remove(container.getId());
 
             // 清理容器相关的所有片段缓存
             // 注意：需要遍历找到引用该容器的片段
@@ -439,7 +431,7 @@ public class TimelineClipBlockController {
         if (model.isPlaying() || model.isScrubbing()) {
             return true;
         }
-        if (worldHandoffPending || worldPlacementsPending || TimelinePlacementBudget.isCatchUp()) return true;
+        if (worldHandoffPending || TimelinePlacementBudget.isCatchUp()) return true;
         if (timelineRevision != lastHandledRevision) {
             return true;
         }
@@ -530,7 +522,6 @@ public class TimelineClipBlockController {
                 && !scrubbing
                 && !previewTimeChanged
                 && !worldHandoffPending
-                && !worldPlacementsPending
                 && !TimelinePlacementBudget.isCatchUp()
                 && timelineRevision == lastHandledRevision) {
             timelineDrivingPaused = true;
@@ -538,9 +529,7 @@ public class TimelineClipBlockController {
         }
         TimelinePlacementBudget.beginFrame(scrubbing, wasScrubbing, !playing && previewTimeChanged);
         wasScrubbing = scrubbing;
-        final boolean placementAccelerated = TimelinePlacementBudget.isPlacementAccelerated();
         worldHandoffPending = false;
-        worldPlacementsPending = false;
 
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
 
@@ -643,11 +632,9 @@ public class TimelineClipBlockController {
             desiredWorldBlocks.put(entry.getKey(), worldSet != null ? worldSet : Collections.emptySet());
         }
 
-        if (!placementAccelerated) {
-            throttleWorldPlacements(currentFrameWorldBlocks, currentFrameSequences);
-        }
-
-        Map<UUID, Set<BlockPos>> visibilityWorldBlocks = placementAccelerated ? desiredWorldBlocks : currentFrameWorldBlocks;
+        // Submit the complete sampled target. Only the server tick budgets actual world work;
+        // render FPS must never limit the rate at which a completed container can land.
+        Map<UUID, Set<BlockPos>> visibilityWorldBlocks = desiredWorldBlocks;
         final long tAfterVisible = System.nanoTime();
 
         // ✅ 步骤1.5：计算世界落地集的变化量（仅用于 needsVisibilitySync 判断）
@@ -934,14 +921,8 @@ public class TimelineClipBlockController {
                         .request(MinecraftClient.getInstance().world, pos);
         }
 
-        // ⭐ 额外优化：如果重渲染方块数量太多，分批处理或跳过
-        // 避免一次性重渲染导致游戏卡顿
-        if (rerender.size() > com.director.core.animation.AnimationConstants.MAX_RERENDER_BLOCKS) {
-            LOGGER.warn("[TimelineClipBlockController] 重渲染方块数量过多 ({}), 跳过本帧重渲染以避免卡顿", rerender.size());
-            rerender.clear();
-        } else if (!rerender.isEmpty()) {
-            scheduleBlockRerender(rerender);
-        }
+        // Suppression changes above are queued by section and drained with a render budget.
+        // Opacity-only changes need no world mesh rebuild; world edits use vanilla updates.
 
         final long tAfterRerender = System.nanoTime();
 
@@ -955,7 +936,7 @@ public class TimelineClipBlockController {
             // 性能关键：避免每帧复制大 Set；该 Set 在本帧之后不再被修改，直接复用引用即可。
             lastFrameVisibleBlocks.put(id, s != null ? s : java.util.Collections.emptySet());
         }
-        Map<UUID, Set<BlockPos>> lastWorldBlocksSource = placementAccelerated ? desiredWorldBlocks : currentFrameWorldBlocks;
+        Map<UUID, Set<BlockPos>> lastWorldBlocksSource = desiredWorldBlocks;
         for (Map.Entry<UUID, Set<BlockPos>> e : lastWorldBlocksSource.entrySet()) {
             UUID id = e.getKey();
             Set<BlockPos> s = e.getValue();
@@ -994,7 +975,6 @@ public class TimelineClipBlockController {
                 TimelineClip c = e.getKey();
                 return c == null || !activeContainerIds.contains(c.getBoundContainerId());
             });
-            sequenceOrderCacheByContainerId.keySet().retainAll(activeContainerIds);
 
             // ⭐ 新增：强制容量限制，防止缓存无限增长
             enforceContainerCacheLimit();
@@ -1049,210 +1029,6 @@ public class TimelineClipBlockController {
                     seqTotal,
                     renderEntryCount);
         }
-    }
-
-    /**
-     * 调度方块所在区块的重渲染，确保suppressWorldRendering 变化立即反映到原版渲染
-     */
-    private void scheduleBlockRerender(Set<BlockPos> changedBlocks) {
-        if (changedBlocks == null || changedBlocks.isEmpty()) {
-            return;
-        }
-        try {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client == null || client.worldRenderer == null) {
-                return;
-            }
-            // 退出世界/关服阶段：不要再调度重渲染，避免底层 executor 已关闭导致异常/卡顿
-            if (client.world == null || client.getNetworkHandler() == null) {
-                return;
-            }
-
-            // 性能关键：用“全局包围盒”会把大量无关区块也重建，逐帧播放时极易导致 FPS 跌到个位数。
-            // 改为按 chunk 分组调度：只重建实际受影响的 chunk 区域。
-            final class ChunkBox {
-                int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-                int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-
-                void include(BlockPos p) {
-                    minX = Math.min(minX, p.getX());
-                    minY = Math.min(minY, p.getY());
-                    minZ = Math.min(minZ, p.getZ());
-                    maxX = Math.max(maxX, p.getX());
-                    maxY = Math.max(maxY, p.getY());
-                    maxZ = Math.max(maxZ, p.getZ());
-                }
-
-                boolean valid() {
-                    return minX <= maxX && minY <= maxY && minZ <= maxZ;
-                }
-            }
-
-            Map<Long, ChunkBox> byChunk = new HashMap<>();
-            for (BlockPos pos : changedBlocks) {
-                if (pos == null)
-                    continue;
-                int cx = pos.getX() >> 4;
-                int cz = pos.getZ() >> 4;
-                long key = (((long) cx) << 32) ^ (cz & 0xffffffffL);
-                ChunkBox box = byChunk.computeIfAbsent(key, k -> new ChunkBox());
-                box.include(pos);
-            }
-
-            // 每个 chunk 单独调度（把范围扩到 chunk 边界，避免边缘面不刷新）
-            for (Map.Entry<Long, ChunkBox> e : byChunk.entrySet()) {
-                ChunkBox box = e.getValue();
-                if (box == null || !box.valid())
-                    continue;
-
-                int minChunkX = box.minX >> 4;
-                int maxChunkX = box.maxX >> 4;
-                int minChunkZ = box.minZ >> 4;
-                int maxChunkZ = box.maxZ >> 4;
-
-                // 受影响的范围通常在单个 chunk 内；保险起见支持跨 chunk
-                for (int x = minChunkX; x <= maxChunkX; x++) {
-                    for (int z = minChunkZ; z <= maxChunkZ; z++) {
-                        int x0 = (x << 4);
-                        int z0 = (z << 4);
-                        int x1 = x0 + 15;
-                        int z1 = z0 + 15;
-                        // Y 仅取本 chunk 内受影响的局部范围，并上下扩 1 格避免面刷新缺失
-                        int y0 = Math.max(-64, box.minY - 1);
-                        int y1 = Math.min(319, box.maxY + 1);
-                        client.worldRenderer.scheduleBlockRenders(x0, y0, z0, x1, y1, z1);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.warn("[TimelineClipBlockController] 调度区块重渲染失败: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * 计算片段中在当前时间应该“保留/显示”的方块集合（支持容器轨道与清除轨道）。
-     *
-     * <p>
-     * 容器轨道（CONTAINER）规则：
-     * <ul>
-     * <li>片段左侧：空（全部隐藏）</li>
-     * <li>片段范围：逐步显示</li>
-     * <li>片段右侧：全量显示</li>
-     * </ul>
-     *
-     * <p>
-     * 清除轨道（ERASE）规则（反向）：
-     * <ul>
-     * <li>片段左侧：全量保留（不清除）</li>
-     * <li>片段范围：逐步清除（从全量到空）</li>
-     * <li>片段右侧：空（全部清除）</li>
-     * </ul>
-     *
-     * <p>
-     * 轨道锁定/隐藏处理：
-     * <ul>
-     * <li>容器轨道：强制隐藏</li>
-     * <li>清除轨道：强制不清除（保留全量）</li>
-     * </ul>
-     */
-    private void throttleWorldPlacements(Map<UUID, Set<BlockPos>> currentFrameWorldBlocks,
-                                         Map<UUID, List<BlockSequenceEntry>> currentFrameSequences) {
-        if (currentFrameWorldBlocks == null || currentFrameWorldBlocks.isEmpty()) {
-            return;
-        }
-
-        int remainingGlobalBudget = TimelinePlacementBudget.getGlobalPerFrame();
-        int perContainerBudget = TimelinePlacementBudget.getPerContainerPerFrame();
-        int throttledContainers = 0;
-        int deferredPlacements = 0;
-
-        for (Map.Entry<UUID, Set<BlockPos>> entry : currentFrameWorldBlocks.entrySet()) {
-            UUID containerId = entry.getKey();
-            Set<BlockPos> desired = entry.getValue() != null ? entry.getValue() : Collections.emptySet();
-            Set<BlockPos> previous = lastFrameWorldBlocks.getOrDefault(containerId, Collections.emptySet());
-
-            LinkedHashSet<BlockPos> applied = new LinkedHashSet<>(previous);
-            applied.retainAll(desired); // removals happen immediately
-
-            if (desired.isEmpty() || remainingGlobalBudget <= 0) {
-                if (remainingGlobalBudget <= 0 && desired.size() > applied.size()) {
-                    throttledContainers++;
-                    deferredPlacements += desired.size() - applied.size();
-                }
-                entry.setValue(applied);
-                continue;
-            }
-
-            List<BlockPos> orderedAdditions = collectOrderedAdditions(containerId, desired, previous, currentFrameSequences);
-            if (orderedAdditions.isEmpty()) {
-                entry.setValue(applied);
-                continue;
-            }
-
-            int containerBudget = Math.min(perContainerBudget, remainingGlobalBudget);
-            int allowed = Math.min(containerBudget, orderedAdditions.size());
-            for (int i = 0; i < allowed; i++) {
-                applied.add(orderedAdditions.get(i));
-            }
-
-            remainingGlobalBudget -= allowed;
-            int deferred = orderedAdditions.size() - allowed;
-            if (deferred > 0) {
-                throttledContainers++;
-                deferredPlacements += deferred;
-            }
-
-            entry.setValue(applied);
-        }
-
-        if (throttledContainers > 0 && LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[TimelineClipBlockController] 节流世界落地: containers={}, deferredPlacements={}, budgetPerTick={}, perContainer={}",
-                    throttledContainers, deferredPlacements, TimelinePlacementBudget.getGlobalPerFrame(), perContainerBudget);
-        }
-        worldPlacementsPending = deferredPlacements > 0;
-    }
-
-    private List<BlockPos> collectOrderedAdditions(UUID containerId,
-                                                   Set<BlockPos> desired,
-                                                   Set<BlockPos> previous,
-                                                   Map<UUID, List<BlockSequenceEntry>> currentFrameSequences) {
-        List<BlockSequenceEntry> entries = currentFrameSequences != null ? currentFrameSequences.get(containerId) : null;
-        List<BlockPos> additions = new ArrayList<>();
-        for (BlockPos pos : desired) {
-            if (!previous.contains(pos)) {
-                additions.add(pos);
-            }
-        }
-        if (additions.size() <= 1 || entries == null || entries.isEmpty()) {
-            return additions;
-        }
-
-        Map<BlockPos, Integer> order = getSequenceOrder(containerId, entries);
-        additions.sort(Comparator.comparingInt(pos -> order.getOrDefault(pos, Integer.MAX_VALUE)));
-        return additions;
-    }
-
-    private Map<BlockPos, Integer> getSequenceOrder(UUID containerId, List<BlockSequenceEntry> entries) {
-        if (containerId == null || entries == null || entries.isEmpty()) {
-            return Map.of();
-        }
-        SequenceOrderCache cache = sequenceOrderCacheByContainerId.get(containerId);
-        if (cache != null && cache.entries == entries) {
-            return cache.order;
-        }
-        Map<BlockPos, Integer> order = new HashMap<>(Math.max(16, (int) (entries.size() / 0.75f) + 1));
-        for (int i = 0; i < entries.size(); i++) {
-            BlockSequenceEntry entry = entries.get(i);
-            BlockPos pos = entry != null ? entry.getPos() : null;
-            if (pos != null) {
-                order.putIfAbsent(pos, i);
-            }
-        }
-        SequenceOrderCache next = cache != null ? cache : new SequenceOrderCache();
-        next.entries = entries;
-        next.order = order;
-        sequenceOrderCacheByContainerId.put(containerId, next);
-        return order;
     }
 
     private VisibleBlocksResult calculateVisibleBlocks(TimelineClip clip,

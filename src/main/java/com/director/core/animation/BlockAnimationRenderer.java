@@ -196,10 +196,6 @@ public class BlockAnimationRenderer {
 
                 BlockAnimationSnapshot snapshot = entry.overrideSnapshot();
                 if (snapshot == null) {
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("[BlockAnimationRenderer] renderEntries: missing snapshot for pos={} clip={}",
-                                entry.pos(), entry.clip());
-                    }
                     continue;
                 }
 
@@ -304,21 +300,10 @@ public class BlockAnimationRenderer {
      * 结果：worldMatrix = worldMatrix * localAnimMatrix
      */
     private static void applyAnimationTransformFromSnapshot(MatrixStack matrices, BlockAnimationSnapshot snapshot) {
-        if (snapshot == null) {
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[BlockAnimationRenderer] applyAnimationTransformFromSnapshot: snapshot is null");
-            }
-            return;
-        }
+        if (snapshot == null) return;
         MatrixStack snapshotStack = snapshot.getTransform();
-        if (snapshotStack == null) {
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug(
-                        "[BlockAnimationRenderer] applyAnimationTransformFromSnapshot: snapshot.getTransform() is null for pos={}",
-                        snapshot.getPos());
-            }
-            return;
-        }
+        // Null is the normal static pose. Logging here once per block stalls large overlays.
+        if (snapshotStack == null) return;
 
         // matrices.top = matrices.top * snapshot.top
         var snapshotMatrix = snapshotStack.peek().getPositionMatrix();

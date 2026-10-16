@@ -6,6 +6,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 class TimelineVisibilityWorkTest {
+    @Test void submittedTargetKeepsAdvancingOnServerTicksWithoutAnotherClientFrame() {
+        var shown = new LongOpenHashSet();
+        var target = new LongOpenHashSet();
+        for (int i = 0; i < 10_000; i++) target.add(i);
+        // One frame submits the full target, then only server ticks run.
+        var work = new TimelineVisibilityWork(shown, target);
+        for (int tick = 0; tick < 4; tick++) work.process(3000, Long.MAX_VALUE, (pos, visible) -> true);
+        assertTrue(work.isComplete());
+        assertEquals(10_000, shown.size());
+    }
     @Test void largeTargetConvergesAcrossSmallBudgetsWithoutRestartingScans() {
         var shown = new LongOpenHashSet();
         var target = new LongOpenHashSet();

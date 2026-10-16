@@ -2,14 +2,15 @@ package com.director.core.animation;
 
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkSectionPos;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.function.LongPredicate;
 
 /** Render-thread handoff requests; only suppression transitions rebuild, never animation frames. */
 public final class WholeContainerRenderSections {
     private static final WholeContainerRenderSections INSTANCE = new WholeContainerRenderSections();
     private Object world;
-    private final Set<Long> pending = new HashSet<>();
+    private final Set<Long> pending = new LinkedHashSet<>();
     public static WholeContainerRenderSections getInstance() { return INSTANCE; }
 
     public void request(Object currentWorld, BlockPos pos) {
@@ -30,6 +31,24 @@ public final class WholeContainerRenderSections {
         var result = Set.copyOf(pending);
         pending.clear();
         return result;
+    }
+
+    /** A failed/unavailable rebuild stays queued. Budgets never discard unprocessed sections. */
+    public int drain(Object currentWorld, int maxSections, long deadlineNanos, LongPredicate rebuild) {
+        switchWorld(currentWorld);
+        int attempted = 0;
+        var iterator = pending.iterator();
+        while (iterator.hasNext() && attempted < maxSections && System.nanoTime() < deadlineNanos) {
+            long section = iterator.next();
+            attempted++;
+            if (rebuild.test(section)) iterator.remove();
+        }
+        return attempted;
+    }
+
+    public int pendingCount(Object currentWorld) {
+        switchWorld(currentWorld);
+        return pending.size();
     }
     private void switchWorld(Object currentWorld) {
         if (world != currentWorld) { pending.clear(); world = currentWorld; }

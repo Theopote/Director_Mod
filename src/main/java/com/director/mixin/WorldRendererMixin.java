@@ -36,23 +36,45 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(WorldRenderer.class)
 public abstract class WorldRendererMixin {
+    @org.spongepowered.asm.mixin.Unique private static final org.slf4j.Logger director$handoffLogger =
+            org.slf4j.LoggerFactory.getLogger("DirectorSectionHandoff");
+    @org.spongepowered.asm.mixin.Unique private long director$lastHandoffLog;
+    @org.spongepowered.asm.mixin.Unique private int director$handoffRebuilds;
+    @org.spongepowered.asm.mixin.Unique private double director$maxHandoffMs;
     @org.spongepowered.asm.mixin.Shadow private net.minecraft.client.render.BuiltChunkStorage chunks;
     @org.spongepowered.asm.mixin.Shadow private net.minecraft.client.render.chunk.ChunkBuilder chunkBuilder;
     @org.spongepowered.asm.mixin.Shadow private net.minecraft.client.world.ClientWorld world;
 
     @Inject(method = "updateChunks", at = @At("HEAD"))
     private void director$flushWholeContainerHandoffs(net.minecraft.client.render.Camera camera, CallbackInfo ci) {
-        var sections = com.director.core.animation.WholeContainerRenderSections.getInstance().take(world);
-        if (sections.isEmpty() || chunks == null || chunkBuilder == null) return;
+        if (world == null || chunks == null || chunkBuilder == null) return;
+        var sections = com.director.core.animation.WholeContainerRenderSections.getInstance();
+        if (sections.pendingCount(world) == 0) return;
+        long started = System.nanoTime();
         var regions = new net.minecraft.client.render.chunk.ChunkRendererRegionBuilder();
-        for (var chunk : chunks.chunks) {
-            if (chunk == null || !sections.contains(chunk.getSectionPos())) continue;
-            // Cancel obsolete async work and compile using the current suppression state.
-            chunkBuilder.rebuild(chunk, regions);
-            chunk.cancelRebuild();
-        }
-        // Uploads must finish before vanilla terrain is drawn, not after the animation overlay.
+        sections.drain(world, 2, System.nanoTime() + 2_000_000L, section -> {
+            for (var chunk : chunks.chunks) {
+                if (chunk == null || chunk.getSectionPos() != section) continue;
+                chunkBuilder.rebuild(chunk, regions);
+                chunk.cancelRebuild();
+                director$handoffRebuilds++;
+                return true;
+            }
+            // Nonresident sections have no old mesh; their next normal build reads current state.
+            return true;
+        });
+        // Only this small batch must be ready before terrain drawing. The rest stays queued.
         chunkBuilder.upload();
+        long now = System.nanoTime();
+        director$maxHandoffMs = Math.max(director$maxHandoffMs, (now - started) / 1_000_000.0);
+        if (now - director$lastHandoffLog >= 5_000_000_000L) {
+            director$handoffLogger.info("[Perf][ContainerSections] rebuilt={} pending={} maxBatchMs={}",
+                    director$handoffRebuilds, sections.pendingCount(world),
+                    String.format(java.util.Locale.ROOT, "%.2f", director$maxHandoffMs));
+            director$lastHandoffLog = now;
+            director$handoffRebuilds = 0;
+            director$maxHandoffMs = 0;
+        }
     }
 
 
