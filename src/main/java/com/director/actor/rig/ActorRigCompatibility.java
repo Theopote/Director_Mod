@@ -27,9 +27,17 @@ public final class ActorRigCompatibility {
         return family(type) == Family.HUMANOID && (HumanoidRig.DEFINITION.id().equals(rigId)
                 || type == ActorType.PLAYER && com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION.id().equals(rigId));
     }
-    /** Instance-aware: CUSTOM actors resolve their own bound rig instead of the built-in humanoid. */
+    /**
+     * Instance-aware check. CUSTOM actors must match their bound rig;
+     * built-in types reuse {@link #accepts(ActorType, String)} so PLAYER still accepts
+     * both {@code director:humanoid} and {@code director:articulated_player}.
+     */
     public static boolean accepts(Actor actor, String rigId) {
-        return resolveRig(actor).map(rig -> rig.id().equals(rigId)).orElse(false);
+        if (actor == null) return false;
+        if (actor.getType() == ActorType.CUSTOM) {
+            return resolveRig(actor).map(rig -> rig.id().equals(rigId)).orElse(false);
+        }
+        return accepts(actor.getType(), rigId);
     }
     /** Rig this actor can currently author/play keyframe animation against, if any. */
     public static Optional<RigDefinition> resolveRig(Actor actor) {

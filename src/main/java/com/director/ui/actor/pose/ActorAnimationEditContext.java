@@ -66,7 +66,6 @@ public record ActorAnimationEditContext(TimelineModel model, UUID actorId, Timel
                 && asset.duration() == duration && asset.loopMode() == loopMode
                 && AnimationAssetLibrary.getInstance().find(asset.id()).orElse(null) == asset
                 && ActorRegistryManager.getInstance().getActor(actorId)
-                    .flatMap(ActorRigCompatibility::resolveRig)
-                    .map(rig -> rig.id().equals(asset.rigId())).orElse(false);
+                    .map(actor -> ActorRigCompatibility.accepts(actor, asset.rigId())).orElse(false);
     }
 }

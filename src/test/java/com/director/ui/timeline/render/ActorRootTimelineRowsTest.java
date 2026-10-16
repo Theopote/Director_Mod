@@ -6,7 +6,7 @@ import com.director.timeline.model.entity.EntitySpawnClip;
 import com.director.timeline.model.entity.EntityTransformClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.entity.EntityClipKeyframe;
-import com.director.actor.rig.skeleton.HumanoidRig;
+import com.director.actor.rig.skeleton.ArticulatedPlayerRig;
 import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,7 +24,8 @@ class ActorRootTimelineRowsTest {
         var layout = rows.prepare(model, 30, 4);
         assertTrue(rows.supports(a)); assertTrue(rows.supports(b));
         assertEquals(30 + 4 + 3 * 24, layout.trackTop(1));
-        assertEquals(2 * 30 + 4 + (6 + HumanoidRig.DEFINITION.boneCount()) * 24, layout.totalHeight());
+        // Cow has root rows only; Player expands ArticulatedPlayerRig bone channels.
+        assertEquals(2 * 30 + 4 + (6 + ArticulatedPlayerRig.DEFINITION.boneCount()) * 24, layout.totalHeight());
         assertEquals(2, model.getAllTracks().size());
         rows.setExpanded(a, false);
         assertEquals(34, rows.prepare(model, 30, 4).trackTop(1));

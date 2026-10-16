@@ -1,5 +1,7 @@
 package com.director.actor.skin;
 
+import com.director.util.WorldIdentifier;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -9,6 +11,12 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorSkinStorageTest {
+
+    @AfterEach
+    void cleanup() {
+        WorldIdentifier.overrideWorldSavePathForTesting(null);
+        WorldIdentifier.clearCache();
+    }
 
     @Test
     void relativeFileNameUsesActorId() {
@@ -22,22 +30,15 @@ class ActorSkinStorageTest {
     @Test
     void importSkinWritesIntoSkinsDirectory() throws Exception {
         UUID id = UUID.randomUUID();
-
         Path tmpRoot = Files.createTempDirectory("director-skin-test");
-        Path director = tmpRoot.resolve("director");
-        Files.createDirectories(director);
-        Path saves = Path.of("saves");
-        Files.createDirectories(saves);
-        Path link = saves.resolve(tmpRoot.getFileName());
-        if (!Files.exists(link)) {
-            Files.createDirectories(link);
-        }
+        WorldIdentifier.overrideWorldSavePathForTesting(tmpRoot);
 
         Path src = tmpRoot.resolve("source.png");
         Files.write(src, new byte[]{0, 1, 2});
 
         String rel = ActorSkinStorage.importSkin(src, id);
         assertNotNull(rel);
+        assertEquals(ActorSkinStorage.getRelativeSkinFileName(id), rel);
 
         Path dest = ActorSkinStorage.getSkinFile(id);
         assertNotNull(dest);
@@ -45,4 +46,3 @@ class ActorSkinStorageTest {
         assertTrue(Files.exists(dest));
     }
 }
-

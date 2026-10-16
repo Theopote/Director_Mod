@@ -1,10 +1,12 @@
 package com.director.ui.properties.adapters;
 
+import com.director.client.gizmo.GizmoMode;
 import com.director.core.DirectorServices;
 import com.director.actor.Actor;
 import com.director.actor.ActorRegistryManager;
 import com.director.actor.action.ActorActionType;
 import com.director.actor.rig.ActorRigProfile;
+import com.director.ui.actor.gizmo.ActorGizmoController;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyContext;
@@ -150,7 +152,10 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         } else if (Objects.equals(tool.id(), ToolRegistry.ACTOR_PATH_TOOL_ID)) {
             renderActorPathToolProperties(actor);
         } else if (ToolRegistry.isActorTransformGizmoToolId(tool.id())) {
-            if (Objects.equals(tool.id(),ToolRegistry.ACTOR_LOOK_AT_TOOL_ID)) renderLookAtAuthoring(actor);
+            // Look-at is a gizmo mode on actor_select (legacy tool id maps via deprecatedActorGizmoMode).
+            var mode = ToolRegistry.deprecatedActorGizmoMode(tool.id());
+            if (mode == null) mode = ActorGizmoController.getInstance().getPreferredMode();
+            if (mode == GizmoMode.LOOK_AT) renderLookAtAuthoring(actor);
             if (actor != null) {
                 ActorLiveTransformPropertyUI.render(actor.getActorId());
             } else {

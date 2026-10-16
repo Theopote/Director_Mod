@@ -33,8 +33,10 @@ class ActorRouteFootContactTest {
                 new org.joml.Quaternionf().rotateX((float)Math.PI/2),new Vector3f(2)),RigPose.ROTATION|RigPose.SCALE);
         var sole=ActorRouteFootContact.solePosition(pose,HumanoidRig.LEFT_LEG);
         assertEquals(.125f,sole.x,1e-5f);
-        assertEquals(.375f,sole.y,1e-5f);
-        assertEquals(-.75f,sole.z,1e-5f);
+        var meshFoot=new LimbBendTransform(new org.joml.Quaternionf().rotateX((float)Math.PI/2),new Vector3f(2))
+                .map(new Vector3f(0,6,0)).mul(1f/16);
+        assertEquals(.375f-meshFoot.y,sole.y,1e-5f);
+        assertEquals(-meshFoot.z,sole.z,1e-5f);
     }
     @Test void articulatedStanceCorrectionRunsAndKeepsJointRotation() {
         var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);

@@ -18,6 +18,6 @@ final class ActorJointBend {
         if (!Float.isFinite(bendDegrees)) throw new IllegalArgumentException("Invalid bend angle");
         float bounded = Math.max(0f, Math.min(160f,bendDegrees));
         rotation[0] = bounded == 0f ? 0f : direction(id)*bounded;
-        // Preserve yaw and twist authored through the advanced three-axis editor.
+        rotation[2]=0; // The lower limb has bend X and turn Y, not a third roll channel.
     }
 }

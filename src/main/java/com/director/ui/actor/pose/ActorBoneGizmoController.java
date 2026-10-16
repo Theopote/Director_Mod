@@ -124,10 +124,28 @@ public final class ActorBoneGizmoController {
         Vec3d pivot = new Vec3d(p.x, p.y, p.z);
         configureGizmo(pivot, desiredMode);
         if (!dragging) GizmoManager.get().setRotationRadiusScale(.45);
+        if(!dragging && desiredMode==GizmoMode.ROTATE) {
+            var gm=GizmoManager.get(); var controller=gm.getController();
+            if(controller!=null) {
+                boolean lower=com.director.actor.rig.skeleton.LimbBendTransform.isJoint(boneId);
+                int count=lower?2:3;
+                if(controller.getRotationHandles().size()!=count) {
+                    gm.ensureRotationHandlesForTransform();
+                    if(lower) controller.setRotationHandles(controller.getRotationHandles().stream().filter(h->h.getAxis()!=Axis.Z).toList());
+                }
+            }
+        }
         if (!dragging && GizmoManager.get().getContext()!=null) {
             int index=worldPose.rig().requireBoneIndex(boneId);
             int frame=desiredMode==GizmoMode.TRANSLATE ? worldPose.rig().bone(index).parentIndex() : index;
             var basis=frame>=0 ? worldPose.transform(frame) : worldPose.transform(index);
+            if(desiredMode==GizmoMode.ROTATE && com.director.actor.rig.skeleton.LimbBendTransform.isJoint(boneId)) {
+                int parent=worldPose.rig().bone(index).parentIndex();
+                if(parent>=0 && ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview) {
+                    var pose=preview.getFinalRigPose();
+                    if(pose!=null) basis=worldPose.transform(parent).rotateY(com.director.actor.rig.skeleton.LimbBendTransform.angles(pose.localTransform(boneId).rotation()).y);
+                }
+            }
             GizmoManager.get().getContext().setOrientation(basis.getUnnormalizedRotation(new org.joml.Quaternionf()));
         }
     }
@@ -463,7 +481,13 @@ public final class ActorBoneGizmoController {
 
     private void updateAnimationGesture(Axis axis, float angleRadians) {
         if (!dragging || editingBoneTrack == null || animationBaseRotation == null) return;
-        Quaternionf value = rotate(new Quaternionf(animationBaseRotation), axis, angleRadians);
+        Quaternionf value;
+        if(com.director.actor.rig.skeleton.LimbBendTransform.isJoint(boneId)) {
+            if(axis==Axis.Z) return;
+            var angles=com.director.actor.rig.skeleton.LimbBendTransform.angles(animationBaseRotation);
+            value=new Quaternionf().rotateY(angles.y+(axis==Axis.Y?angleRadians:0)).rotateX(angles.x+(axis==Axis.X?angleRadians:0));
+            value=new com.director.actor.rig.skeleton.LimbBendTransform(value,new Vector3f(1)).rotation();
+        } else value = rotate(new Quaternionf(animationBaseRotation), axis, angleRadians);
         editingBoneTrack.rotation().put(animationKeyTime, value,
                 gestureInterpolation);
         applyLiveRigPreview(value);

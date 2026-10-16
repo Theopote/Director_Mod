@@ -168,6 +168,14 @@ public class WorldIdentifier {
         cachedWorldSavePath = null;
         LOGGER.debug("[WorldIdentifier] 世界标识缓存已清除");
     }
+
+    /**
+     * Test-only override when no Minecraft client is available.
+     * Pass {@code null} to clear.
+     */
+    public static void overrideWorldSavePathForTesting(Path path) {
+        cachedWorldSavePath = path == null ? null : path.toAbsolutePath().normalize();
+    }
     
     /**
      * 检查是否切换了存档（基于存档名称，而不是维度）
@@ -207,57 +215,53 @@ public class WorldIdentifier {
     public static Path getWorldSavePath() {
         try {
             MinecraftClient client = MinecraftClient.getInstance();
-            if (client == null) {
-                return null;
-            }
-
-            // 优先：直接询问当前单机服务器的真实存档根目录（最可靠）。
-            if (client.getServer() != null) {
-                try {
-                    Path serverSavePath = client.getServer().getSavePath(WorldSavePath.ROOT);
-                    if (serverSavePath != null && Files.exists(serverSavePath)) {
-                        cachedWorldSavePath = serverSavePath.toAbsolutePath().normalize();
-                        return cachedWorldSavePath;
+            if (client != null) {
+                // 优先：直接询问当前单机服务器的真实存档根目录（最可靠）。
+                if (client.getServer() != null) {
+                    try {
+                        Path serverSavePath = client.getServer().getSavePath(WorldSavePath.ROOT);
+                        if (serverSavePath != null && Files.exists(serverSavePath)) {
+                            cachedWorldSavePath = serverSavePath.toAbsolutePath().normalize();
+                            return cachedWorldSavePath;
+                        }
+                    } catch (Exception e) {
+                        LOGGER.debug("[WorldIdentifier] 通过服务器API获取存档路径失败，回退到目录扫描: {}", e.getMessage());
                     }
-                } catch (Exception e) {
-                    LOGGER.debug("[WorldIdentifier] 通过服务器API获取存档路径失败，回退到目录扫描: {}", e.getMessage());
-                }
-            }
-            
-            // 尝试从运行目录获取
-            Path runDir = Paths.get(".");
-            Path savesDir = runDir.resolve("saves");
-            
-            if (savesDir.toFile().exists()) {
-                String levelName = null;
-                if (client.getServer() != null && client.getServer().getSaveProperties() != null) {
-                    levelName = client.getServer().getSaveProperties().getLevelName();
                 }
 
-                if (levelName != null && !levelName.isEmpty()) {
-                    String expectedSanitized = sanitizeWorldName(levelName);
-                    // 尝试查找对应的世界目录
-                    java.io.File[] saves = savesDir.toFile().listFiles();
-                    if (saves != null) {
-                        for (java.io.File save : saves) {
-                            if (!save.isDirectory()) {
-                                continue;
-                            }
-                            String dirName = save.getName();
-                            if (dirName.equals(levelName) || sanitizeWorldName(dirName).equals(expectedSanitized)) {
-                                cachedWorldSavePath = save.toPath().toAbsolutePath().normalize();
-                                return cachedWorldSavePath;
+                // 尝试从运行目录获取
+                Path runDir = Paths.get(".");
+                Path savesDir = runDir.resolve("saves");
+
+                if (savesDir.toFile().exists()) {
+                    String levelName = null;
+                    if (client.getServer() != null && client.getServer().getSaveProperties() != null) {
+                        levelName = client.getServer().getSaveProperties().getLevelName();
+                    }
+
+                    if (levelName != null && !levelName.isEmpty()) {
+                        String expectedSanitized = sanitizeWorldName(levelName);
+                        java.io.File[] saves = savesDir.toFile().listFiles();
+                        if (saves != null) {
+                            for (java.io.File save : saves) {
+                                if (!save.isDirectory()) {
+                                    continue;
+                                }
+                                String dirName = save.getName();
+                                if (dirName.equals(levelName) || sanitizeWorldName(dirName).equals(expectedSanitized)) {
+                                    cachedWorldSavePath = save.toPath().toAbsolutePath().normalize();
+                                    return cachedWorldSavePath;
+                                }
                             }
                         }
                     }
                 }
             }
-            
         } catch (Exception e) {
             LOGGER.warn("[WorldIdentifier] 获取世界保存路径失败: {}", e.getMessage());
         }
 
-        // 关闭阶段客户端状态可能已释放；回退到最近一次成功解析的路径。
+        // 关闭阶段 / 单元测试：回退到最近一次成功解析或测试注入的路径。
         if (cachedWorldSavePath != null && Files.exists(cachedWorldSavePath)) {
             return cachedWorldSavePath;
         }

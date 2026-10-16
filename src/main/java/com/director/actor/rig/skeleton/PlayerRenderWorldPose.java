@@ -36,7 +36,13 @@ public final class PlayerRenderWorldPose {
             };
             boolean root=HumanoidRig.ROOT.equals(id);
             Matrix4f parent=bone.parentIndex()>0?result[bone.parentIndex()]:new Matrix4f();
-            result[i]=root?new Matrix4f():new Matrix4f(parent).translate(origin.add(delta)).rotate(value.rotation()).scale(value.scale());
+            result[i]=root?new Matrix4f():new Matrix4f(parent).translate(origin.add(delta));
+            if(!root) {
+                if(LimbBendTransform.isJoint(id)) {
+                    var bend=new LimbBendTransform(value.rotation(),value.scale());
+                    result[i].translate(bend.lowerOffset().div(16)).rotate(bend.rotation()).scale(value.scale());
+                } else result[i].rotate(value.rotation()).scale(value.scale());
+            }
         }
         return result;
     }

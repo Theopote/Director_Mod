@@ -36,8 +36,8 @@ public final class PlayerJointModel {
         boolean active=pose!=null && pose.rig().findBoneIndex(joint)>=0
                 && pose.isAuthored(pose.rig().requireBoneIndex(joint));
         part.hidden=active;
-        part.getChild(UPPER).visible=active;
-        var lower=part.getChild(LOWER); lower.visible=active;
+        part.getChild(UPPER).visible=false;
+        var lower=part.getChild(LOWER); lower.visible=false;
         var connector=part.getChild(CONNECTOR); connector.visible=active;
         if(active) {
             var value=pose.localTransform(joint);

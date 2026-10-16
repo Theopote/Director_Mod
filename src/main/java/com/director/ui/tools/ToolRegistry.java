@@ -49,19 +49,6 @@ public final class ToolRegistry {
     private static final String LEGACY_ACTOR_SCALE_ID = "actor_scale";
     private static final String LEGACY_ACTOR_LOOK_AT_ID = "actor_look_at";
 
-    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID} */
-    @Deprecated
-    public static final String ACTOR_MOVE_TOOL_ID = LEGACY_ACTOR_MOVE_ID;
-    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID} */
-    @Deprecated
-    public static final String ACTOR_ROTATE_TOOL_ID = LEGACY_ACTOR_ROTATE_ID;
-    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID} */
-    @Deprecated
-    public static final String ACTOR_SCALE_TOOL_ID = LEGACY_ACTOR_SCALE_ID;
-    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID} */
-    @Deprecated
-    public static final String ACTOR_LOOK_AT_TOOL_ID = LEGACY_ACTOR_LOOK_AT_ID;
-
     private final List<EditorTool> selectionTools = new ArrayList<>();
     private final List<EditorTool> extraTools = new ArrayList<>();
     private volatile boolean initialized = false;

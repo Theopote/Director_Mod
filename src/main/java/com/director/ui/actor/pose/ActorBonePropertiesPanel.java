@@ -149,10 +149,11 @@ public final class ActorBonePropertiesPanel {
                 ActorJointBend.set(boneId, 0f, draft.rotation);
                 changed |= RigPose.ROTATION;
             }
-            if (ImGui.treeNode("高级：三轴旋转##jointAdvanced")) {
-                if (ImGui.inputFloat3("旋转 XYZ（度）##boneR", draft.rotation, "%.2f")) changed |= RigPose.ROTATION;
-                ImGui.treePop();
+            float[] twist={draft.rotation[1]};
+            if (ImGui.sliderFloat("转向 Y（度）##jointTwist",twist,-90f,90f,"%.1f")) {
+                draft.rotation[1]=twist[0]; draft.rotation[2]=0; changed |= RigPose.ROTATION;
             }
+            ImGui.textDisabled("下段仅开放弯曲 X 与转向 Y，避免第三轴引起关节翻折。");
         } else if (bone.capabilities().rotation() && !(HumanoidTopology.matches(asset.rig()) && HumanoidRig.ROOT.equals(boneId))
                 && ImGui.inputFloat3("旋转 XYZ（度）##boneR", draft.rotation, "%.2f")) changed |= RigPose.ROTATION;
         if (bone.capabilities().scale() && ImGui.inputFloat3("缩放 XYZ##boneS", draft.scale, "%.3f")) changed |= RigPose.SCALE;

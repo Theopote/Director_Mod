@@ -124,6 +124,11 @@ public final class RigPose {
             return cache[index];
         }
         Matrix4f local = localTransforms[index].toMatrix();
+        if(rig.id().equals(ArticulatedPlayerRig.DEFINITION.id()) && LimbBendTransform.isJoint(rig.bone(index).id())) {
+            var value=localTransforms[index]; var bend=new LimbBendTransform(value.rotation(),value.scale());
+            var offset=bend.lowerOffset().mul(1f/16); offset.y=-offset.y; offset.z=-offset.z;
+            local=new Matrix4f().translate(value.translation().add(offset)).rotate(bend.rotation()).scale(value.scale());
+        }
         int parent = rig.bone(index).parentIndex();
         cache[index] = parent == -1
                 ? local

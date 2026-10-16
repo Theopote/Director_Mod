@@ -46,9 +46,10 @@ class ActorMotionSamplingTest {
         assertTrue(sample.copy().actionExplicit);
         assertEquals(1f, sample.copy().actionLocalTime);
         assertFalse(sampler.sampleAt(7f).actionExplicit);
-        assertEquals(ActorActionType.RUN, sampler.sampleAt(7f).action);
+        // 10 blocks / 10s = 1.0 units/s → WALK (RUN_THRESHOLD is 4.0)
+        assertEquals(ActorActionType.WALK, sampler.sampleAt(7f).action);
         idle.setMuted(true);
-        assertEquals(ActorActionType.RUN, sampler.sampleAt(5f).action);
+        assertEquals(ActorActionType.WALK, sampler.sampleAt(5f).action);
     }
 
     @Test void smoothSpeedUsesCurveDerivativeAndStepDoesNotInventLocomotion() {
@@ -112,7 +113,9 @@ class ActorMotionSamplingTest {
         assertEquals(2f, sampler.sampleAt(2f).speed);
         route.setLoopMode(ActorRouteClip.LoopMode.PING_PONG);
         assertEquals(180f, Math.abs(sampler.sampleAt(3f).rotation.x), 1e-5f);
+        // ONCE fits the path into the full clip length (4 / 20 = 0.2), not constant route speed.
         route.setLoopMode(ActorRouteClip.LoopMode.ONCE);
-        assertEquals(0f, sampler.sampleAt(3f).speed);
+        assertEquals(0.2f, sampler.sampleAt(3f).speed, 1e-5f);
+        assertEquals(0f, sampler.sampleAt(20f).speed);
     }
 }
