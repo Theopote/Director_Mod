@@ -37,4 +37,19 @@ class PlayerRenderWorldPoseTest {
         assertFalse(after[arm].getTranslation(new Vector3f()).equals(before[arm].getTranslation(new Vector3f()),1e-5f));
         assertTrue(after[head].getUnnormalizedRotation(new Quaternionf()).equals(new Quaternionf(rotation).rotateX(.3f),1e-5f));
     }
+    @Test void bothModesKeepRenderedHandsAndFeetOnTheDeformedSurface() {
+        for(var mode:LimbBendMode.values()) for(String joint:new String[]{ArticulatedPlayerRig.LEFT_FOREARM,ArticulatedPlayerRig.RIGHT_SHIN}) {
+            var pose=new RigPose(ArticulatedPlayerRig.DEFINITION); pose.setLimbBendMode(mode);
+            var q=new Quaternionf().rotateY(.8f).rotateX((float)java.lang.Math.toRadians(160));
+            var scale=new Vector3f(1.2f,.8f,1.1f);
+            pose.setLocalTransform(joint,new BoneTransform(pose.localTransform(joint).translation(),q,scale));
+            int index=pose.rig().requireBoneIndex(joint),parent=pose.rig().bone(index).parentIndex();
+            var matrices=PlayerRenderWorldPose.modelTransforms(pose);
+            float pivot=joint.equals(ArticulatedPlayerRig.LEFT_FOREARM)?4:6;
+            var meshEnd=new LimbBendTransform(q,scale,mode).map(new Vector3f(0,6,0)).add(0,pivot,0).div(16);
+            var expected=matrices[parent].transformPosition(meshEnd);
+            var actual=matrices[index].transformPosition(new Vector3f(0,6f/16,0));
+            assertTrue(expected.equals(actual,1e-5f),"Rendered end/socket mismatch in "+mode);
+        }
+    }
 }

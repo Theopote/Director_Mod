@@ -700,7 +700,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 ActorRegistryManager.save();
                 modified=true;
             }
-            ImGui.textWrapped("两种模式共用关节关键帧。直接折弯保留清晰折角，显示角度限制为 110°，避免方形肢体内侧穿插。");
+            ImGui.textWrapped("两种模式共用关节关键帧，支持 0–160°。直接折弯保留刚性上下段，用局部折面连接；大角度时关节会适当向外撑开，避免内侧翻面。");
         }
 
         String current = actor.getSkinFileName();

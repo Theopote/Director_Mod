@@ -9,14 +9,14 @@ import java.util.*;
 public final class PlayerJointSeam {
     private static final Map<ModelPart,State> STATES=new WeakHashMap<>();
     private static final class State {
-        final ModelPart.Cuboid template; final float pivot;
+        final ContinuousLimbMesh.Template template;
         Quaternionf rotation; Vector3f scale;
         com.director.actor.rig.skeleton.LimbBendMode mode;
         List<ContinuousLimbMesh.Vertex[]> mesh=List.of();
         State(ModelPart parent,ModelPart lower) {
             List<ModelPart.Cuboid> cubes=new ArrayList<>();
             parent.forEachCuboid(new MatrixStack(),(entry,path,index,cube)->cubes.add(cube));
-            template=cubes.getFirst(); pivot=lower.originY;
+            template=ContinuousLimbMesh.prepare(cubes.getFirst(),lower.originY);
         }
     }
     private PlayerJointSeam() {}
@@ -27,7 +27,7 @@ public final class PlayerJointSeam {
                               com.director.actor.rig.skeleton.LimbBendMode mode) {
         var state=STATES.computeIfAbsent(surface,key->new State(parent,lower));
         if(state.mode==mode && state.rotation!=null && state.rotation.equals(rotation,1e-6f) && state.scale.equals(scale,1e-6f)) return;
-        state.mesh=ContinuousLimbMesh.build(state.template,state.pivot,rotation,scale,mode);
+        state.mesh=ContinuousLimbMesh.deform(state.template,rotation,scale,mode);
         state.mode=mode;
         state.rotation=new Quaternionf(rotation); state.scale=new Vector3f(scale);
     }

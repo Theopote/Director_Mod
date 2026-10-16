@@ -1,50 +1,89 @@
 package com.director.actor.preview;
+
+import com.director.actor.rig.skeleton.LimbBendMode;
 import com.director.actor.rig.skeleton.LimbBendTransform;
 import net.minecraft.client.model.ModelPart;
-import org.joml.*;
-import java.util.*;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.TreeSet;
 
-/** Fixed topology and original UVs, evaluated from rest vertices on every pose change. */
+/** Rest topology/UVs are prepared once; pose evaluation only deforms the cached surface. */
 public final class ContinuousLimbMesh {
-    public record Vertex(Vector3f position,Vector3f normal,float u,float v) {}
-    private ContinuousLimbMesh() {}
-    public static List<Vertex[]> build(ModelPart.Cuboid template,float pivot,Quaternionf rotation,Vector3f scale) {
-        return build(template,pivot,rotation,scale,com.director.actor.rig.skeleton.LimbBendMode.SMOOTH);
+    public record Vertex(Vector3f position, Vector3f normal, float u, float v) {}
+    private record RestVertex(Vector3f position, float u, float v) {}
+    private record RestQuad(RestVertex[] vertices, Vector3f e1, Vector3f e2, float sign) {}
+    public static final class Template {
+        private final List<RestQuad> quads;
+        private Template(List<RestQuad> quads) { this.quads = List.copyOf(quads); }
     }
-    public static List<Vertex[]> build(ModelPart.Cuboid template,float pivot,Quaternionf rotation,Vector3f scale,
-                                      com.director.actor.rig.skeleton.LimbBendMode mode) {
-        var bend=new LimbBendTransform(rotation,scale,mode);
-        List<Vertex[]> result=new ArrayList<>();
-        for(var face:template.sides) {
-            var a=face.vertices()[0]; var b=face.vertices()[1]; var c=face.vertices()[2]; var d=face.vertices()[3];
-            int slices=java.lang.Math.abs(d.y()-a.y())>.001f?48:1;
+    private ContinuousLimbMesh() {}
+
+    public static Template prepare(ModelPart.Cuboid cuboid, float pivot) {
+        List<RestQuad> quads = new ArrayList<>();
+        for (var face : cuboid.sides) {
+            var a=face.vertices()[0]; var b=face.vertices()[1];
+            var c=face.vertices()[2]; var d=face.vertices()[3];
+            boolean side=java.lang.Math.abs(d.y()-a.y())>.001f;
             var e1=new Vector3f(b.x()-a.x(),b.y()-a.y(),b.z()-a.z()).normalize();
             var e2=new Vector3f(d.x()-a.x(),d.y()-a.y(),d.z()-a.z()).normalize();
             float sign=new Vector3f(e1).cross(e2).dot(face.direction())<0?-1:1;
-            for(int i=0;i<slices;i++) {
-                float t0=(float)i/slices,t1=(float)(i+1)/slices;
-                int start=result.size();
-                result.add(new Vertex[]{vertex(a,d,t0,pivot,bend,e1,e2,sign),vertex(b,c,t0,pivot,bend,e1,e2,sign),
-                        vertex(b,c,t1,pivot,bend,e1,e2,sign),vertex(a,d,t1,pivot,bend,e1,e2,sign)});
-                if(mode==com.director.actor.rig.skeleton.LimbBendMode.SHARP) {
-                    var quad=result.get(start);
-                    var normal=new Vector3f(quad[1].position()).sub(quad[0].position())
-                            .cross(new Vector3f(quad[3].position()).sub(quad[0].position())).mul(sign).normalize();
-                    for(int j=0;j<4;j++) quad[j]=new Vertex(quad[j].position(),new Vector3f(normal),quad[j].u(),quad[j].v());
+            var cuts=new TreeSet<Float>(); cuts.add(0f); cuts.add(1f);
+            if(side) {
+                for(int i=1;i<48;i++) cuts.add((float)i/48);
+                // Exact boundaries prevent quads straddling a hard crease, including dilated sleeves.
+                for(float y:new float[]{-LimbBendTransform.SHARP_HALF,0,LimbBendTransform.SHARP_HALF}) {
+                    float t=(y+pivot-a.y())/(d.y()-a.y());
+                    if(t>0 && t<1 && cuts.stream().noneMatch(v->java.lang.Math.abs(v-t)<1e-6f)) cuts.add(t);
                 }
             }
+            var points=new ArrayList<>(cuts);
+            for(int i=0;i<points.size()-1;i++) {
+                float t0=points.get(i),t1=points.get(i+1);
+                quads.add(new RestQuad(new RestVertex[]{rest(a,d,t0,pivot),rest(b,c,t0,pivot),
+                        rest(b,c,t1,pivot),rest(a,d,t1,pivot)},e1,e2,sign));
+            }
+        }
+        return new Template(quads);
+    }
+    private static RestVertex rest(ModelPart.Vertex a,ModelPart.Vertex b,float t,float pivot) {
+        return new RestVertex(new Vector3f(a.x(),a.y()-pivot,a.z()).lerp(
+                new Vector3f(b.x(),b.y()-pivot,b.z()),t),a.u()+(b.u()-a.u())*t,a.v()+(b.v()-a.v())*t);
+    }
+    public static List<Vertex[]> build(ModelPart.Cuboid cuboid,float pivot,Quaternionf rotation,Vector3f scale) {
+        return build(cuboid,pivot,rotation,scale,LimbBendMode.SMOOTH);
+    }
+    public static List<Vertex[]> build(ModelPart.Cuboid cuboid,float pivot,Quaternionf rotation,Vector3f scale,LimbBendMode mode) {
+        return deform(prepare(cuboid,pivot),rotation,scale,mode);
+    }
+    public static List<Vertex[]> deform(Template template,Quaternionf rotation,Vector3f scale,LimbBendMode mode) {
+        var bend=new LimbBendTransform(rotation,scale,mode);
+        List<Vertex[]> result=new ArrayList<>(template.quads.size());
+        for(var face:template.quads) {
+            var vertices=new Vertex[4];
+            for(int i=0;i<4;i++) {
+                var rest=face.vertices[i];
+                vertices[i]=new Vertex(bend.map(rest.position),mode==LimbBendMode.SMOOTH
+                        ?normal(rest.position,bend,face):new Vector3f(),rest.u,rest.v);
+            }
+            if(mode==LimbBendMode.SHARP) {
+                var n=new Vector3f(vertices[1].position).sub(vertices[0].position)
+                        .cross(new Vector3f(vertices[3].position).sub(vertices[0].position)).mul(face.sign);
+                if(n.lengthSquared()<1e-12f) n.set(face.e1).cross(face.e2).mul(face.sign);
+                n.normalize();
+                for(int i=0;i<4;i++) vertices[i]=new Vertex(vertices[i].position,new Vector3f(n),vertices[i].u,vertices[i].v);
+            }
+            result.add(vertices);
         }
         return result;
     }
-    private static Vertex vertex(ModelPart.Vertex a,ModelPart.Vertex b,float t,float pivot,LimbBendTransform bend,
-                                 Vector3f e1,Vector3f e2,float sign) {
-        var p=new Vector3f(a.x(),a.y()-pivot,a.z()).lerp(new Vector3f(b.x(),b.y()-pivot,b.z()),t);
+    private static Vector3f normal(Vector3f p,LimbBendTransform bend,RestQuad face) {
         float h=.001f;
-        var tangent1=bend.map(new Vector3f(p).fma(h,e1)).sub(bend.map(new Vector3f(p).fma(-h,e1)));
-        var tangent2=bend.map(new Vector3f(p).fma(h,e2)).sub(bend.map(new Vector3f(p).fma(-h,e2)));
-        var n=tangent1.cross(tangent2).mul(sign);
-        if(n.lengthSquared()<1e-12f) n=new Vector3f(e1).cross(e2).mul(sign);
-        n.normalize();
-        return new Vertex(bend.map(p),n,a.u()+(b.u()-a.u())*t,a.v()+(b.v()-a.v())*t);
+        var a=bend.map(new Vector3f(p).fma(h,face.e1)).sub(bend.map(new Vector3f(p).fma(-h,face.e1)));
+        var b=bend.map(new Vector3f(p).fma(h,face.e2)).sub(bend.map(new Vector3f(p).fma(-h,face.e2)));
+        var n=a.cross(b).mul(face.sign);
+        if(n.lengthSquared()<1e-12f) n.set(face.e1).cross(face.e2).mul(face.sign);
+        return n.normalize();
     }
 }

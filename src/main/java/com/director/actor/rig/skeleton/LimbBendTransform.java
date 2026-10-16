@@ -3,7 +3,10 @@ import org.joml.*;
 
 /** Continuous elbow/knee bend in pixel model space. X bends, Y selects the bend plane without twisting the skin. */
 public final class LimbBendTransform {
+    public static final float SHARP_HALF = 1.5f;
     private final float angle,twist,half;
+    private final Quaternionf swing;
+    private final Matrix4f lower;
     private final Vector3f scale;
     private final LimbBendMode mode;
     public LimbBendTransform(Quaternionf rotation,Vector3f scale) {
@@ -12,11 +15,12 @@ public final class LimbBendTransform {
     public LimbBendTransform(Quaternionf rotation,Vector3f scale,LimbBendMode mode) {
         this.mode=java.util.Objects.requireNonNull(mode);
         var angles=angles(rotation);
-        // A square miter must not reach the far end of either six-pixel segment.
-        float limit=(float)java.lang.Math.toRadians(mode==LimbBendMode.SHARP?110:160);
+        float limit=(float)java.lang.Math.toRadians(160);
         angle=clamp(angles.x,-limit,limit); twist=angles.y;
         half=java.lang.Math.max(2,java.lang.Math.abs(angle)*2.1f);
         this.scale=new Vector3f(scale);
+        swing=new Quaternionf().rotateY(twist).rotateX(angle).rotateY(-twist);
+        lower=createLowerFrame();
     }
     /** Two-axis Y*X decomposition without the 90-degree Euler branch flip. */
     public static Vector2f angles(Quaternionf rotation) {
@@ -37,12 +41,12 @@ public final class LimbBendTransform {
         var a=angles(new Quaternionf().rotateY(direction).rotateX(bend));
         return new Quaternionf().rotateY(a.y).rotateX(a.x);
     }
-    public Quaternionf rotation() { return new Quaternionf().rotateY(twist).rotateX(angle).rotateY(-twist); }
+    public Quaternionf rotation() { return new Quaternionf(swing); }
     public Vector3f map(Vector3f rest) {
         if(mode==LimbBendMode.SHARP) return sharp(rest);
         float y=rest.y;
         if(y<=-half) return new Vector3f(rest);
-        if(y>=half) return lowerFrame().transformPosition(new Vector3f(rest));
+        if(y>=half) return lower.transformPosition(new Vector3f(rest));
         float u=(y+half)/(2*half);
         var center=center(u);
         float smooth=u*u*(3-2*u);
@@ -50,18 +54,32 @@ public final class LimbBendTransform {
         var cross=new Vector3f(rest.x*(1+(scale.x-1)*smooth),0,rest.z*(1+(scale.z-1)*smooth));
         return frame.transform(cross).add(center);
     }
-    /** Shared miter ring: each half is straight, with no rounded transition or cut-face overlap. */
+    /** A short ruled bevel connects rigid ends, without a rounded transition or an unbounded miter. */
     private Vector3f sharp(Vector3f rest) {
-        var cross=new Quaternionf().rotateY(-twist).transform(new Vector3f(rest.x,0,rest.z));
-        cross.y=-(float)java.lang.Math.tan(angle*.5f)*cross.z;
-        var seam=new Quaternionf().rotateY(twist).transform(cross);
-        // Scaling a lower half changes its profile; meet the same ring from both sides.
-        seam.x*=.5f*(1+scale.x); seam.z*=.5f*(1+scale.z);
-        var onCut=new Vector3f(rest.x,0,rest.z);
-        if(rest.y<=0) return new Vector3f(rest).fma(clamp(1+rest.y/6,0,1),seam.sub(onCut));
-        var frame=lowerFrame();
-        return frame.transformPosition(new Vector3f(rest))
-                .fma(clamp(1-rest.y/6,0,1),seam.sub(frame.transformPosition(onCut)));
+        if(rest.y<=-SHARP_HALF) return new Vector3f(rest);
+        if(rest.y>=SHARP_HALF) return lower.transformPosition(new Vector3f(rest));
+        float u=(rest.y+SHARP_HALF)/(2*SHARP_HALF);
+        var upper=new Vector3f(rest.x,-SHARP_HALF,rest.z);
+        var bottom=lower.transformPosition(new Vector3f(rest.x,SHARP_HALF,rest.z));
+        return upper.lerp(bottom,u);
+    }
+    /**
+     * Move the fold towards the inside support edge only when the bevel would invert.
+     * The support covers wide/slim arms, legs and their quarter-pixel clothing shell.
+     * Skin and shell deliberately share this frame, as do sockets and bone queries.
+     */
+    private Vector3f sharpOffset() {
+        float a=java.lang.Math.abs(angle),sin=(float)java.lang.Math.sin(a),cos=(float)java.lang.Math.cos(a);
+        if(a<1e-5f) return new Vector3f();
+        float x=java.lang.Math.abs((float)java.lang.Math.sin(twist))*3.25f;
+        float z=java.lang.Math.abs((float)java.lang.Math.cos(twist))*2.25f;
+        float support=x+z,scaledSupport=x*scale.x+z*scale.z;
+        // Positive longitudinal derivative at both ends of every interpolated section.
+        float required=java.lang.Math.max(scaledSupport-SHARP_HALF*(1+scale.y*cos)/sin,
+                support-SHARP_HALF*(scale.y+cos)/sin);
+        float radius=java.lang.Math.max(0,required+.2f);
+        var hinge=new Quaternionf().rotateY(twist).transform(new Vector3f(0,0,java.lang.Math.copySign(radius,angle)));
+        return new Vector3f(hinge).sub(swing.transform(new Vector3f(hinge)));
     }
     private Vector3f center(float u) {
         double a=angle,k=scale.y-1,L=2*half;
@@ -75,9 +93,10 @@ public final class LimbBendTransform {
         return new Quaternionf().rotateY(twist).transform(new Vector3f(0,(float)y,(float)z));
     }
     /** Maps the lower segment's original rest coordinates to the continuous surface. */
-    public Matrix4f lowerFrame() {
-        if(mode==LimbBendMode.SHARP) return new Matrix4f().rotate(rotation()).scale(scale);
-        return new Matrix4f().translate(center(1)).rotate(rotation()).scale(scale).translate(0,-half,0);
+    private Matrix4f createLowerFrame() {
+        if(mode==LimbBendMode.SHARP) return new Matrix4f().translate(sharpOffset()).rotate(swing).scale(scale);
+        return new Matrix4f().translate(center(1)).rotate(swing).scale(scale).translate(0,-half,0);
     }
-    public Vector3f lowerOffset() { return lowerFrame().getTranslation(new Vector3f()); }
+    public Matrix4f lowerFrame() { return new Matrix4f(lower); }
+    public Vector3f lowerOffset() { return lower.getTranslation(new Vector3f()); }
 }

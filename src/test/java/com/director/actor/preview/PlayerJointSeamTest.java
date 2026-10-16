@@ -67,6 +67,49 @@ class PlayerJointSeamTest {
             }
         }
     }
+    @Test void cachedRestTemplateNeverAccumulatesDeformationAndIncludesHardCreases() {
+        var cube=cuboid(.25f);
+        var template=ContinuousLimbMesh.prepare(cube,6);
+        var original=ContinuousLimbMesh.deform(template,new Quaternionf(),new Vector3f(1),com.director.actor.rig.skeleton.LimbBendMode.SHARP);
+        for(float crease:new float[]{-1.5f,0,1.5f})
+            assertTrue(original.stream().flatMap(java.util.Arrays::stream).anyMatch(v->java.lang.Math.abs(v.position().y-crease)<1e-5));
+        for(var mode:com.director.actor.rig.skeleton.LimbBendMode.values())
+            ContinuousLimbMesh.deform(template,new Quaternionf().rotateY(.8f).rotateX(2.7f),new Vector3f(1.2f,.8f,1.1f),mode);
+        var reset=ContinuousLimbMesh.deform(template,new Quaternionf(),new Vector3f(1),com.director.actor.rig.skeleton.LimbBendMode.SHARP);
+        for(int f=0;f<reset.size();f++) for(int i=0;i<4;i++) assertEquals(original.get(f)[i],reset.get(f)[i]);
+    }
+    @Test void largeSharpFoldsDoNotPierceNonAdjacentSurfaceTriangles() {
+        for(float direction:new float[]{-.96f,0,.96f}) for(int degrees:new int[]{-160,90,160}) {
+            var mesh=ContinuousLimbMesh.build(cuboid(.25f),6,new Quaternionf().rotateY(direction)
+                    .rotateX((float)Math.toRadians(degrees)),new Vector3f(1),com.director.actor.rig.skeleton.LimbBendMode.SHARP);
+            var triangles=new ArrayList<Vector3f[]>();
+            for(var q:mesh) {
+                triangles.add(new Vector3f[]{q[0].position(),q[1].position(),q[2].position()});
+                triangles.add(new Vector3f[]{q[0].position(),q[2].position(),q[3].position()});
+            }
+            for(int i=0;i<triangles.size();i++) for(int j=0;j<triangles.size();j++) if(i!=j) {
+                var a=triangles.get(i);var b=triangles.get(j);
+                boolean adjacent=false;
+                for(var av:a) for(var bv:b) if(av.equals(bv,1e-5f)) adjacent=true;
+                if(adjacent) continue;
+                for(int edge=0;edge<3;edge++) assertFalse(pierces(a[edge],a[(edge+1)%3],b),
+                        "Surface penetration at "+degrees+" / "+direction+" / "+i+" / "+j);
+            }
+        }
+    }
+    // Strict interior crossings; welded edges and coplanar faces are checked separately by closure tests.
+    private boolean pierces(Vector3f from,Vector3f to,Vector3f[] triangle) {
+        var dir=new Vector3f(to).sub(from);
+        var a=new Vector3f(triangle[1]).sub(triangle[0]);var b=new Vector3f(triangle[2]).sub(triangle[0]);
+        var h=new Vector3f(dir).cross(b);float det=a.dot(h);
+        if(java.lang.Math.abs(det)<1e-5f*dir.length()*new Vector3f(a).cross(b).length()) return false;
+        var s=new Vector3f(from).sub(triangle[0]);float u=s.dot(h)/det;
+        if(u<=1e-5f || u>=1-1e-5f) return false;
+        var q=s.cross(a);float v=dir.dot(q)/det;
+        if(v<=1e-5f || u+v>=1-1e-5f) return false;
+        float t=b.dot(q)/det;
+        return t>1e-5f && t<1-1e-5f;
+    }
     @Test void wholeSurfaceRendererReplacesPatchAndOriginalPieces() {
         var full=cuboid(0);
         var parent=new ModelPart(List.of(full),Map.of());

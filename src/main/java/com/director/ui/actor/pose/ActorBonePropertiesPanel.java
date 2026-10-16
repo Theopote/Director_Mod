@@ -143,7 +143,7 @@ public final class ActorBonePropertiesPanel {
                 draft.rotation[1]=(float)Math.toDegrees(angles.y);
                 draft.rotation[2]=0;
             }
-            float maxBend=actor.getLimbBendMode()==LimbBendMode.SHARP?110f:160f;
+            float maxBend=160f;
             float[] bend = {ActorJointBend.degrees(boneId, draft.rotation[0])};
             ImGui.textDisabled("局部关节弯曲；修改后点击应用并打帧。");
             if (bend[0] < 0 || bend[0] > maxBend)

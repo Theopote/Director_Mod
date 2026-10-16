@@ -487,11 +487,6 @@ public final class ActorBoneGizmoController {
             var angles=com.director.actor.rig.skeleton.LimbBendTransform.angles(animationBaseRotation);
             value=new Quaternionf().rotateY(angles.y+(axis==Axis.Y?angleRadians:0)).rotateX(angles.x+(axis==Axis.X?angleRadians:0));
             var limited=com.director.actor.rig.skeleton.LimbBendTransform.angles(value);
-            var actor=com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
-            if(actor!=null && actor.getLimbBendMode()==com.director.actor.rig.skeleton.LimbBendMode.SHARP) {
-                float max=(float)Math.toRadians(110);
-                limited.x=Math.max(-max,Math.min(max,limited.x));
-            }
             value=com.director.actor.rig.skeleton.LimbBendTransform.encodedRotation(limited.x,limited.y);
         } else value = rotate(new Quaternionf(animationBaseRotation), axis, angleRadians);
         editingBoneTrack.rotation().put(animationKeyTime, value,
