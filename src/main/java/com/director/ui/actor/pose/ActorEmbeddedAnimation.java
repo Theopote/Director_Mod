@@ -15,6 +15,16 @@ public final class ActorEmbeddedAnimation {
         for(var c:payload.getClips())if(c instanceof EntitySpawnClip spawn && spawn.getBoneAnimation()!=null)clips.add(spawn.getBoneAnimation());
         return clips;
     }
+    /** Resolve derived animation references back to the existing visible owner; never create a wrapper. */
+    public static EntityTimelineClip visibleOwner(TimelineTrack track,EntityAnimationClip animation) {
+        if(track==null || animation==null || track.getActorTrackPayload()==null) return null;
+        EntityClip owner=null;
+        for(var clip:track.getActorTrackPayload().getClips()) {
+            if(clip==animation || clip instanceof EntitySpawnClip spawn && spawn.getBoneAnimation()==animation) { owner=clip;break; }
+        }
+        var wrapper=owner==null?null:owner.getTimelineClip();
+        return wrapper!=null && wrapper.getParentTrack()==track && track.getClips().contains(wrapper)?wrapper:null;
+    }
     public static boolean bound(ActorTrack payload,EntityAnimationClip clip) {
         return clips(payload).contains(clip);
     }

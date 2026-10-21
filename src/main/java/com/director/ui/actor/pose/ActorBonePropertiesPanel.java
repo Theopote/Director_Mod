@@ -101,6 +101,8 @@ public final class ActorBonePropertiesPanel {
             ImGui.treePop();
             return;
         }
+        ActorBoneInfluenceUI.render(model,actorId,actorRig,activeBone,
+                hasNumericDraft() || ActorBoneGizmoController.getInstance().isDragging());
         if (ActorBoneGizmoController.getInstance().isDragging()) {
             draft.clear();
             ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.authoring.gizmo_pending"));
