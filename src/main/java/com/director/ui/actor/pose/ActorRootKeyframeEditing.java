@@ -125,7 +125,7 @@ public final class ActorRootKeyframeEditing {
     }
     private static EntityClipKeyframe sample(EntityClip clip, float time) {
         var payload = new ActorTrack(); payload.addClip(clip);
-        var value = new EntityClipSampler(payload).sampleAt(time);
+        var value = new EntityClipSampler(payload).sampleSnapshot(time);
         var key = new EntityClipKeyframe(time, clip instanceof EntityTransformClip transform ? transform.getInterpolation() : TimelineInterpolation.LINEAR);
         key.setPosition(value.position.x, value.position.y, value.position.z);
         key.setRotation(value.rotation.x, value.rotation.y, value.rotation.z);

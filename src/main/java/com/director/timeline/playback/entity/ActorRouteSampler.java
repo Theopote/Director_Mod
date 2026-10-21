@@ -61,7 +61,9 @@ public final class ActorRouteSampler {
     public static RouteSample sampleAtDistance(List<Vector3f> waypoints,
                                                float distance,
                                                ActorRouteClip.InterpolationMode mode) {
-        List<Vec3d> curve = sampleCurvePositions(waypoints, mode);
+        return sampleOnCurve(sampleCurvePositions(waypoints, mode),distance);
+    }
+    private static RouteSample sampleOnCurve(List<Vec3d> curve,float distance) {
         if (curve.isEmpty()) {
             return new RouteSample(new Vector3f(), new Vector3f(0.0f, 0.0f, 1.0f));
         }
@@ -100,6 +102,27 @@ public final class ActorRouteSampler {
             dir.set(0.0f, 0.0f, 1.0f);
         }
         return new RouteSample(toVector3f(last), dir);
+    }
+
+    private record Curve(List<Vec3d> controls,ActorRouteClip.InterpolationMode mode,List<Vec3d> points,float length) {}
+    private static final java.util.Map<ActorRouteClip,Curve> CURVES=new java.util.WeakHashMap<>();
+    private static synchronized Curve curve(ActorRouteClip clip) {
+        var controls=clip.getWaypoints();var mode=clip.getInterpolationMode();var cached=CURVES.get(clip);
+        boolean same=cached!=null && cached.mode()==mode && cached.controls().size()==controls.size();
+        if(same) for(int i=0;i<controls.size();i++) {
+            var a=controls.get(i);var b=cached.controls().get(i);
+            if(a.x!=b.x || a.y!=b.y || a.z!=b.z) { same=false;break; }
+        }
+        if(same) return cached;
+        var snapshot=controls.stream().map(p->new Vec3d(p.x,p.y,p.z)).toList();
+        var points=List.copyOf(sampleCurvePositions(controls,mode));float length=0;
+        for(int i=1;i<points.size();i++) length+=(float)points.get(i-1).distanceTo(points.get(i));
+        var result=new Curve(snapshot,mode,points,length);CURVES.put(clip,result);return result;
+    }
+    public static float lengthOf(ActorRouteClip clip) { return curve(clip).length(); }
+    public static List<Vec3d> curveOf(ActorRouteClip clip) { return curve(clip).points(); }
+    public static RouteSample sampleAtDistance(ActorRouteClip clip,float distance) {
+        return sampleOnCurve(curve(clip).points(),distance);
     }
 
     private static List<Vec3d> sampleLinearPolyline(List<Vector3f> waypoints) {

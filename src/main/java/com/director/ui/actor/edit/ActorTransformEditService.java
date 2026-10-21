@@ -54,7 +54,7 @@ public final class ActorTransformEditService {
     public static TransformSnapshot sampleTransform(UUID actorId, float time) {
         ActorTrackContext ctx = resolveTrack(actorId);
         if (ctx != null) {
-            EntitySample sample = new EntityClipSampler(ctx.actorTrack()).sampleAt(time);
+            EntitySample sample = new EntityClipSampler(ctx.actorTrack()).sampleSnapshot(time);
             if (sample != null && sample.enabled) {
                 return new TransformSnapshot(
                         new Vector3f(sample.position),
@@ -75,7 +75,7 @@ public final class ActorTransformEditService {
     public static LookAtSnapshot sampleLookAt(UUID actorId, float time) {
         ActorTrackContext ctx = resolveTrack(actorId);
         if (ctx != null) {
-            EntitySample sample = new EntityClipSampler(ctx.actorTrack()).sampleAt(time);
+            EntitySample sample = new EntityClipSampler(ctx.actorTrack()).sampleSnapshot(time);
             if (sample != null && sample.enabled && sample.lookAtEnabled) {
                 EntityLookAtClip.TargetMode mode = parseLookAtMode(sample.lookAtMode);
                 return new LookAtSnapshot(

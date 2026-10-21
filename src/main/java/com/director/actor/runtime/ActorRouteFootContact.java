@@ -18,7 +18,7 @@ public final class ActorRouteFootContact {
                 || !sample.routeClip.isAlignRotationToRoute() || sample.actionExplicit || sample.relationEnabled
                 || sample.poseOverrideEnabled || sample.speed <= .02f || !HumanoidTopology.matches(pose.rig())
                 || sample.scale.x <= .001f || sample.scale.y <= .001f || sample.scale.z <= .001f) return;
-        float distance = ActorRouteMotion.once(sample.routeClip, sample.actionLocalTime).distance();
+        float distance = ActorRouteMotion.once(sample.routeClip, sample.routeLocalTime).distance();
         if (!authoredBones.contains(HumanoidRig.LEFT_LEG) && !authoredBones.contains(ArticulatedPlayerRig.LEFT_SHIN))
             correct(pose, sample, HumanoidRig.LEFT_LEG, distance, 0);
         if (!authoredBones.contains(HumanoidRig.RIGHT_LEG) && !authoredBones.contains(ArticulatedPlayerRig.RIGHT_SHIN))

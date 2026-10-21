@@ -68,6 +68,15 @@ public interface ActorRigProfile {
      */
     RigProfileStyle getStyle();
 
+    /** Nominal blocks per complete walking/running cycle at unit actor scale. */
+    default float locomotionStride() { return .8f; }
+
+    /** Angular frequency used by buildPose; converts a distance phase to its time argument. */
+    default float locomotionFrequency(ActorActionType action,float intensity) {
+        float tempo=getStyle()==null?1:getStyle().tempo;
+        return (2+intensity)*tempo*(action==ActorActionType.RUN?2:1);
+    }
+
     /**
      * 构建姿态（用于 Animation ↔ RigProfile 混合）。
      *

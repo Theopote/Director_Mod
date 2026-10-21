@@ -21,13 +21,13 @@ class ActorMotionSamplingTest {
         var sampler = new EntityClipSampler(movingTrack());
         var direct = sampler.sampleAt(5f);
         assertEquals(1f, direct.speed, 1e-5f);
-        assertEquals(3f, direct.actionLocalTime, 1e-5f);
+        assertEquals(3f, direct.motionLocalTime, 1e-5f);
         for (float t : new float[]{5f, 11f, 3f, 5f}) {
             sampler.sampleAt(t);
             var repeated = sampler.sampleAt(5f);
             assertEquals(direct.speed, repeated.speed);
             assertEquals(direct.action, repeated.action);
-            assertEquals(direct.actionLocalTime, repeated.actionLocalTime);
+            assertEquals(direct.motionLocalTime, repeated.motionLocalTime);
         }
         sampler.clearAllCaches();
         assertEquals(direct.speed, sampler.sampleAt(5f).speed);

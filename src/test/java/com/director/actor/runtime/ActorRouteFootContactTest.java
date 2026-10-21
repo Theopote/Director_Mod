@@ -10,7 +10,7 @@ class ActorRouteFootContactTest {
     private EntitySample sample(float time) {
         var s = new EntitySample(); s.routeClip = new ActorRouteClip("Route",0,4);
         s.routeClip.setWaypoints(List.of(new Vector3f(),new Vector3f(0,0,4)));
-        s.speed=1; s.actionLocalTime=time; s.position.set(0,0,time); return s;
+        s.speed=1; s.routeLocalTime=time; s.position.set(0,0,time); return s;
     }
     private Vector3f sole(RigPose pose, EntitySample s) {
         var leg=pose.localTransform(HumanoidRig.LEFT_LEG);

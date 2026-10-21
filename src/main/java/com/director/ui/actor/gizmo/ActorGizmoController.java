@@ -427,7 +427,7 @@ public final class ActorGizmoController {
 
         // 1️⃣ 采样当前时刻状态（优先使用时间线采样，失败时回退到预览实体）
         EntityClipSampler sampler = new EntityClipSampler(actorTrack);
-        EntitySample sample = sampler.sampleAt(time);
+        EntitySample sample = sampler.sampleSnapshot(time);
 
         Vec3d sampledPos;
         Vec3d sampledRot;
@@ -754,7 +754,7 @@ public final class ActorGizmoController {
             var model = resolveTimelineModel();
             var preview = ActorPreviewManager.getInstance().getPreview(targetActorId);
             if (model != null && model == originalModel && preview != null) {
-                var sample = new EntityClipSampler(actorTrack).sampleAt(model.getCurrentTime());
+                var sample = new EntityClipSampler(actorTrack).sampleSnapshot(model.getCurrentTime());
                 if (sample != null && sample.enabled) {
                     preview.refreshPositionAndAngles(sample.position.x, sample.position.y, sample.position.z, sample.rotation.x, sample.rotation.y);
                     ActorPreviewManager.getInstance().setRootScale(preview, sample.scale);

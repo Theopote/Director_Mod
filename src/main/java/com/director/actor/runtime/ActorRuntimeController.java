@@ -258,9 +258,12 @@ public final class ActorRuntimeController {
             animationPlayers.clear();
             return;
         }
-        runtimes.keySet().removeIf(t -> !timelineSource.getTracks().contains(t));
+        var tracks=java.util.List.copyOf(timelineSource.getTracks());
+        var trackSet=java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<TimelineTrack,Boolean>());
+        trackSet.addAll(tracks);
+        runtimes.keySet().removeIf(t -> !trackSet.contains(t));
         var liveActors = new java.util.HashSet<UUID>();
-        for (var track : timelineSource.getTracks()) {
+        for (var track : tracks) {
             var payload = track.getActorTrackPayload();
             if (isActorTrack(track) && !track.isMuted() && payload != null && payload.getActorRef() != null
                     && actorRegistry != null && actorRegistry.resolve(payload.getActorRef()).isPresent()
@@ -460,7 +463,7 @@ public final class ActorRuntimeController {
             for (var track : timelineSource.getTracks()) {
                 var payload=track.getActorTrackPayload();
                 if (track.isMuted() || payload==null || payload.getActorRef()==null || !id.equals(payload.getActorRef().getActorId())) continue;
-                var target=new EntityClipSampler(payload).sampleAt(time);
+                var target=new EntityClipSampler(payload).sampleSnapshot(time);
                 var runtime=runtimes.get(track);
                 if (target!=null && runtime!=null) runtime.applyGroundRoute(id,target,time);
                 return target;
@@ -470,7 +473,7 @@ public final class ActorRuntimeController {
 
         private org.joml.Matrix4f samplePropLaunchTransform(Entity entity, float time, ActorPropSlot slot,
                 com.director.actor.prop.ActorPropTimelineSampler.Attachment attachment) {
-            var at = new EntityClipSampler(actorTrack).sampleAt(time);
+            var at = new EntityClipSampler(actorTrack).sampleSnapshot(time);
             var rig = com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElse(null);
             if (at == null || rig == null || !com.director.actor.ActorBehaviorCapabilities.supportsLegacyPose(actor)) return null;
             applyGroundRoute(actor.getActorId(),at,time);
@@ -479,18 +482,20 @@ public final class ActorRuntimeController {
             restoreRelationJump(at,time);
             if (at.visibility<=.01f) return null;
             ActorRelationTimeResolver.applyWorldLookRotation(at);
-            var base = actor.getRigProfile().sampleAt(actorRuntime,at.action == null ? ActorActionType.IDLE : at.action,
-                    at.actionIntensity,at.actionLocalTime).pose;
+            var base = actor.getRigProfile().sampleAt(new ActorRuntime(),at.action == null ? ActorActionType.IDLE : at.action,
+                    at.actionIntensity,ActorRouteGait.time(at,actor.getRigProfile())).pose;
             var pose = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(base,rig);
             var asset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(at.animationId)
                     .filter(value -> com.director.actor.rig.ActorRigCompatibility.accepts(actor,value.rigId()));
             if (asset.isPresent()) {
                 var animation=asset.get();
-                pose=pose.overlay(animation.sample(at.animationLocalTime*Math.max(.01f,at.animationSpeed),
-                        at.animationLoop?animation.loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE));
+                pose=ActorRigPoseComposition.compose(pose,animation.sample(at.animationLocalTime*Math.max(.01f,at.animationSpeed),
+                        at.animationLoop?animation.loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE),
+                        value -> applyRigPoseOverrides(value,at),diagnostic -> reportPlacement(actor.getActorId(),time,
+                                "pose-layer",false,"骨骼动作层与当前演员不兼容，已跳过该层。"),at.animationBlendSettings);
             }
+            if (asset.isEmpty()) applyRigPoseOverrides(pose,at);
             pose.setLimbBendMode(actor.getLimbBendMode());
-            applyRigPoseOverrides(pose,at);
             var root=pose.localTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT);
             if(root.translation().lengthSquared()>1e-10f) {
                 var finalPosition=finalRootPlacement(new Vec3d(at.position.x,at.position.y,at.position.z),root.translation(),at.rotation.x,at,time);
@@ -628,13 +633,6 @@ public final class ActorRuntimeController {
                 );
             }
 
-            // === LookAt（简化：直接调整 yaw/pitch）===
-            var lookDraft = com.director.ui.actor.lookat.MarkerDragController.getInstance().previewPoint(actorId, null);
-            if (lookDraft != null && s.lookAtEnabled) {
-                s.lookAtPoint.set((float) lookDraft.x, (float) lookDraft.y, (float) lookDraft.z);
-            }
-
-
             // Runtime samples already interpolate in scene time. Vanilla tick interpolation
             // must not blend against stale previous angles on client-only actors.
             entity.lastYaw=entity.getYaw(); entity.lastPitch=entity.getPitch();
@@ -720,8 +718,7 @@ public final class ActorRuntimeController {
 
             // Sampling is a pure function of the timeline phase, including paused/rewound frames.
             Pose base = new Pose();
-            float gaitTime = actor.getType() == com.director.actor.ActorType.PLAYER
-                    ? ActorRouteGait.playerTime(s, rig.getStyle()) : ActorRouteGait.time(s);
+            float gaitTime=ActorRouteGait.time(s,rig);
             RigPoseResult rigPose = rig.sampleAt(actorRuntime, action, s.actionIntensity, gaitTime);
 
             // 新一代逐骨骼动画资产。存在同 ID 资产时优先使用；旧 AnimationLibrary 继续作为回退。
@@ -743,12 +740,14 @@ public final class ActorRuntimeController {
                             !s.poseOverrideArms, !s.poseOverrideLegs);
                 var authoredPose = asset.sample(sampleTime, playbackMode);
                 var finalRigPose = ActorRigPoseComposition.compose(proceduralPose,
-                        authoredPose, pose -> applyRigPoseOverrides(pose, s));
+                        authoredPose, pose -> applyRigPoseOverrides(pose, s),
+                        diagnostic -> reportPlacement(actor.getActorId(),timelineSource.getCurrentTime(),
+                                "pose-layer",false,"骨骼动作层与当前演员不兼容，已跳过该层。"),s.animationBlendSettings);
                 finalRigPose.setLimbBendMode(actor.getLimbBendMode());
                 if (actor.getType() == com.director.actor.ActorType.PLAYER) {
                     var authoredBones = new java.util.HashSet<String>();
                     for (int i=0;i<authoredPose.rig().boneCount();i++)
-                        if (authoredPose.isAuthored(i)) authoredBones.add(authoredPose.rig().bone(i).id());
+                        if (s.animationBlendSettings.contributes(authoredPose,i)) authoredBones.add(authoredPose.rig().bone(i).id());
                     ActorRouteFootContact.apply(finalRigPose,s,authoredBones);
                 }
                 applyPoseToRuntime(rigPose.pose);
@@ -986,7 +985,9 @@ public final class ActorRuntimeController {
 
         private void applyLookAt(Entity entity, EntitySample s) {
             Vec3d pos = entity.getEyePos();
-            Vec3d target = ActorLookAtTargetResolver.resolveClient(s.lookAtMode, s.lookAtPoint,
+            var lookDraft=com.director.ui.actor.lookat.MarkerDragController.getInstance().previewPoint(actor.getActorId(),null);
+            var point=lookDraft==null?s.lookAtPoint:new org.joml.Vector3f((float)lookDraft.x,(float)lookDraft.y,(float)lookDraft.z);
+            Vec3d target = ActorLookAtTargetResolver.resolveClient(s.lookAtMode, point,
                     s.lookAtEntityUuid, actor.getActorId());
             if (target == null) return;
 

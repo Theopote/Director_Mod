@@ -278,7 +278,7 @@ final class ActorRootTimelineRows {
             var target=editTarget(model,track);
             if(target!=null) {
                 var payload=new ActorTrack(); payload.addClip(target);
-                var sample=new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleAt(model.getCurrentTime());
+                var sample=new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleSnapshot(model.getCurrentTime());
                 var key=com.director.ui.actor.pose.ActorRootKeyframeEditing.writeChannel(model,track,target,1<<row,
                         row==0?sample.position:row==1?sample.rotation:sample.scale);
                 if(key!=null) { model.setSelectedClip(target.getTimelineClip()); focus(model,track,target,key); }

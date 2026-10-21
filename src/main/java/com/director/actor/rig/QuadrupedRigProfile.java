@@ -22,6 +22,10 @@ import com.director.actor.runtime.ActorRuntime;
 public final class QuadrupedRigProfile implements ActorRigProfile {
 
     private final RigProfileStyle style = new RigProfileStyle();
+    @Override public float locomotionStride() { return 1.2f; }
+    @Override public float locomotionFrequency(ActorActionType action,float intensity) {
+        return (2.5f+intensity)*style.tempo*(action==ActorActionType.RUN?2:1);
+    }
 
     @Override
     public boolean supports(ActorActionType action) {

@@ -85,7 +85,12 @@ public class EntityClipSampler {
      * @param timeSeconds 时间（秒）
      * @return 实体采样结果
      */
-    public EntitySample sampleAt(float timeSeconds) {
+    public EntitySample sampleAt(float timeSeconds) { return sampleAt(timeSeconds,true); }
+
+    /** Pure pose query: neither emits events nor consumes the playback trigger caches. */
+    public EntitySample sampleSnapshot(float timeSeconds) { return sampleAt(timeSeconds,false); }
+
+    private EntitySample sampleAt(float timeSeconds,boolean emitEvents) {
         if (track == null || !track.isEnabled()) {
             return EntitySample.disabled();
         }
@@ -99,7 +104,7 @@ public class EntityClipSampler {
         // 创建初始采样（从 Spawn Clip 或默认值开始）
         EntitySample result = new EntitySample();
         result.enabled = true;
-        result.actionLocalTime = Math.max(0f, timeSeconds);
+        result.motionLocalTime = Math.max(0f, timeSeconds);
 
         // 按类型分类处理 clips
         List<EntitySpawnClip> spawnClips = new ArrayList<>();
@@ -205,7 +210,7 @@ public class EntityClipSampler {
         for(var candidate:track.getClips())if(candidate instanceof EntitySpawnClip spawn && !spawn.isMuted()
                 && timeSeconds>=spawn.getStartTime() && timeSeconds<=spawn.getEndTime() && spawn.getBoneAnimation()!=null)
             animationClips.add(spawn.getBoneAnimation());
-        applyAnimation(result, animationClips, timeSeconds);
+        applyAnimation(result, animationClips, timeSeconds,emitEvents);
 
         // ========== 处理 State Clip（状态）==========
         // 规则：last-wins（最后一个生效，按时间排序）
@@ -224,7 +229,7 @@ public class EntityClipSampler {
 
         // ========== 处理 Action Clip（行为事件）==========
         // 规则：一次性触发（只在刚进入 Clip 时触发）
-        applyActions(result, actionClips, timeSeconds);
+        if(emitEvents) applyActions(result, actionClips, timeSeconds);
 
         // ========== 处理 ActorAction Clip（动作语义）==========
         // 规则：last-wins（取 startTime 最大的那个）
@@ -253,6 +258,7 @@ public class EntityClipSampler {
      */
     private void applySpawnClip(EntitySample result, EntitySpawnClip clip, float time) {
         // Spawn Clip 只在开始时生效，但这里我们始终应用位置和旋转作为基础
+        result.motionLocalTime=Math.max(0f,time-clip.getStartTime());
         Vector3f pos = clip.getPosition();
         result.position.set(pos);
         result.rotation.set(clip.getYawDeg(), clip.getPitchDeg(), clip.getRollDeg());
@@ -290,7 +296,7 @@ public class EntityClipSampler {
         applyTransformClip(result, active, time);
         result.routeClip = null;
         result.speed = transformSpeed(active, time);
-        result.actionLocalTime = Math.max(0f, time - active.getStartTime());
+        result.motionLocalTime = Math.max(0f, time - active.getStartTime());
     }
 
     /**
@@ -404,7 +410,7 @@ public class EntityClipSampler {
      * @param clips Animation Clips
      * @param timeSeconds 当前时间（秒）
      */
-    private void applyAnimation(EntitySample result, List<EntityAnimationClip> clips, float timeSeconds) {
+    private void applyAnimation(EntitySample result, List<EntityAnimationClip> clips, float timeSeconds,boolean emitEvents) {
         EntityAnimationClip active = null;
 
         // 找到最后一个（按开始时间排序）
@@ -424,10 +430,11 @@ public class EntityClipSampler {
         result.animationId = active.getAnimationId();
         result.animationLoop = active.isLoop();
         result.animationSpeed = active.getSpeed();
+        result.animationBlendSettings = active.getBlendSettings();
         result.animationLocalTime = Math.max(0.0f, timeSeconds - active.getStartTime());
 
         // 处理 AnimationEvent（动画事件）
-        if (active.hasEvents()) {
+        if (emitEvents && active.hasEvents()) {
             // 计算归一化时间
             float clipDuration = active.getEndTime() - active.getStartTime();
             if (clipDuration > 0.01f) {
@@ -678,7 +685,7 @@ public class EntityClipSampler {
 
         float clipLength = Math.max(0.0001f, active.getLength());
         float localTime = Math.max(0.0f, timeSeconds - active.getStartTime());
-        float curveLength = ActorRouteSampler.computeCurveLength(points, active.getInterpolationMode());
+        float curveLength = ActorRouteSampler.lengthOf(active);
         boolean fit = active.getLoopMode() == ActorRouteClip.LoopMode.ONCE;
         float effectiveSpeed = fit ? curveLength / clipLength : Math.max(0.05f, active.getSpeed());
         float routeDuration = fit ? clipLength : computeRouteDuration(active);
@@ -687,10 +694,10 @@ public class EntityClipSampler {
         var onceMotion = ActorRouteMotion.once(active, localTime);
         float distance = fit ? onceMotion.distance() : travelTime * effectiveSpeed;
 
-        ActorRouteSampler.RouteSample sample = ActorRouteSampler.sampleAtDistance(
-                points, distance, active.getInterpolationMode());
+        ActorRouteSampler.RouteSample sample = ActorRouteSampler.sampleAtDistance(active,distance);
         result.position.set(sample.position());
-        result.actionLocalTime = localTime;
+        result.routeLocalTime = localTime;
+        result.motionLocalTime = localTime;
         result.speed = curveLength <= 1e-6f || routeDuration <= 0f || (active.getLoopMode() == ActorRouteClip.LoopMode.ONCE
                 && localTime >= routeDuration) ? 0f : fit ? onceMotion.speed() : effectiveSpeed;
         Vector3f direction = sample.direction();
@@ -729,7 +736,7 @@ public class EntityClipSampler {
     }
 
     private float computeRouteDuration(ActorRouteClip clip) {
-        float distance = ActorRouteSampler.computeCurveLength(clip.getWaypoints(), clip.getInterpolationMode());
+        float distance = ActorRouteSampler.lengthOf(clip);
         return distance / Math.max(0.05f, clip.getSpeed());
     }
 

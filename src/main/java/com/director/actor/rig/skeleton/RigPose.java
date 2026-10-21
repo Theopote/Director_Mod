@@ -95,24 +95,14 @@ public final class RigPose {
         if (!sameBoneLayout(rig, higherLayer.rig)) {
             throw new IllegalArgumentException("Cannot blend poses from incompatible rigs");
         }
-        RigPose result = copy();
-        for (int i = higherLayer.authoredBones.nextSetBit(0); i >= 0;
-             i = higherLayer.authoredBones.nextSetBit(i + 1)) {
-            result.setLocalTransform(i, higherLayer.localTransforms[i], higherLayer.authoredChannels[i]);
-        }
+        RigPose result=copy();
+        for(int i=higherLayer.authoredBones.nextSetBit(0);i>=0;i=higherLayer.authoredBones.nextSetBit(i+1))
+            result.setLocalTransform(i,higherLayer.localTransforms[i],higherLayer.authoredChannels[i]);
         return result;
     }
 
-    /** Index-wise bone id/parent match: overlay only needs matching layout, not the same rig id. */
-    private static boolean sameBoneLayout(RigDefinition a, RigDefinition b) {
-        if (a == b) return true;
-        if (a.boneCount() != b.boneCount()) return false;
-        for (int i = 0; i < a.boneCount(); i++) {
-            BoneDefinition boneA = a.bone(i);
-            BoneDefinition boneB = b.bone(i);
-            if (!boneA.id().equals(boneB.id()) || boneA.parentIndex() != boneB.parentIndex()) return false;
-        }
-        return true;
+    private static boolean sameBoneLayout(RigDefinition a,RigDefinition b) {
+        return RigPoseComposer.sameLayout(a,b);
     }
 
     /** Calculates one model-space matrix per bone, preserving definition order. */

@@ -178,7 +178,7 @@ public final class ActorTransformEditSession {
         var matches = source.getKeyframes().stream().filter(key -> Math.abs(key.getTime() - time) <= 1e-4f).toList();
         if (matches.size() > 1) return null;
         EntityClipKeyframe existing = matches.isEmpty() ? null : matches.getFirst();
-        var sample = new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleAt(time);
+        var sample = new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleSnapshot(time);
         var target = existing == null ? new EntityClipKeyframe(time, source.getInterpolation()) : existing;
         var oldPosition = new Vector3f(target.getPosition());
         var oldRotation = new Vector3f(target.getRotation());

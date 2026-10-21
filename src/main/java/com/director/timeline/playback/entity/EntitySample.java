@@ -79,6 +79,7 @@ public class EntitySample {
 
     /** 当前片段内的本地时间（秒，尚未应用播放速度） */
     public float animationLocalTime = 0.0f;
+    public com.director.actor.rig.skeleton.PoseBlendSettings animationBlendSettings = com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT;
 
     // ========== ActorRelationClip 扩展字段 ==========
 
@@ -144,8 +145,12 @@ public class EntitySample {
     /** Explicit IDLE must suppress automatic locomotion too. */
     public boolean actionExplicit;
 
-    /** Timeline-derived procedural phase, never accumulated per rendered frame. */
+    /** Explicit semantic action local time; independent of route and animation clocks. */
     public float actionLocalTime;
+    /** Selected route local time; written only by route sampling. */
+    public float routeLocalTime;
+    /** Automatic movement clock (scene/spawn/transform/route), never changed by action clips. */
+    public float motionLocalTime;
 
     // ========== ActorPoseClip 扩展字段 ==========
 
@@ -238,6 +243,8 @@ public class EntitySample {
         action = (t < 0.5f) ? a.action : b.action;
         actionExplicit = (t < 0.5f) ? a.actionExplicit : b.actionExplicit;
         actionLocalTime = lerp(a.actionLocalTime, b.actionLocalTime, t);
+        routeLocalTime = lerp(a.routeLocalTime, b.routeLocalTime, t);
+        motionLocalTime = lerp(a.motionLocalTime, b.motionLocalTime, t);
 
         // 动作强度插值
         actionIntensity = lerp(a.actionIntensity, b.actionIntensity, t);
@@ -283,6 +290,7 @@ public class EntitySample {
         animationLoop = s.animationLoop;
         animationSpeed = s.animationSpeed;
         animationLocalTime = s.animationLocalTime;
+        animationBlendSettings = s.animationBlendSettings;
         relationEnabled = s.relationEnabled;
         relationType = s.relationType;
         relationTargetActorId = s.relationTargetActorId;
@@ -306,6 +314,8 @@ public class EntitySample {
         action = s.action;
         actionExplicit = s.actionExplicit;
         actionLocalTime = s.actionLocalTime;
+        routeLocalTime = s.routeLocalTime;
+        motionLocalTime = s.motionLocalTime;
         actionIntensity = s.actionIntensity;
 
         // ActorPoseClip 扩展字段

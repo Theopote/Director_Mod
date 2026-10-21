@@ -320,7 +320,7 @@ public final class ActorBonePropertiesPanel {
         var owner = ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
         if (owner != null) {
             var sample = new com.director.timeline.playback.entity.EntityClipSampler(owner.getActorTrackPayload())
-                    .sampleAt(model.getCurrentTime());
+                    .sampleSnapshot(model.getCurrentTime());
             RigPose authored = new RigPose(rig);
             var asset = AnimationAssetLibrary.getInstance().find(sample.animationId)
                     .filter(value -> value.rigId().equals(rig.id())).orElse(null);

@@ -44,19 +44,19 @@ class ActorBoneDraftTransactionTest {
         Method method = ActorBoneGizmoController.class.getDeclaredMethod("registerAnimationUndo", TimelineModel.class);
         method.setAccessible(true); method.invoke(controller, model);
     }
-    @Test void detachedDraftCreatesOneUndoableAssetClipAndBoneTrack() throws Exception {
-        set("createdAsset", true); set("createdAnimationClip", true);
-        assertTrue(asset.boneTracks().isEmpty()); assertTrue(payload.getClips().isEmpty());
+    @Test void detachedDraftBindsOneUndoableAssetToTheExistingSpawn() throws Exception {
+        var spawn=new EntitySpawnClip("Spawn",0,5);payload.addClip(spawn);track.addClip(new EntityTimelineClip(spawn,0));
+        set("createdAsset",true);set("createdAnimationBinding",true);set("animationOwner",spawn);
+        assertTrue(asset.boneTracks().isEmpty());assertNull(spawn.getBoneAnimationId());
         assertFalse(AnimationAssetLibrary.getInstance().contains(asset.id()));
         commit();
-        assertSame(asset, AnimationAssetLibrary.getInstance().find(asset.id()).orElseThrow());
-        assertTrue(payload.getClips().contains(clip)); assertTrue(track.getClips().contains(clip.getTimelineClip()));
-        assertEquals(InterpolationMode.LINEAR, asset.findBoneTrack("head").orElseThrow().rotation().findAt(2).orElseThrow().interpolation());
-        assertTrue(history.undo()); assertTrue(asset.boneTracks().isEmpty());
-        assertTrue(payload.getClips().isEmpty()); assertTrue(track.getClips().isEmpty());
-        assertFalse(AnimationAssetLibrary.getInstance().contains(asset.id())); assertFalse(history.undo());
-        assertTrue(history.redo()); assertTrue(asset.findBoneTrack("head").isPresent());
-        assertSame(clip, payload.getClips().getFirst());
+        assertSame(asset,AnimationAssetLibrary.getInstance().find(asset.id()).orElseThrow());
+        assertEquals(asset.id(),spawn.getBoneAnimationId());assertEquals(1,payload.getClips().size());assertEquals(1,track.getClips().size());
+        assertEquals(InterpolationMode.LINEAR,asset.findBoneTrack("head").orElseThrow().rotation().findAt(2).orElseThrow().interpolation());
+        assertTrue(history.undo());assertTrue(asset.boneTracks().isEmpty());assertNull(spawn.getBoneAnimationId());
+        assertFalse(AnimationAssetLibrary.getInstance().contains(asset.id()));assertFalse(history.undo());
+        assertTrue(history.redo());assertTrue(asset.findBoneTrack("head").isPresent());
+        assertSame(spawn,payload.getClips().getFirst());assertEquals(1,track.getClips().size());
     }
     @Test void existingSparseTrackRestoresOriginalKeyAndPreservesOtherChannels() throws Exception {
         BoneTrack original = asset.getOrCreateBoneTrack("head");
