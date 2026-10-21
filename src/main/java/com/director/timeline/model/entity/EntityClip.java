@@ -10,6 +10,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.Set;
+import java.util.IdentityHashMap;
 
 /**
  * EntityClip v1.0
@@ -45,6 +47,9 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
     private boolean muted = false;
     private float weight = 1.0f; // 预留：叠加/混合权重
     private transient EntityTimelineClip timelineClip;
+    private final transient Set<ActorTrack> owningTracks=Collections.newSetFromMap(new IdentityHashMap<>());
+    void attachTrack(ActorTrack track) { owningTracks.add(track); }
+    void detachTrack(ActorTrack track) { owningTracks.remove(track); }
 
     /** 关键帧列表（时间相对于 Clip 开始时间） */
     private final List<EntityClipKeyframe> keyframes = new ArrayList<>();
@@ -147,8 +152,10 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
         float delta=startTime-this.startTime;
         boolean translated=Math.abs((endTime-startTime)-(this.endTime-this.startTime))<1e-4f;
         if(translated && delta!=0f) for(var key:keyframes)key.setTime(key.getTime()+delta);
+        boolean timingChanged=Float.compare(this.startTime,startTime)!=0 || Float.compare(this.endTime,endTime)!=0;
         this.startTime = startTime;
         this.endTime = endTime;
+        if(timingChanged) for(var track:owningTracks) track.clipTimingChanged(this);
         syncTimelineClip();
         if(translated && delta!=0f)syncKeyframesToTimelineClip();
     }

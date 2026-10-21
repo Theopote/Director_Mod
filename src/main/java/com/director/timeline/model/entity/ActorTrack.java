@@ -55,8 +55,14 @@ public class ActorTrack {
     /** 轨道颜色（可选，UI 用） */
     private int colorRgba = 0xFF66CCFF;
 
-    /** 轨道片段（按时间排序） */
-    private final NavigableSet<EntityClip> clips = new TreeSet<>();
+    /** Identity is stable while clip start times are editable. */
+    private final Map<UUID,EntityClip> clips = new LinkedHashMap<>();
+    private List<EntityClip> sortedClips = List.of();
+    private boolean orderDirty;
+
+    void clipTimingChanged(EntityClip clip) {
+        if(clips.get(clip.getId())==clip) orderDirty=true;
+    }
 
     /**
      * 默认构造函数
@@ -179,10 +185,16 @@ public class ActorTrack {
     /**
      * 获取所有片段（按时间排序）
      *
-     * @return 不可修改的片段列表
+     * @return 缓存的不可修改成员快照；片段对象仍可编辑，时间改变后下次读取重新排序
      */
     public List<EntityClip> getClips() {
-        return Collections.unmodifiableList(new ArrayList<>(clips));
+        if(orderDirty) {
+            var sorted=new ArrayList<>(clips.values());
+            sorted.sort(Comparator.naturalOrder());
+            sortedClips=List.copyOf(sorted);
+            orderDirty=false;
+        }
+        return sortedClips;
     }
 
     /**
@@ -191,8 +203,9 @@ public class ActorTrack {
      * @param clip 片段
      */
     public void addClip(EntityClip clip) {
-        if (clip != null) {
-            clips.add(clip);
+        if (clip != null && clips.putIfAbsent(clip.getId(),clip)==null) {
+            clip.attachTrack(this);
+            orderDirty=true;
         }
     }
 
@@ -206,21 +219,21 @@ public class ActorTrack {
         if (clipId == null) {
             return false;
         }
-        EntityClip target = null;
-        for (EntityClip c : clips) {
-            if (clipId.equals(c.getId())) {
-                target = c;
-                break;
-            }
-        }
-        return target != null && clips.remove(target);
+        EntityClip target=clips.remove(clipId);
+        if(target==null) return false;
+        target.detachTrack(this);
+        orderDirty=true;
+        return true;
     }
 
     /**
      * 清空所有片段
      */
     public void clearClips() {
+        for(var clip:clips.values()) clip.detachTrack(this);
         clips.clear();
+        sortedClips=List.of();
+        orderDirty=false;
     }
 
     /**
@@ -233,12 +246,7 @@ public class ActorTrack {
         if (clipId == null) {
             return Optional.empty();
         }
-        for (EntityClip c : clips) {
-            if (clipId.equals(c.getId())) {
-                return Optional.of(c);
-            }
-        }
-        return Optional.empty();
+        return Optional.ofNullable(clips.get(clipId));
     }
 
     /**
@@ -252,7 +260,9 @@ public class ActorTrack {
             return List.of();
         }
         List<EntityClip> out = new ArrayList<>();
-        for (EntityClip c : clips) {
+        for (EntityClip c : getClips()) {
+            // Sorted starts allow skipping future clips; earlier long clips still need inspection.
+            if(c.getStartTime()>timeSeconds) break;
             if (timeSeconds >= c.getStartTime() && timeSeconds <= c.getEndTime()) {
                 out.add(c);
             }
@@ -305,7 +315,7 @@ public class ActorTrack {
      */
     public List<ActorActionClip> getActionClips() {
         List<ActorActionClip> result = new ArrayList<>();
-        for (EntityClip clip : clips) {
+        for (EntityClip clip : getClips()) {
             if (clip instanceof ActorActionClip actionClip) {
                 result.add(actionClip);
             }
@@ -321,12 +331,12 @@ public class ActorTrack {
      */
     public void replaceActionClips(List<ActorActionClip> newClips) {
         // 移除所有现有的 ActorActionClip
-        clips.removeIf(clip -> clip instanceof ActorActionClip);
+        for(var clip:getActionClips()) removeClip(clip.getId());
 
         // 添加新的 ActionClips
         for (ActorActionClip clip : newClips) {
             if (clip != null) {
-                clips.add(clip);
+                addClip(clip);
             }
         }
     }
