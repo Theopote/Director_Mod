@@ -10,7 +10,6 @@ public class EntityAnimationClipPropertyAdapter implements IPropertyAdapter<Enti
     private final ActorClipInspectorGesture gesture=new ActorClipInspectorGesture();
     @Override public Class<EntityAnimationClip> getTargetType() { return EntityAnimationClip.class; }
     @Override public boolean renderProperties(EntityAnimationClip source) {
-        ActorRuntimeDiagnosticsUI.render(source);
         var draft=gesture.begin(source);
         if(!(draft instanceof EntityAnimationClip clip)) { gesture.end(); return false; }
         ImGui.text("骨骼动画片段");

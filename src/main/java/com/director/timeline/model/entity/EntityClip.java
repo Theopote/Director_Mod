@@ -47,6 +47,10 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
     private boolean muted = false;
     private float weight = 1.0f; // 预留：叠加/混合权重
     private transient EntityTimelineClip timelineClip;
+    private transient List<String> loadWarnings=List.of();
+    public List<String> getLoadWarnings() { return loadWarnings; }
+    public void setLoadWarnings(List<String> warnings) { loadWarnings=List.copyOf(warnings); }
+
     private final transient Set<ActorTrack> owningTracks=Collections.newSetFromMap(new IdentityHashMap<>());
     void attachTrack(ActorTrack track) { owningTracks.add(track); }
     void detachTrack(ActorTrack track) { owningTracks.remove(track); }

@@ -217,21 +217,32 @@ public class TimelineModelPersistence {
         public Float spawnX, spawnY, spawnZ;
         public Float yawDeg, pitchDeg;
         public String spawnBoneAnimationId;
-        public com.director.actor.rig.skeleton.PoseLayer.BlendMode poseBlendMode;
-        public Float poseBlendWeight;
-        public Integer poseBlendChannels;
-        public Boolean poseBlendAllBones;
-        public java.util.Set<String> poseBlendBones;
-        public float poseBlendFadeIn, poseBlendFadeOut;
+        // Raw optional values isolate malformed blend fields from the rest of the clip DTO.
+        public com.google.gson.JsonElement poseBlendMode,poseBlendWeight,poseBlendChannels,poseBlendAllBones,
+                poseBlendBones,poseBlendFadeIn,poseBlendFadeOut;
         public void setPoseBlend(com.director.actor.rig.skeleton.PoseBlendSettings settings) {
-            poseBlendMode=settings.mode(); poseBlendWeight=settings.weight(); poseBlendChannels=settings.channels();
-            poseBlendAllBones=settings.allBones(); poseBlendBones=settings.boneIds();
-            poseBlendFadeIn=settings.fadeIn(); poseBlendFadeOut=settings.fadeOut();
+            poseBlendMode=new com.google.gson.JsonPrimitive(settings.mode().name());
+            poseBlendWeight=new com.google.gson.JsonPrimitive(settings.weight());
+            poseBlendChannels=new com.google.gson.JsonPrimitive(settings.channels());
+            poseBlendAllBones=new com.google.gson.JsonPrimitive(settings.allBones());
+            var bones=new com.google.gson.JsonArray();settings.boneIds().stream().sorted().forEach(bones::add);poseBlendBones=bones;
+            poseBlendFadeIn=new com.google.gson.JsonPrimitive(settings.fadeIn());
+            poseBlendFadeOut=new com.google.gson.JsonPrimitive(settings.fadeOut());
         }
-        public com.director.actor.rig.skeleton.PoseBlendSettings poseBlend() {
-            if (poseBlendMode==null) return com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT;
-            return new com.director.actor.rig.skeleton.PoseBlendSettings(poseBlendMode,poseBlendWeight,
-                    poseBlendChannels,poseBlendAllBones,poseBlendBones,poseBlendFadeIn,poseBlendFadeOut);
+        public void restorePoseBlend(EntityClip clip) {
+            var data=new com.google.gson.JsonObject();
+            if(poseBlendMode!=null)data.add("poseBlendMode",poseBlendMode);
+            if(poseBlendWeight!=null)data.add("poseBlendWeight",poseBlendWeight);
+            if(poseBlendChannels!=null)data.add("poseBlendChannels",poseBlendChannels);
+            if(poseBlendAllBones!=null)data.add("poseBlendAllBones",poseBlendAllBones);
+            if(poseBlendBones!=null)data.add("poseBlendBones",poseBlendBones);
+            if(poseBlendFadeIn!=null)data.add("poseBlendFadeIn",poseBlendFadeIn);
+            if(poseBlendFadeOut!=null)data.add("poseBlendFadeOut",poseBlendFadeOut);
+            var restored=ActorPoseBlendRecovery.read(data);
+            if(clip instanceof com.director.timeline.model.entity.EntitySpawnClip spawn) spawn.setBlendSettings(restored.settings());
+            else if(clip instanceof com.director.timeline.model.entity.EntityAnimationClip animation) animation.setBlendSettings(restored.settings());
+            clip.setLoadWarnings(restored.issues());
+            if(!restored.issues().isEmpty()) LOGGER.warn("[TimelineModelPersistence] 已恢复片段 {} 的骨骼混合参数：{}",name,String.join("；",restored.issues()));
         }
         public Float spawnRoll, spawnScaleX, spawnScaleY, spawnScaleZ;
         public Boolean visibleOnSpawn;
@@ -1572,7 +1583,7 @@ public class TimelineModelPersistence {
                 if (cdto.yawDeg != null) sc.setYawDeg(cdto.yawDeg);
                 if (cdto.pitchDeg != null) sc.setPitchDeg(cdto.pitchDeg);
                 sc.setBoneAnimationId(cdto.spawnBoneAnimationId);
-                sc.setBlendSettings(cdto.poseBlend());
+                cdto.restorePoseBlend(sc);
                 if (cdto.spawnRoll != null) sc.setRollDeg(cdto.spawnRoll);
                 if (cdto.spawnScaleX != null && cdto.spawnScaleY != null && cdto.spawnScaleZ != null)
                     sc.setScale(cdto.spawnScaleX, cdto.spawnScaleY, cdto.spawnScaleZ);
@@ -1608,7 +1619,7 @@ public class TimelineModelPersistence {
                 if (cdto.animationId != null) ac.setAnimationId(cdto.animationId);
                 if (cdto.animationLoop != null) ac.setLoop(cdto.animationLoop);
                 if (cdto.animationSpeed != null) ac.setSpeed(cdto.animationSpeed);
-                ac.setBlendSettings(cdto.poseBlend());
+                cdto.restorePoseBlend(ac);
             }
             case com.director.timeline.model.entity.EntityStateClip stc -> {
                 if (cdto.sneaking != null) stc.setSneaking(cdto.sneaking);

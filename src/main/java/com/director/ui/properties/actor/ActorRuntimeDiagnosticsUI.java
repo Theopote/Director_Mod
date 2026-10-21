@@ -10,7 +10,12 @@ import java.util.UUID;
 public final class ActorRuntimeDiagnosticsUI {
     private ActorRuntimeDiagnosticsUI() {}
     public static void render(EntityClip clip) {
-        if(clip==null || clip.getTimelineClip()==null || clip.getTimelineClip().getParentTrack()==null) return;
+        if(clip==null) return;
+        if(!clip.getLoadWarnings().isEmpty()) {
+            ImGui.textWrapped("加载时已恢复此片段的部分混合参数：");
+            for(var warning:clip.getLoadWarnings()) ImGui.textWrapped(warning);
+        }
+        if(clip.getTimelineClip()==null || clip.getTimelineClip().getParentTrack()==null) return;
         var payload=clip.getTimelineClip().getParentTrack().getActorTrackPayload();
         if(payload!=null && payload.getActorRef()!=null) render(payload.getActorRef().getActorId());
     }

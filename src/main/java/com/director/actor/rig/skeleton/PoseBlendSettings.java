@@ -17,6 +17,8 @@ public record PoseBlendSettings(PoseLayer.BlendMode mode, float weight, int chan
         if ((channels & ~RigPose.ALL_CHANNELS) != 0) throw new IllegalArgumentException("Invalid pose channels");
         if (!Float.isFinite(fadeIn) || fadeIn < 0 || !Float.isFinite(fadeOut) || fadeOut < 0)
             throw new IllegalArgumentException("Fade durations must be finite and nonnegative");
+        if(boneIds==null || boneIds.stream().anyMatch(id -> id==null || id.isBlank()))
+            throw new IllegalArgumentException("Bone IDs must be a non-null set of nonblank identifiers");
         boneIds = Set.copyOf(boneIds);
     }
     public boolean includes(String id) { return allBones || boneIds.contains(id); }

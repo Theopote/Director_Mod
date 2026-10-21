@@ -74,4 +74,10 @@ class PoseBlendSettingsTest {
         }
         assertThrows(IllegalArgumentException.class,()->fades(0,0).effectiveWeight(1.1f));
     }
+    @Test void invalidBoneIdSetsAreRejectedAtTheEditingBoundary() {
+        assertThrows(IllegalArgumentException.class,()->new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,1,7,false,null));
+        var nullId=new HashSet<String>();nullId.add(null);
+        assertThrows(IllegalArgumentException.class,()->new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,1,7,false,nullId));
+        assertThrows(IllegalArgumentException.class,()->new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,1,7,false,Set.of(" ")));
+    }
 }
