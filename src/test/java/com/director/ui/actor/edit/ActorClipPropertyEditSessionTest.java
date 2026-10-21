@@ -159,4 +159,23 @@ class ActorClipPropertyEditSessionTest {
         var edit=new ActorClipPropertyEditSession(model,source);source.setBoneAnimationId("project:other");
         assertFalse(edit.commit());assertEquals("project:other",source.getBoneAnimationId());assertEquals(0,history.getUndoSize());
     }
+    @Test void fadeSettingsCommitOnceAndUndoRedoWithoutChangingKeysOrClipCount() {
+        var source=new EntitySpawnClip("Spawn",0,10);source.setBoneAnimationId("project:test");attach(source);
+        var key=new EntityClipKeyframe(.5f);source.addKeyframe(key);
+        var edit=new ActorClipPropertyEditSession(model,source);
+        var settings=new com.director.actor.rig.skeleton.PoseBlendSettings(
+                com.director.actor.rig.skeleton.PoseLayer.BlendMode.ADDITIVE,.4f,2,false,java.util.Set.of("head"),.2f,.4f);
+        ((EntitySpawnClip)edit.draft()).setBlendSettings(settings);
+        assertEquals(0,source.getBlendSettings().fadeIn());
+        assertTrue(edit.commit());assertEquals(settings,source.getBlendSettings());assertEquals(1,history.getUndoSize());
+        history.undo();assertEquals(0,source.getBlendSettings().fadeIn());assertEquals(0,source.getBlendSettings().fadeOut());
+        history.redo();assertEquals(settings,source.getBlendSettings());
+        assertSame(key,source.getKeyframes().getFirst());assertEquals("project:test",source.getBoneAnimationId());
+        assertEquals(1,track.getClips().size());
+        var animation=new EntityAnimationClip("Animation",0,10);attach(animation);
+        edit=new ActorClipPropertyEditSession(model,animation);((EntityAnimationClip)edit.draft()).setBlendSettings(settings);
+        assertTrue(edit.commit());assertEquals(settings,animation.getBlendSettings());
+        history.undo();assertEquals(0,animation.getBlendSettings().fadeIn());
+        history.redo();assertEquals(settings,animation.getBlendSettings());
+    }
 }

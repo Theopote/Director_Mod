@@ -62,4 +62,19 @@ class ActorRouteFootContactTest {
         assertEquals(left,pose.localTransform(HumanoidRig.LEFT_LEG).translation());
         assertNotEquals(right,pose.localTransform(HumanoidRig.RIGHT_LEG).translation());
     }
+    @Test void contactCorrectionReleasesContinuouslyWithAuthoredWeight() {
+        var sample=sample(.2f);
+        var rest=new RigPose(ArticulatedPlayerRig.DEFINITION).localTransform(HumanoidRig.LEFT_LEG).translation();
+        var full=new RigPose(ArticulatedPlayerRig.DEFINITION);ActorRouteFootContact.apply(full,sample);
+        var correction=full.localTransform(HumanoidRig.LEFT_LEG).translation().sub(rest);
+        for(float weight:new float[]{0,.001f,.25f,.5f,.999f,1,0}) {
+            var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
+            ActorRouteFootContact.apply(pose,sample,java.util.Map.of(ArticulatedPlayerRig.LEFT_SHIN,weight));
+            var expected=new Vector3f(rest).add(new Vector3f(correction).mul(1-weight));
+            assertTrue(expected.equals(pose.localTransform(HumanoidRig.LEFT_LEG).translation(),1e-6f));
+        }
+        var protectedPose=new RigPose(ArticulatedPlayerRig.DEFINITION);
+        ActorRouteFootContact.apply(protectedPose,sample,java.util.Map.of(HumanoidRig.ROOT,1f));
+        assertEquals(rest,protectedPose.localTransform(HumanoidRig.LEFT_LEG).translation());
+    }
 }

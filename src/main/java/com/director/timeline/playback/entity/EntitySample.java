@@ -79,6 +79,8 @@ public class EntitySample {
 
     /** 当前片段内的本地时间（秒，尚未应用播放速度） */
     public float animationLocalTime = 0.0f;
+    /** Resolved clip-boundary fade; nominal weight remains in animationBlendSettings. */
+    public float animationBlendEnvelope = 1.0f;
     public com.director.actor.rig.skeleton.PoseBlendSettings animationBlendSettings = com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT;
 
     // ========== ActorRelationClip 扩展字段 ==========
@@ -290,6 +292,7 @@ public class EntitySample {
         animationLoop = s.animationLoop;
         animationSpeed = s.animationSpeed;
         animationLocalTime = s.animationLocalTime;
+        animationBlendEnvelope = s.animationBlendEnvelope;
         animationBlendSettings = s.animationBlendSettings;
         relationEnabled = s.relationEnabled;
         relationType = s.relationType;

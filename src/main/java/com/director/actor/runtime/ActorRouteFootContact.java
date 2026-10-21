@@ -13,18 +13,27 @@ public final class ActorRouteFootContact {
         apply(pose,sample,java.util.Set.of());
     }
     public static void apply(RigPose pose, EntitySample sample, java.util.Set<String> authoredBones) {
-        if (authoredBones.contains(HumanoidRig.ROOT)) return;
+        var weights=new java.util.HashMap<String,Float>();
+        authoredBones.forEach(bone -> weights.put(bone,1f));
+        apply(pose,sample,weights);
+    }
+    /** Authored control progressively releases procedural contact, including at fade boundaries. */
+    public static void apply(RigPose pose,EntitySample sample,java.util.Map<String,Float> authoredWeights) {
         if (sample.routeClip == null || sample.routeClip.getLoopMode() != ActorRouteClip.LoopMode.ONCE
                 || !sample.routeClip.isAlignRotationToRoute() || sample.actionExplicit || sample.relationEnabled
                 || sample.poseOverrideEnabled || sample.speed <= .02f || !HumanoidTopology.matches(pose.rig())
                 || sample.scale.x <= .001f || sample.scale.y <= .001f || sample.scale.z <= .001f) return;
         float distance = ActorRouteMotion.once(sample.routeClip, sample.routeLocalTime).distance();
-        if (!authoredBones.contains(HumanoidRig.LEFT_LEG) && !authoredBones.contains(ArticulatedPlayerRig.LEFT_SHIN))
-            correct(pose, sample, HumanoidRig.LEFT_LEG, distance, 0);
-        if (!authoredBones.contains(HumanoidRig.RIGHT_LEG) && !authoredBones.contains(ArticulatedPlayerRig.RIGHT_SHIN))
-            correct(pose, sample, HumanoidRig.RIGHT_LEG, distance, .5f);
+        correct(pose,sample,HumanoidRig.LEFT_LEG,distance,0,contactWeight(authoredWeights,HumanoidRig.LEFT_LEG,ArticulatedPlayerRig.LEFT_SHIN));
+        correct(pose,sample,HumanoidRig.RIGHT_LEG,distance,.5f,contactWeight(authoredWeights,HumanoidRig.RIGHT_LEG,ArticulatedPlayerRig.RIGHT_SHIN));
     }
-    private static void correct(RigPose pose, EntitySample sample, String bone, float distance, float shift) {
+    private static float contactWeight(java.util.Map<String,Float> weights,String leg,String shin) {
+        float authored=Math.max(weights.getOrDefault(HumanoidRig.ROOT,0f),
+                Math.max(weights.getOrDefault(leg,0f),weights.getOrDefault(shin,0f)));
+        return Float.isFinite(authored)?1-Math.clamp(authored,0f,1f):0;
+    }
+    private static void correct(RigPose pose, EntitySample sample, String bone, float distance, float shift,float strength) {
+        if (strength<=0) return;
         float stride = .8f * sample.scale.z;
         float cycle = distance / stride + shift;
         float phase = cycle - (float)Math.floor(cycle);
@@ -49,7 +58,7 @@ public final class ActorRouteFootContact {
             inverse.transformDirection(correction);
         }
         if (!correction.isFinite()) return;
-        var translation = current.translation().add(correction.mul(weight));
+        var translation = current.translation().add(correction.mul(weight*strength));
         pose.setLocalTransform(pose.rig().requireBoneIndex(bone), new BoneTransform(translation, current.rotation(), current.scale()), RigPose.TRANSLATION);
     }
     /** Model-space foot endpoint, including thigh, knee and segment scales. */

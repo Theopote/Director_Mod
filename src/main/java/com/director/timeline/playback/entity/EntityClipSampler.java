@@ -432,6 +432,7 @@ public class EntityClipSampler {
         result.animationSpeed = active.getSpeed();
         result.animationBlendSettings = active.getBlendSettings();
         result.animationLocalTime = Math.max(0.0f, timeSeconds - active.getStartTime());
+        result.animationBlendEnvelope = result.animationBlendSettings.envelopeAt(result.animationLocalTime,active.getLength());
 
         // 处理 AnimationEvent（动画事件）
         if (emitEvents && active.hasEvents()) {

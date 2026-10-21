@@ -70,4 +70,24 @@ class ActorRigPoseCompositionTest {
         result=ActorRigPoseComposition.compose(base,keys,p->{},d->fail(d.reason()),settings);
         assertEquals(base.localTransform(head),result.localTransform(head));
     }
+    @Test void envelopeScalesBothBlendModesAndReleasesChannelsAtZero() {
+        var base=new RigPose(HumanoidRig.DEFINITION);var keys=new RigPose(HumanoidRig.DEFINITION);
+        int arm=base.rig().requireBoneIndex(HumanoidRig.LEFT_ARM);
+        var walking=new Quaternionf().rotateX(.4f);
+        base.setLocalTransform(arm,base.localTransform(arm).withRotation(walking),RigPose.ROTATION);
+        keys.setLocalTransform(arm,keys.localTransform(arm).withRotation(new Quaternionf().rotateX(1.2f)),RigPose.ROTATION);
+        for(var mode:PoseLayer.BlendMode.values()) {
+            var settings=new PoseBlendSettings(mode,.5f,RigPose.ROTATION,false,java.util.Set.of(HumanoidRig.LEFT_ARM),2,2);
+            for(float time:new float[]{0,1,2,7,8,1,0}) {
+                float envelope=settings.envelopeAt(time,8);
+                var result=ActorRigPoseComposition.compose(base,keys,p->{},d->fail(d.reason()),settings,envelope);
+                float expected=mode==PoseLayer.BlendMode.OVERRIDE?.4f+.8f*.5f*envelope:.4f+1.2f*.5f*envelope;
+                assertTrue(result.localTransform(arm).rotation().equals(new Quaternionf().rotateX(expected),1e-5f));
+            }
+        }
+        var rest=new RigPose(HumanoidRig.DEFINITION);
+        var result=ActorRigPoseComposition.compose(rest,keys,p->{},d->fail(d.reason()),PoseBlendSettings.DEFAULT,0);
+        assertEquals(0,result.authoredChannels(arm));
+        assertEquals(new Quaternionf(),rest.localTransform(arm).rotation());
+    }
 }

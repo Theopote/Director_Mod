@@ -29,4 +29,49 @@ class PoseBlendSettingsTest {
             assertThrows(IllegalArgumentException.class,()->new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,w,7,true,Set.of()));
         assertThrows(IllegalArgumentException.class,()->new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,1,8,true,Set.of()));
     }
+    private PoseBlendSettings fades(float in,float out) {
+        return new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,.8f,7,true,Set.of(),in,out);
+    }
+    @Test void fadesUseSmoothClipSecondsAndKeepNominalWeightSeparate() {
+        var settings=fades(2,1);
+        assertEquals(0,settings.envelopeAt(0,6));
+        assertEquals(.15625f,settings.envelopeAt(.5f,6),1e-6f);
+        assertEquals(.5f,settings.envelopeAt(1,6),1e-6f);
+        assertEquals(1,settings.envelopeAt(2,6));
+        assertEquals(1,settings.envelopeAt(5,6));
+        assertEquals(.5f,settings.envelopeAt(5.5f,6),1e-6f);
+        assertEquals(0,settings.envelopeAt(6,6));
+        assertEquals(.4f,settings.effectiveWeight(settings.envelopeAt(1,6)),1e-6f);
+        assertEquals(.8f,settings.weight());
+    }
+    @Test void oversizedFadesCompressProportionallyWithoutNaNsOrLosingPeak() {
+        var settings=fades(8,4);
+        assertEquals(0,settings.envelopeAt(0,3));
+        assertEquals(.5f,settings.envelopeAt(1,3),1e-6f);
+        assertEquals(1,settings.envelopeAt(2,3),1e-6f);
+        assertEquals(.5f,settings.envelopeAt(2.5f,3),1e-6f);
+        assertEquals(0,settings.envelopeAt(3,3));
+        settings=fades(Float.MAX_VALUE,Float.MAX_VALUE);
+        assertEquals(1,settings.envelopeAt(.5f,1),1e-6f);
+        assertEquals(1,fades(.00001f,.00001f).envelopeAt(.00001f,.00002f),1e-6f);
+    }
+    @Test void singleSidedZeroAndOutOfRangeFadesHaveDefinedBoundaries() {
+        assertEquals(1,fades(0,0).envelopeAt(0,2));
+        assertEquals(1,fades(0,0).envelopeAt(2,2));
+        assertEquals(1,fades(0,1).envelopeAt(0,2));
+        assertEquals(1,fades(1,0).envelopeAt(2,2));
+        assertEquals(0,fades(0,0).envelopeAt(-1,2));
+        assertEquals(0,fades(0,0).envelopeAt(3,2));
+        assertEquals(0,fades(1,1).envelopeAt(0,0));
+        assertEquals(0,fades(1,1).envelopeAt(Float.NaN,2));
+        assertEquals(0,fades(1,1).envelopeAt(1,Float.POSITIVE_INFINITY));
+    }
+    @Test void invalidFadeDurationsAndResolvedEnvelopesAreRejected() {
+        for(float invalid:new float[]{-.1f,Float.NaN,Float.POSITIVE_INFINITY}) {
+            assertThrows(IllegalArgumentException.class,()->fades(invalid,0));
+            assertThrows(IllegalArgumentException.class,()->fades(0,invalid));
+            assertThrows(IllegalArgumentException.class,()->fades(0,0).effectiveWeight(invalid));
+        }
+        assertThrows(IllegalArgumentException.class,()->fades(0,0).effectiveWeight(1.1f));
+    }
 }

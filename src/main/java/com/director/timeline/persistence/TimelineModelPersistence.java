@@ -222,14 +222,16 @@ public class TimelineModelPersistence {
         public Integer poseBlendChannels;
         public Boolean poseBlendAllBones;
         public java.util.Set<String> poseBlendBones;
+        public float poseBlendFadeIn, poseBlendFadeOut;
         public void setPoseBlend(com.director.actor.rig.skeleton.PoseBlendSettings settings) {
             poseBlendMode=settings.mode(); poseBlendWeight=settings.weight(); poseBlendChannels=settings.channels();
             poseBlendAllBones=settings.allBones(); poseBlendBones=settings.boneIds();
+            poseBlendFadeIn=settings.fadeIn(); poseBlendFadeOut=settings.fadeOut();
         }
         public com.director.actor.rig.skeleton.PoseBlendSettings poseBlend() {
             if (poseBlendMode==null) return com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT;
             return new com.director.actor.rig.skeleton.PoseBlendSettings(poseBlendMode,poseBlendWeight,
-                    poseBlendChannels,poseBlendAllBones,poseBlendBones);
+                    poseBlendChannels,poseBlendAllBones,poseBlendBones,poseBlendFadeIn,poseBlendFadeOut);
         }
         public Float spawnRoll, spawnScaleX, spawnScaleY, spawnScaleZ;
         public Boolean visibleOnSpawn;

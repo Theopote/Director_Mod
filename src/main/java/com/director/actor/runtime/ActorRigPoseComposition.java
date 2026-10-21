@@ -18,10 +18,14 @@ final class ActorRigPoseComposition {
     }
     static RigPose compose(RigPose procedural,RigPose authored,Consumer<RigPose> quickPose,
                            Consumer<RigPoseComposer.Diagnostic> diagnostics,PoseBlendSettings settings) {
+        return compose(procedural,authored,quickPose,diagnostics,settings,1);
+    }
+    static RigPose compose(RigPose procedural,RigPose authored,Consumer<RigPose> quickPose,
+                           Consumer<RigPoseComposer.Diagnostic> diagnostics,PoseBlendSettings settings,float envelope) {
         RigPose base=procedural==null?new RigPose(authored.rig()):procedural.copy();
         if(procedural==null) base.setLimbBendMode(authored.limbBendMode());
         quickPose.accept(base);
-        var result=RigPoseComposer.compose(base,List.of(settings.layer(authored)));
+        var result=RigPoseComposer.compose(base,List.of(settings.layer(authored,envelope)));
         result.diagnostics().forEach(diagnostics);
         return result.pose();
     }

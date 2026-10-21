@@ -492,7 +492,7 @@ public final class ActorRuntimeController {
                 pose=ActorRigPoseComposition.compose(pose,animation.sample(at.animationLocalTime*Math.max(.01f,at.animationSpeed),
                         at.animationLoop?animation.loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE),
                         value -> applyRigPoseOverrides(value,at),diagnostic -> reportPlacement(actor.getActorId(),time,
-                                "pose-layer",false,"骨骼动作层与当前演员不兼容，已跳过该层。"),at.animationBlendSettings);
+                                "pose-layer",false,"骨骼动作层与当前演员不兼容，已跳过该层。"),at.animationBlendSettings,at.animationBlendEnvelope);
             }
             if (asset.isEmpty()) applyRigPoseOverrides(pose,at);
             pose.setLimbBendMode(actor.getLimbBendMode());
@@ -742,13 +742,14 @@ public final class ActorRuntimeController {
                 var finalRigPose = ActorRigPoseComposition.compose(proceduralPose,
                         authoredPose, pose -> applyRigPoseOverrides(pose, s),
                         diagnostic -> reportPlacement(actor.getActorId(),timelineSource.getCurrentTime(),
-                                "pose-layer",false,"骨骼动作层与当前演员不兼容，已跳过该层。"),s.animationBlendSettings);
+                                "pose-layer",false,"骨骼动作层与当前演员不兼容，已跳过该层。"),s.animationBlendSettings,s.animationBlendEnvelope);
                 finalRigPose.setLimbBendMode(actor.getLimbBendMode());
                 if (actor.getType() == com.director.actor.ActorType.PLAYER) {
-                    var authoredBones = new java.util.HashSet<String>();
+                    var authoredWeights = new java.util.HashMap<String,Float>();
                     for (int i=0;i<authoredPose.rig().boneCount();i++)
-                        if (s.animationBlendSettings.contributes(authoredPose,i)) authoredBones.add(authoredPose.rig().bone(i).id());
-                    ActorRouteFootContact.apply(finalRigPose,s,authoredBones);
+                        if (s.animationBlendSettings.contributes(authoredPose,i,s.animationBlendEnvelope))
+                            authoredWeights.put(authoredPose.rig().bone(i).id(),s.animationBlendSettings.effectiveWeight(s.animationBlendEnvelope));
+                    ActorRouteFootContact.apply(finalRigPose,s,authoredWeights);
                 }
                 applyPoseToRuntime(rigPose.pose);
                 Entity preview = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
