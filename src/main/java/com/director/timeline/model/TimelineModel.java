@@ -41,6 +41,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     private long actorEditContextRevision;
     /** Transient gesture invalidation; never serialized or used to guard committed undo commands. */
     public long getActorEditContextRevision() { return actorEditContextRevision; }
+    @Override public void invalidateActorEditContext() { actorEditContextRevision++; }
     private void selectionChanged(java.util.Set<Object> before, Object previousLast) {
         if(!before.equals(selectedItems) || previousLast != lastClickedItem) actorEditContextRevision++;
     }

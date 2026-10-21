@@ -71,6 +71,8 @@ public final class ActorRuntimeController {
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorRuntimeController.class);
     private static final ActorRuntimeController INSTANCE = new ActorRuntimeController();
 
+    static boolean previewActive(EntitySample sample) { return sample!=null && sample.enabled && sample.active; }
+
     public static ActorRuntimeController getInstance() {
         return INSTANCE;
     }
@@ -93,6 +95,32 @@ public final class ActorRuntimeController {
 
     /** 上一帧时间（用于计算 deltaTime） */
     private float lastUpdateTime = 0f;
+    private long previewWorldRevision=-1;
+
+    private boolean synchronizePreviewWorld() {
+        var previews=ActorPreviewManager.getInstance();previews.syncWorld();
+        if(previewWorldRevision==previews.worldRevision()) return false;
+        releaseWorldResources();previewWorldRevision=previews.worldRevision();return true;
+    }
+    /** Runs even when the timeline is paused or the Director screen is closed. */
+    public void tickWorld() {
+        if(synchronizePreviewWorld() && ActorPreviewManager.getInstance().hasWorld()) update();
+    }
+    public void clearWorldPreviews() {
+        var previews=ActorPreviewManager.getInstance();previews.disconnectWorld();
+        releaseWorldResources();previewWorldRevision=previews.worldRevision();
+    }
+    private void releaseWorldResources() {
+        if(timelineSource!=null) timelineSource.invalidateActorEditContext();
+        diagnostics.clear();
+        propRuntimes.values().forEach(ActorPropRuntime::dispose);propRuntimes.clear();
+        projectileManager.clear();
+        com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
+        animationPlayers.clear();
+        for(var runtime:runtimes.values()) runtime.resetWorldResources();
+        lastUpdateTime=timelineSource==null?0:timelineSource.getCurrentTime();
+    }
+
 
     /** 总开关 */
     private boolean enabled = true;
@@ -101,6 +129,8 @@ public final class ActorRuntimeController {
 
     /** Re-evaluate pose/constraints with a pure animation snapshot; never consume or dispatch events. */
     public boolean refreshPosePreview(UUID actorId) {
+        synchronizePreviewWorld();
+        if (!ActorPreviewManager.getInstance().hasWorld()) return false;
         if (!enabled || timelineSource==null || actorId==null
                 || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()) return false;
         var boneGizmo=com.director.ui.actor.pose.ActorBoneGizmoController.getInstance();
@@ -201,6 +231,8 @@ public final class ActorRuntimeController {
      * 每帧更新（由 TimelinePanel 调用）
      */
     public void update() {
+        synchronizePreviewWorld();
+        if (!ActorPreviewManager.getInstance().hasWorld()) return;
         if (!enabled || timelineSource == null || actorRegistry == null) {
             diagnostics.clear(); return;
         }
@@ -366,6 +398,12 @@ public final class ActorRuntimeController {
          *
          * @param time 当前时间（秒）
          */
+        private void resetWorldResources() {
+            spawned=false;lastSample=null;lastTime=-1;
+            groundRoute=null;groundClip=null;groundWorld=null;groundDimensions=null;groundRevision=-1;
+            // Keep sampler event caches: loading a new world is not rewinding or replaying events.
+        }
+
         void update(float time) {
             if (ownerTrack.isMuted()) return;
             // 1️⃣ 解析 Actor
@@ -586,7 +624,7 @@ public final class ActorRuntimeController {
                 return;
             }
 
-            if (sample.active && (!spawned || !ActorPreviewManager.getInstance().hasPreview(actor.getActorId()))) {
+            if (previewActive(sample) && (!spawned || !ActorPreviewManager.getInstance().hasPreview(actor.getActorId()))) {
                 // 需要生成预览实体
                 Entity entity = ActorPreviewManager.getInstance().ensurePreview(actor);
                 if (entity != null) {
@@ -597,7 +635,7 @@ public final class ActorRuntimeController {
                 }
             }
 
-            if (!sample.active && (spawned || ActorPreviewManager.getInstance().hasPreview(actor.getActorId()))) {
+            if (!previewActive(sample) && (spawned || ActorPreviewManager.getInstance().hasPreview(actor.getActorId()))) {
                 // 需要移除预览实体
                 ActorPreviewManager.getInstance().removePreview(actor.getActorId());
                 com.director.actor.model.CustomModelPreviewRenderer.getInstance().remove(actor.getActorId());

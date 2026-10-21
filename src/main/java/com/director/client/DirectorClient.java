@@ -103,14 +103,14 @@ public class DirectorClient implements ClientModInitializer {
         });
 
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-            com.director.actor.runtime.ActorRuntimeController.getInstance().clearPropPreviews();
+            com.director.actor.runtime.ActorRuntimeController.getInstance().clearWorldPreviews();
             client.execute(com.director.season.SeasonWorldEffects::clear);
         });
 
         // 注册客户端停止事件
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             // ImGui 清理现在由 ImGuiRenderer 统一处理
-            com.director.actor.runtime.ActorRuntimeController.getInstance().clearPropPreviews();
+            com.director.actor.runtime.ActorRuntimeController.getInstance().clearWorldPreviews();
             // 这里只处理客户端特定的清理
         });
     }
@@ -185,6 +185,7 @@ public class DirectorClient implements ClientModInitializer {
     private void registerKeyBindingHandler() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             com.director.ui.DirectorScreen.tickPendingRestore(client);
+            com.director.actor.runtime.ActorRuntimeController.getInstance().tickWorld();
             com.director.core.animation.WholeContainerImpactRingPlayer.tick(client);
 
             if (client.player != null && client.currentScreen == null) {

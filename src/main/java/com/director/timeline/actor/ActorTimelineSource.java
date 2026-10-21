@@ -14,6 +14,9 @@ public interface ActorTimelineSource {
 
     float getCurrentTime();
 
+    /** World-owned previews changed; pending editor gestures must not cross this boundary. */
+    default void invalidateActorEditContext() {}
+
     List<TimelineTrack> getTracks();
 
     void addTrackStructureListener(TrackStructureListener listener);

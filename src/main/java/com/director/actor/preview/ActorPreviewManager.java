@@ -60,6 +60,15 @@ public final class ActorPreviewManager {
     }
 
 
+    private final ActorPreviewWorldBinding<ClientWorld> worldBinding=new ActorPreviewWorldBinding<>(this::clear);
+    public void syncWorld() {
+        var client=MinecraftClient.getInstance();
+        worldBinding.bind(client==null?null:client.world);
+    }
+    public long worldRevision() { return worldBinding.revision(); }
+    public boolean hasWorld() { return worldBinding.world()!=null; }
+    public void disconnectWorld() { worldBinding.disconnect(); }
+
     private ActorPreviewManager() {
     }
 
@@ -79,7 +88,10 @@ public final class ActorPreviewManager {
             return null;
         }
 
-        return previews.computeIfAbsent(actor.getActorId(), id -> createPreview(actor));
+        syncWorld();
+        if(!hasWorld()) return null;
+        var existing=getPreview(actor.getActorId());
+        return existing!=null?existing:previews.computeIfAbsent(actor.getActorId(),id->createPreview(actor));
     }
 
     /**
@@ -116,7 +128,12 @@ public final class ActorPreviewManager {
         if (actorId == null) {
             return null;
         }
-        return previews.get(actorId);
+        syncWorld();
+        var entity=previews.get(actorId);
+        if(entity!=null && (entity.isRemoved() || entity.getEntityWorld()!=worldBinding.world())) {
+            removePreview(actorId);return null;
+        }
+        return entity;
     }
 
     /**
@@ -126,6 +143,7 @@ public final class ActorPreviewManager {
      * @return 如果存在则返回 true
      */
     public java.util.Set<UUID> previewActorIds() {
+        syncWorld();
         return java.util.Set.copyOf(previews.keySet());
     }
 
@@ -133,7 +151,7 @@ public final class ActorPreviewManager {
         if (actorId == null) {
             return false;
         }
-        return previews.containsKey(actorId);
+        return getPreview(actorId)!=null;
     }
 
     /**
@@ -149,6 +167,7 @@ public final class ActorPreviewManager {
         }
         previews.clear();
         entityToActor.clear();
+        rootScales.clear();
         LOGGER.debug("[ActorPreviewManager] 清空所有预览实体");
     }
 
@@ -163,7 +182,9 @@ public final class ActorPreviewManager {
         if (entity == null) {
             return null;
         }
-        return entityToActor.get(entity.getId());
+        syncWorld();
+        var id=entityToActor.get(entity.getId());
+        return id!=null && previews.get(id)==entity && !entity.isRemoved()?id:null;
     }
 
     /**
@@ -173,7 +194,9 @@ public final class ActorPreviewManager {
      * @return Actor ID，如果不存在则返回 null
      */
     public UUID getActorIdByEntityId(int entityId) {
-        return entityToActor.get(entityId);
+        syncWorld();
+        var id=entityToActor.get(entityId);
+        return id!=null && getPreview(id)!=null?id:null;
     }
 
     /**
@@ -182,6 +205,7 @@ public final class ActorPreviewManager {
      * @return 预览实体数量
      */
     public int size() {
+        syncWorld();
         return previews.size();
     }
 
@@ -191,6 +215,7 @@ public final class ActorPreviewManager {
      * @return 如果为空则返回 true
      */
     public boolean isEmpty() {
+        syncWorld();
         return previews.isEmpty();
     }
 
@@ -292,6 +317,7 @@ public final class ActorPreviewManager {
     }
 
     public java.util.Collection<Entity> getPreviewEntities() {
+        syncWorld();
         return java.util.Collections.unmodifiableCollection(previews.values());
     }
 }
