@@ -16,9 +16,23 @@ public final class ActorAnimationBlendPropertyUI {
                               ActorClipInspectorGesture gesture) {
         if(!ImGui.collapsingHeader("骨骼动作混合")) return;
         if(source instanceof com.director.timeline.model.entity.EntityAnimationClip animation
-                && com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(animation.getAnimationId()).isEmpty()) {
-            ImGui.textWrapped("此设置用于逐骨骼动画资产；当前动画没有逐骨骼通道，不能使用局部混合。");
+                && com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(animation.getAnimationId()).isEmpty()
+                && com.director.actor.animation.AnimationLibrary.getInstance().get(animation.getAnimationId()).isEmpty()) {
+            ImGui.textWrapped("当前动画引用不存在，请先选择有效动画。");
             return;
+        }
+        if(source instanceof com.director.timeline.model.entity.EntityAnimationClip animation
+                && com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(animation.getAnimationId()).isEmpty()) {
+            var wrapper=source.getTimelineClip();
+            var payload=wrapper==null || wrapper.getParentTrack()==null?null:wrapper.getParentTrack().getActorTrackPayload();
+            var actor=payload==null || payload.getActorRef()==null?null:
+                    ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
+            var rig=ActorRigCompatibility.resolveRig(actor).orElse(null);
+            if(!HumanoidTopology.matches(rig)) {
+                ImGui.textWrapped("此内建动作需要人形骨架才能使用局部混合。");
+                return;
+            }
+            ImGui.textWrapped("此动作提供身体、头和四肢的旋转通道；位置、缩放与下半肢体通道由其他动作保留。");
         }
         if(source instanceof com.director.timeline.model.entity.EntitySpawnClip spawn && spawn.getBoneAnimationId()==null)
             ImGui.textWrapped("尚未创建骨骼关键帧；以下设置将在创建后生效。");

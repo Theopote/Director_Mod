@@ -18,6 +18,34 @@ class AnimationDataSamplerTest {
     private float yaw(float time, boolean loop, float speed) {
         return AnimationDataSampler.sample(ID, time, loop, speed).pose.headYaw;
     }
+    @Test void rigAdapterAuthorsOnlyAvailableRotationChannels() {
+        register(1f);
+        var rig=com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION;
+        var pose=AnimationDataSampler.sampleRig(ID,rig,.5f,false,1f);
+        assertNotNull(pose);
+        assertEquals(2,pose.authoredChannels(rig.requireBoneIndex("head")));
+        assertEquals(0,pose.authoredChannels(rig.requireBoneIndex("root")));
+        assertEquals(0,pose.authoredChannels(rig.requireBoneIndex("left_forearm")));
+        assertNull(AnimationDataSampler.sampleRig(ID,null,.5f,false,1f));
+    }
+    @Test void adaptedActionHonorsWeightMaskAndPreservesUnwrittenChannels() {
+        register(1f);
+        var rig=com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION;
+        var base=new com.director.actor.rig.skeleton.RigPose(rig);
+        var head=base.localTransform("head");
+        base.setLocalTransform("head",new com.director.actor.rig.skeleton.BoneTransform(
+                new org.joml.Vector3f(1,2,3),head.rotation(),new org.joml.Vector3f(2)));
+        var action=AnimationDataSampler.sampleRig(ID,rig,1f,false,1f);
+        var settings=new com.director.actor.rig.skeleton.PoseBlendSettings(
+                com.director.actor.rig.skeleton.PoseLayer.BlendMode.OVERRIDE,.5f,7,false,java.util.Set.of("head"));
+        var mixed=com.director.actor.rig.skeleton.RigPoseComposer.compose(base,List.of(settings.layer(action))).pose();
+        assertEquals(new org.joml.Vector3f(1,2,3),mixed.localTransform("head").translation());
+        assertEquals(new org.joml.Vector3f(2),mixed.localTransform("head").scale());
+        assertEquals(.5f,mixed.localTransform("head").rotation().getEulerAnglesXYZ(new org.joml.Vector3f()).y,1e-5f);
+        var faded=com.director.actor.rig.skeleton.RigPoseComposer.compose(base,List.of(settings.layer(action,0))).pose();
+        assertEquals(base.localTransform("head"),faded.localTransform("head"));
+    }
+
     @Test void sameIdUsesCurrentLoopAndSpeedOnEverySeek() {
         register(1f);
         assertEquals(.25f, yaw(1.25f, true, 1f), 1e-5f);

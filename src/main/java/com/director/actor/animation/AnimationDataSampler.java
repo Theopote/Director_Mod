@@ -7,6 +7,21 @@ import com.director.actor.rig.PoseMask;
 public final class AnimationDataSampler {
     private AnimationDataSampler() {}
 
+    /** Adapt fixed-field actions to the shared compositor without inventing TRS channels. */
+    public static com.director.actor.rig.skeleton.RigPose sampleRig(String id,
+            com.director.actor.rig.skeleton.RigDefinition rig, float time, boolean loop, float speed) {
+        if (!com.director.actor.rig.skeleton.HumanoidTopology.matches(rig)) return null;
+        var sampled = sample(id, time, loop, speed);
+        if (sampled == null) return null;
+        var converted = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(sampled.pose, rig);
+        var result = new com.director.actor.rig.skeleton.RigPose(rig);
+        for (int i = 0; i < rig.boneCount(); i++) {
+            if (converted.isAuthored(i)) result.setLocalTransform(i, converted.localTransform(i),
+                    com.director.actor.rig.skeleton.RigPose.ROTATION);
+        }
+        return result;
+    }
+
     public static AnimationPoseResult sample(String id, float localTime, boolean loop, float speed) {
         if (id == null || id.isBlank()) return null;
         var data = AnimationLibrary.getInstance().get(id).orElse(null);

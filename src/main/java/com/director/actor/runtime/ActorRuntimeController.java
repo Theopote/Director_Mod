@@ -537,14 +537,16 @@ public final class ActorRuntimeController {
             var pose = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(base,rig);
             var asset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(at.animationId)
                     .filter(value -> com.director.actor.rig.ActorRigCompatibility.accepts(actor,value.rigId()));
-            if (asset.isPresent()) {
-                var animation=asset.get();
-                pose=ActorRigPoseComposition.compose(pose,animation.sample(at.animationLocalTime*Math.max(.01f,at.animationSpeed),
-                        at.animationLoop?animation.loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE),
+            var authored = asset.isPresent()
+                    ? asset.get().sample(at.animationLocalTime*Math.max(.01f,at.animationSpeed),
+                            at.animationLoop?asset.get().loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE)
+                    : AnimationDataSampler.sampleRig(at.animationId,rig,at.animationLocalTime,at.animationLoop,at.animationSpeed);
+            if (authored != null) {
+                pose=ActorRigPoseComposition.compose(pose,authored,
                         value -> applyRigPoseOverrides(value,at),diagnostic -> reportPlacement(actor.getActorId(),time,
                                 "pose-layer",false,"骨骼动作层与当前演员不兼容，已跳过该层。"),at.animationBlendSettings,at.animationBlendEnvelope);
             }
-            if (asset.isEmpty()) applyRigPoseOverrides(pose,at);
+            if (authored == null) applyRigPoseOverrides(pose,at);
             pose.setLimbBendMode(actor.getLimbBendMode());
             var root=pose.localTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT);
             if(root.translation().lengthSquared()>1e-10f) {
@@ -778,8 +780,12 @@ public final class ActorRuntimeController {
             var rigAsset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance()
                     .find(s.animationId)
                     .filter(asset -> com.director.actor.rig.ActorRigCompatibility.accepts(actor, asset.rigId()));
-            if (rigAsset.isPresent() || boneDraft!=null) {
-                var definition=boneDraft!=null?boneDraft.rig():rigAsset.orElseThrow().rig();
+            var legacyRig = com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElse(null);
+            var legacyPose = rigAsset.isEmpty() && boneDraft == null
+                    ? AnimationDataSampler.sampleRig(s.animationId, legacyRig, s.animationLocalTime,
+                            s.animationLoop, s.animationSpeed) : null;
+            if (rigAsset.isPresent() || boneDraft!=null || legacyPose!=null) {
+                var definition=boneDraft!=null?boneDraft.rig():rigAsset.isPresent()?rigAsset.get().rig():legacyRig;
                 var blend=boneDraft!=null?boneDraft.settings():s.animationBlendSettings;
                 float envelope=boneDraft!=null?boneDraft.envelope():s.animationBlendEnvelope;
                 var proceduralPose = com.director.actor.rig.skeleton.HumanoidTopology.matches(definition)
@@ -790,6 +796,7 @@ public final class ActorRuntimeController {
                             !s.poseOverrideArms, !s.poseOverrideLegs);
                 com.director.actor.rig.skeleton.RigPose authoredPose;
                 if(boneDraft!=null) authoredPose=boneDraft.authoredPose();
+                else if(legacyPose!=null) authoredPose=legacyPose;
                 else {
                     var asset=rigAsset.orElseThrow();
                     var mode=s.animationLoop?asset.loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE;
