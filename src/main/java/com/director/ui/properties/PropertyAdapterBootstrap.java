@@ -234,10 +234,6 @@ public final class PropertyAdapterBootstrap {
                     new com.director.ui.properties.adapters.TimelineMarkerPropertyAdapter());
             registeredCount++;
             
-            // ✅ 实体关键帧适配器
-            registerAdapter(com.director.timeline.model.entity.EntityKeyframe.class,
-                    new EntityKeyframePropertyAdapter());
-            registeredCount++;
 
             // ✅ 实体片段适配器
             registerAdapter(com.director.timeline.model.entity.EntitySpawnClip.class,

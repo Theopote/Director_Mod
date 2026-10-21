@@ -10,6 +10,23 @@ import java.util.*;
 /** Explicit root-key authoring never creates a new clip or track. Times are scene seconds. */
 public final class ActorRootKeyframeEditing {
     private ActorRootKeyframeEditing() {}
+    /** Track-header keys use the same clip-owned data and undo path as the root rows. */
+    public static EntityClipKeyframe insertAtPlayhead(TimelineModel model, TimelineTrack owner) {
+        if (model == null || owner == null || owner.getType() != TrackType.ACTOR
+                || owner.getActorTrackPayload() == null) return null;
+        float time = model.getCurrentTime();
+        EntityClip target = null;
+        // Transform layers take precedence over the spawn base, just as in the sampler.
+        for (var clip : owner.getActorTrackPayload().getClips()) {
+            if (clip.isMuted() || time < clip.getStartTime() || time > clip.getEndTime()) continue;
+            if (clip instanceof EntityTransformClip) {
+                if (!(target instanceof EntityTransformClip) || clip.getStartTime() >= target.getStartTime()) target = clip;
+            } else if (clip instanceof EntitySpawnClip && !(target instanceof EntityTransformClip)
+                    && (target == null || clip.getStartTime() >= target.getStartTime())) target = clip;
+        }
+        return target == null ? null : insert(model, owner, target);
+    }
+
     public static boolean editable(TimelineModel model, TimelineTrack owner, EntityClip clip) {
         return model != null && owner != null && clip != null && !model.isPlaying() && !model.isScrubbing()
                 && Float.isFinite(model.getCurrentTime()) && model.getAllTracks().contains(owner)

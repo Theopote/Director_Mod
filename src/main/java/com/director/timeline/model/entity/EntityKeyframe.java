@@ -91,7 +91,7 @@ public class EntityKeyframe implements TimelineSelectable, Comparable<EntityKeyf
     /** 实体类型预设 */
     private EntityType entityType;
 
-    /** 插值类型，用于 ActorTrackSampler 在关键帧之间插值的方式 */
+    /** 插值类型，用于 EntityClipSampler 在关键帧之间插值的方式 */
     private TimelineInterpolation interpolation;
 
     // ========== ① 位置和旋转 ==========

@@ -2,7 +2,6 @@ package com.director.timeline.playback;
 
 import com.director.core.DirectorServices;
 import com.director.timeline.model.TimelineModel;
-import com.director.timeline.playback.entity.TimelineActorController;
 import com.director.timeline.playback.season.TimelineSeasonController;
 import com.director.timeline.playback.time.TimelineWorldController;
 import com.director.timeline.playback.weather.TimelineWeatherController;
@@ -59,7 +58,6 @@ public final class TimelinePlaybackSampler {
         run("天气采样", () -> TimelineWeatherController.getInstance().updateForPlayback(timeSeconds));
         run("世界时间", () -> TimelineWorldController.getInstance().update());
         run("演员运行时", () -> com.director.actor.runtime.ActorRuntimeController.getInstance().update());
-        run("演员轨道", () -> TimelineActorController.getInstance().updateForPlayback(timeSeconds));
         run("WeatherRenderer", () -> com.director.client.renderer.weather.WeatherRenderer.get().tick());
         run("天气事件", () -> TimelineWeatherController.getInstance().tickEvents(timeSeconds));
     }

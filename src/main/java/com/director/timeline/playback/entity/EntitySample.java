@@ -8,7 +8,7 @@ import org.joml.Vector3f;
 /**
  * EntitySample v1.0
  *
- * <p>由 ActorTrackSampler 在某一时间采样得到的实体状态。
+ * <p>由 EntityClipSampler 在某一时间采样得到的实体状态。
  * 用于驱动 Minecraft 世界中实体的位置、旋转、动作、状态等。
  *
  * <p>设计原则：
@@ -17,7 +17,7 @@ import org.joml.Vector3f;
  * - 用于实体控制系统的运行时采样
  *
  * <p>用于：
- * - TimelineActorController.apply(sample)
+ * - ActorRuntimeController
  * - 实体渲染系统：位置、旋转、动作、可见性等
  *
  * @author Director

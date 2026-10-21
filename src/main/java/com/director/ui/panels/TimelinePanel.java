@@ -27,11 +27,9 @@ import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.ui.timeline.audio.TimelineAudioService;
 import com.director.ui.timeline.state.*;
 import com.director.ui.timeline.ui.TimelineControlBar;
-import com.director.timeline.model.entity.EntityKeyframe;
 import com.director.timeline.model.season.SeasonKeyframe;
 import com.director.timeline.playback.camera.CameraRuntime;
 import com.director.timeline.playback.camera.TimelineCameraController;
-import com.director.timeline.playback.entity.TimelineActorController;
 import com.director.timeline.playback.season.TimelineSeasonController;
 import com.director.timeline.playback.time.TimelineWorldController;
 import com.director.timeline.playback.weather.TimelineWeatherController;
@@ -1535,20 +1533,10 @@ public class TimelinePanel extends AbstractPanel
     }
 
     private boolean tryAddEntityKeyframe(TimelineTrack track, float time, String timeLabel) {
-        if (!track.getType().supportsEntityControl()) {
-            return false;
-        }
-
-        TimelineActorController entityController = TimelineActorController.getInstance();
-        if (!entityController.isAddKeyframeTargetValid(track)) {
-            return true;
-        }
-
-        executeAutomationKeyframeAdd(
-                track,
-                new EntityKeyframe("Entity @" + timeLabel, time),
-                entityController::rebuildFromActiveTrack
-        );
+        if (track.getType() != TrackType.ACTOR) return false;
+        var key = com.director.ui.actor.pose.ActorRootKeyframeEditing.insertAtPlayhead(model, track);
+        if (key != null) markDataChanged();
+        else LOGGER.debug("[TimelinePanel] 当前演员片段不可写入整体关键帧，请检查播放状态、锁定和路径控制");
         return true;
     }
 

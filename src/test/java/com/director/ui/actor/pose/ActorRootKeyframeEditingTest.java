@@ -23,6 +23,69 @@ class ActorRootKeyframeEditingTest {
     <T extends EntityClip> T add(T clip) {
         owner.getActorTrackPayload().addClip(clip); owner.addClip(new EntityTimelineClip(clip, 0)); return clip;
     }
+    @Test void addingAndUndoingSecondActorTrackPreservesFirstTrackAndPayload() {
+        var spawn = add(new EntitySpawnClip("First", 0, 5));
+        model.setCurrentTime(2);
+        var key = ActorRootKeyframeEditing.insertAtPlayhead(model, owner);
+        var second = new TimelineTrack("B", TrackType.ACTOR);
+        var payload = second.getOrCreateActorTrackPayload();
+        history.executeCommand(new AddTrackCommand(model, second));
+        assertTrue(model.getAllTracks().contains(second));
+        assertTrue(history.undo()); assertFalse(model.getAllTracks().contains(second));
+        assertTrue(model.getAllTracks().contains(owner)); assertTrue(spawn.getKeyframes().contains(key));
+        assertTrue(history.redo()); assertTrue(model.getAllTracks().contains(second));
+        assertSame(payload, second.getActorTrackPayload());
+        assertTrue(owner.getAutomationKeyframes().isEmpty());
+    }
+
+    @Test void headerWritesSpawnKeyAndUndoWithoutAutomationOrNewClips() {
+        var spawn = add(new EntitySpawnClip("Actor", 0, 5));
+        model.setCurrentTime(2);
+        var key = ActorRootKeyframeEditing.insertAtPlayhead(model, owner);
+        assertNotNull(key); assertEquals(2, key.getTime());
+        assertTrue(spawn.getKeyframes().contains(key));
+        assertTrue(owner.getAutomationKeyframes().isEmpty());
+        assertEquals(1, owner.getClips().size());
+        assertSame(key, ActorRootKeyframeEditing.insertAtPlayhead(model, owner));
+        assertEquals(1, history.getUndoSize());
+        assertTrue(history.undo()); assertTrue(spawn.getKeyframes().isEmpty());
+        assertTrue(history.redo()); assertTrue(spawn.getKeyframes().contains(key));
+    }
+    @Test void headerTargetsLatestActiveTransformInsteadOfSpawnOrSelectedFutureClip() {
+        var spawn = add(new EntitySpawnClip("Actor", 0, 10));
+        var older = add(new EntityTransformClip("Older", 1, 5));
+        var current = add(new EntityTransformClip("Current", 2, 5));
+        var future = add(new EntityTransformClip("Future", 6, 10));
+        model.selectItem(future.getTimelineClip(), false); model.setCurrentTime(2);
+        var key = ActorRootKeyframeEditing.insertAtPlayhead(model, owner);
+        assertNotNull(key); assertTrue(current.getKeyframes().contains(key));
+        assertTrue(spawn.getKeyframes().isEmpty()); assertTrue(older.getKeyframes().isEmpty());
+        assertTrue(future.getKeyframes().isEmpty());
+    }
+    @Test void headerCannotWriteOutsideClipOrWhileLockedOrPlaying() {
+        var spawn = add(new EntitySpawnClip("Actor", 0, 5));
+        model.setCurrentTime(6); assertNull(ActorRootKeyframeEditing.insertAtPlayhead(model, owner));
+        model.setCurrentTime(2); owner.setLocked(true);
+        assertNull(ActorRootKeyframeEditing.insertAtPlayhead(model, owner));
+        owner.setLocked(false); model.setPlaying(true);
+        assertNull(ActorRootKeyframeEditing.insertAtPlayhead(model, owner));
+        assertTrue(spawn.getKeyframes().isEmpty()); assertEquals(0, history.getUndoSize());
+    }
+    @Test void headerDoesNotRequireOneActiveActorTrack() {
+        var first = add(new EntitySpawnClip("First", 0, 5));
+        var actor = ActorRegistryManager.getInstance().createActor("B", ActorType.PLAYER);
+        var second = new TimelineTrack("B", TrackType.ACTOR);
+        second.getOrCreateActorTrackPayload().setActorRef(ActorRef.of(actor)); model.addTrack(second);
+        var other = new EntitySpawnClip("Second", 0, 5);
+        second.getActorTrackPayload().addClip(other); second.addClip(new EntityTimelineClip(other, 0));
+        model.setCurrentTime(2);
+        assertNotNull(ActorRootKeyframeEditing.insertAtPlayhead(model, owner));
+        assertNotNull(ActorRootKeyframeEditing.insertAtPlayhead(model, second));
+        assertEquals(1, first.getKeyframes().size()); assertEquals(1, other.getKeyframes().size());
+        assertTrue(history.undo()); assertTrue(other.getKeyframes().isEmpty());
+        assertEquals(1, first.getKeyframes().size());
+    }
+
     @Test void firstBoneKeyUsesSpawnWithoutExtraClipsAndUndoRemovesResource() {
         var spawn=add(new EntitySpawnClip("Actor",0,5));model.setCurrentTime(2);
         assertTrue(ActorEmbeddedAnimation.firstKey(model,owner,"head",2,com.director.actor.animation.asset.InterpolationMode.SMOOTH));

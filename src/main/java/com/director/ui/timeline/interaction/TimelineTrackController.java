@@ -113,12 +113,6 @@ public class TimelineTrackController {
             LOGGER.info("[TrackController] 创建第一条天气轨道，自动激活: {}", trackName);
         }
         
-        // ⭐ v1.0：如果是演员轨道且是第一条，自动激活
-        if (type == TrackType.ACTOR && sameTypeCount == 0) {
-            com.director.timeline.playback.entity.TimelineActorController.getInstance()
-                    .bindActiveTrack(newTrack);
-            LOGGER.info("[TrackController] 创建第一条演员轨道，自动激活: {}", trackName);
-        }
 
         onDataChangedCallback.run();
         LOGGER.info("[TrackController] 创建新轨道 {} (类型: {}, 同类型第 {} 个)",

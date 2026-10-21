@@ -1273,3 +1273,22 @@ ActorRouteFootContact只接入无手工动画的标准玩家自动ONCE路径姿�
 - 本轮只隔离混合设置错误，不承诺修复 JSON 语法损坏或其他必需片段字段的损坏；未进行游戏内恢复说明的界面验收。原文件不会因读取而自动重写，正常保存才写出恢复后的设置。
 
 下一项：审计旧 ActorTrackSampler / TimelineActorController / DefaultAnimationPlayer 的实际调用与内建动作来源，再分阶段统一播放链路，避免未经验证直接删除仍在使用的功能。
+
+
+## 2026-10-21 内建动作播放改为绝对时间采样
+
+- ActorRuntimeController 不再持有每演员的 DefaultAnimationPlayer，直接根据当前动画 ID、片段本地时间、循环与速度采样 AnimationLibrary。保留内建及程序化注册动作，不修改资产格式。
+- 修复同名动画切换循环设置仍沿用旧状态、无效 ID 残留上一动作、同 ID 重新注册后仍播放旧数据的问题；暂停、回拖与任意跳转均不依赖先前播放状态。
+- 边界姿态复制后再交给运行时，避免姿态覆盖修改原始关键帧。非有限输入隔离，使用 double 处理时间乘积，防止有限大数相乘溢出。
+- 新增 5 项回归测试，覆盖循环/速度即时变化、缺失/删除引用、同 ID 替换、关键帧隔离、异常时间及大数；演员相关与动画测试合计 561 项通过，0 失败/错误。未进行游戏内视觉验收。
+- 审计发现 TimelineActorController 仍被轨道创建、撤销及属性 UI 引用；其渲染快照无消费者，但不能仅删除类。下一项需将这些管理入口收敛到实际演员运行时，再移除无效采样链。AnimationData 到 AnimationAsset 的数据统一仍待后续实现。
+
+
+## 2026-10-21 移除无效演员采样链并修正轨道头部打帧
+
+- 完成旧控制器引用审计：TimelineActorController 只把旧轨道级 EntityKeyframe 采样发布到没有消费者的 EntityRenderOverride；实际预览和导出由 ActorRuntimeController / EntityClipSampler 驱动。
+- 移除上述控制器、ActorTrackSampler、渲染快照及旧 EntityKeyframePropertyAdapter 注册与实现。保留仍被片段等使用的 EntityKeyframe 类型/枚举，不引入旧文件迁移。
+- 演员轨道头部添加关键帧改为 ActorRootKeyframeEditing 的统一入口，写入当前有效 Transform 或 Spawn 片段，复用校验、重复帧处理与撤销。优先当前最新 Transform，其次 Spawn；不会向未来/过期片段补帧，也不会创建片段或轨道。路径控制、播放、锁定和不可转换状态继续按现有规则拒绝写入。
+- 创建/撤销演员轨道不再切换单个“激活演员轨道”，各演员独立由实际运行时评估。离线采样不再额外运行无效旧采样器，渲染清理移除空快照路径。
+- 新增 5 项回归：头部打帧和去重/撤销、Transform 优先且忽略未来选中片段、越界/锁定/播放拒绝、多演员分别打帧、第二条演员轨道创建撤销重做保留第一条数据。相关 566 项测试通过，0 失败/错误，编译与 diff 检查通过；未做游戏内界面验收。
+- 下一项：继续审计 AnimationData 内建动作到 AnimationAsset / RigPose 的统一方式，让内建表演动作也能使用逐骨骼通道、权重与混合设置；不把循环步态烘焙为固定时间周期。

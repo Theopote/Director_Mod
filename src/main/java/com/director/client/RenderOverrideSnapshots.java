@@ -1,7 +1,6 @@
 package com.director.client;
 
 import com.director.client.camera.CameraRenderOverride;
-import com.director.client.entity.EntityRenderOverride;
 import com.director.client.world.WorldRenderOverride;
 import com.director.timeline.playback.TimelinePlaybackSampler;
 import net.minecraft.client.MinecraftClient;
@@ -22,7 +21,6 @@ public final class RenderOverrideSnapshots {
         com.director.lighting.PointLightRuntime.clear();
         WorldRenderOverride.clearAll();
         CameraRenderOverride.clear();
-        EntityRenderOverride.clear();
     }
 
     /**

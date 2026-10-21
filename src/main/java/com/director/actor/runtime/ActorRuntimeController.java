@@ -4,7 +4,7 @@ import com.director.actor.Actor;
 import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRef;
 import com.director.actor.action.ActorActionType;
-import com.director.actor.animation.DefaultAnimationPlayer;
+import com.director.actor.animation.AnimationDataSampler;
 import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.rig.*;
 import net.minecraft.entity.Entity;
@@ -87,9 +87,6 @@ public final class ActorRuntimeController {
     /** 每个 Actor 一个 PropRuntime */
     private final Map<UUID, ActorPropRuntime> propRuntimes = new HashMap<>();
 
-    /** 每个 Actor 一个 AnimationPlayer */
-    private final Map<UUID, DefaultAnimationPlayer> animationPlayers = new HashMap<>();
-
     /** 投掷物管理器 */
     private final ProjectileRuntimeManager projectileManager = ProjectileRuntimeManager.getInstance();
 
@@ -116,7 +113,6 @@ public final class ActorRuntimeController {
         propRuntimes.values().forEach(ActorPropRuntime::dispose);propRuntimes.clear();
         projectileManager.clear();
         com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
-        animationPlayers.clear();
         for(var runtime:runtimes.values()) runtime.resetWorldResources();
         lastUpdateTime=timelineSource==null?0:timelineSource.getCurrentTime();
     }
@@ -200,7 +196,6 @@ public final class ActorRuntimeController {
             ActorPreviewManager.getInstance().clear();
             ProjectileRuntimeManager.getInstance().clear();
             com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
-            animationPlayers.clear();
             propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
             LOGGER.info("[ActorRuntime] 已禁用，清空所有预览实体和投掷物");
         } else {
@@ -306,7 +301,6 @@ public final class ActorRuntimeController {
         if (timelineSource == null) {
             ActorPreviewManager.getInstance().clear();
             com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
-            animationPlayers.clear();
             return;
         }
         var tracks=java.util.List.copyOf(timelineSource.getTracks());
@@ -327,7 +321,6 @@ public final class ActorRuntimeController {
         for (var id : ActorPreviewManager.getInstance().previewActorIds()) if (!liveActors.contains(id)) {
             ActorPreviewManager.getInstance().removePreview(id);
             com.director.actor.model.CustomModelPreviewRenderer.getInstance().remove(id);
-            animationPlayers.remove(id);
         }
         for (var id : new java.util.ArrayList<>(propRuntimes.keySet())) if (!liveActors.contains(id))
             propRuntimes.remove(id).dispose();
@@ -603,8 +596,6 @@ public final class ActorRuntimeController {
                     propRuntime.dispose();
                 }
 
-                // 清理 AnimationPlayer
-                animationPlayers.remove(actorId);
             }
             spawned = false;
             actor = null;
@@ -831,7 +822,7 @@ public final class ActorRuntimeController {
             }
 
             // 3️⃣ Animation pose（明确动画，可能为 null）
-            AnimationPoseResult animPose = getAnimationPose(s, deltaTime);
+            AnimationPoseResult animPose = getAnimationPose(s);
 
             // 4️⃣ Blend（混合）
             Pose finalPose;
@@ -965,44 +956,15 @@ public final class ActorRuntimeController {
         /**
          * 获取当前动画姿态结果。
          *
-         * <p>基于 EntitySample 中的 animationId/loop/speed 驱动每个 Actor 的 DefaultAnimationPlayer。
+         * <p>直接根据片段参数和绝对本地时间采样，不保留播放器状态。
          *
          * @param s 当前 Sample
          * @return AnimationPoseResult，如果没有动画则返回 null
          */
-        private AnimationPoseResult getAnimationPose(EntitySample s, float deltaTime) {
-            if (actor == null || s == null) {
-                return null;
-            }
-
-            // 如果 Sample 中有动画信息，尝试获取动画姿态
-            if (s.animationId == null || s.animationId.isBlank()) {
-                DefaultAnimationPlayer player = animationPlayers.get(actor.getActorId());
-                if (player != null) {
-                    player.stop();
-                }
-                return null;
-            }
-
-            DefaultAnimationPlayer player = animationPlayers.computeIfAbsent(
-                    actor.getActorId(),
-                    k -> new DefaultAnimationPlayer()
-            );
-
-            String currentAnimationId = player.getCurrentAnimationId();
-            boolean animationChanged = currentAnimationId == null || !currentAnimationId.equals(s.animationId);
-
-            if (animationChanged) {
-                player.play(s.animationId, s.animationLoop, s.animationSpeed);
-            } else if (!player.isPlaying()) {
-                player.resume();
-            }
-
-            // 动画必须由时间轴决定，而不是依赖渲染帧累计 deltaTime；这样暂停、拖动和跳转
-            // 都能得到同一个确定姿态。
-            player.setCurrentTime(s.animationLocalTime * Math.max(0.01f, s.animationSpeed));
-
-            return player.getCurrentPose();
+        private AnimationPoseResult getAnimationPose(EntitySample s) {
+            if (actor == null || s == null) return null;
+            return AnimationDataSampler.sample(s.animationId, s.animationLocalTime,
+                    s.animationLoop, s.animationSpeed);
         }
 
         /**

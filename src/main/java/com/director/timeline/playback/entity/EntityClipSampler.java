@@ -29,12 +29,8 @@ import java.util.List;
  *   <li>State Clip 可以叠加</li>
  * </ul>
  *
- * <p>与 ActorTrackSampler 的关系：
- * <ul>
- *   <li>ActorTrackSampler - 处理 EntityKeyframe（关键帧系统）</li>
- *   <li>EntityClipSampler - 处理 EntityClip（Clip 系统）</li>
- *   <li>两者可以并存，优先使用 Clip，如果没有 Clip 则回退到 Keyframe</li>
- * </ul>
+ * <p>演员时间数据的唯一采样入口：整体关键帧属于片段，骨骼关键帧属于片段引用的动画资产。
+ * 由 ActorRuntimeController 驱动各演员轨道，不存在单一激活演员轨道或轨道级关键帧回退。
  *
  * @author Director
  * @version 1.0
