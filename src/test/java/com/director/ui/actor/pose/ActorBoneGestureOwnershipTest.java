@@ -70,4 +70,35 @@ class ActorBoneGestureOwnershipTest {
         assertEquals(false,method.invoke(controller));
         assertNull(spawn.getBoneAnimationId());assertEquals(1,owner.getClips().size());
     }
+    private ActorBoneAnimationDraft capture() throws Exception {
+        var method=controller.getClass().getDeclaredMethod("captureAnimationDraft");method.setAccessible(true);
+        return (ActorBoneAnimationDraft)method.invoke(controller);
+    }
+    @Test void firstDetachedGesturePreviewsWithoutPublishingAndCommitPreservesInput() throws Exception {
+        spawn.setBlendSettings(new com.director.actor.rig.skeleton.PoseBlendSettings(
+                com.director.actor.rig.skeleton.PoseLayer.BlendMode.ADDITIVE,.4f,2,true,java.util.Set.of(),4,1));
+        set("gestureTime",5f);begin();assertNull(capture());
+        ((BoneTrack)get("editingBoneTrack")).rotation().put(2,new Quaternionf().rotateY(.7f),InterpolationMode.LINEAR);
+        var preview=capture();assertNotNull(preview);assertEquals(.5f,preview.envelope(),1e-6f);
+        assertNull(spawn.getBoneAnimationId());assertTrue(asset.boneTracks().isEmpty());
+        assertFalse(AnimationAssetLibrary.getInstance().contains(asset.id()));assertEquals(0,history.getUndoSize());
+        invoke("registerAnimationUndo",new Class[]{TimelineModel.class},model);
+        assertTrue(preview.authoredPose().localTransform("head").toMatrix().equals(
+                asset.sample(2,AnimationLoopMode.ONCE).localTransform("head").toMatrix(),1e-6f));
+        assertEquals(preview.settings(),spawn.getBoneAnimation().getBlendSettings());assertEquals(1,owner.getClips().size());
+        assertTrue(history.undo());assertNull(spawn.getBoneAnimationId());assertEquals(1,owner.getClips().size());
+    }
+    @Test void translationAndScaleDraftCaptureDoesNotWriteAssetOrCreateBinding() throws Exception {
+        for(var mode:java.util.List.of(com.director.client.gizmo.GizmoMode.TRANSLATE,com.director.client.gizmo.GizmoMode.SCALE)) {
+            set("activeBoneMode",mode);set("gestureTime",5f);begin();
+            var track=(BoneTrack)get("editingBoneTrack");
+            if(mode==com.director.client.gizmo.GizmoMode.TRANSLATE) track.translation().put(2,new org.joml.Vector3f(1,2,3),InterpolationMode.LINEAR);
+            else track.scale().put(2,new org.joml.Vector3f(2),InterpolationMode.LINEAR);
+            var input=capture();assertNotNull(input);assertTrue(asset.boneTracks().isEmpty());assertNull(spawn.getBoneAnimationId());
+            if(mode==com.director.client.gizmo.GizmoMode.TRANSLATE) assertEquals(new org.joml.Vector3f(1,2,3),input.authoredPose().localTransform("head").translation());
+            else assertEquals(new org.joml.Vector3f(2),input.authoredPose().localTransform("head").scale());
+            invoke("clearDraft",new Class[]{});assertNull(capture());
+        }
+        assertEquals(0,history.getUndoSize());assertEquals(1,owner.getClips().size());
+    }
 }

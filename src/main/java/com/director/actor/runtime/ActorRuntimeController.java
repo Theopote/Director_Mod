@@ -99,11 +99,13 @@ public final class ActorRuntimeController {
     private final ActorRuntimeDiagnostics diagnostics = new ActorRuntimeDiagnostics();
     public ActorRuntimeDiagnostics diagnostics() { return diagnostics; }
 
-    /** Re-evaluate only pose/constraints against the current frame; never sample or dispatch events. */
+    /** Re-evaluate pose/constraints with a pure animation snapshot; never consume or dispatch events. */
     public boolean refreshPosePreview(UUID actorId) {
         if (!enabled || timelineSource==null || actorId==null
-                || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
-                || com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()) return false;
+                || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()) return false;
+        var boneGizmo=com.director.ui.actor.pose.ActorBoneGizmoController.getInstance();
+        var boneDraft=boneGizmo.isDragging()?boneGizmo.previewAnimationDraft(actorId,timelineSource.getCurrentTime()):null;
+        if(boneGizmo.isDragging() && boneDraft==null) return false;
         TrackRuntime target=null;
         for (var runtime:runtimes.values()) if(runtime.actor!=null && actorId.equals(runtime.actor.getActorId())) {
             if(target!=null) return false;
@@ -114,9 +116,14 @@ public final class ActorRuntimeController {
         var entity=ActorPreviewManager.getInstance().getPreview(actorId);
         if(entity==null) return false;
         var sample=target.lastSample.copy();
+        var animation=target.sampler.sampleSnapshot(timelineSource.getCurrentTime());
+        sample.animationId=animation.animationId;sample.animationSource=animation.animationSource;
+        sample.animationLocalTime=animation.animationLocalTime;sample.animationLoop=animation.animationLoop;
+        sample.animationSpeed=animation.animationSpeed;sample.animationBlendSettings=animation.animationBlendSettings;
+        sample.animationBlendEnvelope=animation.animationBlendEnvelope;
         // Root offsets must always start at the sampled world position, never the prior preview offset.
         entity.refreshPositionAndAngles(sample.position.x,sample.position.y,sample.position.z,sample.rotation.x,sample.rotation.y);
-        target.applyRigProfile(sample,0);
+        target.applyRigProfile(sample,0,boneDraft);
         target.updateGaze();
         target.syncCustomModel(entity);
         return true;
@@ -714,6 +721,11 @@ public final class ActorRuntimeController {
          * @param deltaTime 时间增量（秒）
          */
         private void applyRigProfile(EntitySample s, float deltaTime) {
+            if(actor==null) return;
+            applyRigProfile(s,deltaTime,com.director.ui.actor.pose.ActorBoneGizmoController.getInstance()
+                    .previewAnimationDraft(actor.getActorId(),timelineSource.getCurrentTime()));
+        }
+        private void applyRigProfile(EntitySample s,float deltaTime,com.director.ui.actor.pose.ActorBoneAnimationDraft boneDraft) {
             if (actor == null) {
                 return;
             }
@@ -733,35 +745,38 @@ public final class ActorRuntimeController {
             float gaitTime=ActorRouteGait.time(s,rig);
             RigPoseResult rigPose = rig.sampleAt(actorRuntime, action, s.actionIntensity, gaitTime);
 
-            // 新一代逐骨骼动画资产。存在同 ID 资产时优先使用；旧 AnimationLibrary 继续作为回退。
+            if(boneDraft!=null && !com.director.actor.rig.ActorRigCompatibility.accepts(actor,boneDraft.rig().id())) boneDraft=null;
             var rigAsset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance()
                     .find(s.animationId)
                     .filter(asset -> com.director.actor.rig.ActorRigCompatibility.accepts(actor, asset.rigId()));
-            if (rigAsset.isPresent()) {
-                var asset = rigAsset.get();
-                var playbackMode = s.animationLoop ? asset.loopMode()
-                        : com.director.actor.animation.asset.AnimationLoopMode.ONCE;
-                float sampleTime = s.animationLocalTime * Math.max(0.01f, s.animationSpeed);
-                // Arbitrary-topology custom rigs (no body/head/arm/leg bones) have no procedural base
-                // pose to overlay onto; play the keyframe asset directly instead.
-                var proceduralPose = com.director.actor.rig.skeleton.HumanoidTopology.matches(asset.rig())
-                        ? com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(rigPose.pose, asset.rig())
+            if (rigAsset.isPresent() || boneDraft!=null) {
+                var definition=boneDraft!=null?boneDraft.rig():rigAsset.orElseThrow().rig();
+                var blend=boneDraft!=null?boneDraft.settings():s.animationBlendSettings;
+                float envelope=boneDraft!=null?boneDraft.envelope():s.animationBlendEnvelope;
+                var proceduralPose = com.director.actor.rig.skeleton.HumanoidTopology.matches(definition)
+                        ? com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(rigPose.pose, definition)
                         : null;
                 if (actor.getType() == com.director.actor.ActorType.PLAYER)
                     ActorJointGait.apply(proceduralPose, action, s.actionIntensity, gaitTime, rig.getStyle(),
                             !s.poseOverrideArms, !s.poseOverrideLegs);
-                var authoredPose = com.director.ui.actor.pose.ActorBonePropertiesPanel.previewAuthoredPose(
-                        actor.getActorId(),asset.id(),asset.sample(sampleTime, playbackMode));
+                com.director.actor.rig.skeleton.RigPose authoredPose;
+                if(boneDraft!=null) authoredPose=boneDraft.authoredPose();
+                else {
+                    var asset=rigAsset.orElseThrow();
+                    var mode=s.animationLoop?asset.loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE;
+                    authoredPose=com.director.ui.actor.pose.ActorBonePropertiesPanel.previewAuthoredPose(
+                            actor.getActorId(),asset.id(),asset.sample(s.animationLocalTime*Math.max(.01f,s.animationSpeed),mode));
+                }
                 var finalRigPose = ActorRigPoseComposition.compose(proceduralPose,
                         authoredPose, pose -> applyRigPoseOverrides(pose, s),
                         diagnostic -> reportPlacement(actor.getActorId(),timelineSource.getCurrentTime(),
-                                "pose-layer",false,"骨骼动作层与当前演员不兼容，已跳过该层。"),s.animationBlendSettings,s.animationBlendEnvelope);
+                                "pose-layer",false,"骨骼动作层与当前演员不兼容，已跳过该层。"),blend,envelope);
                 finalRigPose.setLimbBendMode(actor.getLimbBendMode());
                 if (actor.getType() == com.director.actor.ActorType.PLAYER) {
                     var authoredWeights = new java.util.HashMap<String,Float>();
                     for (int i=0;i<authoredPose.rig().boneCount();i++)
-                        if (s.animationBlendSettings.contributes(authoredPose,i,s.animationBlendEnvelope))
-                            authoredWeights.put(authoredPose.rig().bone(i).id(),s.animationBlendSettings.effectiveWeight(s.animationBlendEnvelope));
+                        if (blend.contributes(authoredPose,i,envelope))
+                            authoredWeights.put(authoredPose.rig().bone(i).id(),blend.effectiveWeight(envelope));
                     ActorRouteFootContact.apply(finalRigPose,s,authoredWeights);
                 }
                 applyPoseToRuntime(rigPose.pose);
@@ -769,7 +784,7 @@ public final class ActorRuntimeController {
                 if (preview instanceof com.director.actor.preview.ActorPosePreview previewEntity) {
                     boolean boneDragging = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
                             && actor.getActorId().equals(com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().getActorId());
-                    if (!boneDragging) {
+                    if (!boneDragging || boneDraft!=null) {
                         applyRootAnimationOffset((Entity)previewEntity, finalRigPose,s);
                         previewEntity.setFinalRigPose(finalRigPose);
                     }

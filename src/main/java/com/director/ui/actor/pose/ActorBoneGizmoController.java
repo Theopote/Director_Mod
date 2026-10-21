@@ -83,7 +83,6 @@ public final class ActorBoneGizmoController {
     private ChannelKeyframe<Vector3f> beforeScaleKey;
     private Quaternionf animationBaseRotation;
     private Vector3f animationBaseTranslation;
-    private Vec3d animationActorBasePosition;
     private Vector3f animationBaseScale;
     private float animationKeyTime;
     private boolean createdAsset;
@@ -94,6 +93,35 @@ public final class ActorBoneGizmoController {
     public static ActorBoneGizmoController getInstance() { return INSTANCE; }
     public boolean isDragging() { return dragging || pending; }
     public UUID getActorId() { return actorId; }
+
+    /** Only the current paused gesture can supply transient animation data to playback. */
+    public ActorBoneAnimationDraft previewAnimationDraft(UUID target,float timelineTime) {
+        if(!animationGesture || !(dragging || pending) || !Objects.equals(actorId,target)
+                || timelineTime!=gestureTime || !contextValid()) return null;
+        return captureAnimationDraft();
+    }
+    private ActorBoneAnimationDraft captureAnimationDraft() {
+        if(editingAsset==null || editingBoneTrack==null) return null;
+        var source=editingAsset.sample(animationKeyTime,AnimationLoopMode.ONCE);
+        var current=source.localTransform(boneId);
+        BoneTransform value; int channels;
+        if(animationBaseTranslation!=null) {
+            var key=editingBoneTrack.translation().findAt(animationKeyTime).orElse(null);
+            if(key==null) return null;
+            channels=RigPose.TRANSLATION;value=new BoneTransform(key.value(),current.rotation(),current.scale());
+        } else if(animationBaseScale!=null) {
+            var key=editingBoneTrack.scale().findAt(animationKeyTime).orElse(null);
+            if(key==null) return null;
+            channels=RigPose.SCALE;value=new BoneTransform(current.translation(),current.rotation(),key.value());
+        } else {
+            var key=editingBoneTrack.rotation().findAt(animationKeyTime).orElse(null);
+            if(key==null) return null;
+            channels=RigPose.ROTATION;value=current.withRotation(key.value());
+        }
+        return new ActorBoneAnimationDraft(source,boneId,value,channels,animationBlend,
+                gestureTime-clipStart,animationClipEnd-clipStart);
+    }
+
 
     public void update() {
         if ((dragging || pending) && (!contextValid()
@@ -258,7 +286,7 @@ public final class ActorBoneGizmoController {
         Vector3f value = translate(animationBaseTranslation, delta);
         editingBoneTrack.translation().put(animationKeyTime, value,
                 gestureInterpolation);
-        applyLiveRigTranslation(value);
+        refreshAnimationPreview();
         changed = !value.equals(animationBaseTranslation);
     }
 
@@ -268,7 +296,7 @@ public final class ActorBoneGizmoController {
         Vector3f value = scale(animationBaseScale, delta);
         editingBoneTrack.scale().put(animationKeyTime, value,
                 gestureInterpolation);
-        applyLiveRigScale(value);
+        refreshAnimationPreview();
         changed = !value.equals(animationBaseScale);
     }
 
@@ -352,7 +380,9 @@ public final class ActorBoneGizmoController {
         if (!contextValid()) { cancelDraft(); return; }
         if (animationGesture) registerAnimationUndo(gestureModel);
         else registerUndo(gestureModel, editingClip);
+        UUID target=actorId;
         clearDraft();
+        com.director.actor.runtime.ActorRuntimeController.getInstance().refreshPosePreview(target);
     }
 
     public void cancelDraft() {
@@ -366,7 +396,9 @@ public final class ActorBoneGizmoController {
                         preview.getYaw(), preview.getPitch());
             }
         }
+        UUID target=actorId;
         clearDraft();
+        com.director.actor.runtime.ActorRuntimeController.getInstance().refreshPosePreview(target);
     }
 
     private void clearDraft() {
@@ -388,12 +420,7 @@ public final class ActorBoneGizmoController {
 
     private void refreshDraftPreview() {
         if (animationGesture && editingBoneTrack != null) {
-            if (animationBaseTranslation != null) editingBoneTrack.translation().findAt(animationKeyTime)
-                    .ifPresent(key -> applyLiveRigTranslation(key.value()));
-            else if (animationBaseScale != null) editingBoneTrack.scale().findAt(animationKeyTime)
-                    .ifPresent(key -> applyLiveRigScale(key.value()));
-            else editingBoneTrack.rotation().findAt(animationKeyTime)
-                    .ifPresent(key -> applyLiveRigPreview(key.value()));
+            refreshAnimationPreview();
         } else if (editingClip != null) {
             for (Axis axis : Axis.values()) if (BonePoseChannelMapper.isEditable(boneId, axis))
                 applyLivePreview(axis, BonePoseChannelMapper.read(editingClip, boneId, axis));
@@ -443,10 +470,6 @@ public final class ActorBoneGizmoController {
         if (activeBoneMode == GizmoMode.TRANSLATE) {
             beforeTranslationKey = original.translation().findAt(animationKeyTime).orElse(null);
             animationBaseTranslation = resolveAnimationBaseTranslation(editingAsset, animationKeyTime);
-            if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview) {
-                animationActorBasePosition = new Vec3d(preview.getX(), preview.getY(), preview.getZ()).subtract(
-                        animationBaseTranslation.x, animationBaseTranslation.y, animationBaseTranslation.z);
-            }
         } else if (activeBoneMode == GizmoMode.SCALE) {
             beforeScaleKey = original.scale().findAt(animationKeyTime).orElse(null);
             animationBaseScale = editingAsset.sample(animationKeyTime, AnimationLoopMode.ONCE)
@@ -471,6 +494,8 @@ public final class ActorBoneGizmoController {
         if (asset.findBoneTrack(boneId).filter(track -> !track.rotation().isEmpty()).isPresent()) {
             return asset.sample(keyTime, AnimationLoopMode.ONCE).localTransform(boneId).rotation();
         }
+        if(editingAnimationClip.getBlendSettings().mode()==com.director.actor.rig.skeleton.PoseLayer.BlendMode.ADDITIVE)
+            return asset.sample(keyTime,AnimationLoopMode.ONCE).localTransform(boneId).rotation();
         if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview) {
             RigPose pose = preview.getFinalRigPose();
             if (pose != null && pose.rig().id().equals(asset.rigId())) return pose.localTransform(boneId).rotation();
@@ -482,6 +507,8 @@ public final class ActorBoneGizmoController {
         if (asset.findBoneTrack(boneId).filter(track -> !track.translation().isEmpty()).isPresent()) {
             return asset.sample(keyTime, AnimationLoopMode.ONCE).localTransform(boneId).translation();
         }
+        if(editingAnimationClip.getBlendSettings().mode()==com.director.actor.rig.skeleton.PoseLayer.BlendMode.ADDITIVE)
+            return asset.sample(keyTime,AnimationLoopMode.ONCE).localTransform(boneId).translation();
         if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview) {
             RigPose pose = preview.getFinalRigPose();
             if (pose != null && pose.rig().id().equals(asset.rigId())) return pose.localTransform(boneId).translation();
@@ -501,7 +528,7 @@ public final class ActorBoneGizmoController {
         } else value = rotate(new Quaternionf(animationBaseRotation), axis, angleRadians);
         editingBoneTrack.rotation().put(animationKeyTime, value,
                 gestureInterpolation);
-        applyLiveRigPreview(value);
+        refreshAnimationPreview();
         changed = !value.equals(animationBaseRotation, 1.0e-6f);
     }
 
@@ -524,36 +551,11 @@ public final class ActorBoneGizmoController {
                 Math.max(0.01f, base.z * (1f + (float) delta.z)));
     }
 
-    private void applyLiveRigPreview(Quaternionf rotation) {
-        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview)) return;
-        RigPose pose = preview.getFinalRigPose();
-        if (pose == null || !pose.rig().id().equals(editingAsset.rigId())) pose = editingAsset.sample(animationKeyTime, AnimationLoopMode.ONCE);
-        BoneTransform current = pose.localTransform(boneId);
-        pose.setLocalTransform(boneId, current.withRotation(rotation));
-        preview.setFinalRigPose(pose);
-    }
-
-    private void applyLiveRigTranslation(Vector3f translation) {
-        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview)) return;
-        RigPose pose = preview.getFinalRigPose();
-        if (pose == null || !pose.rig().id().equals(editingAsset.rigId())) pose = editingAsset.sample(animationKeyTime, AnimationLoopMode.ONCE);
-        BoneTransform current = pose.localTransform(boneId);
-        pose.setLocalTransform(boneId, new BoneTransform(translation, current.rotation(), current.scale()));
-        preview.setFinalRigPose(pose);
-        if ("root".equals(boneId) && animationActorBasePosition != null) {
-            Vec3d target = animationActorBasePosition.add(translation.x, translation.y, translation.z);
-            preview.refreshPositionAndAngles(target.x, target.y, target.z, preview.getYaw(), preview.getPitch());
-            GizmoManager.get().setPivot(target);
-        }
-    }
-
-    private void applyLiveRigScale(Vector3f scale) {
-        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview)) return;
-        RigPose pose = preview.getFinalRigPose();
-        if (pose == null || !pose.rig().id().equals(editingAsset.rigId())) pose = editingAsset.sample(animationKeyTime, AnimationLoopMode.ONCE);
-        BoneTransform current = pose.localTransform(boneId);
-        pose.setLocalTransform(boneId, new BoneTransform(current.translation(), current.rotation(), scale));
-        preview.setFinalRigPose(pose);
+    private void refreshAnimationPreview() {
+        if(com.director.actor.runtime.ActorRuntimeController.getInstance().refreshPosePreview(actorId)
+                && "root".equals(boneId)
+                && ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview)
+            GizmoManager.get().setPivot(new Vec3d(preview.getX(),preview.getY(),preview.getZ()));
     }
 
     private void registerAnimationUndo(TimelineModel model) {
@@ -618,7 +620,6 @@ public final class ActorBoneGizmoController {
         beforeScaleKey = null;
         animationBaseRotation = null;
         animationBaseTranslation = null;
-        animationActorBasePosition = null;
         animationBaseScale = null;
         createdAsset = false;
         createdAnimationBinding = false;
