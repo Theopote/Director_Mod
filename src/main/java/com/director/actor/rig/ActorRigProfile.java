@@ -73,8 +73,11 @@ public interface ActorRigProfile {
 
     /** Angular frequency used by buildPose; converts a distance phase to its time argument. */
     default float locomotionFrequency(ActorActionType action,float intensity) {
-        float tempo=getStyle()==null?1:getStyle().tempo;
-        return (2+intensity)*tempo*(action==ActorActionType.RUN?2:1);
+        return locomotionFrequency(2,action,intensity,getStyle());
+    }
+
+    static float locomotionFrequency(float base,ActorActionType action,float intensity,RigProfileStyle style) {
+        return (base+intensity)*(style==null?1:style.tempo)*(action==ActorActionType.RUN?2:1);
     }
 
     /**

@@ -9,11 +9,18 @@ public final class ActorJointGait {
     private ActorJointGait() {}
     public static void apply(RigPose pose, ActorActionType action, float intensity, float time,
                              RigProfileStyle style, boolean arms, boolean legs) {
-        if (pose == null || style == null || !Float.isFinite(time) || !Float.isFinite(intensity)
+        applyPhase(pose,action,intensity,time*com.director.actor.rig.ActorRigProfile.locomotionFrequency(2,action,intensity,style),style,arms,legs);
+    }
+    public static void apply(RigPose pose,ActorActionType action,float intensity,float time,
+                             com.director.actor.rig.ActorRigProfile profile,boolean arms,boolean legs) {
+        applyPhase(pose,action,intensity,time*profile.locomotionFrequency(action,intensity),profile.getStyle(),arms,legs);
+    }
+    private static void applyPhase(RigPose pose,ActorActionType action,float intensity,float phase,
+                                   RigProfileStyle style,boolean arms,boolean legs) {
+        if (pose == null || style == null || !Float.isFinite(phase) || !Float.isFinite(intensity)
                 || (action != ActorActionType.WALK && action != ActorActionType.RUN)) return;
         float strength=Math.max(0,Math.min(1,intensity*style.motionScale));
         boolean running=action==ActorActionType.RUN;
-        float phase=time*(2+intensity)*style.tempo*(running?2:1);
         if(legs) {
             rotate(pose,ArticulatedPlayerRig.RIGHT_SHIN,(running?1.1f:.45f)*strength*Math.max(0,-(float)Math.sin(phase)));
             rotate(pose,ArticulatedPlayerRig.LEFT_SHIN,(running?1.1f:.45f)*strength*Math.max(0,(float)Math.sin(phase)));

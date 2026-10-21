@@ -19,4 +19,17 @@ public final class ActorRouteMotion {
         if(ActorRouteSampler.lengthOf(route)<=1e-6f) return 0;
         return Math.max(0,localTime)*Math.max(.05f,route.getSpeed());
     }
+    /** Curve position and cumulative offset within this traversal are distinct quantities. */
+    public record Traversal(float curveDistance,float travelInLeg,boolean reversed) {}
+    public static Traversal traversalAt(ActorRouteClip route,float distance) {
+        float length=ActorRouteSampler.lengthOf(route);
+        if(!Float.isFinite(distance) || length<=1e-6f) return new Traversal(0,0,false);
+        float travel=Math.max(0,distance);
+        if(route.getLoopMode()==ActorRouteClip.LoopMode.ONCE) {
+            float at=Math.min(length,travel);return new Traversal(at,at,false);
+        }
+        float offset=travel%length;
+        boolean reversed=route.getLoopMode()==ActorRouteClip.LoopMode.PING_PONG && travel%(2d*length)>=length;
+        return new Traversal(reversed?length-offset:offset,offset,reversed);
+    }
 }

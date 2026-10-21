@@ -77,4 +77,66 @@ class ActorRouteFootContactTest {
         ActorRouteFootContact.apply(protectedPose,sample,java.util.Map.of(HumanoidRig.ROOT,1f));
         assertEquals(rest,protectedPose.localTransform(HumanoidRig.LEFT_LEG).translation());
     }
+    private EntitySample repeated(ActorRouteClip.LoopMode mode,float time) {
+        var sample=sample(time);sample.routeClip.setLoopMode(mode);sample.routeClip.setSpeed(1);
+        var point=com.director.timeline.playback.entity.ActorRouteMotion.traversalAt(sample.routeClip,time);
+        sample.position.set(0,0,point.curveDistance());sample.rotation.x=point.reversed()?180:0;
+        sample.action=com.director.actor.action.ActorActionType.WALK;
+        return sample;
+    }
+    private Vector3f worldSole(RigPose pose,EntitySample sample) {
+        var point=ActorRouteFootContact.solePosition(pose,HumanoidRig.LEFT_LEG).mul(sample.scale);
+        return new org.joml.Quaternionf().rotateY((float)Math.toRadians(-sample.rotation.x)).transform(point).add(sample.position);
+    }
+    @Test void loopingAndReturningStanceHoldTheMappedWorldPointAndAreSeekDeterministic() {
+        for(var mode:List.of(ActorRouteClip.LoopMode.LOOP,ActorRouteClip.LoopMode.PING_PONG)) {
+            var a=repeated(mode,4.95f);var b=repeated(mode,5f);
+            var pa=new RigPose(HumanoidRig.DEFINITION);var pb=new RigPose(HumanoidRig.DEFINITION);
+            ActorRouteFootContact.apply(pa,a);ActorRouteFootContact.apply(pb,b);
+            assertTrue(worldSole(pa,a).equals(worldSole(pb,b),1e-5f));
+            var replay=new RigPose(HumanoidRig.DEFINITION);ActorRouteFootContact.apply(replay,a);
+            assertEquals(pa.localTransform(HumanoidRig.LEFT_LEG).translation(),replay.localTransform(HumanoidRig.LEFT_LEG).translation());
+            assertNotEquals(new RigPose(HumanoidRig.DEFINITION).localTransform(HumanoidRig.LEFT_LEG).translation(),pa.localTransform(HumanoidRig.LEFT_LEG).translation());
+        }
+    }
+    @Test void seamAndTurnReleaseContactRatherThanPullingFeetAcrossTraversalBoundary() {
+        for(var mode:List.of(ActorRouteClip.LoopMode.LOOP,ActorRouteClip.LoopMode.PING_PONG)) {
+            for(float time:new float[]{3.9999f,4f,4.0001f,7.9999f,8f,8.0001f}) {
+                var sample=repeated(mode,time);var pose=new RigPose(HumanoidRig.DEFINITION);var original=pose.localTransform(HumanoidRig.LEFT_LEG).translation();
+                ActorRouteFootContact.apply(pose,sample);
+                assertTrue(pose.localTransform(HumanoidRig.LEFT_LEG).translation().distance(original)<.001f);
+                assertTrue(worldSole(pose,sample).isFinite());
+            }
+        }
+    }
+    private com.director.actor.rig.ActorRigProfile profile(float stride) {
+        var delegate=new com.director.actor.rig.HumanoidRigProfile();
+        return new com.director.actor.rig.ActorRigProfile() {
+            public float locomotionStride() { return stride; }
+            public boolean supports(com.director.actor.action.ActorActionType action) { return delegate.supports(action); }
+            public com.director.actor.rig.RigProfileStyle getStyle() { return delegate.getStyle(); }
+            public void applyAction(ActorRuntime runtime,com.director.actor.action.ActorActionType action,float intensity,float delta) { delegate.applyAction(runtime,action,intensity,delta); }
+            public com.director.actor.rig.RigPoseResult buildPose(com.director.actor.action.ActorActionType action,float intensity,float time) { return delegate.buildPose(action,intensity,time); }
+        };
+    }
+    @Test void contactUsesProfileStrideAndMatchesScaledGaitPhase() {
+        var sample=sample(.2f);var wide=profile(1.6f);var pose=new RigPose(HumanoidRig.DEFINITION);
+        ActorRouteFootContact.apply(pose,sample,wide,java.util.Map.of());
+        assertEquals(.2f,pose.localTransform(HumanoidRig.LEFT_LEG).translation().z,1e-5f);
+        assertEquals(.125f,ActorRouteGait.phaseCycles(sample,wide),1e-5f);
+        sample.scale.z=2;assertEquals(.0625f,ActorRouteGait.phaseCycles(sample,wide),1e-5f);
+        assertEquals(3.2f,ActorRouteGait.stride(sample,wide),1e-5f);
+        var bad=new RigPose(HumanoidRig.DEFINITION);ActorRouteFootContact.apply(bad,sample,profile(Float.NaN),java.util.Map.of());
+        assertEquals(new RigPose(HumanoidRig.DEFINITION).localTransform(HumanoidRig.LEFT_LEG),bad.localTransform(HumanoidRig.LEFT_LEG));
+    }
+    @Test void explicitLocomotionAllowsContactButManualLegKeysStillWin() {
+        var sample=repeated(ActorRouteClip.LoopMode.LOOP,4.95f);sample.actionExplicit=true;
+        for(var action:List.of(com.director.actor.action.ActorActionType.WALK,com.director.actor.action.ActorActionType.RUN)) {
+            sample.action=action;var pose=new RigPose(HumanoidRig.DEFINITION);
+            ActorRouteFootContact.apply(pose,sample);
+            assertNotEquals(new RigPose(HumanoidRig.DEFINITION).localTransform(HumanoidRig.LEFT_LEG).translation(),pose.localTransform(HumanoidRig.LEFT_LEG).translation());
+            var manual=new RigPose(HumanoidRig.DEFINITION);ActorRouteFootContact.apply(manual,sample,java.util.Set.of(HumanoidRig.LEFT_LEG));
+            assertEquals(new RigPose(HumanoidRig.DEFINITION).localTransform(HumanoidRig.LEFT_LEG),manual.localTransform(HumanoidRig.LEFT_LEG));
+        }
+    }
 }

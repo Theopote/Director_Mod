@@ -61,4 +61,21 @@ class ActorRouteGaitTest {
         var other=new EntityClipSampler(track).sampleAt(6);var blend=new EntitySample();blend.lerpFrom(value,other,.5f,com.director.timeline.model.TimelineInterpolation.LINEAR);
         assertEquals(3.5f,blend.routeLocalTime);assertEquals(1.5f,blend.actionLocalTime);
     }
+    @Test void builtInUpperLegAndJointSwingShareQuarterCycleForWalkAndRun() {
+        for(var profile:List.<ActorRigProfile>of(new HumanoidRigProfile(),new QuadrupedRigProfile())) {
+            profile.getStyle().tempo=1.3f;
+            for(var action:List.of(ActorActionType.WALK,ActorActionType.RUN)) {
+                var sample=moving();sample.action=action;sample.actionIntensity=1;
+                sample.routeClip.setWaypoints(List.of(new Vector3f(),new Vector3f(profile.locomotionStride(),0,0)));
+                float time=ActorRouteGait.time(sample,profile);
+                var upper=profile.buildPose(action,1,time).pose;
+                float amplitude=profile instanceof QuadrupedRigProfile?(action==ActorActionType.RUN?.8f:.4f):(action==ActorActionType.RUN?1:.5f);
+                assertEquals(amplitude,Math.abs(upper.rightLegPitch),1e-5f);
+                var joint=new com.director.actor.rig.skeleton.RigPose(com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION);
+                ActorJointGait.apply(joint,action,1,time,profile,true,true);
+                float bend=com.director.actor.rig.skeleton.LimbBendTransform.angles(joint.localTransform(com.director.actor.rig.skeleton.ArticulatedPlayerRig.LEFT_SHIN).rotation()).x;
+                assertEquals(action==ActorActionType.RUN?1.1f:.45f,Math.abs(bend),1e-5f);
+            }
+        }
+    }
 }

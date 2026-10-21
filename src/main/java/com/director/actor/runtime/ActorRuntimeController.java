@@ -795,7 +795,7 @@ public final class ActorRuntimeController {
                         ? com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(rigPose.pose, definition)
                         : null;
                 if (actor.getType() == com.director.actor.ActorType.PLAYER)
-                    ActorJointGait.apply(proceduralPose, action, s.actionIntensity, gaitTime, rig.getStyle(),
+                    ActorJointGait.apply(proceduralPose, action, s.actionIntensity, gaitTime, rig,
                             !s.poseOverrideArms, !s.poseOverrideLegs);
                 com.director.actor.rig.skeleton.RigPose authoredPose;
                 if(boneDraft!=null) authoredPose=boneDraft.authoredPose();
@@ -815,7 +815,7 @@ public final class ActorRuntimeController {
                     for (int i=0;i<authoredPose.rig().boneCount();i++)
                         if (blend.contributes(authoredPose,i,envelope))
                             authoredWeights.put(authoredPose.rig().bone(i).id(),blend.effectiveWeight(envelope));
-                    ActorRouteFootContact.apply(finalRigPose,s,authoredWeights);
+                    ActorRouteFootContact.apply(finalRigPose,s,rig,authoredWeights);
                 }
                 applyPoseToRuntime(rigPose.pose);
                 Entity preview = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
@@ -859,8 +859,8 @@ public final class ActorRuntimeController {
                                 com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION);
                         contactPose.setLimbBendMode(actor.getLimbBendMode());
                         if (animPose == null) ActorJointGait.apply(contactPose, action, s.actionIntensity, gaitTime,
-                                rig.getStyle(), !s.poseOverrideArms, !s.poseOverrideLegs);
-                        if (animPose == null && !s.actionExplicit) ActorRouteFootContact.apply(contactPose, s);
+                                rig, !s.poseOverrideArms, !s.poseOverrideLegs);
+                        if (animPose == null) ActorRouteFootContact.apply(contactPose,s,rig,java.util.Map.of());
                         previewEntity.setFinalRigPose(contactPose);
                     } else previewEntity.setFinalPose(finalPose);
                 }

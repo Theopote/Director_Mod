@@ -10,9 +10,13 @@ public final class ActorRouteGait {
     public static boolean followsDistance(EntitySample sample) {
         return sample.routeClip!=null && (sample.action==ActorActionType.WALK || sample.action==ActorActionType.RUN);
     }
+    public static float stride(EntitySample sample,ActorRigProfile profile) {
+        float stride=profile.locomotionStride()*sample.scale.z;
+        return Float.isFinite(stride) && stride>.0001f?stride:Float.NaN;
+    }
     public static float phaseCycles(EntitySample sample,ActorRigProfile profile) {
-        float stride=profile.locomotionStride()*Math.max(.001f,sample.scale.z);
-        return ActorRouteMotion.distanceTravelled(sample.routeClip,sample.routeLocalTime)/Math.max(.001f,stride);
+        float stride=stride(sample,profile);
+        return Float.isFinite(stride)?ActorRouteMotion.distanceTravelled(sample.routeClip,sample.routeLocalTime)/stride:0;
     }
     public static float time(EntitySample sample,ActorRigProfile profile) {
         if(!followsDistance(sample)) return sample.actionExplicit?sample.actionLocalTime:sample.motionLocalTime;

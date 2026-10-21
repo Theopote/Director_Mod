@@ -113,7 +113,7 @@ public final class HumanoidRigProfile implements ActorRigProfile {
         // 应用风格系数
         float motion = intensity * style.motionScale;
         float tempo = style.tempo;
-        float step = time * (2.0f + intensity) * tempo;
+        float step = time * locomotionFrequency(action,intensity);
 
         switch (action) {
             case IDLE -> {
@@ -134,10 +134,10 @@ public final class HumanoidRigProfile implements ActorRigProfile {
 
             case RUN -> {
                 pose.bodyPitch = 0.15f * style.leanBias;
-                pose.leftArmPitch = (float) Math.sin(step * 2f) * 1.2f * motion * style.armExpressiveness;
-                pose.rightArmPitch = (float) Math.sin(step * 2f + Math.PI) * 1.2f * motion * style.armExpressiveness;
-                pose.leftLegPitch = (float) Math.sin(step * 2f + Math.PI) * 1.0f * motion * style.legExpressiveness;
-                pose.rightLegPitch = (float) Math.sin(step * 2f) * 1.0f * motion * style.legExpressiveness;
+                pose.leftArmPitch = (float) Math.sin(step) * 1.2f * motion * style.armExpressiveness;
+                pose.rightArmPitch = (float) Math.sin(step + Math.PI) * 1.2f * motion * style.armExpressiveness;
+                pose.leftLegPitch = (float) Math.sin(step + Math.PI) * 1.0f * motion * style.legExpressiveness;
+                pose.rightLegPitch = (float) Math.sin(step) * 1.0f * motion * style.legExpressiveness;
             }
 
             case DANCE -> {
