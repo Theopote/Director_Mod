@@ -76,9 +76,7 @@ public final class QuadrupedRigProfile implements ActorRigProfile {
                 runtime.setBodyLean(0.1f);
             }
 
-            default -> {
-                runtime.resetPose();
-            }
+            default -> runtime.resetPose();
         }
     }
 
@@ -102,10 +100,8 @@ public final class QuadrupedRigProfile implements ActorRigProfile {
         float step = time * (2.5f + intensity) * tempo;
 
         switch (action) {
-            case IDLE -> {
-                // 轻微头部摆动
-                pose.headPitch = (float) Math.sin(time * 0.8f) * 0.1f;
-            }
+            case IDLE -> // 轻微头部摆动
+                    pose.headPitch = (float) Math.sin(time * 0.8f) * 0.1f;
 
             case WALK -> {
                 pose.bodyPitch = 0.05f * style.leanBias;
@@ -126,10 +122,8 @@ public final class QuadrupedRigProfile implements ActorRigProfile {
                 pose.bodyPitch = 0.1f;
             }
 
-            default -> {
-                // 默认站姿
-                pose.reset();
-            }
+            default -> // 默认站姿
+                    pose.reset();
         }
 
         return new RigPoseResult(pose, mask);

@@ -141,6 +141,41 @@ public final class TimelineClipRenderer {
             case EVENT -> renderEventClip(drawList, clip, track, trackIndex, contentX, y, trackH, contentW);
             case CURVE -> renderCurveClip(drawList, clip, track, trackIndex, contentX, y, trackH, contentW);
         }
+        renderActorBlendEnvelope(drawList,clip,track,contentX,y,trackH,contentW);
+    }
+
+    private void renderActorBlendEnvelope(ImDrawList draw,TimelineClip clip,TimelineTrack track,
+                                         float contentX,float y,float trackH,float contentW) {
+        var settings=ActorBlendEnvelope.settings(clip);
+        if(settings==null) return;
+        float start=math.timeToX(clip.getStartTime()),end=math.timeToX(clip.getEndTime());
+        var points=ActorBlendEnvelope.points(settings,start,end,contentX,contentX+contentW,clip.getLength());
+        if(points.size()<2 || trackH<18 || Math.min(end-1,contentX+contentW)<=Math.max(start+1,contentX)) return;
+        float bottom=y+trackH-CLIP_VERT_PADDING-2,top=bottom-3;
+        boolean muted=track!=null && track.isMuted()
+                || clip instanceof EntityTimelineClip wrapper && wrapper.getEntityClip().isMuted();
+        int color=muted || track!=null && track.isLocked()?TimelineColors.rgba(180,180,180,220):TimelineColors.rgba(90,235,235,255);
+        draw.pushClipRect(Math.max(start+1,contentX),top,Math.min(end-1,contentX+contentW),bottom+1,true);
+        try {
+            draw.addRectFilled(points.getFirst().x(),top,points.getLast().x(),bottom+1,TimelineColors.rgba(0,0,0,150));
+            for(var point:points) if(point.transition())
+                draw.addLine(point.x(),top,point.x(),bottom,TimelineColors.rgba(255,255,255,140),1);
+            for(int i=1;i<points.size();i++) {
+                var a=points.get(i-1);var b=points.get(i);
+                draw.addLine(a.x(),bottom-3*a.weight(),b.x(),bottom-3*b.weight(),color,1);
+            }
+        } finally { draw.popClipRect(); }
+        if(cachedMouseX>=Math.max(start,contentX) && cachedMouseX<=Math.min(end,contentX+contentW)
+                && cachedMouseY>=top && cachedMouseY<=bottom+1 && ImGui.isWindowHovered()) {
+            ImGui.beginTooltip();
+            ImGui.text("骨骼动作权重（青色曲线）");
+            ImGui.text(String.format(java.util.Locale.ROOT,"设置 %.0f%% · 淡入 %.3fs · 淡出 %.3fs",settings.weight()*100,settings.fadeIn(),settings.fadeOut()));
+            float local=math.xToTime(cachedMouseX)-clip.getStartTime();
+            ImGui.text(String.format(java.util.Locale.ROOT,"此处配置权重：%.1f%%",100*ActorBlendEnvelope.configuredWeight(settings,local,clip.getLength())));
+            if(muted) ImGui.text("片段或轨道已静音，不参与播放。");
+            ImGui.text("曲线为只读提示；在片段属性的“骨骼动作混合”中调整。");
+            ImGui.endTooltip();
+        }
     }
 
     /**
@@ -204,7 +239,7 @@ public final class TimelineClipRenderer {
                 // 垂直居中对齐：使用片段中心位置
                 float clipCenterY = (clipTop + clipBottom) * 0.5f;
                 // 文本基准线在底部，需要向上偏移约7像素以居中对齐
-                float textY = clipCenterY - 7.0f;
+                float textY = clipCenterY - 7.0f - (ActorBlendEnvelope.settings(clip)!=null?1.5f:0);
                 
                 drawList.addText(textX, textY, textColor, clip.getLabel());
             }
@@ -362,7 +397,7 @@ public final class TimelineClipRenderer {
                 // 垂直居中对齐：使用片段中心位置
                 float clipCenterY = (clipTop + clipBottom) * 0.5f;
                 // 文本基准线在底部，需要向上偏移约7像素以居中对齐
-                float textY = clipCenterY - 7.0f;
+                float textY = clipCenterY - 7.0f - (ActorBlendEnvelope.settings(clip)!=null?1.5f:0);
                 
                 drawList.addText(textX, textY, textColor, actionLabel);
             }

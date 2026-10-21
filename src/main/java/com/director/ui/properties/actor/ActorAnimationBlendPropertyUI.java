@@ -56,7 +56,17 @@ public final class ActorAnimationBlendPropertyUI {
             if(bones.isEmpty()) ImGui.textWrapped("未选择部位：此动作层不会影响演员。");
         }
         ImGui.textWrapped("仅影响已有关键帧的通道；不修改路径和整体变换。叠加以绑定姿态为基准。");
-        save.accept(new PoseBlendSettings(PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,all,bones,fadeIn,fadeOut));
+        var settings=new PoseBlendSettings(PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,all,bones,fadeIn,fadeOut);
+        save.accept(settings);
+        var timeline=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
+        float time=timeline.getCurrentTime();
+        boolean muted=source.isMuted() || wrapper!=null && wrapper.getParentTrack()!=null && wrapper.getParentTrack().isMuted();
+        float current=muted?0:com.director.ui.timeline.render.ActorBlendEnvelope.configuredWeight(settings,time-source.getStartTime(),source.getLength());
+        ImGui.text(String.format(java.util.Locale.ROOT,"播放头 %.2fs · 此片段配置权重 %.1f%%",time,current*100));
+        if(muted) ImGui.textWrapped("片段或轨道已静音，不参与播放。");
+        else if(time<source.getStartTime() || time>source.getEndTime()) ImGui.textWrapped("播放头在此片段范围外。");
+        if(channels==0 || !all && bones.isEmpty()) ImGui.textWrapped("当前通道或部位范围为空，动作层不生效。");
+        ImGui.textWrapped("时间线片段底部的青色曲线显示配置权重；最终姿态还取决于关键帧与其他动作。");
     }
     private static float durationInput(String label,String id,float value,ActorClipInspectorGesture gesture) {
         var input=new imgui.type.ImFloat(value);

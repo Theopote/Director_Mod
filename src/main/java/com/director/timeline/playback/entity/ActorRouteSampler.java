@@ -175,7 +175,7 @@ public final class ActorRouteSampler {
     }
 
     private static Vec3d catmullRom(Vector3f p0, Vector3f p1, Vector3f p2, Vector3f p3, float t) {
-        float clamped = Math.max(0.0f, Math.min(1.0f, t));
+        float clamped = Math.clamp(t, 0.0f, 1.0f);
         float t2 = clamped * clamped;
         float t3 = t2 * clamped;
 

@@ -95,7 +95,7 @@ public class EntityAnimationClip extends EntityClip {
     }
 
     public void setSpeed(float speed) {
-        this.speed = Math.max(0.0f, Math.min(4.0f, speed));
+        this.speed = Math.clamp(speed, 0.0f, 4.0f);
     }
 
     // ========== Animation Events ==========

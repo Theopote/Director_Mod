@@ -107,11 +107,7 @@ public final class ActorRootKeyframeEditing {
         if(!editable(model,owner,clip) || keys.isEmpty() || !clip.getKeyframes().containsAll(keys)) return false;
         var before=new java.util.LinkedHashMap<EntityClipKeyframe,Integer>();
         keys.forEach(k -> before.put(k,k.getChannels()));
-        TimelineCommandBridge.execute(new StateChangeCommand(model,"Delete actor channel keys",()->{
-            before.forEach((k,m)->{k.setChannels(m);if(!clip.getKeyframes().contains(k))clip.addKeyframe(k);});
-        },()->{
-            before.forEach((k,m)->{k.setChannels(m&~mask);if(k.getChannels()==0)clip.removeKeyframe(k.getId());});
-        })); return true;
+        TimelineCommandBridge.execute(new StateChangeCommand(model,"Delete actor channel keys",()-> before.forEach((k, m)->{k.setChannels(m);if(!clip.getKeyframes().contains(k))clip.addKeyframe(k);}),()-> before.forEach((k, m)->{k.setChannels(m&~mask);if(k.getChannels()==0)clip.removeKeyframe(k.getId());}))); return true;
     }
 
     private static void channelValue(EntityClipKeyframe key,int channel,org.joml.Vector3f value) {
