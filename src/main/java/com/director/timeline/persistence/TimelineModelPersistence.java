@@ -217,6 +217,20 @@ public class TimelineModelPersistence {
         public Float spawnX, spawnY, spawnZ;
         public Float yawDeg, pitchDeg;
         public String spawnBoneAnimationId;
+        public com.director.actor.rig.skeleton.PoseLayer.BlendMode poseBlendMode;
+        public Float poseBlendWeight;
+        public Integer poseBlendChannels;
+        public Boolean poseBlendAllBones;
+        public java.util.Set<String> poseBlendBones;
+        public void setPoseBlend(com.director.actor.rig.skeleton.PoseBlendSettings settings) {
+            poseBlendMode=settings.mode(); poseBlendWeight=settings.weight(); poseBlendChannels=settings.channels();
+            poseBlendAllBones=settings.allBones(); poseBlendBones=settings.boneIds();
+        }
+        public com.director.actor.rig.skeleton.PoseBlendSettings poseBlend() {
+            if (poseBlendMode==null) return com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT;
+            return new com.director.actor.rig.skeleton.PoseBlendSettings(poseBlendMode,poseBlendWeight,
+                    poseBlendChannels,poseBlendAllBones,poseBlendBones);
+        }
         public Float spawnRoll, spawnScaleX, spawnScaleY, spawnScaleZ;
         public Boolean visibleOnSpawn;
 
@@ -1415,6 +1429,7 @@ public class TimelineModelPersistence {
                 cdto.yawDeg = sc.getYawDeg();
                 cdto.pitchDeg = sc.getPitchDeg();
                 cdto.spawnBoneAnimationId = sc.getBoneAnimationId();
+                cdto.setPoseBlend(sc.getBlendSettings());
                 cdto.spawnRoll = sc.getRollDeg();
                 cdto.spawnScaleX = sc.getScale().x; cdto.spawnScaleY = sc.getScale().y; cdto.spawnScaleZ = sc.getScale().z;
                 cdto.visibleOnSpawn = sc.isVisibleOnSpawn();
@@ -1441,6 +1456,7 @@ public class TimelineModelPersistence {
                 cdto.animationId = ac.getAnimationId();
                 cdto.animationLoop = ac.isLoop();
                 cdto.animationSpeed = ac.getSpeed();
+                cdto.setPoseBlend(ac.getBlendSettings());
             }
             case com.director.timeline.model.entity.EntityStateClip stc -> {
                 cdto.sneaking = stc.isSneaking();
@@ -1554,6 +1570,7 @@ public class TimelineModelPersistence {
                 if (cdto.yawDeg != null) sc.setYawDeg(cdto.yawDeg);
                 if (cdto.pitchDeg != null) sc.setPitchDeg(cdto.pitchDeg);
                 sc.setBoneAnimationId(cdto.spawnBoneAnimationId);
+                sc.setBlendSettings(cdto.poseBlend());
                 if (cdto.spawnRoll != null) sc.setRollDeg(cdto.spawnRoll);
                 if (cdto.spawnScaleX != null && cdto.spawnScaleY != null && cdto.spawnScaleZ != null)
                     sc.setScale(cdto.spawnScaleX, cdto.spawnScaleY, cdto.spawnScaleZ);
@@ -1589,6 +1606,7 @@ public class TimelineModelPersistence {
                 if (cdto.animationId != null) ac.setAnimationId(cdto.animationId);
                 if (cdto.animationLoop != null) ac.setLoop(cdto.animationLoop);
                 if (cdto.animationSpeed != null) ac.setSpeed(cdto.animationSpeed);
+                ac.setBlendSettings(cdto.poseBlend());
             }
             case com.director.timeline.model.entity.EntityStateClip stc -> {
                 if (cdto.sneaking != null) stc.setSneaking(cdto.sneaking);

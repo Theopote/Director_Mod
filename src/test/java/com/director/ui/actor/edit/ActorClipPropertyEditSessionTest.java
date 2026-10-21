@@ -133,4 +133,30 @@ class ActorClipPropertyEditSessionTest {
         assertTrue(edit.commit()); model.clearSelection(); history.undo(); assertEquals(4,source.getToPos().x);
         history.redo(); assertEquals(9,source.getToPos().x);
     }
+    @Test void spawnBlendGestureUndoesWithoutCreatingClipsOrLosingAnimationBinding() {
+        var source=new EntitySpawnClip("Spawn",0,10);source.setBoneAnimationId("project:test");attach(source);
+        var edit=new ActorClipPropertyEditSession(model,source);
+        var settings=new com.director.actor.rig.skeleton.PoseBlendSettings(
+                com.director.actor.rig.skeleton.PoseLayer.BlendMode.ADDITIVE,.4f,2,false,java.util.Set.of("head"));
+        ((EntitySpawnClip)edit.draft()).setBlendSettings(settings);
+        assertTrue(edit.commit());assertEquals(settings,source.getBlendSettings());assertEquals(1,history.getUndoSize());
+        history.undo();assertEquals(com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT,source.getBlendSettings());
+        history.redo();assertEquals(settings,source.getBlendSettings());assertEquals("project:test",source.getBoneAnimationId());
+        assertEquals(1,track.getClips().size());assertEquals(1,track.getActorTrackPayload().getClips().size());
+    }
+    @Test void explicitAnimationEditsAreUndoableAndRetainEvents() {
+        var source=new EntityAnimationClip("Animation",0,10);attach(source);
+        var event=new AnimationEvent(.2f,new com.director.timeline.playback.entity.EntityActionEvent(EntityActionClip.ActionType.ATTACK,java.util.Map.of()));source.addEvent(event);
+        var edit=new ActorClipPropertyEditSession(model,source);var draft=(EntityAnimationClip)edit.draft();
+        draft.setBlendSettings(new com.director.actor.rig.skeleton.PoseBlendSettings(
+                com.director.actor.rig.skeleton.PoseLayer.BlendMode.OVERRIDE,.5f,2,true,java.util.Set.of()));
+        draft.setSpeed(2);assertTrue(edit.commit());assertEquals(2,source.getSpeed());
+        history.undo();assertEquals(1,source.getSpeed());history.redo();assertEquals(.5f,source.getBlendSettings().weight());
+        assertSame(event,source.getEvents().getFirst());
+    }
+    @Test void changingOwnedAnimationInvalidatesPendingSpawnBlendGesture() {
+        var source=new EntitySpawnClip("Spawn",0,10);source.setBoneAnimationId("project:first");attach(source);
+        var edit=new ActorClipPropertyEditSession(model,source);source.setBoneAnimationId("project:other");
+        assertFalse(edit.commit());assertEquals("project:other",source.getBoneAnimationId());assertEquals(0,history.getUndoSize());
+    }
 }

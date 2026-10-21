@@ -1,105 +1,30 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
-import com.director.ui.theme.Icons;
-import com.director.ui.theme.UITheme;
+import com.director.ui.properties.actor.*;
 import com.director.timeline.model.entity.EntityAnimationClip;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
-import imgui.type.ImBoolean;
-import imgui.type.ImInt;
-import imgui.type.ImString;
+import imgui.type.*;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
-/**
- * EntityAnimationClipPropertyAdapter v1.0
- *
- * <p>实体动画片段属性面板适配器。
- *
- * @author Director Team
- * @version 1.0
- */
 public class EntityAnimationClipPropertyAdapter implements IPropertyAdapter<EntityAnimationClip> {
-
-    private static final String TITLE = Icons.SMILE + " 动画片段";
-
-    private final ImString animationIdString = new ImString("", 256);
-    private final ImInt sourceIndex = new ImInt();
-    private final ImBoolean loopBoolean = new ImBoolean();
-
-    @Override
-    public Class<EntityAnimationClip> getTargetType() {
-        return EntityAnimationClip.class;
-    }
-
-    @Override
-    public boolean renderProperties(EntityAnimationClip clip) {
-        com.director.ui.properties.actor.ActorRuntimeDiagnosticsUI.render(clip);
-        if (clip == null) {
-            ImGui.text("（无片段）");
-            return false;
-        }
-
-        AtomicBoolean changed = new AtomicBoolean(false);
-
-        UITheme.title(TITLE);
-
-        // ========== 基础信息 ==========
-        if (ImGui.collapsingHeader("⏱ 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
-            UITheme.beginGroup("时间范围");
-            ImGui.text(String.format("开始: %.2fs", clip.getStartTime()));
-            ImGui.text(String.format("结束: %.2fs", clip.getEndTime()));
-            ImGui.text(String.format("时长: %.2fs", clip.getLength()));
-            UITheme.endGroup();
-        }
-
-        // ========== 动画源 ==========
-        if (ImGui.collapsingHeader("🎬 动画源", ImGuiTreeNodeFlags.DefaultOpen)) {
-            // GeckoLib 尚未集成，保留枚举仅用于旧存档兼容，不在 UI 中继续承诺该能力。
-            EntityAnimationClip.AnimationSource[] sources = {
-                EntityAnimationClip.AnimationSource.BUILT_IN,
-                EntityAnimationClip.AnimationSource.CUSTOM
-            };
-            String[] sourceLabels = new String[sources.length];
-            for (int i = 0; i < sources.length; i++) {
-                sourceLabels[i] = sources[i].name();
-                if (sources[i] == clip.getSource()) {
-                    sourceIndex.set(i);
-                }
-            }
-
-            if (ImGui.combo("动画源", sourceIndex, sourceLabels)) {
-                clip.setSource(sources[sourceIndex.get()]);
-                changed.set(true);
-            }
-        }
-
-        // ========== 动画设置 ==========
-        if (ImGui.collapsingHeader("🎭 动画设置", ImGuiTreeNodeFlags.DefaultOpen)) {
-            animationIdString.set(clip.getAnimationId());
-            if (ImGui.inputText("动画ID", animationIdString)) {
-                clip.setAnimationId(animationIdString.get());
-                changed.set(true);
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("内建: idle, walk, wave, attack；CUSTOM 可使用代码注册到 AnimationLibrary 的 ID");
-            }
-
-            loopBoolean.set(clip.isLoop());
-            if (ImGui.checkbox("循环播放", loopBoolean)) {
-                clip.setLoop(loopBoolean.get());
-                changed.set(true);
-            }
-
-            float[] speedArray = {clip.getSpeed()};
-            if (ImGui.sliderFloat("播放速度", speedArray, 0.0f, 4.0f)) {
-                clip.setSpeed(speedArray[0]);
-                changed.set(true);
-            }
-        }
-
-        return changed.get();
+    private final ActorClipInspectorGesture gesture=new ActorClipInspectorGesture();
+    @Override public Class<EntityAnimationClip> getTargetType() { return EntityAnimationClip.class; }
+    @Override public boolean renderProperties(EntityAnimationClip source) {
+        ActorRuntimeDiagnosticsUI.render(source);
+        var draft=gesture.begin(source);
+        if(!(draft instanceof EntityAnimationClip clip)) { gesture.end(); return false; }
+        ImGui.text("骨骼动画片段");
+        ImGui.text(String.format("时间范围：%.2f – %.2f 秒",clip.getStartTime(),clip.getEndTime()));
+        var sources=new EntityAnimationClip.AnimationSource[]{EntityAnimationClip.AnimationSource.BUILT_IN,EntityAnimationClip.AnimationSource.CUSTOM};
+        var index=new ImInt(clip.getSource()==sources[1]?1:0);
+        boolean changed=ImGui.combo("动画源",index,new String[]{"内建","自定义"});
+        if(changed) clip.setSource(sources[index.get()]); gesture.observe("source",changed);
+        var id=new ImString(clip.getAnimationId(),256);
+        changed=ImGui.inputText("动画 ID",id); if(changed) clip.setAnimationId(id.get()); gesture.observe("id",changed);
+        changed=ImGui.checkbox("循环播放",clip.isLoop()); if(changed) clip.setLoop(!clip.isLoop()); gesture.observe("loop",changed);
+        float[] speed={clip.getSpeed()}; changed=ImGui.sliderFloat("播放速度",speed,0,4);
+        if(changed) clip.setSpeed(speed[0]); gesture.observe("speed",changed);
+        ActorAnimationBlendPropertyUI.render(source,clip.getBlendSettings(),clip::setBlendSettings,gesture);
+        gesture.end(); return false;
     }
 }
-

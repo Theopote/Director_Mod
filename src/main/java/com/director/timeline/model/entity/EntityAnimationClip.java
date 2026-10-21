@@ -22,6 +22,10 @@ import java.util.List;
  * @version 1.1
  */
 public class EntityAnimationClip extends EntityClip {
+    private com.director.actor.rig.skeleton.PoseBlendSettings blendSettings = com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT;
+    public com.director.actor.rig.skeleton.PoseBlendSettings getBlendSettings() { return blendSettings; }
+    public void setBlendSettings(com.director.actor.rig.skeleton.PoseBlendSettings settings) { blendSettings = java.util.Objects.requireNonNull(settings); }
+
 
     public enum AnimationSource {
         BUILT_IN,

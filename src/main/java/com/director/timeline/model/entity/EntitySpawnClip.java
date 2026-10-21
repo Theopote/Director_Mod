@@ -14,6 +14,10 @@ import org.joml.Vector3f;
  * @version 1.0
  */
 public class EntitySpawnClip extends EntityClip {
+    private com.director.actor.rig.skeleton.PoseBlendSettings blendSettings = com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT;
+    public com.director.actor.rig.skeleton.PoseBlendSettings getBlendSettings() { return blendSettings; }
+    public void setBlendSettings(com.director.actor.rig.skeleton.PoseBlendSettings settings) { blendSettings = java.util.Objects.requireNonNull(settings); }
+
 
     private String boneAnimationId;
     private EntityAnimationClip boneAnimation;
@@ -28,6 +32,7 @@ public class EntitySpawnClip extends EntityClip {
     }
     public EntityAnimationClip getBoneAnimation() {
         if(boneAnimationId==null)return null;
+        boneAnimation.setBlendSettings(blendSettings);
         boneAnimation.setTimeRange(getStartTime(),getEndTime());boneAnimation.setMuted(isMuted());
         if(getTimelineClip()!=null)boneAnimation.getTimelineClip().setParentTrack(getTimelineClip().getParentTrack());
         return boneAnimation;
