@@ -59,4 +59,15 @@ class ActorBoneGestureOwnershipTest {
         assertNull(spawn.getBoneAnimationId());assertFalse(AnimationAssetLibrary.getInstance().contains(asset.id()));
         assertEquals(1,owner.getClips().size());assertFalse(history.undo());
     }
+    @Test void firstGestureInheritsSpawnMixAndRejectsAChangedBlendConfiguration() throws Exception {
+        var settings=new com.director.actor.rig.skeleton.PoseBlendSettings(
+                com.director.actor.rig.skeleton.PoseLayer.BlendMode.ADDITIVE,.3f,2,true,java.util.Set.of(),.2f,.4f);
+        spawn.setBlendSettings(settings);begin();
+        var clip=(EntityAnimationClip)get("editingAnimationClip");assertEquals(settings,clip.getBlendSettings());
+        var method=controller.getClass().getDeclaredMethod("animationSourceUnchanged");method.setAccessible(true);
+        assertEquals(true,method.invoke(controller));
+        spawn.setBlendSettings(com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT);
+        assertEquals(false,method.invoke(controller));
+        assertNull(spawn.getBoneAnimationId());assertEquals(1,owner.getClips().size());
+    }
 }

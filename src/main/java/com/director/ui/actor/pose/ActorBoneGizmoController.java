@@ -73,6 +73,8 @@ public final class ActorBoneGizmoController {
     private String previousAnimationId;
     private final EnumMap<Axis, Float> baseAngles = new EnumMap<>(Axis.class);
     private boolean animationGesture;
+    private float animationClipEnd;
+    private com.director.actor.rig.skeleton.PoseBlendSettings animationBlend;
     private AnimationAsset editingAsset;
     private BoneTrack editingBoneTrack;
     private EntityAnimationClip editingAnimationClip;
@@ -328,6 +330,9 @@ public final class ActorBoneGizmoController {
     private boolean animationSourceUnchanged() {
         if (!animationGesture) return true;
         if (Float.compare(clipStart, editingAnimationClip.getStartTime()) != 0
+                || Float.compare(animationClipEnd,editingAnimationClip.getEndTime()) != 0
+                || !Objects.equals(animationBlend,editingAnimationClip.getBlendSettings())
+                || animationOwner!=null && !Objects.equals(animationBlend,animationOwner.getBlendSettings())
                 || Float.compare(clipSpeed, editingAnimationClip.getSpeed()) != 0
                 || clipLoop != editingAnimationClip.isLoop()
                 || Float.compare(assetDuration, editingAsset.duration()) != 0
@@ -416,6 +421,7 @@ public final class ActorBoneGizmoController {
             editingAnimationClip.setAnimationId(editingAsset.id());
             editingAnimationClip.setSource(EntityAnimationClip.AnimationSource.CUSTOM);
             editingAnimationClip.setLoop(false);
+            editingAnimationClip.setBlendSettings(animationOwner.getBlendSettings());
             createdAnimationBinding=true;
         }
 
@@ -426,6 +432,8 @@ public final class ActorBoneGizmoController {
         animationKeyTime = editingAsset.normalizeTime((timelineTime - editingAnimationClip.getStartTime()) * speed,
                 editingAnimationClip.isLoop() ? editingAsset.loopMode() : AnimationLoopMode.ONCE);
         clipStart = editingAnimationClip.getStartTime();
+        animationClipEnd=editingAnimationClip.getEndTime();
+        animationBlend=editingAnimationClip.getBlendSettings();
         clipSpeed = editingAnimationClip.getSpeed();
         clipLoop = editingAnimationClip.isLoop();
         assetDuration = editingAsset.duration();
@@ -601,6 +609,7 @@ public final class ActorBoneGizmoController {
     private void resetAnimationGesture() {
         dragging = false;
         animationGesture = false;
+        animationBlend=null;
         editingAsset = null;
         editingBoneTrack = null;
         editingAnimationClip = null;

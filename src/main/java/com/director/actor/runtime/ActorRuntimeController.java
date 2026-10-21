@@ -99,6 +99,29 @@ public final class ActorRuntimeController {
     private final ActorRuntimeDiagnostics diagnostics = new ActorRuntimeDiagnostics();
     public ActorRuntimeDiagnostics diagnostics() { return diagnostics; }
 
+    /** Re-evaluate only pose/constraints against the current frame; never sample or dispatch events. */
+    public boolean refreshPosePreview(UUID actorId) {
+        if (!enabled || timelineSource==null || actorId==null
+                || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
+                || com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()) return false;
+        TrackRuntime target=null;
+        for (var runtime:runtimes.values()) if(runtime.actor!=null && actorId.equals(runtime.actor.getActorId())) {
+            if(target!=null) return false;
+            target=runtime;
+        }
+        if(target==null || target.lastSample==null || target.lastTime!=timelineSource.getCurrentTime()
+                || !target.lastSample.enabled || !target.lastSample.active || target.lastSample.visibility<=.01f) return false;
+        var entity=ActorPreviewManager.getInstance().getPreview(actorId);
+        if(entity==null) return false;
+        var sample=target.lastSample.copy();
+        // Root offsets must always start at the sampled world position, never the prior preview offset.
+        entity.refreshPositionAndAngles(sample.position.x,sample.position.y,sample.position.z,sample.rotation.x,sample.rotation.y);
+        target.applyRigProfile(sample,0);
+        target.updateGaze();
+        target.syncCustomModel(entity);
+        return true;
+    }
+
     private ActorRuntimeController() {
     }
 
@@ -198,17 +221,6 @@ public final class ActorRuntimeController {
 
         // Resolve gaze only after every actor has its current-time root position.
         for (TrackRuntime rt : runtimes.values()) rt.updateGaze();
-        // Numeric pose drafts are the final transient layer, after gaze constraints.
-        for (var id : ActorPreviewManager.getInstance().previewActorIds()) {
-            var entity = ActorPreviewManager.getInstance().getPreview(id);
-            if (entity instanceof com.director.actor.preview.ActorPosePreview preview) {
-                var sampled = preview.getFinalRigPose();
-                var edited = com.director.ui.actor.pose.ActorBonePropertiesPanel.previewPose(id, sampled);
-                if (edited != sampled) preview.setFinalRigPose(edited);
-            }
-        }
-
-
         // 更新投掷物（每帧更新，使用 deltaTime）
         projectileManager.update(deltaTime);
     }
@@ -738,7 +750,8 @@ public final class ActorRuntimeController {
                 if (actor.getType() == com.director.actor.ActorType.PLAYER)
                     ActorJointGait.apply(proceduralPose, action, s.actionIntensity, gaitTime, rig.getStyle(),
                             !s.poseOverrideArms, !s.poseOverrideLegs);
-                var authoredPose = asset.sample(sampleTime, playbackMode);
+                var authoredPose = com.director.ui.actor.pose.ActorBonePropertiesPanel.previewAuthoredPose(
+                        actor.getActorId(),asset.id(),asset.sample(sampleTime, playbackMode));
                 var finalRigPose = ActorRigPoseComposition.compose(proceduralPose,
                         authoredPose, pose -> applyRigPoseOverrides(pose, s),
                         diagnostic -> reportPlacement(actor.getActorId(),timelineSource.getCurrentTime(),
@@ -757,8 +770,7 @@ public final class ActorRuntimeController {
                     boolean boneDragging = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
                             && actor.getActorId().equals(com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().getActorId());
                     if (!boneDragging) {
-                        var displayPose = com.director.ui.actor.pose.ActorBonePropertiesPanel.previewPose(actor.getActorId(), finalRigPose);
-                        applyRootAnimationOffset((Entity)previewEntity, displayPose,s);
+                        applyRootAnimationOffset((Entity)previewEntity, finalRigPose,s);
                         previewEntity.setFinalRigPose(finalRigPose);
                     }
                 }

@@ -460,4 +460,68 @@ class ActorAnimationAuthoringServiceTest {
         assertEquals(revision,selection.revision()); assertSame(other.getTimelineClip(),model.getSelectedClip());
     }
 
+    private BoneTransformDraft numericDraft() throws Exception {
+        var selection=ActorBoneSelectionController.getInstance();selection.activate(actor.getActorId());selection.selectBone("head");
+        var numeric=ActorBonePropertiesPanel.NumericContext.capture(context,"head");
+        var field=ActorBonePropertiesPanel.class.getDeclaredField("numericContext");field.setAccessible(true);field.set(null,numeric);
+        field=ActorBonePropertiesPanel.class.getDeclaredField("draft");field.setAccessible(true);
+        var draft=(BoneTransformDraft)field.get(null);
+        draft.synchronize(numeric,asset.sample(context.assetTime(),AnimationLoopMode.ONCE).localTransform("head"));
+        draft.rotation[1]=90;draft.markChannelsChanged(RigPose.ROTATION);
+        return draft;
+    }
+    @Test void numericPreviewUsesAssetIdentityAndMatchesCommittedWeightedFade() throws Exception {
+        try {
+            clip.setBlendSettings(new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,.4f,RigPose.ROTATION,true,Set.of(),2,0));
+            context=ActorAnimationEditContext.resolve(model,actor.getActorId());
+            numericDraft();
+            var sampled=asset.sample(context.assetTime(),AnimationLoopMode.ONCE);
+            assertSame(sampled,ActorBonePropertiesPanel.previewAuthoredPose(actor.getActorId(),"another:asset",sampled));
+            var edited=ActorBonePropertiesPanel.previewAuthoredPose(actor.getActorId(),asset.id(),sampled);
+            assertNotSame(sampled,edited);assertTrue(asset.boneTracks().isEmpty());assertEquals(0,history.getUndoSize());
+            var settings=clip.getBlendSettings();float envelope=settings.envelopeAt(1,15);
+            var base=new RigPose(asset.rig());
+            var preview=RigPoseComposer.compose(base,List.of(settings.layer(edited,envelope))).pose();
+            assertTrue(preview.localTransform("head").rotation().equals(new Quaternionf().rotateY((float)java.lang.Math.toRadians(18)),1e-5f));
+            assertTrue(ActorAnimationAuthoringService.keyPose(context,edited,List.of("head"),InterpolationMode.LINEAR,RigPose.ROTATION));
+            ActorBonePropertiesPanel.cancelNumericDraft();
+            var committed=RigPoseComposer.compose(base,List.of(settings.layer(asset.sample(1,AnimationLoopMode.ONCE),envelope))).pose();
+            assertTrue(preview.localTransform("head").toMatrix().equals(committed.localTransform("head").toMatrix(),1e-6f));
+            assertEquals(1,history.getUndoSize());
+        } finally { ActorBonePropertiesPanel.cancelNumericDraft();ActorBoneSelectionController.getInstance().deactivate(); }
+    }
+    @Test void numericDraftCannotBypassAdditiveWeightOrExcludedChannels() throws Exception {
+        try {
+            numericDraft();var sampled=asset.sample(1,AnimationLoopMode.ONCE);
+            var edited=ActorBonePropertiesPanel.previewAuthoredPose(actor.getActorId(),asset.id(),sampled);
+            var base=new RigPose(asset.rig());base.setLocalTransform("head",base.localTransform("head").withRotation(new Quaternionf().rotateY(.2f)));
+            var settings=new PoseBlendSettings(PoseLayer.BlendMode.ADDITIVE,.5f,RigPose.ROTATION,true,Set.of());
+            var mixed=RigPoseComposer.compose(base,List.of(settings.layer(edited))).pose();
+            assertTrue(mixed.localTransform("head").rotation().equals(new Quaternionf().rotateY(.2f+(float)java.lang.Math.PI/4),1e-5f));
+            for(var excluded:List.of(new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,0,7,true,Set.of()),
+                    new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,1,RigPose.SCALE,true,Set.of()),
+                    new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,1,7,false,Set.of("left_leg"))))
+                assertEquals(base.localTransform("head"),RigPoseComposer.compose(base,List.of(excluded.layer(edited))).pose().localTransform("head"));
+            ActorBonePropertiesPanel.cancelNumericDraft();
+            assertSame(sampled,ActorBonePropertiesPanel.previewAuthoredPose(actor.getActorId(),asset.id(),sampled));
+        } finally { ActorBonePropertiesPanel.cancelNumericDraft();ActorBoneSelectionController.getInstance().deactivate(); }
+    }
+    @Test void changingBlendSettingsInvalidatesDraftContextButNotExistingUndoTarget() {
+        var before=context;
+        clip.setBlendSettings(new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,.2f,7,true,Set.of(),.2f,.3f));
+        assertFalse(before.isCurrent());assertTrue(before.isBound());
+        assertFalse(ActorAnimationAuthoringService.keyPose(before,new RigPose(asset.rig()),List.of("head"),InterpolationMode.LINEAR,RigPose.ROTATION));
+        assertEquals(0,history.getUndoSize());
+        context=ActorAnimationEditContext.resolve(model,actor.getActorId());
+        assertTrue(ActorAnimationAuthoringService.keyPose(context,new RigPose(asset.rig()),List.of("head"),InterpolationMode.LINEAR,RigPose.ROTATION));
+        clip.setBlendSettings(PoseBlendSettings.DEFAULT);assertTrue(history.undo());assertTrue(history.redo());
+    }
+    @Test void changingBlendSettingsDiscardsNumericDraftWithoutWritingKeys() throws Exception {
+        try {
+            numericDraft();assertTrue(ActorBonePropertiesPanel.hasNumericDraft());
+            clip.setBlendSettings(new PoseBlendSettings(PoseLayer.BlendMode.ADDITIVE,1,7,true,Set.of()));
+            assertFalse(ActorBonePropertiesPanel.hasNumericDraft());
+            assertTrue(asset.boneTracks().isEmpty());assertEquals(0,history.getUndoSize());
+        } finally { ActorBonePropertiesPanel.cancelNumericDraft();ActorBoneSelectionController.getInstance().deactivate(); }
+    }
 }

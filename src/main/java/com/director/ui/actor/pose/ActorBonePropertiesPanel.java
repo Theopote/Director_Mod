@@ -52,9 +52,10 @@ public final class ActorBonePropertiesPanel {
         return draft.isDirty();
     }
     public static void cancelNumericDraft() { draft.clear(); numericContext = null; }
-    /** A transient render layer only; never writes asset keys or history. */
-    public static RigPose previewPose(UUID actorId, RigPose sampled) {
+    /** Apply the numeric draft to the authored input, before masks, fades and constraints. */
+    public static RigPose previewAuthoredPose(UUID actorId, String assetId, RigPose sampled) {
         if (!hasNumericDraft() || numericContext == null || !numericContext.context().actorId().equals(actorId)
+                || !numericContext.context().asset().id().equals(assetId)
                 || sampled == null || !sampled.rig().id().equals(numericContext.context().asset().rigId())) return sampled;
         return draft.preview(sampled, numericContext.boneId());
     }
@@ -131,7 +132,7 @@ public final class ActorBonePropertiesPanel {
         numericContext = NumericContext.capture(context,boneId);
         if (draft.synchronize(numericContext, value)) message = "编辑对象或姿态已变化，未应用的数值已取消。";
         ImGui.textDisabled(asset.name() + " · " + String.format("%.3fs", time));
-        ImGui.textWrapped("显示资产局部姿态；编辑后点击应用并打帧。切换骨骼、演员或播放头会取消未应用的数值。共享资产的修改影响所有引用。");
+        ImGui.textWrapped("显示资产局部姿态；编辑后点击应用并打帧。切换骨骼、演员或播放头会取消未应用的数值。共享资产的修改影响所有引用。世界中显示混合后的结果；低权重、淡入淡出或被排除的通道会减弱或隐藏修改。");
         if (ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) draft.reset();
         int changed = 0;
         if (bone.capabilities().translation() && ImGui.inputFloat3("位置 XYZ##boneT", draft.translation, "%.3f")) changed |= RigPose.TRANSLATION;
@@ -170,22 +171,19 @@ public final class ActorBonePropertiesPanel {
             draft.markChannelsChanged(changed); message = ""; }
         var mode = ActorAnimationAuthoringSettings.getInstance().getInterpolation();
         if (draft.isDirty()) {
-            if (draft.isValid()) {
-                var entity = com.director.actor.preview.ActorPreviewManager.getInstance().getPreview(actorId);
-                if (entity instanceof com.director.actor.preview.ActorPosePreview preview)
-                    preview.setFinalRigPose(previewPose(actorId, preview.getFinalRigPose()));
-            }
-            ImGui.textDisabled("当前显示未保存的姿态预览；应用后写入关键帧，取消则恢复。");
+            if (draft.isValid()) com.director.actor.runtime.ActorRuntimeController.getInstance().refreshPosePreview(actorId);
+            ImGui.textDisabled("当前预览使用未保存的资产值，并经过动作混合及约束；应用后写入关键帧，取消则恢复。");
             if (!draft.isValid()) ImGui.textWrapped("请输入有限数值，且缩放必须大于零。");
             if (ImGui.button("应用并打帧##applyBone") && draft.isValid() && hasNumericDraft()) {
                 pose.setLocalTransform(boneId, draft.value());
                 boolean applied = ActorAnimationAuthoringService.keyPose(context, pose, List.of(boneId), mode, draft.changedChannels());
                 draft.clear();
+                com.director.actor.runtime.ActorRuntimeController.getInstance().refreshPosePreview(actorId);
                 if (!applied) { ImGui.treePop(); return; }
                 message = "已应用，可一次撤销整次修改。";
             }
             ImGui.sameLine();
-            if (ImGui.button("取消##cancelBone")) { draft.reset(); message = "已取消数值修改。"; }
+            if (ImGui.button("取消##cancelBone")) { draft.reset(); com.director.actor.runtime.ActorRuntimeController.getInstance().refreshPosePreview(actorId); message = "已取消数值修改。"; }
         }
         if (!message.isEmpty()) ImGui.textWrapped(message);
         if (draft.isDirty()) {
