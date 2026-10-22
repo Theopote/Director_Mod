@@ -9,6 +9,17 @@ class ActorBlendEnvelopeTest {
     private PoseBlendSettings settings(float in,float out) {
         return new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,.8f,7,true,Set.of(),in,out);
     }
+    @Test void presetCurveUsesIndependentSettingsWithoutRequiringManualAsset() {
+        var spawn=new com.director.timeline.model.entity.EntitySpawnClip("Actor",2,8);
+        var wrapper=new com.director.timeline.model.entity.EntityTimelineClip(spawn,0);
+        assertNull(ActorBlendEnvelope.presetSettings(wrapper));
+        var settings=settings(2,1);
+        spawn.setPreset(new com.director.timeline.model.entity.ActorPresetBinding("wave",false,1,settings));
+        assertEquals(settings,ActorBlendEnvelope.presetSettings(wrapper));assertNull(ActorBlendEnvelope.settings(wrapper));
+        spawn.setPreset(new com.director.timeline.model.entity.ActorPresetBinding("test:missing",false,1,settings));
+        assertNull(ActorBlendEnvelope.presetSettings(wrapper));
+    }
+
     @Test void curveMatchesPlaybackAtEveryProjectedPointAndMovesWithClip() {
         var settings=settings(2,1);
         var points=ActorBlendEnvelope.points(settings,100,700,0,1000,6);

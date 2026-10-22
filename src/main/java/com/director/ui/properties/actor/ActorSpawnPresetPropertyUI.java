@@ -55,8 +55,34 @@ public final class ActorSpawnPresetPropertyUI {
                 fades[0]=blend.fadeIn();fades[1]=blend.fadeOut();
             }
             gesture.observe("presetFades",changed);
-            draft.setPreset(new ActorPresetBinding(binding.animationId(),loop,speed[0],new PoseBlendSettings(
-                    PoseLayer.BlendMode.values()[mode.get()],weight[0],blend.channels(),blend.allBones(),blend.boneIds(),fades[0],fades[1])));
+            int channels=blend.channels();
+            int[] bits={RigPose.TRANSLATION,RigPose.ROTATION,RigPose.SCALE};
+            String[] channelLabels={"位置通道","旋转通道","缩放通道"};
+            for(int i=0;i<bits.length;i++) {
+                changed=ImGui.checkbox(channelLabels[i],(channels&bits[i])!=0);
+                if(changed) channels^=bits[i];gesture.observe("presetChannel"+i,changed);
+            }
+            boolean all=blend.allBones();changed=ImGui.checkbox("所有部位",all);
+            if(changed) all=!all;gesture.observe("presetAllBones",changed);
+            var bones=new LinkedHashSet<>(blend.boneIds());
+            var rig=ActorRigCompatibility.resolveRig(actor).orElse(null);
+            if(!all && rig!=null) for(var bone:rig.bones()) {
+                changed=ImGui.checkbox(bone.displayName()+"##presetBone"+bone.id(),bones.contains(bone.id()));
+                if(changed) { if(!bones.remove(bone.id())) bones.add(bone.id()); }
+                gesture.observe("presetBone"+bone.id(),changed);
+            }
+            var next=new ActorPresetBinding(binding.animationId(),loop,speed[0],new PoseBlendSettings(
+                    PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,all,bones,fades[0],fades[1]));
+            draft.setPreset(next);
+            float time=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel().getCurrentTime();
+            var feedback=ActorPresetFeedback.resolve(next,rig,time-draft.getStartTime(),draft.getLength());
+            boolean muted=source.isMuted() || wrapper!=null && wrapper.getParentTrack()!=null && wrapper.getParentTrack().isMuted();
+            ImGui.text(String.format(Locale.ROOT,"当前预设层权重：%.1f%%",100*(muted?0:feedback.weight())));
+            if(!feedback.available()) ImGui.textWrapped("预设缺失或骨架不兼容，当前不参与合成。");
+            else if(feedback.bones().isEmpty()) ImGui.textWrapped("所选部位与通道没有对应动画，预设当前不产生影响。");
+            else if(rig!=null) ImGui.textWrapped("影响部位："+feedback.bones().stream()
+                    .map(id->rig.bone(rig.requireBoneIndex(id)).displayName()).collect(java.util.stream.Collectors.joining("、")));
+            ImGui.textWrapped("部位与通道只筛选预设已有数据；手工关键帧仍可覆盖同一通道。");
             ImGui.textWrapped("时间跟随演员片段；先播放预设，再叠加已编辑的骨骼通道。清除预设会保留手工关键帧。");
         } finally { ImGui.popID(); }
     }

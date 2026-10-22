@@ -17,7 +17,16 @@ public final class ActorBlendEnvelope {
         if(entity instanceof EntitySpawnClip spawn) { id=spawn.getBoneAnimationId();settings=spawn.getBlendSettings(); }
         else if(entity instanceof EntityAnimationClip animation) { id=animation.getAnimationId();settings=animation.getBlendSettings(); }
         else return null;
-        return id!=null && AnimationAssetLibrary.getInstance().find(id).isPresent()?settings:null;
+        return known(id)?settings:null;
+    }
+    public static PoseBlendSettings presetSettings(TimelineClip clip) {
+        if(clip instanceof EntityTimelineClip wrapper && wrapper.getEntityClip() instanceof EntitySpawnClip spawn
+                && spawn.getPreset()!=null && known(spawn.getPreset().animationId())) return spawn.getPreset().blend();
+        return null;
+    }
+    private static boolean known(String id) {
+        return id!=null && (AnimationAssetLibrary.getInstance().find(id).isPresent()
+                || com.director.actor.animation.AnimationLibrary.getInstance().get(id).isPresent());
     }
     public static float configuredWeight(PoseBlendSettings settings,float localTime,float duration) {
         if(settings.channels()==0 || !settings.allBones() && settings.boneIds().isEmpty()) return 0;

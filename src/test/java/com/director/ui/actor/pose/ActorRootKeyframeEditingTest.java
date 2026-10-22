@@ -23,6 +23,21 @@ class ActorRootKeyframeEditingTest {
     <T extends EntityClip> T add(T clip) {
         owner.getActorTrackPayload().addClip(clip); owner.addClip(new EntityTimelineClip(clip, 0)); return clip;
     }
+    @Test void presetRoundTripInvalidatesAuthoringDraftButNotCommittedCommandTarget() {
+        var spawn=add(new EntitySpawnClip("Actor",0,5));model.setCurrentTime(2);
+        assertTrue(ActorEmbeddedAnimation.firstKey(model,owner,"head",2,com.director.actor.animation.asset.InterpolationMode.LINEAR));
+        String id=spawn.getBoneAnimationId();
+        try {
+            var actorId=owner.getActorTrackPayload().getActorRef().getActorId();
+            var context=ActorAnimationEditContext.resolve(model,actorId);assertNotNull(context);assertTrue(context.isCurrent());
+            var preset=new ActorPresetBinding("wave",false,1,com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT);
+            spawn.setPreset(preset);spawn.setPreset(null);
+            assertFalse(context.isCurrent());assertTrue(context.isBound());
+            var state=ActorPresetEditState.capture(owner);spawn.setPreset(null);
+            assertEquals(state,ActorPresetEditState.capture(owner));
+        } finally { com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().remove(id); }
+    }
+
     @Test void addingAndUndoingSecondActorTrackPreservesFirstTrackAndPayload() {
         var spawn = add(new EntitySpawnClip("First", 0, 5));
         model.setCurrentTime(2);

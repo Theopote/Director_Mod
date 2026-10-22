@@ -71,6 +71,7 @@ public final class ActorBoneGizmoController {
     private boolean createdClip;
     private com.director.timeline.model.entity.EntitySpawnClip animationOwner;
     private String previousAnimationId;
+    private ActorPresetEditState presetState;
     private final EnumMap<Axis, Float> baseAngles = new EnumMap<>(Axis.class);
     private boolean animationGesture;
     private float animationClipEnd;
@@ -240,6 +241,7 @@ public final class ActorBoneGizmoController {
         ActorBonePropertiesPanel.cancelNumericDraft();
         float time = model.getCurrentTime();
         gestureModel = model;
+        presetState=ActorPresetEditState.capture(timelineTrack);
         gestureTime = time;
         var settings = ActorAnimationAuthoringSettings.getInstance();
         gestureContext=new com.director.ui.actor.edit.ActorGestureContext(model,
@@ -331,7 +333,8 @@ public final class ActorBoneGizmoController {
     private boolean contextValid() {
         var selection = ActorBoneSelectionController.getInstance();
         var settings = ActorAnimationAuthoringSettings.getInstance();
-        return gestureContext != null && gestureContext.isCurrent(resolveModel()) && gestureModel != null && gestureModel == resolveModel()
+        return presetState!=null && presetState.equals(ActorPresetEditState.capture(timelineTrack))
+                && gestureContext != null && gestureContext.isCurrent(resolveModel()) && gestureModel != null && gestureModel == resolveModel()
                 && !gestureModel.isPlaying() && Float.compare(gestureTime, gestureModel.getCurrentTime()) == 0
                 && gestureModel.getAllTracks().contains(timelineTrack) && timelineTrack.getType()==TrackType.ACTOR
                 && com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).isPresent() && !timelineTrack.isLocked() && !timelineTrack.isMuted()
@@ -411,6 +414,7 @@ public final class ActorBoneGizmoController {
         changed = false;
         gestureModel = null;
         gestureContext = null;
+        presetState=null;
         previewBefore = null;
         legacyPreviewBefore = null;
         previewPositionBefore = null;

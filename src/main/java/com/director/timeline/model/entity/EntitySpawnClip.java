@@ -21,7 +21,11 @@ public class EntitySpawnClip extends EntityClip {
 
     private ActorPresetBinding preset;
     public ActorPresetBinding getPreset() { return preset; }
-    public void setPreset(ActorPresetBinding value) { preset=value; }
+    private long presetRevision;
+    public long getPresetRevision() { return presetRevision; }
+    public void setPreset(ActorPresetBinding value) {
+        if(!java.util.Objects.equals(preset,value)) { preset=value; presetRevision++; }
+    }
     private String boneAnimationId;
     private EntityAnimationClip boneAnimation;
     public String getBoneAnimationId() {return boneAnimationId;}

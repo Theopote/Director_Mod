@@ -227,6 +227,8 @@ public final class ActorClipPropertyEditSession {
         validateBehavior(next, expected, forward);
         // Undo may restore an older, malformed value; validate new user input before constructing the command.
         next.apply(source);
+        if(expected instanceof Spawn beforeSpawn && next instanceof Spawn afterSpawn
+                && !Objects.equals(beforeSpawn.preset,afterSpawn.preset)) model.invalidateActorEditContext();
     }
     private static State capture(EntityClip clip) {
         if (clip instanceof EntityTransformClip c) return new Transform(new Vector3f(c.getFromPos()), new Vector3f(c.getToPos()),

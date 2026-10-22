@@ -12,7 +12,7 @@ import java.util.UUID;
 public record ActorAnimationEditContext(TimelineModel model, UUID actorId, TimelineTrack track,
         ActorTrack payload, EntityAnimationClip clip, AnimationAsset asset, float timelineTime,
         float assetTime, float start, float end, float speed, boolean loop,
-        float duration, AnimationLoopMode loopMode, long contextRevision, EntityTimelineClip wrapper, com.director.actor.rig.skeleton.PoseBlendSettings blendSettings) {
+        float duration, AnimationLoopMode loopMode, long contextRevision, EntityTimelineClip wrapper, com.director.actor.rig.skeleton.PoseBlendSettings blendSettings, ActorPresetEditState presetState) {
     public static ActorAnimationEditContext resolve(TimelineModel model, UUID actorId) {
         if (model == null || actorId == null) return null;
         TimelineTrack owner;
@@ -51,11 +51,11 @@ public record ActorAnimationEditContext(TimelineModel model, UUID actorId, Timel
                 * Math.max(0.01f, clip.getSpeed()), clip.isLoop() ? asset.loopMode() : AnimationLoopMode.ONCE);
         return new ActorAnimationEditContext(model, payload.getActorRef().getActorId(), track, payload,
                 clip, asset, model.getCurrentTime(), local, clip.getStartTime(), clip.getEndTime(),
-                clip.getSpeed(), clip.isLoop(), asset.duration(), asset.loopMode(),model.getActorEditContextRevision(),clip.getTimelineClip(),clip.getBlendSettings());
+                clip.getSpeed(), clip.isLoop(), asset.duration(), asset.loopMode(),model.getActorEditContextRevision(),clip.getTimelineClip(),clip.getBlendSettings(),ActorPresetEditState.capture(track));
     }
 
     public boolean isCurrent() {
-        return isBound() && Objects.equals(blendSettings,clip.getBlendSettings()) && Float.isFinite(timelineTime) && timelineTime>=0
+        return isBound() && presetState.equals(ActorPresetEditState.capture(track)) && Objects.equals(blendSettings,clip.getBlendSettings()) && Float.isFinite(timelineTime) && timelineTime>=0
                 && contextRevision==model.getActorEditContextRevision()
                 && Float.compare(model.getCurrentTime(), timelineTime)==0 && timelineTime>=start && timelineTime<=end;
     }
