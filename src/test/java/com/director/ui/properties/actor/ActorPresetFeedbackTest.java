@@ -11,6 +11,16 @@ class ActorPresetFeedbackTest {
         return new ActorPresetBinding(id,false,1,new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,.8f,
                 channels,false,bones,2,1));
     }
+    @Test void feedbackIncludesPathStopFadeOnlyForLocomotionPreset() {
+        var sample=new com.director.timeline.playback.entity.EntitySample();
+        sample.action=com.director.actor.action.ActorActionType.WALK;sample.routeLocalTime=0;
+        sample.routeClip=new com.director.timeline.model.entity.ActorRouteClip("Route",0,4);
+        sample.routeClip.setWaypoints(java.util.List.of(new org.joml.Vector3f(),new org.joml.Vector3f(2,0,0)));
+        var rig=ArticulatedPlayerRig.DEFINITION;var profile=new com.director.actor.rig.HumanoidRigProfile();
+        assertEquals(0,ActorPresetFeedback.resolve(binding("walk",2,Set.of("right_arm")),rig,3,6,sample,profile).weight());
+        assertEquals(.8f,ActorPresetFeedback.resolve(binding("wave",2,Set.of("right_arm")),rig,3,6,sample,profile).weight(),1e-6f);
+    }
+
     @Test void feedbackIntersectsActualOwnershipAndSelectedChannels() {
         var rig=ArticulatedPlayerRig.DEFINITION;
         for(var binding:new ActorPresetBinding[]{binding("wave",1,Set.of("right_arm")),

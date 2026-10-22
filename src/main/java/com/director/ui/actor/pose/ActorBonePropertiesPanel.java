@@ -330,6 +330,14 @@ public final class ActorBonePropertiesPanel {
         if (owner != null) {
             var sample = new com.director.timeline.playback.entity.EntityClipSampler(owner.getActorTrackPayload())
                     .sampleSnapshot(model.getCurrentTime());
+            var actor=com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
+            if(actor!=null) {
+                var clock=com.director.actor.runtime.ActorPresetClock.resolve(
+                        com.director.timeline.playback.entity.ActorAnimationLayerSample.from(sample),sample,actor.getRigProfile());
+                sample.animationBlendEnvelope=clock.envelope();sample.animationLocalTime=clock.localTime();
+                sample.animationLoop=clock.loop();sample.animationSpeed=clock.speed();
+                sample.presetAnimation=com.director.actor.runtime.ActorPresetClock.resolve(sample.presetAnimation,sample,actor.getRigProfile());
+            }
             RigPose authored = new RigPose(rig);
             var asset = AnimationAssetLibrary.getInstance().find(sample.animationId)
                     .filter(value -> value.rigId().equals(rig.id())).orElse(null);

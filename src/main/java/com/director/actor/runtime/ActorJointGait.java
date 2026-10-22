@@ -13,7 +13,11 @@ public final class ActorJointGait {
     }
     public static void apply(RigPose pose,ActorActionType action,float intensity,float time,
                              com.director.actor.rig.ActorRigProfile profile,boolean arms,boolean legs) {
-        applyPhase(pose,action,intensity,time*profile.locomotionFrequency(action,intensity),profile.getStyle(),arms,legs);
+        apply(pose,action,intensity,time,profile,arms,legs,1);
+    }
+    public static void apply(RigPose pose,ActorActionType action,float intensity,float time,
+            com.director.actor.rig.ActorRigProfile profile,boolean arms,boolean legs,float motionWeight) {
+        applyPhase(pose,action,intensity*motionWeight,time*profile.locomotionFrequency(action,intensity),profile.getStyle(),arms,legs);
     }
     private static void applyPhase(RigPose pose,ActorActionType action,float intensity,float phase,
                                    RigProfileStyle style,boolean arms,boolean legs) {

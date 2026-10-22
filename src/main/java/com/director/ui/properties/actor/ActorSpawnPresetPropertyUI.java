@@ -67,7 +67,7 @@ public final class ActorSpawnPresetPropertyUI {
             var playback=payload==null?null:new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleSnapshot(model.getCurrentTime());
             boolean distanceClock=playback!=null && com.director.actor.runtime.ActorPresetClock.followsDistance(binding.animationId(),playback);
             var data=AnimationAssetLibrary.getInstance().contains(binding.animationId())?null:AnimationLibrary.getInstance().get(binding.animationId()).orElse(null);
-            if(distanceClock) ImGui.textWrapped("此循环步态按路径行进距离推进；缩短演员片段会加快位移和步频。循环与速度设置仅用于原地播放。");
+            if(distanceClock) ImGui.textWrapped("此循环步态按路径行进距离推进，单次路径起止阶段自动淡化步态；缩短演员片段会加快位移和步频。循环与速度设置仅用于原地播放。");
             else if(data!=null && data.purpose()==com.director.actor.animation.AnimationData.Purpose.LOCOMOTION)
                 ImGui.textWrapped("原地步态：只改变身体动作，不移动演员。沿路径走跑通常直接使用自动步态即可。");
             else ImGui.textWrapped("表演预设按片段本地时间播放；路径继续控制整体位移，未声明的骨骼通道保留底层动作。");
@@ -108,7 +108,7 @@ public final class ActorSpawnPresetPropertyUI {
                     PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,all,bones,fades[0],fades[1]));
             draft.setPreset(next);
             float time=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel().getCurrentTime();
-            var feedback=ActorPresetFeedback.resolve(next,rig,time-draft.getStartTime(),draft.getLength());
+            var feedback=ActorPresetFeedback.resolve(next,rig,time-draft.getStartTime(),draft.getLength(),playback,actor==null?null:actor.getRigProfile());
             boolean muted=source.isMuted() || wrapper!=null && wrapper.getParentTrack()!=null && wrapper.getParentTrack().isMuted();
             ImGui.text(String.format(Locale.ROOT,"当前预设层权重：%.1f%%",100*(muted?0:feedback.weight())));
             if(!feedback.available()) ImGui.textWrapped("预设缺失或骨架不兼容，当前不参与合成。");

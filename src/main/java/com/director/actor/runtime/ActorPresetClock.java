@@ -9,7 +9,9 @@ import com.director.timeline.playback.entity.*;
 public final class ActorPresetClock {
     private ActorPresetClock() {}
     public static boolean followsDistance(String id,EntitySample sample) {
-        return !AnimationAssetLibrary.getInstance().contains(id) && ActorRouteGait.followsDistance(sample)
+        return sample!=null && sample.routeClip!=null && !AnimationAssetLibrary.getInstance().contains(id)
+                && (ActorRouteGait.followsDistance(sample) || !sample.actionExplicit
+                    && sample.action==com.director.actor.action.ActorActionType.IDLE)
                 && AnimationLibrary.getInstance().get(id).map(a->a.purpose()==AnimationData.Purpose.LOCOMOTION).orElse(false);
     }
     public static ActorAnimationLayerSample resolve(ActorAnimationLayerSample input,EntitySample sample,ActorRigProfile profile) {
@@ -18,6 +20,6 @@ public final class ActorPresetClock {
         float cycles=ActorRouteGait.phaseCycles(sample,profile);
         if(!Float.isFinite(cycles) || !Float.isFinite(data.getDuration()) || data.getDuration()<=0) return input;
         float phase=(float)(cycles-Math.floor(cycles));
-        return new ActorAnimationLayerSample(input.id(),phase*data.getDuration(),true,1,input.settings(),input.envelope());
+        return new ActorAnimationLayerSample(input.id(),phase*data.getDuration(),true,1,input.settings(),input.envelope()*ActorRouteGait.motionWeight(sample));
     }
 }

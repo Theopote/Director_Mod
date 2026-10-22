@@ -9,9 +9,16 @@ import java.util.*;
 public record ActorPresetFeedback(float weight,List<String> bones,boolean available) {
     public ActorPresetFeedback { bones=List.copyOf(bones); }
     public static ActorPresetFeedback resolve(ActorPresetBinding binding,RigDefinition rig,float local,float duration) {
+        return resolve(binding,rig,local,duration,null,null);
+    }
+    public static ActorPresetFeedback resolve(ActorPresetBinding binding,RigDefinition rig,float local,float duration,
+            com.director.timeline.playback.entity.EntitySample sample,com.director.actor.rig.ActorRigProfile profile) {
         if(binding==null || rig==null) return new ActorPresetFeedback(0,List.of(),false);
         var blend=binding.blend();float envelope=blend.envelopeAt(local,duration);
-        var pose=new ActorAnimationLayerSample(binding.animationId(),local,binding.loop(),binding.speed(),blend,envelope).sample(rig);
+        var input=new ActorAnimationLayerSample(binding.animationId(),local,binding.loop(),binding.speed(),blend,envelope);
+        var clock=sample==null?input:com.director.actor.runtime.ActorPresetClock.resolve(input,sample,profile);
+        envelope=clock.envelope();
+        var pose=clock.sample(rig);
         if(pose==null || !RigPoseComposer.sameLayout(rig,pose.rig())) return new ActorPresetFeedback(0,List.of(),false);
         var bones=new ArrayList<String>();
         for(int i=0;i<pose.rig().boneCount();i++)

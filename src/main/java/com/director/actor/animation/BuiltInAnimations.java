@@ -13,9 +13,8 @@ final class BuiltInAnimations {
     static void registerInto(AnimationLibrary library) {
         library.register(animation("idle", "Idle", 1f, AnimationData.Purpose.STATIC_POSE, AnimationData.POSE_BONES, pose(), pose()));
         library.register(animation("walk", "Walk", 1f, AnimationData.Purpose.LOCOMOTION, Set.of(HumanoidRig.LEFT_ARM, HumanoidRig.RIGHT_ARM, HumanoidRig.LEFT_LEG, HumanoidRig.RIGHT_LEG),
-            pose(0.65f, -0.65f, -0.65f, 0.65f),
-            pose(-0.65f, 0.65f, 0.65f, -0.65f),
-            pose(0.65f, -0.65f, -0.65f, 0.65f)));
+            pose(), pose(0.65f, -0.65f, -0.65f, 0.65f), pose(),
+            pose(-0.65f, 0.65f, 0.65f, -0.65f), pose()));
 
         Pose waveStart = pose();
         waveStart.rightArmPitch = -1.2f;
