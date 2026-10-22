@@ -201,12 +201,17 @@ public class EntityClipSampler {
         // 规则：覆盖（最后一个生效，按时间排序）
         applyTransform(result, transformClips, timeSeconds);
 
-        // ========== 处理 Animation Clip（动画）==========
-        // 规则：last-wins（最后一个生效，按时间排序）
-        for(var candidate:track.getClips())if(candidate instanceof EntitySpawnClip spawn && !spawn.isMuted()
-                && timeSeconds>=spawn.getStartTime() && timeSeconds<=spawn.getEndTime() && spawn.getBoneAnimation()!=null)
-            animationClips.add(spawn.getBoneAnimation());
+        // Presets and spawn-owned manual keys retain independent clocks and blend settings.
         applyAnimation(result, animationClips, timeSeconds,emitEvents);
+        var preset = result.animationId == null ? null : ActorAnimationLayerSample.from(result);
+        var embedded = new ArrayList<EntityAnimationClip>();
+        for(var candidate:track.getClips()) if(candidate instanceof EntitySpawnClip spawn && !spawn.isMuted()
+                && timeSeconds>=spawn.getStartTime() && timeSeconds<=spawn.getEndTime() && spawn.getBoneAnimation()!=null)
+            embedded.add(spawn.getBoneAnimation());
+        if (!embedded.isEmpty()) {
+            applyAnimation(result, embedded, timeSeconds, emitEvents);
+            result.presetAnimation = preset;
+        }
 
         // ========== 处理 State Clip（状态）==========
         // 规则：last-wins（最后一个生效，按时间排序）

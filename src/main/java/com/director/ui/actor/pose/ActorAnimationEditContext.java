@@ -25,6 +25,13 @@ public record ActorAnimationEditContext(TimelineModel model, UUID actorId, Timel
                     && time>=animation.getStartTime() && time<=animation.getEndTime()
                     && (active==null || animation.getStartTime()>=active.getStartTime())) active=animation;
         }
+        // Normal actor posing edits the spawn-owned correction layer, regardless of preset start time.
+        EntityAnimationClip embedded=null;
+        for(var candidate:owner.getActorTrackPayload().getClips()) if(candidate instanceof EntitySpawnClip spawn
+                && !spawn.isMuted() && time>=spawn.getStartTime() && time<=spawn.getEndTime()
+                && spawn.getBoneAnimation()!=null && (embedded==null || spawn.getStartTime()>=embedded.getStartTime()))
+            embedded=spawn.getBoneAnimation();
+        if(embedded!=null) active=embedded;
         // A clicked key belongs to a specific reference, even when another clip overlaps it.
         var selected = model.getSelectedClip();
         if (selected instanceof EntityTimelineClip wrapper && wrapper.getParentTrack() == owner

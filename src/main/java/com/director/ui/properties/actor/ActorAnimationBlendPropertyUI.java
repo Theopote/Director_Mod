@@ -32,7 +32,10 @@ public final class ActorAnimationBlendPropertyUI {
                 ImGui.textWrapped("此内建动作需要人形骨架才能使用局部混合。");
                 return;
             }
-            ImGui.textWrapped("此动作提供身体、头和四肢的旋转通道；位置、缩放与下半肢体通道由其他动作保留。");
+            var data=com.director.actor.animation.AnimationLibrary.getInstance().get(animation.getAnimationId()).orElseThrow();
+            String parts=rig.bones().stream().filter(b -> data.controlledBones().contains(b.id()))
+                    .map(b -> b.displayName()).collect(java.util.stream.Collectors.joining("、"));
+            ImGui.textWrapped("动作默认影响："+(parts.isEmpty()?"无":parts)+"（旋转）。部位选择只会缩小此范围，其他通道保留。");
         }
         if(source instanceof com.director.timeline.model.entity.EntitySpawnClip spawn && spawn.getBoneAnimationId()==null)
             ImGui.textWrapped("尚未创建骨骼关键帧；以下设置将在创建后生效。");

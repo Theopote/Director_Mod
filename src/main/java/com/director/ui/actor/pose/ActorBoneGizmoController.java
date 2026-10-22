@@ -119,7 +119,7 @@ public final class ActorBoneGizmoController {
             channels=RigPose.ROTATION;value=current.withRotation(key.value());
         }
         return new ActorBoneAnimationDraft(source,boneId,value,channels,animationBlend,
-                gestureTime-clipStart,animationClipEnd-clipStart);
+                gestureTime-clipStart,animationClipEnd-clipStart,editingAsset.id());
     }
 
 

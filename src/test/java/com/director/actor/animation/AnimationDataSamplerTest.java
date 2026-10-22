@@ -18,6 +18,60 @@ class AnimationDataSamplerTest {
     private float yaw(float time, boolean loop, float speed) {
         return AnimationDataSampler.sample(ID, time, loop, speed).pose.headYaw;
     }
+    @Test void builtInOwnershipIsExplicitAndStableAtNeutralFrames() {
+        var rig=com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION;
+        var wave=AnimationDataSampler.sampleRig("wave",rig,0,false,1);
+        assertEquals(2,wave.authoredChannels(rig.requireBoneIndex("right_arm")));
+        assertEquals(2,wave.authoredChannels(rig.requireBoneIndex("body")));
+        for(var id:List.of("head","left_arm","left_leg","right_leg","left_forearm"))
+            assertEquals(0,wave.authoredChannels(rig.requireBoneIndex(id)));
+        for(float time:new float[]{0,.275f,.55f}) {
+            var attack=AnimationDataSampler.sampleRig("attack",rig,time,false,1);
+            assertEquals(2,attack.authoredChannels(rig.requireBoneIndex("right_arm")));
+            assertEquals(1,attack.authoredBones().cardinality());
+        }
+        assertFalse(AnimationDataSampler.sample("wave",0,false,1).mask.legs);
+    }
+    @Test void wavePreservesGaitAndManualKeysCanOverrideOneChannel() {
+        var rig=com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION;
+        var base=new com.director.actor.rig.skeleton.RigPose(rig);
+        var rotation=new org.joml.Quaternionf().rotateX(.7f);
+        for(var id:List.of("left_leg","right_leg","left_arm"))
+            base.setLocalTransform(id,base.localTransform(id).withRotation(rotation));
+        var wave=AnimationDataSampler.sampleRig("wave",rig,.4f,false,1);
+        var mixed=com.director.actor.rig.skeleton.RigPoseComposer.compose(base,
+                List.of(com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT.layer(wave))).pose();
+        for(var id:List.of("left_leg","right_leg","left_arm"))
+            assertEquals(base.localTransform(id),mixed.localTransform(id));
+        var manual=new com.director.actor.rig.skeleton.RigPose(rig);
+        int arm=rig.requireBoneIndex("right_arm");
+        manual.setLocalTransform(arm,manual.localTransform(arm).withRotation(rotation),2);
+        var corrected=com.director.actor.rig.skeleton.RigPoseComposer.compose(mixed,
+                List.of(com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT.layer(manual))).pose();
+        assertEquals(rotation,corrected.localTransform(arm).rotation());
+        assertEquals(mixed.localTransform("body"),corrected.localTransform("body"));
+    }
+    @Test void userMaskCannotExpandActionOwnership() {
+        var rig=com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION;
+        var action=AnimationDataSampler.sampleRig("attack",rig,.275f,false,1);
+        var settings=new com.director.actor.rig.skeleton.PoseBlendSettings(
+                com.director.actor.rig.skeleton.PoseLayer.BlendMode.OVERRIDE,1,7,false,java.util.Set.of("head"));
+        var base=new com.director.actor.rig.skeleton.RigPose(rig);
+        var mixed=com.director.actor.rig.skeleton.RigPoseComposer.compose(base,List.of(settings.layer(action))).pose();
+        assertEquals(base.localTransform("right_arm"),mixed.localTransform("right_arm"));
+        assertEquals(base.localTransform("head"),mixed.localTransform("head"));
+    }
+    @Test void customOwnershipIsDetachedAndRejectsUnsupportedBones() {
+        var bones=new java.util.HashSet<>(java.util.Set.of("head"));
+        var data=new AnimationData(ID,ID,1,List.of(new AnimationKeyframe(0,new Pose())),
+                AnimationData.AnimationSource.CUSTOM,bones);
+        bones.clear(); assertEquals(java.util.Set.of("head"),data.controlledBones());
+        assertThrows(UnsupportedOperationException.class,()->data.controlledBones().clear());
+        assertThrows(IllegalArgumentException.class,()->new AnimationData(ID,ID,1,List.of(),
+                AnimationData.AnimationSource.CUSTOM,java.util.Set.of("root")));
+        register(1); assertEquals(AnimationData.POSE_BONES,AnimationLibrary.getInstance().get(ID).orElseThrow().controlledBones());
+    }
+
     @Test void rigAdapterAuthorsOnlyAvailableRotationChannels() {
         register(1f);
         var rig=com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION;

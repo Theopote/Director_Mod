@@ -2,8 +2,9 @@ package com.director.actor.animation;
 
 import com.director.actor.rig.Pose;
 
-import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import com.director.actor.rig.skeleton.HumanoidRig;
 
 /**
  * AnimationData v1.0
@@ -48,6 +49,11 @@ public class AnimationData {
     private final float duration;
     private final List<AnimationKeyframe> keyframes;
     private final AnimationSource source;
+    public static final Set<String> POSE_BONES = Set.of(HumanoidRig.BODY, HumanoidRig.HEAD,
+            HumanoidRig.LEFT_ARM, HumanoidRig.RIGHT_ARM, HumanoidRig.LEFT_LEG, HumanoidRig.RIGHT_LEG);
+    private final Set<String> controlledBones;
+    public Set<String> controlledBones() { return controlledBones; }
+
 
     /**
      * 构造函数
@@ -60,10 +66,19 @@ public class AnimationData {
      */
     public AnimationData(String id, String name, float duration,
                         List<AnimationKeyframe> keyframes, AnimationSource source) {
+        this(id, name, duration, keyframes, source, POSE_BONES);
+    }
+
+    /** Ownership is explicit even on neutral keyframes; zero rotation is not an absent channel. */
+    public AnimationData(String id, String name, float duration, List<AnimationKeyframe> keyframes,
+                         AnimationSource source, Set<String> controlledBones) {
+        if (controlledBones == null || !POSE_BONES.containsAll(controlledBones))
+            throw new IllegalArgumentException("Unsupported fixed-pose bone selection");
+        this.controlledBones = Set.copyOf(controlledBones);
         this.id = id;
         this.name = name;
         this.duration = duration;
-        this.keyframes = Collections.unmodifiableList(keyframes);
+        this.keyframes = List.copyOf(keyframes);
         this.source = source;
     }
 

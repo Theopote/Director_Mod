@@ -67,6 +67,8 @@ public class EntitySample {
 
     /** 动画ID（来自 EntityAnimationClip） */
     public String animationId;
+    /** Lower preset layer retained when the primary animation is the spawn-owned manual layer. */
+    public ActorAnimationLayerSample presetAnimation;
 
     /** 动画源类型（来自 EntityAnimationClip） */
     public EntityKeyframe.EntityType animationSource; // 临时复用，未来可扩展
@@ -288,6 +290,7 @@ public class EntitySample {
 
         // Clip 系统扩展字段
         animationId = s.animationId;
+        presetAnimation = s.presetAnimation;
         animationSource = s.animationSource;
         animationLoop = s.animationLoop;
         animationSpeed = s.animationSpeed;

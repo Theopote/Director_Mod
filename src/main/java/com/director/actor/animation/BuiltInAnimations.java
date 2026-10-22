@@ -3,14 +3,16 @@ package com.director.actor.animation;
 import com.director.actor.rig.Pose;
 
 import java.util.List;
+import java.util.Set;
+import com.director.actor.rig.skeleton.HumanoidRig;
 
 /** Minimal built-in content that makes EntityAnimationClip usable without external loaders. */
 final class BuiltInAnimations {
     private BuiltInAnimations() {}
 
     static void registerInto(AnimationLibrary library) {
-        library.register(animation("idle", "Idle", 1f, pose(), pose()));
-        library.register(animation("walk", "Walk", 1f,
+        library.register(animation("idle", "Idle", 1f, AnimationData.POSE_BONES, pose(), pose()));
+        library.register(animation("walk", "Walk", 1f, Set.of(HumanoidRig.LEFT_ARM, HumanoidRig.RIGHT_ARM, HumanoidRig.LEFT_LEG, HumanoidRig.RIGHT_LEG),
             pose(0.65f, -0.65f, -0.65f, 0.65f),
             pose(-0.65f, 0.65f, 0.65f, -0.65f),
             pose(0.65f, -0.65f, -0.65f, 0.65f)));
@@ -21,21 +23,21 @@ final class BuiltInAnimations {
         waveOut.bodyRoll = 0.08f;
         Pose waveBack = waveStart.copy();
         waveBack.bodyRoll = -0.08f;
-        library.register(animation("wave", "Wave", 1.2f, waveStart, waveOut, waveBack, waveStart));
+        library.register(animation("wave", "Wave", 1.2f, Set.of(HumanoidRig.BODY, HumanoidRig.RIGHT_ARM), waveStart, waveOut, waveBack, waveStart));
 
         Pose attackStart = pose();
         Pose attackHit = pose();
         attackHit.rightArmPitch = -1.7f;
-        library.register(animation("attack", "Attack", 0.55f, attackStart, attackHit, attackStart));
+        library.register(animation("attack", "Attack", 0.55f, Set.of(HumanoidRig.RIGHT_ARM), attackStart, attackHit, attackStart));
     }
 
-    private static AnimationData animation(String id, String name, float duration, Pose... poses) {
+    private static AnimationData animation(String id, String name, float duration, Set<String> bones, Pose... poses) {
         java.util.ArrayList<AnimationKeyframe> frames = new java.util.ArrayList<>();
         for (int i = 0; i < poses.length; i++) {
             float time = poses.length == 1 ? 0f : duration * i / (poses.length - 1f);
             frames.add(new AnimationKeyframe(time, poses[i]));
         }
-        return new AnimationData(id, name, duration, List.copyOf(frames), AnimationData.AnimationSource.BUILT_IN);
+        return new AnimationData(id, name, duration, List.copyOf(frames), AnimationData.AnimationSource.BUILT_IN, bones);
     }
 
     private static Pose pose() { return new Pose(); }
