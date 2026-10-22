@@ -118,9 +118,7 @@ public final class ActorAnimationAssetEditing {
         AnimationAsset asset = requireAsset(library, id);
         if (referenceCount(model, id) > 0) throw new IllegalArgumentException("动画仍被时间线引用，请先清除片段中的引用");
         TimelineCommandBridge.execute(new StateChangeCommand(model, "Delete animation asset",
-                () -> insertUnique(library, asset), () -> {
-                    removeOwned(model, library, asset);
-                }));
+                () -> insertUnique(library, asset), () -> removeOwned(model, library, asset)));
     }
 
     public record AttachmentPreview(int overlappingClips, int references) {}
@@ -209,6 +207,27 @@ public final class ActorAnimationAssetEditing {
                             else { clip.setAnimationId(copy.id()); clip.setSource(EntityAnimationClip.AnimationSource.CUSTOM); }
                             model.invalidateActorEditContext();
                         }))));
+        return copy;
+    }
+
+    /** Duplicate the preset asset and rebind only this Spawn's lower layer. */
+    public static AnimationAsset makePresetIndependent(TimelineModel model,AnimationAssetLibrary library,
+            TimelineTrack track,com.director.timeline.model.entity.EntitySpawnClip spawn,String id,String name) {
+        requireNewId(model,library,id);
+        if(spawn==null || spawn.getPreset()==null) throw new IllegalArgumentException("当前片段没有预设");
+        var before=spawn.getPreset();var source=requireAsset(library,before.animationId());
+        var target=Target.capture(model,track,source);
+        if(!target.payload().getClips().contains(spawn) || spawn.isMuted()) throw new IllegalArgumentException("预设所属片段不可编辑");
+        var copy=copy(source,id,name);
+        var after=new com.director.timeline.model.entity.ActorPresetBinding(id,before.loop(),before.speed(),before.blend());
+        TimelineCommandBridge.execute(new ActorAnimationAssetCommand(model,"Make actor preset independent",()->{
+            target.validate(model,source);requireIdentity(library,source);requireNewId(model,library,id);
+            if(!target.payload().getClips().contains(spawn) || spawn.isMuted() || !Objects.equals(before,spawn.getPreset()))
+                throw new IllegalArgumentException("预设绑定已变化");
+        },List.of(new ActorAnimationAssetCommand.Change(()->removeOwned(model,library,copy),()->insertUnique(library,copy)),
+                new ActorAnimationAssetCommand.Change(()->{
+                    requireIdentity(library,source);spawn.setPreset(before);model.invalidateActorEditContext();
+                },()->{spawn.setPreset(after);model.invalidateActorEditContext();}))));
         return copy;
     }
 

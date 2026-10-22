@@ -57,6 +57,7 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.render(source,clip,gesture);
         com.director.ui.properties.actor.ActorAnimationBlendPropertyUI.render(source,clip.getBlendSettings(),clip::setBlendSettings,gesture);
         gesture.end();
+        com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.renderIndependentAction(source);
         com.director.ui.properties.actor.ActorRootKeyframePropertyUI.render(source); return false;
     }
 }

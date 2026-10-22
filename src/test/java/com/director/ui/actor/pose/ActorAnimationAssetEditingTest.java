@@ -17,6 +17,30 @@ class ActorAnimationAssetEditingTest {
     ActorAnimationAssetEditingTest() { TimelineCommandBridge.bind(history); }
     @AfterEach void cleanup() { TimelineCommandBridge.bind(null); }
 
+    @Test void independentPresetChangesOnlyLowerReferenceAndUndoRedoKeepSharedSource() {
+        var registry=new com.director.actor.ActorRegistry();com.director.actor.ActorRegistryManager.setRegistry(registry);
+        var actor=registry.createActor("A",com.director.actor.ActorType.PLAYER);
+        var track=new TimelineTrack("Actor",TrackType.ACTOR);var payload=track.getOrCreateActorTrackPayload();
+        payload.setActorRef(com.director.actor.ActorRef.of(actor));model.addTrack(track);
+        var source=ActorAnimationAssetEditing.create(model,library,"project:shared-preset","Shared",3);
+        source.getOrCreateBoneTrack("head").scale().put(1,new Vector3f(2),InterpolationMode.LINEAR);
+        var spawn=new com.director.timeline.model.entity.EntitySpawnClip("Actor",0,3);spawn.setBoneAnimationId("test:manual");
+        var binding=new com.director.timeline.model.entity.ActorPresetBinding(source.id(),true,1.5f,
+                com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT);
+        spawn.setPreset(binding);payload.addClip(spawn);track.addClip(new com.director.timeline.model.entity.EntityTimelineClip(spawn,0));
+        var other=new com.director.timeline.model.entity.EntitySpawnClip("Other",4,7);other.setPreset(binding);payload.addClip(other);
+        var copy=ActorAnimationAssetEditing.makePresetIndependent(model,library,track,spawn,"project:preset-copy","Copy");
+        assertEquals(copy.id(),spawn.getPreset().animationId());assertEquals(binding,other.getPreset());
+        assertEquals(binding.blend(),spawn.getPreset().blend());assertEquals(1.5f,spawn.getPreset().speed());
+        assertEquals("test:manual",spawn.getBoneAnimationId());assertEquals(1,track.getClips().size());
+        copy.getOrCreateBoneTrack("head").scale().put(1,new Vector3f(3),InterpolationMode.LINEAR);
+        assertEquals(2,source.sample(1).localTransform("head").scale().x);
+        assertThrows(IllegalArgumentException.class,()->ActorAnimationAssetEditing.delete(model,library,source.id()));
+        assertTrue(history.undo());assertEquals(binding,spawn.getPreset());assertFalse(library.contains(copy.id()));
+        assertTrue(history.redo());assertEquals(copy.id(),spawn.getPreset().animationId());
+        com.director.actor.ActorRegistryManager.setRegistry(null);
+    }
+
     @Test void embeddedIndependenceRebindsOnlyOwnerAndUndoRedoPreserveVisibleWrapper() {
         var registry=new com.director.actor.ActorRegistry();com.director.actor.ActorRegistryManager.setRegistry(registry);
         var actor=registry.createActor("A",com.director.actor.ActorType.PLAYER);

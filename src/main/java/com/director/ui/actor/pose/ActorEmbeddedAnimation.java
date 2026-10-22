@@ -36,6 +36,27 @@ public final class ActorEmbeddedAnimation {
         var spawn=com.director.ui.actor.gizmo.ActorTransformEditSession.resolveInitialSpawn(track.getActorTrackPayload(),model.getCurrentTime());
         return spawn!=null && ActorRootKeyframeEditing.editable(model,track,spawn)?spawn:null;
     }
+    /** New channels follow the visible pose; already-authored channels retain asset-local values. */
+    public static com.director.actor.rig.skeleton.RigPose seedNewChannels(AnimationAsset asset,float time,
+            com.director.actor.rig.skeleton.PoseBlendSettings settings,com.director.actor.rig.skeleton.RigPose visible) {
+        var pose=asset.sample(time,AnimationLoopMode.ONCE);
+        if(settings.mode()!=com.director.actor.rig.skeleton.PoseLayer.BlendMode.OVERRIDE || visible==null
+                || !com.director.actor.rig.skeleton.RigPoseComposer.sameLayout(asset.rig(),visible.rig())) return pose;
+        for(int i=0;i<asset.rig().boneCount();i++) {
+            int missing=com.director.actor.rig.skeleton.RigPose.ALL_CHANNELS & ~pose.authoredChannels(i);
+            pose.setLocalTransform(i,visible.localTransform(i),missing);
+        }
+        return pose;
+    }
+    public static boolean keyFromPreview(ActorAnimationEditContext context,Collection<String> bones,
+            InterpolationMode mode,int channels) {
+        if(context==null || !context.isCurrent()) return false;
+        com.director.actor.rig.skeleton.RigPose visible=null;
+        var entity=com.director.actor.preview.ActorPreviewManager.getInstance().getPreview(context.actorId());
+        if(entity instanceof com.director.actor.preview.ActorPosePreview preview) visible=preview.getFinalRigPose();
+        return ActorAnimationAuthoringService.keyPose(context,
+                seedNewChannels(context.asset(),context.assetTime(),context.blendSettings(),visible),bones,mode,channels);
+    }
     /** UI entry: capture the pose the user currently sees, before creating any authored channel. */
     public static boolean firstKeyFromPreview(TimelineModel model,TimelineTrack owner,String bone,int channel,InterpolationMode interpolation) {
         com.director.actor.rig.skeleton.RigPose visible=null;

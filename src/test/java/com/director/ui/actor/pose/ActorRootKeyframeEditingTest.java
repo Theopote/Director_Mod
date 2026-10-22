@@ -23,6 +23,27 @@ class ActorRootKeyframeEditingTest {
     <T extends EntityClip> T add(T clip) {
         owner.getActorTrackPayload().addClip(clip); owner.addClip(new EntityTimelineClip(clip, 0)); return clip;
     }
+    @Test void newChannelsSeedVisibleValuesWithoutReplacingExistingAssetChannels() {
+        var rig=com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION;
+        var asset=new com.director.actor.animation.asset.AnimationAsset("test:seed","Seed",rig,5,
+                com.director.actor.animation.asset.AnimationLoopMode.ONCE);
+        var rotation=new org.joml.Quaternionf().rotateX(.2f);
+        asset.getOrCreateBoneTrack("head").rotation().put(2,rotation,com.director.actor.animation.asset.InterpolationMode.LINEAR);
+        var visible=new com.director.actor.rig.skeleton.RigPose(rig);
+        visible.setLocalTransform("head",new com.director.actor.rig.skeleton.BoneTransform(new Vector3f(1,2,3),
+                new org.joml.Quaternionf().rotateX(.8f),new Vector3f(2)));
+        var seeded=ActorEmbeddedAnimation.seedNewChannels(asset,2,com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT,visible);
+        assertEquals(rotation,seeded.localTransform("head").rotation());
+        assertEquals(new Vector3f(2),seeded.localTransform("head").scale());
+        assertEquals(new Vector3f(1,2,3),seeded.localTransform("head").translation());
+        assertTrue(asset.findBoneTrack("head").orElseThrow().scale().isEmpty());
+        var additive=new com.director.actor.rig.skeleton.PoseBlendSettings(
+                com.director.actor.rig.skeleton.PoseLayer.BlendMode.ADDITIVE,1,7,true,java.util.Set.of());
+        var neutral=ActorEmbeddedAnimation.seedNewChannels(asset,2,additive,visible);
+        assertEquals(new Vector3f(1),neutral.localTransform("head").scale());
+        assertEquals(rotation,neutral.localTransform("head").rotation());
+    }
+
     @Test void firstRotationKeySeedsVisiblePoseAndAuthorsOnlyRequestedChannel() {
         var spawn=add(new EntitySpawnClip("Actor",0,5));model.setCurrentTime(2);
         var rig=com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION;

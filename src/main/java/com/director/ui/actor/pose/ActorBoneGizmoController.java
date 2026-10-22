@@ -10,7 +10,6 @@ import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.preview.ActorPosePreview;
 import com.director.actor.rig.Pose;
 import com.director.actor.rig.skeleton.BoneTransform;
-import com.director.actor.rig.skeleton.HumanoidRig;
 import com.director.actor.rig.skeleton.RigPose;
 import com.director.actor.rig.skeleton.RigWorldPose;
 import com.director.client.gizmo.Axis;

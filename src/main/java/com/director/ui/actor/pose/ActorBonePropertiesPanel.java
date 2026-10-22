@@ -265,23 +265,23 @@ public final class ActorBonePropertiesPanel {
         ImGui.textDisabled("按通道给所选部位打帧（仅写入支持的通道）");
         ImGui.beginDisabled(selection.getSelectedBoneIds().stream().noneMatch(id ->
                 ActorBoneInspector.supports(asset.rig(), id, RigPose.TRANSLATION)));
-        if (ImGui.button("位置##keyBoneT")) ActorAnimationAuthoringService.keyPose(context, pose,
+        if (ImGui.button("位置##keyBoneT")) ActorEmbeddedAnimation.keyFromPreview(context,
                 selection.getSelectedBoneIds(), mode, RigPose.TRANSLATION);
         ImGui.endDisabled();
         ImGui.sameLine();
         ImGui.beginDisabled(selection.getSelectedBoneIds().stream().noneMatch(id ->
                 ActorBoneInspector.supports(asset.rig(), id, RigPose.ROTATION)));
-        if (ImGui.button("旋转##keyBoneR")) ActorAnimationAuthoringService.keyPose(context, pose,
+        if (ImGui.button("旋转##keyBoneR")) ActorEmbeddedAnimation.keyFromPreview(context,
                 selection.getSelectedBoneIds(), mode, RigPose.ROTATION);
         ImGui.endDisabled();
         ImGui.sameLine();
         ImGui.beginDisabled(selection.getSelectedBoneIds().stream().noneMatch(id ->
                 ActorBoneInspector.supports(asset.rig(), id, RigPose.SCALE)));
-        if (ImGui.button("缩放##keyBoneS")) ActorAnimationAuthoringService.keyPose(context, pose,
+        if (ImGui.button("缩放##keyBoneS")) ActorEmbeddedAnimation.keyFromPreview(context,
                 selection.getSelectedBoneIds(), mode, RigPose.SCALE);
         ImGui.endDisabled();
-        if (ImGui.button("所选部位批量打帧##keyBone")) ActorAnimationAuthoringService.keyPose(context, pose, selection.getSelectedBoneIds(), mode, RigPose.ALL_CHANNELS);
-        if (ImGui.button("全身打帧##keyPose")) ActorAnimationAuthoringService.keyPose(context, pose,
+        if (ImGui.button("所选部位批量打帧##keyBone")) ActorEmbeddedAnimation.keyFromPreview(context, selection.getSelectedBoneIds(), mode, RigPose.ALL_CHANNELS);
+        if (ImGui.button("全身打帧##keyPose")) ActorEmbeddedAnimation.keyFromPreview(context,
                 asset.rig().bones().stream().map(BoneDefinition::id).toList(), mode, RigPose.ALL_CHANNELS);
         if (ImGui.button("所选部位恢复绑定姿态并打帧##restBone")) {
             for (String id : selection.getSelectedBoneIds())

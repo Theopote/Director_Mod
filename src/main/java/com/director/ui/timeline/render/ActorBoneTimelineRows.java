@@ -588,8 +588,7 @@ public final class ActorBoneTimelineRows {
                     var settings=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance();
                     var mode=settings.getBoneGizmoMode();
                     int channel=mode==com.director.client.gizmo.GizmoMode.TRANSLATE?1:mode==com.director.client.gizmo.GizmoMode.SCALE?4:2;
-                    var pose=context.asset().sample(context.assetTime(),com.director.actor.animation.asset.AnimationLoopMode.ONCE);
-                    ActorAnimationAuthoringService.keyPose(context,pose,List.of(rig.bone(boneIndex).id()),settings.getInterpolation(),channel);
+                    com.director.ui.actor.pose.ActorEmbeddedAnimation.keyFromPreview(context,List.of(rig.bone(boneIndex).id()),settings.getInterpolation(),channel);
                 }
                 return true;
             }

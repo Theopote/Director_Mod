@@ -13,6 +13,27 @@ import java.util.*;
 /** Edits the Spawn inspector draft; the existing gesture commits one undoable change. */
 public final class ActorSpawnPresetPropertyUI {
     private ActorSpawnPresetPropertyUI() {}
+    /** Called after the inspector draft commits, so duplication never races a pending property edit. */
+    public static void renderIndependentAction(EntitySpawnClip source) {
+        if(source.getPreset()==null) return;
+        var library=AnimationAssetLibrary.getInstance();
+        var asset=library.find(source.getPreset().animationId()).orElse(null);
+        if(asset==null) return; // Built-in fixed Pose actions are read-only references, not editable rig assets.
+        var model=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
+        var wrapper=source.getTimelineClip();var track=wrapper==null?null:wrapper.getParentTrack();
+        boolean blocked=track==null || track.isLocked() || track.isMuted() || source.isMuted() || model.isPlaying()
+                || model.isScrubbing() || com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
+                || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging();
+        ImGui.beginDisabled(blocked);
+        if(ImGui.button("制作预设独立副本##spawnPresetIndependent")) {
+            try {
+                com.director.ui.actor.pose.ActorAnimationAssetEditing.makePresetIndependent(model,library,track,source,
+                        "project:preset_"+UUID.randomUUID(),asset.name()+" 副本");
+            } catch(IllegalArgumentException failure) { ImGui.setTooltip(failure.getMessage()); }
+        }
+        ImGui.endDisabled();
+        if(ImGui.isItemHovered()) ImGui.setTooltip("只替换当前片段的预设引用；手工关键帧及其他演员仍使用原资产。");
+    }
     public static void render(EntitySpawnClip source,EntitySpawnClip draft,ActorClipInspectorGesture gesture) {
         if(!ImGui.collapsingHeader("演员动作预设")) return;
         ImGui.pushID("spawnPreset");
