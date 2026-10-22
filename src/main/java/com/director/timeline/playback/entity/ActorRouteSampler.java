@@ -125,6 +125,18 @@ public final class ActorRouteSampler {
         return sampleOnCurve(curve(clip).points(),distance);
     }
 
+    /** Smooth only the facing tangent around corners; positions and arc length stay exact. */
+    public static Vector3f facingAtDistance(ActorRouteClip clip,float distance) {
+        var cached=curve(clip);float length=cached.length();
+        var fallback=sampleOnCurve(cached.points(),distance).direction();
+        if(!Float.isFinite(distance) || length<=1e-6f) return fallback;
+        float at=Math.clamp(distance,0f,length),window=Math.min(.15f,length*.05f);
+        var before=sampleOnCurve(cached.points(),Math.max(0,at-window)).position();
+        var after=sampleOnCurve(cached.points(),Math.min(length,at+window)).position();
+        var tangent=after.sub(before);
+        return tangent.lengthSquared()>1e-10f?tangent.normalize():fallback;
+    }
+
     private static List<Vec3d> sampleLinearPolyline(List<Vector3f> waypoints) {
         List<Vec3d> result = new ArrayList<>(waypoints.size());
         for (Vector3f point : waypoints) {

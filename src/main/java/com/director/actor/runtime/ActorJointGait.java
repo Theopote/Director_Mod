@@ -19,6 +19,22 @@ public final class ActorJointGait {
             com.director.actor.rig.ActorRigProfile profile,boolean arms,boolean legs,float motionWeight) {
         applyPhase(pose,action,intensity*motionWeight,time*profile.locomotionFrequency(action,intensity),profile.getStyle(),arms,legs);
     }
+    static void applyAutomatic(RigPose pose,float phase,float walk,float run,float blend,RigProfileStyle style,
+            boolean arms,boolean legs,float motionWeight) {
+        if(pose==null || !Float.isFinite(phase)) return;
+        float a=Math.clamp(walk*style.motionScale*motionWeight,0f,1f);
+        float b=Math.clamp(run*style.motionScale*motionWeight,0f,1f);
+        float knee=.45f*a*(1-blend)+1.1f*b*blend;
+        float elbow=.18f*a*(1-blend)+.9f*b*blend;
+        if(legs) {
+            rotate(pose,ArticulatedPlayerRig.RIGHT_SHIN,knee*Math.max(0,-(float)Math.sin(phase)));
+            rotate(pose,ArticulatedPlayerRig.LEFT_SHIN,knee*Math.max(0,(float)Math.sin(phase)));
+        }
+        if(arms) {
+            rotate(pose,ArticulatedPlayerRig.LEFT_FOREARM,-elbow);
+            rotate(pose,ArticulatedPlayerRig.RIGHT_FOREARM,-elbow);
+        }
+    }
     private static void applyPhase(RigPose pose,ActorActionType action,float intensity,float phase,
                                    RigProfileStyle style,boolean arms,boolean legs) {
         if (pose == null || style == null || !Float.isFinite(phase) || !Float.isFinite(intensity)

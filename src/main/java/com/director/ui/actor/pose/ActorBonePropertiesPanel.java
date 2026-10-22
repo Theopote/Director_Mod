@@ -360,6 +360,11 @@ public final class ActorBonePropertiesPanel {
                 else if(referenced!=null && !RigPoseComposer.sameLayout(rig,referenced.rig()))
                     ImGui.textWrapped("当前动画骨架与此编辑骨架不同，不能用此处的部位通道解释其效果。");
             }
+            if(actor!=null && actor.getRigProfile().supports(com.director.actor.action.ActorActionType.WALK)
+                    && actor.getRigProfile().supports(com.director.actor.action.ActorActionType.RUN)
+                    && sample.routeClip!=null && !sample.actionExplicit && sample.speed>3 && sample.speed<5)
+                ImGui.textDisabled(String.format(java.util.Locale.ROOT,"基础走跑过渡：跑步姿态占比 %.0f%%（上层动画仍可覆盖）",
+                        100*com.director.actor.runtime.ActorRouteGait.runWeight(sample.speed)));
             ImGui.textDisabled("局部通道控制来源（不含未保存草稿）");
             for (int channel : new int[]{RigPose.TRANSLATION,RigPose.ROTATION,RigPose.SCALE}) {
                 if (ActorBoneInspector.supports(rig,boneId,channel))

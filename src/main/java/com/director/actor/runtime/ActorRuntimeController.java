@@ -533,10 +533,11 @@ public final class ActorRuntimeController {
             restoreRelationJump(at,time);
             if (at.visibility<=.01f) return null;
             ActorRelationTimeResolver.applyWorldLookRotation(at);
-            var base = actor.getRigProfile().sampleAt(new ActorRuntime(),at.action == null ? ActorActionType.IDLE : at.action,
-                    at.actionIntensity,ActorRouteGait.time(at,actor.getRigProfile())).pose;
+            var base = ActorRouteGait.sample(at,actor.getRigProfile(),new ActorRuntime()).pose;
             base=ActorRouteGait.settle(base,at,actor.getRigProfile());
             var pose = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(base,rig);
+            if(actor.getType()==com.director.actor.ActorType.PLAYER)
+                ActorRouteGait.applyJoints(pose,at,actor.getRigProfile(),!at.poseOverrideArms,!at.poseOverrideLegs);
             var asset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(at.animationId)
                     .filter(value -> com.director.actor.rig.ActorRigCompatibility.accepts(actor,value.rigId()));
             var primaryClock=ActorPresetClock.resolve(com.director.timeline.playback.entity.ActorAnimationLayerSample.from(at),at,actor.getRigProfile());
@@ -779,8 +780,7 @@ public final class ActorRuntimeController {
 
             // Sampling is a pure function of the timeline phase, including paused/rewound frames.
             Pose base = new Pose();
-            float gaitTime=ActorRouteGait.time(s,rig);
-            RigPoseResult sampledRig = rig.sampleAt(actorRuntime, action, s.actionIntensity, gaitTime);
+            RigPoseResult sampledRig = ActorRouteGait.sample(s,rig,actorRuntime);
             RigPoseResult rigPose = new RigPoseResult(ActorRouteGait.settle(sampledRig.pose,s,rig),sampledRig.mask);
 
             if(boneDraft!=null && !com.director.actor.rig.ActorRigCompatibility.accepts(actor,boneDraft.rig().id())) boneDraft=null;
@@ -810,8 +810,7 @@ public final class ActorRuntimeController {
                         ? com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(rigPose.pose, definition)
                         : null;
                 if (actor.getType() == com.director.actor.ActorType.PLAYER)
-                    ActorJointGait.apply(proceduralPose, action, s.actionIntensity, gaitTime, rig,
-                            !s.poseOverrideArms, !s.poseOverrideLegs,ActorRouteGait.motionWeight(s));
+                    ActorRouteGait.applyJoints(proceduralPose,s,rig,!s.poseOverrideArms,!s.poseOverrideLegs);
                 com.director.actor.rig.skeleton.RigPose authoredPose;
                 if(boneDraft!=null) authoredPose=boneDraft.authoredPose();
                 else if(legacyPose!=null) authoredPose=legacyPose;
@@ -881,8 +880,7 @@ public final class ActorRuntimeController {
                         var contactPose = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(finalPose,
                                 com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION);
                         contactPose.setLimbBendMode(actor.getLimbBendMode());
-                        if (animPose == null) ActorJointGait.apply(contactPose, action, s.actionIntensity, gaitTime,
-                                rig, !s.poseOverrideArms, !s.poseOverrideLegs,ActorRouteGait.motionWeight(s));
+                        if (animPose == null) ActorRouteGait.applyJoints(contactPose,s,rig,!s.poseOverrideArms,!s.poseOverrideLegs);
                         if (animPose == null) ActorRouteFootContact.apply(contactPose,s,rig,java.util.Map.of());
                         previewEntity.setFinalRigPose(contactPose);
                     } else previewEntity.setFinalPose(finalPose);

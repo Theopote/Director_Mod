@@ -715,7 +715,7 @@ public class EntityClipSampler {
         result.motionLocalTime = localTime;
         result.speed = curveLength <= 1e-6f || routeDuration <= 0f || (active.getLoopMode() == ActorRouteClip.LoopMode.ONCE
                 && localTime >= routeDuration) ? 0f : fit ? onceMotion.speed() : effectiveSpeed;
-        Vector3f direction = sample.direction();
+        Vector3f direction = active.isAlignRotationToRoute()?ActorRouteSampler.facingAtDistance(active,distance):sample.direction();
         if (active.getLoopMode() == ActorRouteClip.LoopMode.PING_PONG && duration > 0f
                 && localTime % (2f * duration) >= duration) direction.negate();
         if (active.isAlignRotationToRoute() && direction.lengthSquared() > 1.0e-6f) {
