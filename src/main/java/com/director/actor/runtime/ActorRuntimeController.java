@@ -819,9 +819,11 @@ public final class ActorRuntimeController {
                 }
                 var authoredWeights = new java.util.HashMap<String,Float>();
                 if (proceduralPose == null) proceduralPose = new com.director.actor.rig.skeleton.RigPose(definition);
+                String presetId=presetInput==null?null:presetInput.id();
                 proceduralPose=ActorRigPoseComposition.prependPreset(proceduralPose,presetInput,
                         diagnostic -> reportPlacement(actor.getActorId(),timelineSource.getCurrentTime(),
-                                "preset-layer",false,"预设动作骨架与当前手工动画不兼容，已跳过预设。"),authoredWeights,presetDraft);
+                                "preset-layer",false,"预设动作骨架与当前手工动画不兼容，已跳过预设。"),authoredWeights,presetDraft,
+                        pose->com.director.ui.actor.pose.ActorBonePropertiesPanel.previewAuthoredPose(actor.getActorId(),presetId,pose));
                 var finalRigPose = ActorRigPoseComposition.compose(proceduralPose,
                         authoredPose, pose -> applyRigPoseOverrides(pose, s),
                         diagnostic -> reportPlacement(actor.getActorId(),timelineSource.getCurrentTime(),

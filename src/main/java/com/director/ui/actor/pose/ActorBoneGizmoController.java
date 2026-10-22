@@ -475,8 +475,7 @@ public final class ActorBoneGizmoController {
             animationBaseTranslation = resolveAnimationBaseTranslation(editingAsset, animationKeyTime);
         } else if (activeBoneMode == GizmoMode.SCALE) {
             beforeScaleKey = original.scale().findAt(animationKeyTime).orElse(null);
-            animationBaseScale = editingAsset.sample(animationKeyTime, AnimationLoopMode.ONCE)
-                    .localTransform(boneId).scale();
+            animationBaseScale = resolveAnimationBaseTransform(editingAsset,animationKeyTime).scale();
         } else {
             beforeRotationKey = original.rotation().findAt(animationKeyTime).orElse(null);
             animationBaseRotation = resolveAnimationBaseRotation(editingAsset, animationKeyTime);
@@ -493,30 +492,17 @@ public final class ActorBoneGizmoController {
 
     }
 
-    private Quaternionf resolveAnimationBaseRotation(AnimationAsset asset, float keyTime) {
-        if (asset.findBoneTrack(boneId).filter(track -> !track.rotation().isEmpty()).isPresent()) {
-            return asset.sample(keyTime, AnimationLoopMode.ONCE).localTransform(boneId).rotation();
-        }
-        if(editingAnimationClip.getBlendSettings().mode()==com.director.actor.rig.skeleton.PoseLayer.BlendMode.ADDITIVE)
-            return asset.sample(keyTime,AnimationLoopMode.ONCE).localTransform(boneId).rotation();
-        if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview) {
-            RigPose pose = preview.getFinalRigPose();
-            if (pose != null && pose.rig().id().equals(asset.rigId())) return pose.localTransform(boneId).rotation();
-        }
-        return asset.rig().bone(asset.rig().requireBoneIndex(boneId)).restLocal().rotation();
+    private BoneTransform resolveAnimationBaseTransform(AnimationAsset asset,float time) {
+        RigPose visible=null;
+        if(ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview)
+            visible=preview.getFinalRigPose();
+        return ActorEmbeddedAnimation.seedNewChannels(asset,time,animationBlend,visible).localTransform(boneId);
     }
-
-    private Vector3f resolveAnimationBaseTranslation(AnimationAsset asset, float keyTime) {
-        if (asset.findBoneTrack(boneId).filter(track -> !track.translation().isEmpty()).isPresent()) {
-            return asset.sample(keyTime, AnimationLoopMode.ONCE).localTransform(boneId).translation();
-        }
-        if(editingAnimationClip.getBlendSettings().mode()==com.director.actor.rig.skeleton.PoseLayer.BlendMode.ADDITIVE)
-            return asset.sample(keyTime,AnimationLoopMode.ONCE).localTransform(boneId).translation();
-        if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof ActorPosePreview preview) {
-            RigPose pose = preview.getFinalRigPose();
-            if (pose != null && pose.rig().id().equals(asset.rigId())) return pose.localTransform(boneId).translation();
-        }
-        return asset.rig().bone(asset.rig().requireBoneIndex(boneId)).restLocal().translation();
+    private Quaternionf resolveAnimationBaseRotation(AnimationAsset asset,float time) {
+        return resolveAnimationBaseTransform(asset,time).rotation();
+    }
+    private Vector3f resolveAnimationBaseTranslation(AnimationAsset asset,float time) {
+        return resolveAnimationBaseTransform(asset,time).translation();
     }
 
     private void updateAnimationGesture(Axis axis, float angleRadians) {

@@ -6,6 +6,19 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class BoneTransformDraftTest {
+    @Test void visibleSeedIsFrozenSeparatelyFromAssetSourceDuringPreview() {
+        var draft=new BoneTransformDraft();var source=BoneTransform.identity();
+        var seed=new BoneTransform(new org.joml.Vector3f(1,2,3),new Quaternionf().rotateY(.6f),new org.joml.Vector3f(2));
+        draft.synchronize("target",source,seed);
+        assertTrue(draft.matchesSource(source));assertTrue(seed.toMatrix().equals(draft.value().toMatrix(),1e-6f));
+        draft.scale[0]=3;draft.markChannelsChanged(4);
+        assertFalse(draft.synchronize("target",source,BoneTransform.translation(9,9,9)));
+        assertEquals(3,draft.value().scale().x);assertEquals(seed.rotation(),draft.value().rotation());
+        draft.reset();assertTrue(seed.toMatrix().equals(draft.value().toMatrix(),1e-6f));assertTrue(draft.matchesSource(source));
+        draft.scale[0]=4;draft.markChannelsChanged(4);
+        assertTrue(draft.synchronize("new target",source,source));assertTrue(source.toMatrix().equals(draft.value().toMatrix(),1e-6f));
+    }
+
     @Test void draftPersistsUntilTargetChangesAndDoesNotModifySource() {
         var draft = new BoneTransformDraft();
         var source = BoneTransform.identity();

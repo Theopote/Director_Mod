@@ -78,6 +78,23 @@ class ActorAnimationLayerStackTest {
         assertEquals(base.localTransform("left_leg"),result.localTransform("left_leg"));
         assertEquals(new Quaternionf(),base.localTransform("head").rotation());
     }
+    @Test void lowerNumericInputIsMixedOnceBeforeUpperManualChannel() {
+        var rig=ArticulatedPlayerRig.DEFINITION;var base=new RigPose(rig);
+        var settings=new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,.5f,2,true,Set.of());
+        var preset=new ActorAnimationLayerSample("wave",0,false,1,settings,1);
+        var lower=ActorRigPoseComposition.prependPreset(base,preset,d->fail(),new HashMap<>(),null,pose->{
+            var copy=pose.copy();copy.setLocalTransform(rig.requireBoneIndex("right_arm"),
+                    copy.localTransform("right_arm").withRotation(new Quaternionf().rotateX(.8f)),2);
+            return copy;
+        });
+        assertEquals(.4f,lower.localTransform("right_arm").rotation().getEulerAnglesXYZ(new org.joml.Vector3f()).x,1e-5f);
+        var upper=new RigPose(rig);upper.setLocalTransform(rig.requireBoneIndex("head"),
+                upper.localTransform("head").withRotation(new Quaternionf().rotateY(.3f)),2);
+        var result=ActorRigPoseComposition.compose(lower,upper,p->{},d->fail());
+        assertEquals(.4f,result.localTransform("right_arm").rotation().getEulerAnglesXYZ(new org.joml.Vector3f()).x,1e-5f);
+        assertEquals(.3f,result.localTransform("head").rotation().getEulerAnglesXYZ(new org.joml.Vector3f()).y,1e-5f);
+    }
+
     @Test void presetDraftStaysBelowManualCorrectionAndKeepsPresetEnvelope() {
         var rig=ArticulatedPlayerRig.DEFINITION;var base=new RigPose(rig);
         var value=base.localTransform("right_arm").withRotation(new Quaternionf().rotateX(.8f));

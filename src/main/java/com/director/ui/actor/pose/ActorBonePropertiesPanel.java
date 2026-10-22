@@ -132,9 +132,13 @@ public final class ActorBonePropertiesPanel {
         BoneDefinition bone = asset.rig().bone(asset.rig().requireBoneIndex(boneId));
         BoneTransform value = pose.localTransform(boneId);
         numericContext = NumericContext.capture(context,boneId);
-        if (draft.synchronize(numericContext, value)) message = "编辑对象或姿态已变化，未应用的数值已取消。";
+        RigPose visible=null;
+        var previewEntity=com.director.actor.preview.ActorPreviewManager.getInstance().getPreview(actorId);
+        if(previewEntity instanceof com.director.actor.preview.ActorPosePreview preview) visible=preview.getFinalRigPose();
+        var seeded=ActorEmbeddedAnimation.seedNewChannels(asset,time,context.blendSettings(),visible).localTransform(boneId);
+        if (draft.synchronize(numericContext, value, seeded)) message = "编辑对象或姿态已变化，未应用的数值已取消。";
         ImGui.textDisabled(asset.name() + " · " + String.format("%.3fs", time));
-        ImGui.textWrapped("显示资产局部姿态；编辑后点击应用并打帧。切换骨骼、演员或播放头会取消未应用的数值。共享资产的修改影响所有引用。世界中显示混合后的结果；低权重、淡入淡出或被排除的通道会减弱或隐藏修改。");
+        ImGui.textWrapped("已有通道显示资产局部值；新通道从当前可见姿态取初值，叠加模式从绑定姿态取中性值。编辑后点击应用并打帧。切换骨骼、演员或播放头会取消未应用的数值。共享资产的修改影响所有引用。世界中显示混合后的结果；低权重、淡入淡出或被排除的通道会减弱或隐藏修改。");
         if (ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) draft.reset();
         int changed = 0;
         if (bone.capabilities().translation() && ImGui.inputFloat3("位置 XYZ##boneT", draft.translation, "%.3f")) changed |= RigPose.TRANSLATION;

@@ -8,6 +8,25 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorBoneAnimationDraftTest {
+    @Test void missingScaleSeedDoesNotJumpAtLowWeightAndExistingChannelIsNotMixedTwice() {
+        var rig=ArticulatedPlayerRig.DEFINITION;
+        var asset=new com.director.actor.animation.asset.AnimationAsset("test:seed-low","Seed",rig,5,
+                com.director.actor.animation.asset.AnimationLoopMode.ONCE);
+        var lower=new RigPose(rig);var rest=lower.localTransform("head");
+        lower.setLocalTransform("head",new BoneTransform(rest.translation(),new Quaternionf().rotateY(.8f),new Vector3f(2)));
+        for(float weight:new float[]{0,.25f,.7f,1}) {
+            var settings=new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,weight,7,true,Set.of());
+            var seeded=ActorEmbeddedAnimation.seedNewChannels(asset,1,settings,lower);
+            var draft=new ActorBoneAnimationDraft(asset.sample(1),"head",seeded.localTransform("head"),RigPose.SCALE,settings,1,5);
+            var mixed=RigPoseComposer.compose(lower,List.of(settings.layer(draft.authoredPose()))).pose();
+            assertTrue(lower.localTransform("head").toMatrix().equals(mixed.localTransform("head").toMatrix(),1e-6f));
+        }
+        asset.getOrCreateBoneTrack("head").rotation().put(1,new Quaternionf().rotateY(.2f),
+                com.director.actor.animation.asset.InterpolationMode.LINEAR);
+        var seeded=ActorEmbeddedAnimation.seedNewChannels(asset,1,PoseBlendSettings.DEFAULT,lower);
+        assertTrue(seeded.localTransform("head").rotation().equals(new Quaternionf().rotateY(.2f),1e-6f));
+    }
+
     @Test void inputIsFrozenAndOnlyTheGestureChannelChanges() {
         var source=new RigPose(ArticulatedPlayerRig.DEFINITION);
         var original=source.localTransform("head");

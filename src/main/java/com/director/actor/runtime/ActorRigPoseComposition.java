@@ -15,9 +15,15 @@ final class ActorRigPoseComposition {
     static RigPose prependPreset(RigPose base,com.director.timeline.playback.entity.ActorAnimationLayerSample preset,
             Consumer<RigPoseComposer.Diagnostic> diagnostics,java.util.Map<String,Float> weights,
             com.director.ui.actor.pose.ActorBoneAnimationDraft draft) {
+        return prependPreset(base,preset,diagnostics,weights,draft,pose->pose);
+    }
+    static RigPose prependPreset(RigPose base,com.director.timeline.playback.entity.ActorAnimationLayerSample preset,
+            Consumer<RigPoseComposer.Diagnostic> diagnostics,java.util.Map<String,Float> weights,
+            com.director.ui.actor.pose.ActorBoneAnimationDraft draft,java.util.function.UnaryOperator<RigPose> preview) {
         if(preset==null) return base;
         var pose=draft==null?preset.sample(base.rig()):draft.authoredPose();
         if(pose==null) return base;
+        if(draft==null) pose=preview.apply(pose);
         var result=RigPoseComposer.compose(base,List.of(preset.settings().layer(pose,preset.envelope())));
         result.diagnostics().forEach(diagnostics);
         if(result.diagnostics().isEmpty()) for(int i=0;i<pose.rig().boneCount();i++)

@@ -13,15 +13,21 @@ final class BoneTransformDraft {
     final float[] scale = new float[3];
     private Object context;
     private BoneTransform source;
+    private BoneTransform initial;
     private int changedChannels;
     private boolean dirty;
     private boolean rotationChanged;
 
     boolean synchronize(Object nextContext, BoneTransform sampled) {
+        return synchronize(nextContext,sampled,sampled);
+    }
+    /** Track source changes separately from the frozen, visible seed of unkeyed channels. */
+    boolean synchronize(Object nextContext, BoneTransform sampled, BoneTransform seeded) {
         if (Objects.equals(context, nextContext) && matchesSource(sampled)) return false;
         boolean discarded = dirty;
         context = nextContext;
         source = sampled;
+        initial = Objects.requireNonNull(seeded);
         reset();
         return discarded;
     }
@@ -53,7 +59,7 @@ final class BoneTransformDraft {
         if (!isValid()) throw new IllegalArgumentException("请输入有限数值，且缩放必须大于零。");
         Quaternionf q = rotationChanged ? new Quaternionf().rotationZYX(
                 (float)Math.toRadians(rotation[2]), (float)Math.toRadians(rotation[1]),
-                (float)Math.toRadians(rotation[0])) : source.rotation();
+                (float)Math.toRadians(rotation[0])) : initial.rotation();
         return new BoneTransform(new Vector3f(translation), q, new Vector3f(scale));
     }
 
@@ -65,9 +71,9 @@ final class BoneTransformDraft {
     }
 
     void reset() {
-        copy(source.translation(), translation);
-        copy(source.rotation().getEulerAnglesZYX(new Vector3f()).mul((float)(180 / Math.PI)), rotation);
-        copy(source.scale(), scale);
+        copy(initial.translation(), translation);
+        copy(initial.rotation().getEulerAnglesZYX(new Vector3f()).mul((float)(180 / Math.PI)), rotation);
+        copy(initial.scale(), scale);
         changedChannels = 0;
         dirty = false;
         rotationChanged = false;
@@ -76,6 +82,7 @@ final class BoneTransformDraft {
     void clear() {
         context = null;
         source = null;
+        initial = null;
         changedChannels = 0;
         dirty = false;
         rotationChanged = false;
