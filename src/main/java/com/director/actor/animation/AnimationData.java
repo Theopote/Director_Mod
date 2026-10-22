@@ -44,6 +44,15 @@ public class AnimationData {
         }
     }
 
+    public enum Purpose {
+        PERFORMANCE("表演",false), LOCOMOTION("循环步态",true), STATIC_POSE("静态姿态",true);
+        private final String label; private final boolean loop;
+        Purpose(String label,boolean loop) { this.label=label;this.loop=loop; }
+        public String label() { return label; }
+        public boolean defaultLoop() { return loop; }
+    }
+    private final Purpose purpose;
+    public Purpose purpose() { return purpose; }
     private final String id;
     private final String name;
     private final float duration;
@@ -72,6 +81,11 @@ public class AnimationData {
     /** Ownership is explicit even on neutral keyframes; zero rotation is not an absent channel. */
     public AnimationData(String id, String name, float duration, List<AnimationKeyframe> keyframes,
                          AnimationSource source, Set<String> controlledBones) {
+        this(id,name,duration,keyframes,source,controlledBones,Purpose.PERFORMANCE);
+    }
+    public AnimationData(String id,String name,float duration,List<AnimationKeyframe> keyframes,
+                         AnimationSource source,Set<String> controlledBones,Purpose purpose) {
+        this.purpose=java.util.Objects.requireNonNull(purpose);
         if (controlledBones == null || !POSE_BONES.containsAll(controlledBones))
             throw new IllegalArgumentException("Unsupported fixed-pose bone selection");
         this.controlledBones = Set.copyOf(controlledBones);

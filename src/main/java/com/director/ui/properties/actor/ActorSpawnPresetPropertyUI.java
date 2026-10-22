@@ -49,7 +49,7 @@ public final class ActorSpawnPresetPropertyUI {
                             && !a.id().equals(draft.getBoneAnimationId()))
                     .forEach(a->choices.put(a.id(),a.name()+" · "+a.id()));
             if(ActorRigCompatibility.resolveRig(actor).map(HumanoidTopology::matches).orElse(false))
-                AnimationLibrary.getInstance().getAllAnimations().forEach(a->choices.putIfAbsent(a.getId(),a.getName()+" · "+a.getId()));
+                AnimationLibrary.getInstance().getAllAnimations().forEach(a->choices.putIfAbsent(a.getId(),a.purpose().label()+" · "+a.getName()+" · "+a.getId()));
             var binding=draft.getPreset();
             var ids=new ArrayList<String>();ids.add(null);ids.addAll(choices.keySet());
             if(binding!=null && !ids.contains(binding.animationId())) ids.add(binding.animationId());
@@ -58,15 +58,27 @@ public final class ActorSpawnPresetPropertyUI {
             boolean changed=ImGui.combo("动作",selected,labels);
             if(changed) {
                 String id=ids.get(selected.get());
-                binding=id==null?null:new ActorPresetBinding(id,binding!=null && binding.loop(),
-                        binding==null?1:binding.speed(),binding==null?PoseBlendSettings.DEFAULT:binding.blend());
+                binding=ActorPresetBinding.select(id,binding);
                 draft.setPreset(binding);
             }
             gesture.observe("presetId",changed);
             if(binding==null) { ImGui.textWrapped("绑定预设后可直接叠加手工骨骼关键帧，不会创建额外片段。");return; }
+            var model=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
+            var playback=payload==null?null:new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleSnapshot(model.getCurrentTime());
+            boolean distanceClock=playback!=null && com.director.actor.runtime.ActorPresetClock.followsDistance(binding.animationId(),playback);
+            var data=AnimationAssetLibrary.getInstance().contains(binding.animationId())?null:AnimationLibrary.getInstance().get(binding.animationId()).orElse(null);
+            if(distanceClock) ImGui.textWrapped("此循环步态按路径行进距离推进；缩短演员片段会加快位移和步频。循环与速度设置仅用于原地播放。");
+            else if(data!=null && data.purpose()==com.director.actor.animation.AnimationData.Purpose.LOCOMOTION)
+                ImGui.textWrapped("原地步态：只改变身体动作，不移动演员。沿路径走跑通常直接使用自动步态即可。");
+            else ImGui.textWrapped("表演预设按片段本地时间播放；路径继续控制整体位移，未声明的骨骼通道保留底层动作。");
+            if(playback!=null && playback.routeClip!=null && data!=null
+                    && data.purpose()==com.director.actor.animation.AnimationData.Purpose.STATIC_POSE)
+                ImGui.textWrapped("静态姿态可能覆盖腿部步态；需要边走边表演时，可在部位范围中排除双腿。");
+            ImGui.beginDisabled(distanceClock);
             boolean loop=binding.loop();changed=ImGui.checkbox("循环",loop);
             if(changed) loop=!loop;gesture.observe("presetLoop",changed);
             float[] speed={binding.speed()};changed=ImGui.sliderFloat("速度",speed,.01f,4);gesture.observe("presetSpeed",changed);
+            ImGui.endDisabled();
             var blend=binding.blend();float[] weight={blend.weight()};
             changed=ImGui.sliderFloat("预设权重",weight,0,1);gesture.observe("presetWeight",changed);
             var mode=new ImInt(blend.mode().ordinal());changed=ImGui.combo("预设混合",mode,new String[]{"覆盖","叠加（相对绑定姿态）"});

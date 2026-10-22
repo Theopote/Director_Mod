@@ -538,11 +538,12 @@ public final class ActorRuntimeController {
             var pose = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(base,rig);
             var asset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(at.animationId)
                     .filter(value -> com.director.actor.rig.ActorRigCompatibility.accepts(actor,value.rigId()));
+            var primaryClock=ActorPresetClock.resolve(com.director.timeline.playback.entity.ActorAnimationLayerSample.from(at),at,actor.getRigProfile());
             var authored = asset.isPresent()
                     ? asset.get().sample(at.animationLocalTime*Math.max(.01f,at.animationSpeed),
                             at.animationLoop?asset.get().loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE)
-                    : AnimationDataSampler.sampleRig(at.animationId,rig,at.animationLocalTime,at.animationLoop,at.animationSpeed);
-            pose=ActorRigPoseComposition.prependPreset(pose,at.presetAnimation,
+                    : AnimationDataSampler.sampleRig(primaryClock.id(),rig,primaryClock.localTime(),primaryClock.loop(),primaryClock.speed());
+            pose=ActorRigPoseComposition.prependPreset(pose,ActorPresetClock.resolve(at.presetAnimation,at,actor.getRigProfile()),
                     diagnostic -> reportPlacement(actor.getActorId(),time,"preset-layer",false,
                             "预设动作骨架与当前手工动画不兼容，已跳过预设。"),new java.util.HashMap<>());
             if (authored != null) {
@@ -790,13 +791,15 @@ public final class ActorRuntimeController {
                     presetInput=com.director.timeline.playback.entity.ActorAnimationLayerSample.from(s);
                 }
             }
+            presetInput=ActorPresetClock.resolve(presetInput,s,rig);
+            var primaryClock=ActorPresetClock.resolve(com.director.timeline.playback.entity.ActorAnimationLayerSample.from(s),s,rig);
             var rigAsset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance()
                     .find(s.animationId)
                     .filter(asset -> com.director.actor.rig.ActorRigCompatibility.accepts(actor, asset.rigId()));
             var legacyRig = com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElse(null);
             var legacyPose = rigAsset.isEmpty() && boneDraft == null
-                    ? AnimationDataSampler.sampleRig(s.animationId, legacyRig, s.animationLocalTime,
-                            s.animationLoop, s.animationSpeed) : null;
+                    ? AnimationDataSampler.sampleRig(primaryClock.id(), legacyRig, primaryClock.localTime(),
+                            primaryClock.loop(), primaryClock.speed()) : null;
             if (rigAsset.isPresent() || boneDraft!=null || legacyPose!=null || s.presetAnimation!=null && legacyRig!=null) {
                 var definition=boneDraft!=null?boneDraft.rig():rigAsset.isPresent()?rigAsset.get().rig():legacyRig;
                 var blend=boneDraft!=null?boneDraft.settings():s.animationBlendSettings;
@@ -990,8 +993,8 @@ public final class ActorRuntimeController {
          */
         private AnimationPoseResult getAnimationPose(EntitySample s) {
             if (actor == null || s == null) return null;
-            return AnimationDataSampler.sample(s.animationId, s.animationLocalTime,
-                    s.animationLoop, s.animationSpeed);
+            var clock=ActorPresetClock.resolve(com.director.timeline.playback.entity.ActorAnimationLayerSample.from(s),s,actor.getRigProfile());
+            return AnimationDataSampler.sample(clock.id(),clock.localTime(),clock.loop(),clock.speed());
         }
 
         /**

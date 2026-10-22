@@ -48,9 +48,14 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
                     + "##actorActionIntensity", intensity, 0, 1, "%.2f");
             if (changed) clip.setIntensity(intensity[0]);
             gesture.observe("intensity", changed);
-            changed = ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.LOOP) + "##actorActionLoop", clip.isLoop());
-            if (changed) clip.setLoop(!clip.isLoop());
-            gesture.observe("loop", changed);
+            ImGui.textWrapped("此处设置基础动作语义，生效范围由动作片段决定。挥手、攻击等骨骼表演请在演员片段的“演员动作预设”中设置。");
+            var playback=new com.director.timeline.playback.entity.EntityClipSampler(payload)
+                    .sampleSnapshot(com.director.core.DirectorServices.get().containerTimeline().getTimelineModel().getCurrentTime());
+            boolean locomotion=clip.getActionType()==com.director.actor.action.ActorActionType.WALK
+                    || clip.getActionType()==com.director.actor.action.ActorActionType.RUN;
+            if(locomotion) ImGui.textWrapped(playback.routeClip!=null
+                    ?"沿路径走跑：片段只指定动作类型和幅度，步频由路径行进距离决定。"
+                    :"原地走跑：只改变动作，不产生位移；需要移动时请绑定路径或设置整体位置关键帧。");
         }
         if (ImGui.collapsingHeader(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.SECTION_TIME_EDIT), ImGuiTreeNodeFlags.DefaultOpen)) {
             var start = new ImFloat(clip.getStartTime()); var end = new ImFloat(clip.getEndTime());
