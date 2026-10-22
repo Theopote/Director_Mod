@@ -138,6 +138,11 @@ public final class ActorBonePropertiesPanel {
         var seeded=ActorEmbeddedAnimation.seedNewChannels(asset,time,context.blendSettings(),visible).localTransform(boneId);
         if (draft.synchronize(numericContext, value, seeded)) message = "编辑对象或姿态已变化，未应用的数值已取消。";
         ImGui.textDisabled(asset.name() + " · " + String.format("%.3fs", time));
+        var visibleOwner=ActorEmbeddedAnimation.visibleOwner(context.track(),context.clip());
+        boolean embedded=visibleOwner!=null && visibleOwner.getEntityClip() instanceof com.director.timeline.model.entity.EntitySpawnClip;
+        ImGui.textWrapped("当前编辑："+(embedded?"本片段的手工骨骼关键帧（预设上层）":"独立动画资产")+" · "+asset.id());
+        int references=ActorAnimationAssetEditing.referenceCount(model,asset.id());
+        if(references>1) ImGui.textWrapped("共享资产：当前有 "+references+" 个引用。编辑会影响全部引用；仅改本片段时请先制作独立副本。");
         ImGui.textWrapped("已有通道显示资产局部值；新通道从当前可见姿态取初值，叠加模式从绑定姿态取中性值。编辑后点击应用并打帧。切换骨骼、演员或播放头会取消未应用的数值。共享资产的修改影响所有引用。世界中显示混合后的结果；低权重、淡入淡出或被排除的通道会减弱或隐藏修改。");
         if (ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) draft.reset();
         int changed = 0;
@@ -330,10 +335,27 @@ public final class ActorBonePropertiesPanel {
                     .filter(value -> value.rigId().equals(rig.id())).orElse(null);
             if (asset != null) authored = asset.sample(sample.animationLocalTime * Math.max(.01f,sample.animationSpeed),
                     sample.animationLoop ? asset.loopMode() : AnimationLoopMode.ONCE);
+            else {
+                var adapted=com.director.actor.animation.AnimationDataSampler.sampleRig(sample.animationId,rig,
+                        sample.animationLocalTime,sample.animationLoop,sample.animationSpeed);
+                if(adapted!=null) authored=adapted;
+            }
+            var preset=sample.presetAnimation==null?null:sample.presetAnimation.sample(rig);
+            if(preset!=null && !RigPoseComposer.sameLayout(rig,preset.rig())) {
+                ImGui.textWrapped("下层预设骨架不兼容，已跳过该层；手工关键帧仍可使用。");preset=null;
+            } else if(sample.presetAnimation!=null && preset==null)
+                ImGui.textWrapped("下层预设引用不存在或不能适配当前骨架，请在片段预设设置中重新选择或清除。");
+            if(sample.animationId!=null && !sample.animationId.isBlank()) {
+                var referenced=AnimationAssetLibrary.getInstance().find(sample.animationId).orElse(null);
+                if(referenced==null && com.director.actor.animation.AnimationLibrary.getInstance().get(sample.animationId).isEmpty())
+                    ImGui.textWrapped((sample.animationIsPreset?"动作预设":"手工动画")+"引用不存在："+sample.animationId);
+                else if(referenced!=null && !RigPoseComposer.sameLayout(rig,referenced.rig()))
+                    ImGui.textWrapped("当前动画骨架与此编辑骨架不同，不能用此处的部位通道解释其效果。");
+            }
             ImGui.textDisabled("局部通道控制来源（不含未保存草稿）");
             for (int channel : new int[]{RigPose.TRANSLATION,RigPose.ROTATION,RigPose.SCALE}) {
                 if (ActorBoneInspector.supports(rig,boneId,channel))
-                    ImGui.textWrapped(ActorBoneInspector.label(channel)+"："+ActorBoneControlSource.source(boneId,channel,sample,authored));
+                    ImGui.textWrapped(ActorBoneInspector.label(channel)+"："+ActorBoneControlSource.source(boneId,channel,sample,authored,preset));
             }
             if (sample.routeClip != null) ImGui.textDisabled("整体移动：沿路径；路径只控制整体，不直接控制局部骨骼。");
             if (HumanoidRig.HEAD.equals(boneId) && sample.lookAtEnabled && sample.lookAtStrength > 0)

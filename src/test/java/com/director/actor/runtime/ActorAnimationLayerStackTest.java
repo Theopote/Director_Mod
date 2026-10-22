@@ -22,9 +22,10 @@ class ActorAnimationLayerStackTest {
         var track=new ActorTrack("Actor");var spawn=new EntitySpawnClip("Actor",2,8);track.addClip(spawn);
         spawn.setPreset(new ActorPresetBinding("wave",true,2,PoseBlendSettings.DEFAULT));
         var sampler=new EntityClipSampler(track);var sample=sampler.sampleSnapshot(3);
-        assertEquals("wave",sample.animationId);assertEquals(1,sample.animationLocalTime);assertNull(sample.presetAnimation);
+        assertEquals("wave",sample.animationId);assertTrue(sample.animationIsPreset);
+        assertTrue(sample.copy().animationIsPreset);assertEquals(1,sample.animationLocalTime);assertNull(sample.presetAnimation);
         spawn.setBoneAnimationId(MISSING);sample=sampler.sampleSnapshot(3);
-        assertEquals(MISSING,sample.animationId);assertEquals("wave",sample.presetAnimation.id());
+        assertEquals(MISSING,sample.animationId);assertFalse(sample.animationIsPreset);assertEquals("wave",sample.presetAnimation.id());
         assertEquals(1,sample.presetAnimation.localTime());
         spawn.setTimeRange(4,10);sample=sampler.sampleSnapshot(5);
         assertEquals(1,sample.presetAnimation.localTime());assertNull(sampler.sampleSnapshot(3).presetAnimation);

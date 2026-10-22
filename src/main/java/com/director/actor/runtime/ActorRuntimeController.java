@@ -143,7 +143,7 @@ public final class ActorRuntimeController {
         if(entity==null) return false;
         var sample=target.lastSample.copy();
         var animation=target.sampler.sampleSnapshot(timelineSource.getCurrentTime());
-        sample.animationId=animation.animationId;sample.animationSource=animation.animationSource;
+        sample.animationId=animation.animationId;sample.animationIsPreset=animation.animationIsPreset;sample.animationSource=animation.animationSource;
         sample.animationLocalTime=animation.animationLocalTime;sample.animationLoop=animation.animationLoop;
         sample.animationSpeed=animation.animationSpeed;sample.animationBlendSettings=animation.animationBlendSettings;
         sample.animationBlendEnvelope=animation.animationBlendEnvelope;

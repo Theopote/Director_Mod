@@ -8,12 +8,43 @@ import com.director.timeline.playback.entity.EntitySample;
 final class ActorBoneControlSource {
     private ActorBoneControlSource() {}
     static String source(String bone,int channel,EntitySample sample,RigPose authored) {
-        if (sample == null || !sample.active) return "演员当前未显示";
-        boolean humanoid = authored == null || HumanoidTopology.matches(authored.rig());
-        if (humanoid && channel == RigPose.ROTATION && HumanoidRig.HEAD.equals(bone)
-                && sample.lookAtEnabled && sample.lookAtStrength > 0) return "注视约束（覆盖头部动画）";
-        int index = authored == null ? -1 : authored.rig().findBoneIndex(bone);
-        if (index >= 0 && (authored.authoredChannels(index)&channel)!=0) return "手工骨骼关键帧";
+        return source(bone,channel,sample,authored,null);
+    }
+    static String source(String bone,int channel,EntitySample sample,RigPose authored,RigPose preset) {
+        if (sample == null || !sample.enabled || !sample.active || sample.visibility<=.01f) return "演员当前未显示";
+        String lower=baseSource(bone,channel,sample,authored);
+        boolean quick=sample.poseOverrideEnabled && channel==RigPose.ROTATION
+                && (HumanoidRig.HEAD.equals(bone)&&sample.poseOverrideHead
+                    || HumanoidRig.BODY.equals(bone)&&sample.poseOverrideBody
+                    || (HumanoidRig.LEFT_ARM.equals(bone)||HumanoidRig.RIGHT_ARM.equals(bone)
+                        || ArticulatedPlayerRig.LEFT_FOREARM.equals(bone)||ArticulatedPlayerRig.RIGHT_FOREARM.equals(bone))&&sample.poseOverrideArms
+                    || (HumanoidRig.LEFT_LEG.equals(bone)||HumanoidRig.RIGHT_LEG.equals(bone)
+                        || ArticulatedPlayerRig.LEFT_SHIN.equals(bone)||ArticulatedPlayerRig.RIGHT_SHIN.equals(bone))&&sample.poseOverrideLegs);
+        if(!quick && sample.presetAnimation!=null && contributes(preset,bone,channel,
+                sample.presetAnimation.settings(),sample.presetAnimation.envelope()))
+            lower=describe("动作预设",sample.presetAnimation.settings(),sample.presetAnimation.envelope(),lower);
+        if(contributes(authored,bone,channel,sample.animationBlendSettings,sample.animationBlendEnvelope))
+            lower=describe(sample.animationIsPreset?"动作预设":"手工骨骼关键帧",
+                    sample.animationBlendSettings,sample.animationBlendEnvelope,lower);
+        boolean humanoid=authored==null || HumanoidTopology.matches(authored.rig());
+        if(humanoid && channel==RigPose.ROTATION && HumanoidRig.HEAD.equals(bone)
+                && sample.lookAtEnabled && sample.lookAtStrength>0)
+            return sample.lookAtStrength>=1?"注视约束（覆盖头部动画）":"注视约束（部分影响）＋"+lower;
+        return lower;
+    }
+    private static boolean contributes(RigPose pose,String bone,int channel,PoseBlendSettings settings,float envelope) {
+        int index=pose==null?-1:pose.rig().findBoneIndex(bone);
+        return index>=0 && (pose.authoredChannels(index)&channel)!=0 && (settings.channels()&channel)!=0
+                && settings.includes(bone) && settings.effectiveWeight(envelope)>0;
+    }
+    private static String describe(String name,PoseBlendSettings settings,float envelope,String lower) {
+        float weight=settings.effectiveWeight(envelope);
+        if(weight>=1 && settings.mode()==PoseLayer.BlendMode.OVERRIDE) return name;
+        return String.format(java.util.Locale.ROOT,"%s（%s %.0f%%）＋%s",name,
+                settings.mode()==PoseLayer.BlendMode.ADDITIVE?"叠加":"混合",100*weight,lower);
+    }
+    private static String baseSource(String bone,int channel,EntitySample sample,RigPose authored) {
+        boolean humanoid=authored==null || HumanoidTopology.matches(authored.rig());
         if (!humanoid) return "模型默认姿态";
         if (channel != RigPose.ROTATION || HumanoidRig.ROOT.equals(bone)) return "默认局部姿态／运行时修正";
         boolean arm=HumanoidRig.LEFT_ARM.equals(bone)||HumanoidRig.RIGHT_ARM.equals(bone);

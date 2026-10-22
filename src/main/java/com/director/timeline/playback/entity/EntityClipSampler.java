@@ -208,6 +208,7 @@ public class EntityClipSampler {
                 && (presetOwner==null || candidate.getStartTime()>=presetOwner.getStartTime())) presetOwner=candidate;
         if(presetOwner!=null) {
             var binding=presetOwner.getPreset();
+            result.animationIsPreset=true;
             result.animationId=binding.animationId();result.animationLoop=binding.loop();result.animationSpeed=binding.speed();
             result.animationBlendSettings=binding.blend();
             result.animationLocalTime=Math.max(0,timeSeconds-presetOwner.getStartTime());
@@ -221,6 +222,7 @@ public class EntityClipSampler {
         if (!embedded.isEmpty()) {
             applyAnimation(result, embedded, timeSeconds, emitEvents);
             result.presetAnimation = preset;
+            result.animationIsPreset = false;
         }
 
         // ========== 处理 State Clip（状态）==========
@@ -439,6 +441,7 @@ public class EntityClipSampler {
 
         // 应用动画信息
         result.animationId = active.getAnimationId();
+        result.animationIsPreset = true;
         result.animationLoop = active.isLoop();
         result.animationSpeed = active.getSpeed();
         result.animationBlendSettings = active.getBlendSettings();

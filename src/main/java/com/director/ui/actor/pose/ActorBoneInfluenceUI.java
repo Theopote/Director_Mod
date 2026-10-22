@@ -27,6 +27,13 @@ final class ActorBoneInfluenceUI {
             };
             ImGui.textWrapped(String.format(java.util.Locale.ROOT,"%s：配置 %.1f%% · %s",ActorBoneInspector.label(channel),state.configuredWeight()*100,reason));
         }
+        var spawn=ActorEmbeddedAnimation.target(model,context.track());
+        if(spawn!=null && spawn.getPreset()!=null) {
+            ImGui.beginDisabled(editing || spawn.getTimelineClip()==null);
+            if(ImGui.smallButton("查看本片段预设设置##locatePresetLayer")) model.selectItem(spawn.getTimelineClip(),false);
+            ImGui.endDisabled();
+            ImGui.textDisabled("预设配置与手工关键帧独立；这里的数值修改写入上述动画资产。");
+        }
         var owner=ActorEmbeddedAnimation.visibleOwner(context.track(),context.clip());
         if(owner!=null) {
             ImGui.beginDisabled(editing || !model.getAllTracks().contains(context.track()));
