@@ -23,6 +23,41 @@ class ActorRootKeyframeEditingTest {
     <T extends EntityClip> T add(T clip) {
         owner.getActorTrackPayload().addClip(clip); owner.addClip(new EntityTimelineClip(clip, 0)); return clip;
     }
+    @Test void firstRotationKeySeedsVisiblePoseAndAuthorsOnlyRequestedChannel() {
+        var spawn=add(new EntitySpawnClip("Actor",0,5));model.setCurrentTime(2);
+        var rig=com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION;
+        var visible=new com.director.actor.rig.skeleton.RigPose(rig);
+        var rotation=new org.joml.Quaternionf().rotateXYZ(.3f,.5f,-.2f);
+        visible.setLocalTransform("head",visible.localTransform("head").withRotation(rotation));
+        assertTrue(ActorEmbeddedAnimation.firstKey(model,owner,"head",2,
+                com.director.actor.animation.asset.InterpolationMode.LINEAR,visible));
+        String id=spawn.getBoneAnimationId();
+        try {
+            var asset=com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(id).orElseThrow();
+            var pose=asset.sample(2);
+            assertEquals(rotation,pose.localTransform("head").rotation());
+            assertEquals(2,pose.authoredChannels(rig.requireBoneIndex("head")));
+            assertEquals(1,pose.authoredBones().cardinality());
+            assertTrue(history.undo());assertNull(spawn.getBoneAnimationId());
+            assertTrue(history.redo());assertEquals(rotation,asset.sample(2).localTransform("head").rotation());
+        } finally { com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().remove(id); }
+    }
+    @Test void additiveFirstKeyRemainsNeutralRatherThanDoublingVisibleAction() {
+        var spawn=add(new EntitySpawnClip("Actor",0,5));model.setCurrentTime(2);
+        spawn.setBlendSettings(new com.director.actor.rig.skeleton.PoseBlendSettings(
+                com.director.actor.rig.skeleton.PoseLayer.BlendMode.ADDITIVE,1,7,true,java.util.Set.of()));
+        var rig=com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION;
+        var visible=new com.director.actor.rig.skeleton.RigPose(rig);
+        visible.setLocalTransform("head",visible.localTransform("head").withRotation(new org.joml.Quaternionf().rotateX(.8f)));
+        assertTrue(ActorEmbeddedAnimation.firstKey(model,owner,"head",2,
+                com.director.actor.animation.asset.InterpolationMode.LINEAR,visible));
+        String id=spawn.getBoneAnimationId();
+        try {
+            var asset=com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(id).orElseThrow();
+            assertEquals(new org.joml.Quaternionf(),asset.sample(2).localTransform("head").rotation());
+        } finally { com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().remove(id); }
+    }
+
     @Test void presetRoundTripInvalidatesAuthoringDraftButNotCommittedCommandTarget() {
         var spawn=add(new EntitySpawnClip("Actor",0,5));model.setCurrentTime(2);
         assertTrue(ActorEmbeddedAnimation.firstKey(model,owner,"head",2,com.director.actor.animation.asset.InterpolationMode.LINEAR));

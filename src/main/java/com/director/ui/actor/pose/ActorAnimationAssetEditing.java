@@ -183,23 +183,31 @@ public final class ActorAnimationAssetEditing {
         if (clip == null) throw new IllegalArgumentException("请选择当前演员的动画片段");
         AnimationAsset source = requireAsset(library, clip.getAnimationId());
         Target target = Target.capture(model, track, source);
-        if (!target.payload().getClips().contains(clip)) throw new IllegalArgumentException("动画片段不属于此演员轨道");
+        if (!ActorEmbeddedAnimation.bound(target.payload(),clip)) throw new IllegalArgumentException("动画片段不属于此演员轨道");
+        var visible=ActorEmbeddedAnimation.visibleOwner(track,clip);
+        var spawnOwner=visible!=null && visible.getEntityClip() instanceof com.director.timeline.model.entity.EntitySpawnClip spawn?spawn:null;
         AnimationAsset copy = copy(source, id, name);
         var originalSource = clip.getSource();
         TimelineCommandBridge.execute(new ActorAnimationAssetCommand(model, "Make actor animation independent",
                 () -> {
                     target.validate(model, source);
                     requireIdentity(library, source);
-                    if (!target.payload().getClips().contains(clip) || !source.id().equals(clip.getAnimationId()))
+                    if (spawnOwner!=null
+                            ? !target.payload().getClips().contains(spawnOwner) || !source.id().equals(spawnOwner.getBoneAnimationId())
+                            : !ActorEmbeddedAnimation.bound(target.payload(),clip) || !source.id().equals(clip.getAnimationId()))
                         throw new IllegalArgumentException("动画片段的绑定已变化，请重新选择");
                     requireNewId(model, library, id);
                 }, List.of(
                         new ActorAnimationAssetCommand.Change(() -> removeOwned(model, library, copy), () -> insertUnique(library, copy)),
                         new ActorAnimationAssetCommand.Change(() -> {
                             requireIdentity(library, source);
-                            clip.setAnimationId(source.id()); clip.setSource(originalSource);
+                            if(spawnOwner!=null) spawnOwner.setBoneAnimationId(source.id());
+                            else { clip.setAnimationId(source.id()); clip.setSource(originalSource); }
+                            model.invalidateActorEditContext();
                         }, () -> {
-                            clip.setAnimationId(copy.id()); clip.setSource(EntityAnimationClip.AnimationSource.CUSTOM);
+                            if(spawnOwner!=null) spawnOwner.setBoneAnimationId(copy.id());
+                            else { clip.setAnimationId(copy.id()); clip.setSource(EntityAnimationClip.AnimationSource.CUSTOM); }
+                            model.invalidateActorEditContext();
                         }))));
         return copy;
     }

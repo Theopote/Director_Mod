@@ -17,6 +17,30 @@ class ActorAnimationAssetEditingTest {
     ActorAnimationAssetEditingTest() { TimelineCommandBridge.bind(history); }
     @AfterEach void cleanup() { TimelineCommandBridge.bind(null); }
 
+    @Test void embeddedIndependenceRebindsOnlyOwnerAndUndoRedoPreserveVisibleWrapper() {
+        var registry=new com.director.actor.ActorRegistry();com.director.actor.ActorRegistryManager.setRegistry(registry);
+        var actor=registry.createActor("A",com.director.actor.ActorType.PLAYER);
+        var track=new TimelineTrack("Actor",TrackType.ACTOR);var payload=track.getOrCreateActorTrackPayload();
+        payload.setActorRef(com.director.actor.ActorRef.of(actor));model.addTrack(track);
+        var source=ActorAnimationAssetEditing.create(model,library,"project:shared","Shared",3);
+        source.getOrCreateBoneTrack("head").scale().put(1,new Vector3f(2),InterpolationMode.LINEAR);
+        var spawn=new com.director.timeline.model.entity.EntitySpawnClip("Actor",0,3);spawn.setBoneAnimationId(source.id());
+        spawn.setPreset(new com.director.timeline.model.entity.ActorPresetBinding(source.id(),false,1,
+                com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT));
+        payload.addClip(spawn);var wrapper=new com.director.timeline.model.entity.EntityTimelineClip(spawn,0);track.addClip(wrapper);
+        var child=spawn.getBoneAnimation();var childWrapper=child.getTimelineClip();
+        var copy=ActorAnimationAssetEditing.makeIndependent(model,library,track,child,"project:copy","Copy");
+        assertEquals(copy.id(),spawn.getBoneAnimationId());assertNotSame(child,spawn.getBoneAnimation());
+        assertNotSame(childWrapper,spawn.getBoneAnimation().getTimelineClip());assertSame(wrapper,spawn.getTimelineClip());
+        assertEquals(source.id(),spawn.getPreset().animationId());assertEquals(1,track.getClips().size());
+        copy.getOrCreateBoneTrack("head").scale().put(1,new Vector3f(3),InterpolationMode.LINEAR);
+        assertEquals(2,source.sample(1).localTransform("head").scale().x);
+        assertThrows(IllegalArgumentException.class,()->ActorAnimationAssetEditing.delete(model,library,source.id()));
+        assertTrue(history.undo());assertEquals(source.id(),spawn.getBoneAnimationId());assertFalse(library.contains(copy.id()));
+        assertTrue(history.redo());assertEquals(copy.id(),spawn.getBoneAnimationId());assertNotSame(child,spawn.getBoneAnimation());
+        com.director.actor.ActorRegistryManager.setRegistry(null);
+    }
+
     @Test void duplicateIsIndependentAndCannotOverwriteOriginal() {
         var original = ActorAnimationAssetEditing.create(model, library, "project:a", "A", 3f);
         original.getOrCreateBoneTrack(HumanoidRig.HEAD).scale().put(1f, new Vector3f(2f), InterpolationMode.SMOOTH);

@@ -36,7 +36,20 @@ public final class ActorEmbeddedAnimation {
         var spawn=com.director.ui.actor.gizmo.ActorTransformEditSession.resolveInitialSpawn(track.getActorTrackPayload(),model.getCurrentTime());
         return spawn!=null && ActorRootKeyframeEditing.editable(model,track,spawn)?spawn:null;
     }
+    /** UI entry: capture the pose the user currently sees, before creating any authored channel. */
+    public static boolean firstKeyFromPreview(TimelineModel model,TimelineTrack owner,String bone,int channel,InterpolationMode interpolation) {
+        com.director.actor.rig.skeleton.RigPose visible=null;
+        if(owner!=null && owner.getActorTrackPayload()!=null && owner.getActorTrackPayload().getActorRef()!=null) {
+            var entity=com.director.actor.preview.ActorPreviewManager.getInstance().getPreview(owner.getActorTrackPayload().getActorRef().getActorId());
+            if(entity instanceof com.director.actor.preview.ActorPosePreview preview) visible=preview.getFinalRigPose();
+        }
+        return firstKey(model,owner,bone,channel,interpolation,visible);
+    }
     public static boolean firstKey(TimelineModel model,TimelineTrack owner,String bone,int channel,InterpolationMode interpolation) {
+        return firstKey(model,owner,bone,channel,interpolation,null);
+    }
+    public static boolean firstKey(TimelineModel model,TimelineTrack owner,String bone,int channel,InterpolationMode interpolation,
+            com.director.actor.rig.skeleton.RigPose visible) {
         if(channel!=1 && channel!=2 && channel!=4)return false;
         var spawn=target(model,owner);if(spawn==null || spawn.getBoneAnimationId()!=null)return false;
         var actor=ActorRegistryManager.getInstance().getActor(owner.getActorTrackPayload().getActorRef().getActorId()).orElse(null);
@@ -47,7 +60,12 @@ public final class ActorEmbeddedAnimation {
         if(channel==1&&!caps.translation() || channel==2&&!caps.rotation() || channel==4&&!caps.scale())return false;
         String id="project:actor_"+UUID.randomUUID();
         var asset=new AnimationAsset(id,spawn.getName()+" 骨骼动作",rig,Math.max(.1f,spawn.getLength()),AnimationLoopMode.ONCE);
-        var value=asset.sample(0,AnimationLoopMode.ONCE).localTransform(bone);var track=asset.getOrCreateBoneTrack(bone);
+        var value=asset.sample(0,AnimationLoopMode.ONCE).localTransform(bone);
+        // Additive keys store offsets relative to rest; seeding a visible absolute pose would double it.
+        if(spawn.getBlendSettings().mode()==com.director.actor.rig.skeleton.PoseLayer.BlendMode.OVERRIDE
+                && visible!=null && com.director.actor.rig.skeleton.RigPoseComposer.sameLayout(rig,visible.rig()))
+            value=visible.localTransform(bone);
+        var track=asset.getOrCreateBoneTrack(bone);
         float time=model.getCurrentTime()-spawn.getStartTime();
         if(channel==1)track.translation().put(time,value.translation(),interpolation);
         else if(channel==2)track.rotation().put(time,value.rotation(),interpolation);

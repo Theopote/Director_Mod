@@ -578,7 +578,7 @@ public final class ActorBoneTimelineRows {
                 if(context==null) {
                     var settings=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance();
                     var mode=settings.getBoneGizmoMode();int channel=mode==com.director.client.gizmo.GizmoMode.TRANSLATE?1:mode==com.director.client.gizmo.GizmoMode.SCALE?4:2;
-                    try { com.director.ui.actor.pose.ActorEmbeddedAnimation.firstKey(model,track,rig.bone(boneIndex).id(),channel,settings.getInterpolation()); }
+                    try { com.director.ui.actor.pose.ActorEmbeddedAnimation.firstKeyFromPreview(model,track,rig.bone(boneIndex).id(),channel,settings.getInterpolation()); }
                     catch(IllegalArgumentException failure) { ImGui.setTooltip(failure.getMessage()); }
                     return true;
                 }

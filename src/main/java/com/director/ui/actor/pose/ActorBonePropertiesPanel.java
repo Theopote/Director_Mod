@@ -119,7 +119,7 @@ public final class ActorBonePropertiesPanel {
                 for (int channel : new int[]{RigPose.TRANSLATION, RigPose.ROTATION, RigPose.SCALE}) {
                     if (!ActorBoneInspector.supports(actorRig, boneId, channel)) continue;
                     if (ImGui.button("建立" + ActorBoneInspector.label(channel) + "关键帧##firstBone" + channel))
-                        ActorEmbeddedAnimation.firstKey(model, owner, boneId, channel,
+                        ActorEmbeddedAnimation.firstKeyFromPreview(model, owner, boneId, channel,
                                 ActorAnimationAuthoringSettings.getInstance().getInterpolation());
                 }
             } else ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.authoring.unavailable"));
