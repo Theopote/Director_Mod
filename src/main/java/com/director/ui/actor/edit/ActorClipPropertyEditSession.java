@@ -71,10 +71,10 @@ public final class ActorClipPropertyEditSession {
         }
         public void validate() { PropEventParameters.validate(type,params); }
     }
-    private record Spawn(Vector3f position, float yaw, float pitch, float roll, Vector3f scale, boolean visible, float start, float end, String animationId, com.director.actor.rig.skeleton.PoseBlendSettings blend) implements State {
+    private record Spawn(Vector3f position, float yaw, float pitch, float roll, Vector3f scale, boolean visible, float start, float end, String animationId, com.director.actor.rig.skeleton.PoseBlendSettings blend, ActorPresetBinding preset) implements State {
         public void apply(EntityClip clip) {
             var c = (EntitySpawnClip) clip; c.setPosition(position.x,position.y,position.z);
-            c.setYawDeg(yaw); c.setPitchDeg(pitch); c.setRollDeg(roll); c.setScale(scale.x, scale.y, scale.z); c.setVisibleOnSpawn(visible); c.setTimeRange(start,end); c.setBoneAnimationId(animationId); c.setBlendSettings(blend);
+            c.setYawDeg(yaw); c.setPitchDeg(pitch); c.setRollDeg(roll); c.setScale(scale.x, scale.y, scale.z); c.setVisibleOnSpawn(visible); c.setTimeRange(start,end); c.setBoneAnimationId(animationId); c.setBlendSettings(blend); c.setPreset(preset);
         }
         public void validate() {
             if (!position.isFinite() || !Float.isFinite(yaw) || !Float.isFinite(pitch) || !Float.isFinite(roll) || !validScale(scale) || pitch < -90 || pitch > 90
@@ -236,7 +236,7 @@ public final class ActorClipPropertyEditSession {
         if (clip instanceof ActorActionClip c) return new Action(c.getActionType(), c.getIntensity(), c.isLoop(), c.getStartTime(), c.getEndTime());
         if (clip instanceof ActorRelationClip c) return new Relation(c.getTargetActorId(), c.getRelationType(), c.getDistance(), c.getAngle(), c.getHeightOffset(), c.isMaintainLookAt());
         if (clip instanceof EntityActionClip c) return new Event(c.getActionType(),c.isTriggerOnce(),PropEventParameters.copy(c.getParams(),true));
-        if (clip instanceof EntitySpawnClip c) return new Spawn(new Vector3f(c.getPosition()),c.getYawDeg(),c.getPitchDeg(),c.getRollDeg(),new Vector3f(c.getScale()),c.isVisibleOnSpawn(),c.getStartTime(),c.getEndTime(),c.getBoneAnimationId(),c.getBlendSettings());
+        if (clip instanceof EntitySpawnClip c) return new Spawn(new Vector3f(c.getPosition()),c.getYawDeg(),c.getPitchDeg(),c.getRollDeg(),new Vector3f(c.getScale()),c.isVisibleOnSpawn(),c.getStartTime(),c.getEndTime(),c.getBoneAnimationId(),c.getBlendSettings(),c.getPreset());
         if (clip instanceof ActorPoseClip c) return new PoseState(List.of(c.isOverrideBody(),c.isOverrideHead(),c.isOverrideArms(),c.isOverrideLegs()),
                 List.of(c.getBodyPitch(),c.getBodyYaw(),c.getBodyRoll(),c.getHeadPitch(),c.getHeadYaw(),c.getLeftArmPitch(),c.getLeftArmYaw(),c.getLeftArmRoll(),c.getRightArmPitch(),c.getRightArmYaw(),c.getRightArmRoll(),c.getLeftLegPitch(),c.getRightLegPitch()));
         if (clip instanceof EntityStateClip c) return new Status(c.isSneaking(),c.isSprinting(),c.isGlowing(),c.isInvulnerable(),c.getVisibility());
@@ -260,6 +260,18 @@ public final class ActorClipPropertyEditSession {
             if (forward) PropEventParameters.validateActor(ActorRegistryManager.getInstance().getActor(actor).orElse(null),e.type,e.params);
         } else if (next instanceof Spawn s) {
             var old = (Spawn) expected;
+            if(forward && s.preset!=null && !Objects.equals(s.preset,old.preset)) {
+                var currentActor=ActorRegistryManager.getInstance().getActor(actor).orElse(null);
+                var asset=com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(s.preset.animationId()).orElse(null);
+                boolean compatible=asset!=null?com.director.actor.rig.ActorRigCompatibility.accepts(currentActor,asset.rigId())
+                        && com.director.actor.rig.ActorRigCompatibility.resolveRig(currentActor)
+                            .map(r->com.director.actor.rig.skeleton.RigPoseComposer.sameLayout(r,asset.rig())).orElse(false):
+                        com.director.actor.animation.AnimationLibrary.getInstance().get(s.preset.animationId()).isPresent()
+                        && com.director.actor.rig.ActorRigCompatibility.resolveRig(currentActor)
+                            .map(com.director.actor.rig.skeleton.HumanoidTopology::matches).orElse(false);
+                if(!compatible) throw new IllegalArgumentException("预设不存在或与演员骨架不兼容");
+                if(Objects.equals(s.animationId,s.preset.animationId())) throw new IllegalArgumentException("预设不能引用本片段的手工动画");
+            }
             if (s.start != old.start || s.end != old.end)
                 for (var other : payload.getClips()) if (other != source && other instanceof EntitySpawnClip && !other.isMuted()
                         && other.getEndTime() > s.start && other.getStartTime() < s.end)

@@ -203,6 +203,16 @@ public class EntityClipSampler {
 
         // Presets and spawn-owned manual keys retain independent clocks and blend settings.
         applyAnimation(result, animationClips, timeSeconds,emitEvents);
+        EntitySpawnClip presetOwner=null;
+        for(var candidate:spawnClips) if(candidate.getPreset()!=null
+                && (presetOwner==null || candidate.getStartTime()>=presetOwner.getStartTime())) presetOwner=candidate;
+        if(presetOwner!=null) {
+            var binding=presetOwner.getPreset();
+            result.animationId=binding.animationId();result.animationLoop=binding.loop();result.animationSpeed=binding.speed();
+            result.animationBlendSettings=binding.blend();
+            result.animationLocalTime=Math.max(0,timeSeconds-presetOwner.getStartTime());
+            result.animationBlendEnvelope=binding.blend().envelopeAt(result.animationLocalTime,presetOwner.getLength());
+        }
         var preset = result.animationId == null ? null : ActorAnimationLayerSample.from(result);
         var embedded = new ArrayList<EntityAnimationClip>();
         for(var candidate:track.getClips()) if(candidate instanceof EntitySpawnClip spawn && !spawn.isMuted()

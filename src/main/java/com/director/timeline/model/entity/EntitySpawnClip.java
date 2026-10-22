@@ -19,6 +19,9 @@ public class EntitySpawnClip extends EntityClip {
     public void setBlendSettings(com.director.actor.rig.skeleton.PoseBlendSettings settings) { blendSettings = java.util.Objects.requireNonNull(settings); }
 
 
+    private ActorPresetBinding preset;
+    public ActorPresetBinding getPreset() { return preset; }
+    public void setPreset(ActorPresetBinding value) { preset=value; }
     private String boneAnimationId;
     private EntityAnimationClip boneAnimation;
     public String getBoneAnimationId() {return boneAnimationId;}

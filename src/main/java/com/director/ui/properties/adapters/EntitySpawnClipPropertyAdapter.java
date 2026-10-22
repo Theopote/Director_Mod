@@ -54,6 +54,7 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         ImGui.endDisabled();
         changed = ImGui.checkbox(tr("visible")+"##spawnVisible",clip.isVisibleOnSpawn());
         if (changed) clip.setVisibleOnSpawn(!clip.isVisibleOnSpawn()); gesture.observe("visible",changed);
+        com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.render(source,clip,gesture);
         com.director.ui.properties.actor.ActorAnimationBlendPropertyUI.render(source,clip.getBlendSettings(),clip::setBlendSettings,gesture);
         gesture.end();
         com.director.ui.properties.actor.ActorRootKeyframePropertyUI.render(source); return false;

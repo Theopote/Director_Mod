@@ -104,6 +104,10 @@ public final class ActorAnimationAssetEditing {
             if (payload == null) continue;
             for (var clip : payload.getClips()) {
                 if (clip instanceof EntityAnimationClip animation && id.equals(animation.getAnimationId())) count++;
+                if (clip instanceof com.director.timeline.model.entity.EntitySpawnClip spawn) {
+                    if(id.equals(spawn.getBoneAnimationId())) count++;
+                    if(spawn.getPreset()!=null && id.equals(spawn.getPreset().animationId())) count++;
+                }
             }
         }
         return count;
@@ -112,7 +116,7 @@ public final class ActorAnimationAssetEditing {
     public static void delete(TimelineModel model, AnimationAssetLibrary library, String id) {
         requireEditing(model);
         AnimationAsset asset = requireAsset(library, id);
-        if (referenceCount(model, id) > 0) throw new IllegalArgumentException("动画仍被时间线引用，请先移除引用片段");
+        if (referenceCount(model, id) > 0) throw new IllegalArgumentException("动画仍被时间线引用，请先清除片段中的引用");
         TimelineCommandBridge.execute(new StateChangeCommand(model, "Delete animation asset",
                 () -> insertUnique(library, asset), () -> {
                     removeOwned(model, library, asset);
@@ -274,7 +278,7 @@ public final class ActorAnimationAssetEditing {
 
     private static void removeOwned(TimelineModel model, AnimationAssetLibrary library, AnimationAsset asset) {
         requireIdentity(library, asset);
-        if (referenceCount(model, asset.id()) > 0) throw new IllegalArgumentException("动画仍被时间线引用，请先移除引用片段");
+        if (referenceCount(model, asset.id()) > 0) throw new IllegalArgumentException("动画仍被时间线引用，请先清除片段中的引用");
         library.remove(asset.id());
     }
 }

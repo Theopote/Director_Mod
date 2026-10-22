@@ -27,6 +27,39 @@ class ActorClipPropertyEditSessionTest {
         clip.setPathId("legacy"); clip.setFollowPath(true); attach(clip); return clip;
     }
     EntityLookAtClip look() { var clip = new EntityLookAtClip("Look", 0,1); attach(clip); return clip; }
+    @Test void spawnPresetAndManualAssetsCountAsPersistentReferences() {
+        var spawn=new EntitySpawnClip("Actor",0,10);spawn.setBoneAnimationId("test:manual");
+        spawn.setPreset(new ActorPresetBinding("test:preset",false,1,com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT));
+        spawn.setMuted(true);attach(spawn);track.setMuted(true);
+        assertEquals(1,com.director.ui.actor.pose.ActorAnimationAssetEditing.referenceCount(model,"test:preset"));
+        assertEquals(1,com.director.ui.actor.pose.ActorAnimationAssetEditing.referenceCount(model,"test:manual"));
+        spawn.setPreset(null);
+        assertEquals(0,com.director.ui.actor.pose.ActorAnimationAssetEditing.referenceCount(model,"test:preset"));
+        assertEquals(1,com.director.ui.actor.pose.ActorAnimationAssetEditing.referenceCount(model,"test:manual"));
+    }
+
+    @Test void spawnPresetBindClearUndoKeepsManualKeysAndSingleWrapper() {
+        var spawn=new EntitySpawnClip("Actor",0,10);spawn.setBoneAnimationId("test:manual");
+        var key=new EntityClipKeyframe(2);spawn.addKeyframe(key);attach(spawn);var wrapper=spawn.getTimelineClip();
+        var binding=new ActorPresetBinding("wave",true,1.5f,com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT);
+        var edit=new ActorClipPropertyEditSession(model,spawn);
+        ((EntitySpawnClip)edit.draft()).setPreset(binding);assertNull(spawn.getPreset());assertTrue(edit.commit());
+        assertEquals(binding,spawn.getPreset());assertEquals(1,track.getClips().size());
+        assertEquals("test:manual",spawn.getBoneAnimationId());assertSame(key,spawn.getKeyframes().getFirst());
+        assertTrue(history.undo());assertNull(spawn.getPreset());assertTrue(history.redo());assertEquals(binding,spawn.getPreset());
+        edit=new ActorClipPropertyEditSession(model,spawn);((EntitySpawnClip)edit.draft()).setPreset(null);
+        assertTrue(edit.commit());assertNull(spawn.getPreset());assertTrue(history.undo());assertEquals(binding,spawn.getPreset());
+        assertSame(wrapper,spawn.getTimelineClip());assertSame(key,spawn.getKeyframes().getFirst());
+    }
+    @Test void missingPresetRejectsAtomicallyButExistingBrokenBindingCanBeCleared() {
+        var spawn=new EntitySpawnClip("Actor",0,10);attach(spawn);
+        var invalid=new ActorPresetBinding("test:missing-preset",false,1,com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT);
+        var edit=new ActorClipPropertyEditSession(model,spawn);((EntitySpawnClip)edit.draft()).setPreset(invalid);
+        assertThrows(IllegalArgumentException.class,edit::commit);assertNull(spawn.getPreset());
+        spawn.setPreset(invalid);edit=new ActorClipPropertyEditSession(model,spawn);((EntitySpawnClip)edit.draft()).setPreset(null);
+        assertTrue(edit.commit());assertNull(spawn.getPreset());assertTrue(history.undo());assertEquals(invalid,spawn.getPreset());
+    }
+
     @Test void editsExplicitInactiveClipInsteadOfActiveClipAtPlayhead() {
         var source = transform(); var active = new EntityTransformClip("Active", 4,6); attach(active);
         var edit = new ActorClipPropertyEditSession(model, source);

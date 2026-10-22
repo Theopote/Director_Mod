@@ -217,6 +217,7 @@ public class TimelineModelPersistence {
         public Float spawnX, spawnY, spawnZ;
         public Float yawDeg, pitchDeg;
         public String spawnBoneAnimationId;
+        public EntityClipDTO spawnPreset;
         // Raw optional values isolate malformed blend fields from the rest of the clip DTO.
         public com.google.gson.JsonElement poseBlendMode,poseBlendWeight,poseBlendChannels,poseBlendAllBones,
                 poseBlendBones,poseBlendFadeIn,poseBlendFadeOut;
@@ -1442,6 +1443,7 @@ public class TimelineModelPersistence {
                 cdto.yawDeg = sc.getYawDeg();
                 cdto.pitchDeg = sc.getPitchDeg();
                 cdto.spawnBoneAnimationId = sc.getBoneAnimationId();
+                if(sc.getPreset()!=null) cdto.spawnPreset=entityClipToDTO(sc.getPreset().asClip(sc.getStartTime(),sc.getEndTime()));
                 cdto.setPoseBlend(sc.getBlendSettings());
                 cdto.spawnRoll = sc.getRollDeg();
                 cdto.spawnScaleX = sc.getScale().x; cdto.spawnScaleY = sc.getScale().y; cdto.spawnScaleZ = sc.getScale().z;
@@ -1583,6 +1585,19 @@ public class TimelineModelPersistence {
                 if (cdto.yawDeg != null) sc.setYawDeg(cdto.yawDeg);
                 if (cdto.pitchDeg != null) sc.setPitchDeg(cdto.pitchDeg);
                 sc.setBoneAnimationId(cdto.spawnBoneAnimationId);
+                if(cdto.spawnPreset!=null) {
+                    var preset=cdto.spawnPreset;
+                    try {
+                        // Read only animation fields; nested Spawn data is never recursively followed.
+                        var animation=new com.director.timeline.model.entity.EntityAnimationClip("演员预设",sc.getStartTime(),sc.getEndTime());
+                        preset.restorePoseBlend(animation);
+                        sc.setPreset(new com.director.timeline.model.entity.ActorPresetBinding(preset.animationId,
+                                preset.animationLoop==null || preset.animationLoop,
+                                preset.animationSpeed==null?1:preset.animationSpeed,animation.getBlendSettings()));
+                    } catch(IllegalArgumentException invalid) {
+                        LOGGER.warn("[TimelineModelPersistence] 已跳过无效演员预设: {}",invalid.getMessage());
+                    }
+                }
                 cdto.restorePoseBlend(sc);
                 if (cdto.spawnRoll != null) sc.setRollDeg(cdto.spawnRoll);
                 if (cdto.spawnScaleX != null && cdto.spawnScaleY != null && cdto.spawnScaleZ != null)

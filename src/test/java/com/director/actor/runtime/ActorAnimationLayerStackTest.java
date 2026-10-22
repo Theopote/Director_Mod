@@ -18,6 +18,30 @@ class ActorAnimationLayerStackTest {
         preset.setSpeed(2);preset.setLoop(true);track.addClip(preset);
         return track;
     }
+    @Test void spawnOwnedPresetWorksWithAndWithoutManualAnimationAndTracksMovedTime() {
+        var track=new ActorTrack("Actor");var spawn=new EntitySpawnClip("Actor",2,8);track.addClip(spawn);
+        spawn.setPreset(new ActorPresetBinding("wave",true,2,PoseBlendSettings.DEFAULT));
+        var sampler=new EntityClipSampler(track);var sample=sampler.sampleSnapshot(3);
+        assertEquals("wave",sample.animationId);assertEquals(1,sample.animationLocalTime);assertNull(sample.presetAnimation);
+        spawn.setBoneAnimationId(MISSING);sample=sampler.sampleSnapshot(3);
+        assertEquals(MISSING,sample.animationId);assertEquals("wave",sample.presetAnimation.id());
+        assertEquals(1,sample.presetAnimation.localTime());
+        spawn.setTimeRange(4,10);sample=sampler.sampleSnapshot(5);
+        assertEquals(1,sample.presetAnimation.localTime());assertNull(sampler.sampleSnapshot(3).presetAnimation);
+        spawn.setPreset(null);assertNull(sampler.sampleSnapshot(5).presetAnimation);assertEquals(1,track.getClips().size());
+    }
+    @Test void spawnPresetRoundTripsWithIndependentBlendSettingsAndManualReference() {
+        var spawn=new EntitySpawnClip("Actor",2,8);spawn.setBoneAnimationId(MISSING);
+        var blend=new PoseBlendSettings(PoseLayer.BlendMode.ADDITIVE,.3f,2,false,Set.of("right_arm"),.4f,.7f);
+        spawn.setPreset(new ActorPresetBinding("wave",true,1.5f,blend));
+        var dto=com.director.timeline.persistence.TimelineModelPersistence.entityClipToDTO(spawn);
+        var loaded=(EntitySpawnClip)com.director.timeline.persistence.TimelineModelPersistence.entityClipFromDTO(dto);
+        assertEquals(spawn.getPreset(),loaded.getPreset());assertEquals(MISSING,loaded.getBoneAnimationId());
+        assertEquals(PoseBlendSettings.DEFAULT,loaded.getBlendSettings());
+        assertThrows(IllegalArgumentException.class,()->new ActorPresetBinding("wave",false,Float.NaN,blend));
+        assertThrows(IllegalArgumentException.class,()->new ActorPresetBinding(" ",false,1,blend));
+    }
+
     @Test void independentClocksSettingsAndCopySurviveSampling() {
         var track=track();
         var preset=(EntityAnimationClip)track.getClips().stream().filter(c->c instanceof EntityAnimationClip).findFirst().orElseThrow();
