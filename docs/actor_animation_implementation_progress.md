@@ -1476,3 +1476,11 @@ ActorRouteFootContact只接入无手工动画的标准玩家自动ONCE路径姿�
 - Bone properties now identify endpoint turn rotations and foot-contact translations, then describe preset/manual ownership on top. Updated path feedback to include procedural local effects instead of claiming paths never affect local bones.
 - Regression coverage includes upper-body isolation, leg protection, source labels and authored priority. 631 tests pass; in-game visual verification remains outstanding.
 - Next priorities: actual foot IK and sole orientation, species-specific turn capability/stride, integrated path + preset + manual keys + gaze + props acceptance. Current support correction remains bounded translation, not complete IK.
+
+### 2026-10-23 — Rotation-only endpoint leg solve
+
+- Endpoint support correction now solves bounded hip rotation and encoded knee bend against the actual deformed sole query. Hip/knee translations and segment scales remain unchanged; unreachable targets receive a best-effort bounded rotation instead of stretching or moving the hip.
+- Fixed iteration budget, small paired hip/knee seeds for straight-leg singularity, and temporary candidate poses keep seeking deterministic and avoid modifying ownership when no correction is useful.
+- Existing authored-control release and foot-exchange envelope remain in effect. Source feedback now identifies support correction on rotation channels. Ordinary walking still uses the previous contact correction.
+- Added smooth/sharp deformation, reachable/unreachable target, unchanged hip/scale and no-op channel tests. Actor regression suite: 634 tests, zero failures/errors.
+- Remaining: in-game quality/performance verification, sole orientation locking, locomotion IK, terrain-specific constraints, and species-specific turning. This is not full terrain foot IK.

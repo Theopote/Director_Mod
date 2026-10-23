@@ -61,13 +61,9 @@ public final class ActorRouteFootContact {
         target.div(sample.scale);
         var correction=target.sub(solePosition(pose,leg));
         if (correction.length()>.2f) correction.normalize().mul(.2f);
-        int index=pose.rig().requireBoneIndex(leg);
-        int parent=pose.rig().bone(index).parentIndex();
-        if(parent>=0) pose.calculateModelTransforms()[parent].invert().transformDirection(correction);
         if(!correction.isFinite()) return;
-        var current=pose.localTransform(index);
-        pose.setLocalTransform(index,new BoneTransform(current.translation().add(correction.mul(envelope*strength)),
-                current.rotation(),current.scale()),RigPose.TRANSLATION);
+        var desired=solePosition(pose,leg).add(correction.mul(envelope*strength));
+        ActorTurnLegIk.solve(pose,leg,desired);
     }
 
     private static float contactWeight(java.util.Map<String,Float> weights,String leg,String shin) {

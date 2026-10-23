@@ -52,7 +52,7 @@ final class ActorBoneControlSource {
         com.director.actor.runtime.ActorRouteTurnPose.apply(base,sample);
         if(channel==RigPose.ROTATION && (base.authoredChannels(index)&channel)!=0)
             return "路径端点转身／换脚";
-        if(channel==RigPose.TRANSLATION) {
+        if(channel==RigPose.ROTATION) {
             com.director.actor.runtime.ActorRouteFootContact.apply(base,sample);
             if((base.authoredChannels(index)&channel)!=0) return "路径脚底接触修正（上层动画优先）";
         }

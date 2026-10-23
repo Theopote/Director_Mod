@@ -77,12 +77,12 @@ class ActorBoneControlSourceTest {
         route.setEndpointTurnDuration(.4f);sample.routeClip=route;sample.routeLocalTime=2.1f;
         var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
         assertTrue(ActorBoneControlSource.source(HumanoidRig.LEFT_LEG,2,sample,pose).contains("换脚"));
-        assertTrue(ActorBoneControlSource.source(HumanoidRig.RIGHT_LEG,1,sample,pose).contains("脚底"));
+        assertTrue(ActorBoneControlSource.source(HumanoidRig.RIGHT_LEG,2,sample,pose).contains("脚底"));
         assertFalse(ActorBoneControlSource.source(HumanoidRig.HEAD,2,sample,pose).contains("换脚"));
         sample.poseOverrideEnabled=true;sample.poseOverrideHead=true;
-        assertTrue(ActorBoneControlSource.source(HumanoidRig.RIGHT_LEG,1,sample,pose).contains("脚底"));
+        assertTrue(ActorBoneControlSource.source(HumanoidRig.RIGHT_LEG,2,sample,pose).contains("脚底"));
         sample.poseOverrideLegs=true;
-        assertFalse(ActorBoneControlSource.source(HumanoidRig.RIGHT_LEG,1,sample,pose).contains("脚底"));
+        assertFalse(ActorBoneControlSource.source(HumanoidRig.RIGHT_LEG,2,sample,pose).contains("脚底"));
         assertEquals("姿态片段",ActorBoneControlSource.source(HumanoidRig.LEFT_LEG,2,sample,pose));
         sample.poseOverrideEnabled=false;
         pose.setLocalTransform(pose.rig().requireBoneIndex(HumanoidRig.LEFT_LEG),pose.localTransform(HumanoidRig.LEFT_LEG),2);

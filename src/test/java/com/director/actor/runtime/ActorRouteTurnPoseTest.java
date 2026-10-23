@@ -78,9 +78,10 @@ class ActorRouteTurnPoseTest {
         var full=new RigPose(ArticulatedPlayerRig.DEFINITION);var half=new RigPose(full.rig());
         ActorRouteFootContact.apply(full,s);
         ActorRouteFootContact.apply(half,s,java.util.Map.of(HumanoidRig.RIGHT_LEG,.5f));
-        var rest=full.rig().bone(full.rig().requireBoneIndex(HumanoidRig.RIGHT_LEG)).restLocal().translation();
-        assertTrue(full.localTransform(HumanoidRig.RIGHT_LEG).translation().sub(rest).mul(.5f)
-                .equals(half.localTransform(HumanoidRig.RIGHT_LEG).translation().sub(rest),1e-6f));
+        var rest=ActorRouteFootContact.solePosition(new RigPose(full.rig()),HumanoidRig.RIGHT_LEG);
+        float fullMove=ActorRouteFootContact.solePosition(full,HumanoidRig.RIGHT_LEG).distance(rest);
+        float halfMove=ActorRouteFootContact.solePosition(half,HumanoidRig.RIGHT_LEG).distance(rest);
+        assertTrue(fullMove>0);assertTrue(halfMove>0 && halfMove<fullMove);
         for(float time:new float[]{2,2.2f,2.4f}) {
             var pose=new RigPose(full.rig());ActorRouteFootContact.apply(pose,sample(time));
             for(String leg:List.of(HumanoidRig.LEFT_LEG,HumanoidRig.RIGHT_LEG)) assertTrue(unchanged(pose,leg));
@@ -88,9 +89,9 @@ class ActorRouteTurnPoseTest {
     }
     @Test void upperBodyQuickPoseKeepsTurnSupportWhileLegPoseDisablesIt() {
         var s=sample(2.1f);s.poseOverrideEnabled=true;s.poseOverrideHead=true;s.poseOverrideArms=true;s.poseOverrideBody=true;
-        var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);var rest=pose.localTransform(HumanoidRig.RIGHT_LEG).translation();
-        ActorRouteFootContact.apply(pose,s);assertNotEquals(rest,pose.localTransform(HumanoidRig.RIGHT_LEG).translation());
+        var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);var rest=ActorRouteFootContact.solePosition(pose,HumanoidRig.RIGHT_LEG);
+        ActorRouteFootContact.apply(pose,s);assertNotEquals(rest,ActorRouteFootContact.solePosition(pose,HumanoidRig.RIGHT_LEG));
         s.poseOverrideLegs=true;pose=new RigPose(pose.rig());ActorRouteFootContact.apply(pose,s);
-        assertEquals(rest,pose.localTransform(HumanoidRig.RIGHT_LEG).translation());
+        assertEquals(rest,ActorRouteFootContact.solePosition(pose,HumanoidRig.RIGHT_LEG));
     }
 }
