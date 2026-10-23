@@ -20,6 +20,38 @@ import java.util.UUID;
 public final class ActorAnimationAssetEditing {
     private ActorAnimationAssetEditing() {}
 
+    public static com.director.timeline.model.entity.EntitySpawnClip previewPresetAttachment(
+            TimelineModel model, AnimationAssetLibrary library, String id, TimelineTrack track) {
+        var asset = requireAsset(library, id);
+        Target.capture(model, track, asset);
+        var spawn = ActorEmbeddedAnimation.target(model, track);
+        if (spawn == null) throw new IllegalArgumentException("请将播放头放在可编辑的演员片段内");
+        var actor = com.director.actor.ActorRegistryManager.getInstance().getActor(track.getActorTrackPayload().getActorRef().getActorId()).orElseThrow();
+        var rig = com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElseThrow();
+        if (!com.director.actor.rig.skeleton.RigPoseComposer.sameLayout(rig, asset.rig()))
+            throw new IllegalArgumentException("动画骨架与演员不匹配");
+        return spawn;
+    }
+
+    public static void applyPreset(TimelineModel model, AnimationAssetLibrary library, String id, TimelineTrack track) {
+        var spawn = previewPresetAttachment(model, library, id, track);
+        var asset = requireAsset(library, id);
+        var target = Target.capture(model, track, asset);
+        var before = spawn.getPreset();
+        var after = new com.director.timeline.model.entity.ActorPresetBinding(id,
+                asset.loopMode() != AnimationLoopMode.ONCE, before == null ? 1 : before.speed(),
+                before == null ? com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT : before.blend());
+        if (after.equals(before)) return;
+        Runnable validate = () -> {
+            target.validate(model, asset);
+            requireIdentity(library, asset);
+            if (!target.payload().getClips().contains(spawn)) throw new IllegalArgumentException("演员片段已删除");
+        };
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Apply actor preset",
+                () -> { validate.run(); spawn.setPreset(before); model.invalidateActorEditContext(); },
+                () -> { validate.run(); spawn.setPreset(after); model.invalidateActorEditContext(); }));
+    }
+
     public static AnimationAsset importFile(TimelineModel model, AnimationAssetLibrary library,
                                             java.nio.file.Path file, String newId) throws java.io.IOException {
         requireEditing(model);
@@ -296,7 +328,7 @@ public final class ActorAnimationAssetEditing {
 
     private static void requireEditing(TimelineModel model) {
         Objects.requireNonNull(model, "model");
-        if (model.isPlaying()) throw new IllegalArgumentException("请先暂停播放再编辑动画资产");
+        if (model.isPlaying() || model.isScrubbing()) throw new IllegalArgumentException("请先暂停播放再编辑动画资产");
     }
 
     private static void requireIdentity(AnimationAssetLibrary library, AnimationAsset asset) {

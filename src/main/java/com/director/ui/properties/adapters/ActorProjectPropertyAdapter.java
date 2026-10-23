@@ -100,7 +100,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     private String bbModelImportMessage = "";
     private final ImFloat groupActionDuration = new ImFloat(2.0f);
     private final ImFloat groupActionIntensity = new ImFloat(1.0f);
-    private final ImBoolean groupActionLoop = new ImBoolean(true);
+    private final java.util.Map<ActorGroup, UUID> routeSources = new java.util.WeakHashMap<>();
     
     // Delete confirm state
     private UUID deletingActorId = null;
@@ -159,11 +159,14 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 openCreateActorPopup();
             }
             ImGui.sameLine();
+            var timeline = DirectorServices.get().containerTimeline().getTimelineModel();
+            ImGui.beginDisabled(timeline == null || timeline.isPlaying() || timeline.isScrubbing());
             if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ADD_GROUP))) {
                 createGroup(actorRegistry);
                 modified = true;
             }
             
+            ImGui.endDisabled();
             // 创建 Actor 弹窗
             renderCreateActorPopup(actorRegistry);
         }
@@ -288,7 +291,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 groupActionDuration.getData(), 0.05f, 20.0f, "%.2fs");
         ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY) + "##groupActionIntensity" + group.getGroupId(),
                 groupActionIntensity.getData(), 0.0f, 1.0f, "%.2f");
-        ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.LOOP) + "##groupActionLoop" + group.getGroupId(), groupActionLoop);
 
         var preview = ActorGroupTimelineCommandService.getInstance().previewActions(
                 DirectorServices.get().containerTimeline().getTimelineModel(), group, currentBrush, groupActionDuration.get());
@@ -305,7 +307,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     currentBrush,
                     groupActionDuration.get(),
                     groupActionIntensity.get(),
-                    groupActionLoop.get()
+                    false
             );
             LOGGER.info("[ActorProjectPropertyAdapter] Created {} group action clips for {}", created, group.getName());
         }
@@ -321,11 +323,22 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ImGui.spacing();
         UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ROUTE), UITheme.DarkTheme.TEXT);
 
-        UUID sourceActorId = ActorSelectionHub.getSelectedActorId();
-        String sourceLabel = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.SOURCE_FMT,
-                sourceActorId != null ? sourceActorId.toString()
-                        : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.SOURCE_NONE));
-        ImGui.textDisabled(sourceLabel);
+        var registry = ActorRegistryManager.getInstance();
+        UUID sourceActorId = routeSources.get(group);
+        if (sourceActorId != null && !registry.contains(sourceActorId)) {
+            routeSources.remove(group);
+            sourceActorId = null;
+        }
+        String sourceName = sourceActorId == null ? "请选择路径源演员" : registry.getActor(sourceActorId).map(Actor::getName).orElse("");
+        if (ImGui.beginCombo("路径源演员##routeSource" + group.getGroupId(), sourceName)) {
+            for (Actor candidate : registry.getAllActors()) {
+                if (ImGui.selectable(candidate.getName() + "##" + candidate.getActorId(), candidate.getActorId().equals(sourceActorId))) {
+                    sourceActorId = candidate.getActorId();
+                    routeSources.put(group, sourceActorId);
+                }
+            }
+            ImGui.endCombo();
+        }
 
         var preview = ActorGroupTimelineCommandService.getInstance().previewRoutes(
                 DirectorServices.get().containerTimeline().getTimelineModel(), group, sourceActorId);
@@ -679,6 +692,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (actor == null) {
             return false;
         }
+        var timeline = DirectorServices.get().containerTimeline().getTimelineModel();
+        var registry = ActorRegistryManager.getInstance();
+        ImGui.beginDisabled(timeline == null || timeline.isPlaying() || timeline.isScrubbing());
         boolean modified = false;
         UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.SECTION), UITheme.DarkTheme.TEXT);
 
@@ -688,15 +704,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.wide"),
                     net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.slim")};
             if (ImGui.combo(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model"), model, labels)) {
-                actor.setPlayerModel(Actor.PlayerModel.values()[Math.clamp(model.get(), 0, labels.length - 1)]);
-                ActorRegistryManager.save();
+                com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withModel(Actor.PlayerModel.values()[Math.clamp(model.get(), 0, labels.length - 1)]), () -> ActorSkinTextureManager.invalidate(actor.getActorId()));
                 modified = true;
             }
             ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.hint"));
             ImInt bendMode=new ImInt(actor.getLimbBendMode().ordinal());
             if(ImGui.combo("肘膝弯曲模式##actorLimbBend",bendMode,new String[]{"平滑弯曲","直接折弯"})) {
-                actor.setLimbBendMode(com.director.actor.rig.skeleton.LimbBendMode.values()[bendMode.get()]);
-                ActorRegistryManager.save();
+                com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withBend(com.director.actor.rig.skeleton.LimbBendMode.values()[bendMode.get()]), () -> {});
                 modified=true;
             }
             ImGui.textWrapped("两种模式共用关节关键帧，支持 0–160°。直接折弯保留刚性上下段，用局部折面连接；大角度时关节会适当向外撑开，避免内侧翻面。");
@@ -710,11 +724,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             if (chosen != null && !chosen.isBlank()) {
                 try {
                     Path source = Paths.get(chosen.trim());
-                    String relative = ActorSkinStorage.importSkin(source, actor.getActorId());
+                    // Keep imported files immutable so undo can restore an earlier skin binding.
+                    String relative = ActorSkinStorage.importSkin(source, UUID.randomUUID());
                     if (relative != null) {
-                        actor.setSkinFileName(relative);
-                        ActorSkinTextureManager.invalidate(actor.getActorId());
-                        ActorRegistryManager.save();
+                        com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withSkin(relative), () -> ActorSkinTextureManager.invalidate(actor.getActorId()));
                         modified = true;
                     }
                 } catch (Exception e) {
@@ -731,15 +744,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.CLEAR))) {
             UUID id = actor.getActorId();
-            ActorSkinStorage.deleteSkin(id);
-            actor.setSkinFileName(null);
-            ActorSkinTextureManager.invalidate(id);
-            ActorRegistryManager.save();
+            com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withSkin(null), () -> ActorSkinTextureManager.invalidate(id));
             modified = true;
         }
         if (!hasSkin) {
             ImGui.endDisabled();
         }
+        ImGui.endDisabled();
         return modified;
     }
 
@@ -773,22 +784,22 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return false;
         }
 
+        var timeline = DirectorServices.get().containerTimeline().getTimelineModel();
+        ImGui.beginDisabled(timeline == null || timeline.isPlaying() || timeline.isScrubbing());
         boolean modified = false;
         UUID actorId = actor.getActorId();
         for (ActorGroup group : groups) {
             boolean member = group.containsActor(actorId);
             if (ImGui.checkbox(group.getName() + "##actorGroupMember" + group.getGroupId(), member)) {
-                if (member) {
-                    group.removeActor(actorId);
-                } else {
-                    group.addActor(actorId);
-                }
+                com.director.ui.actor.ActorProjectEditing.setMembership(
+                        DirectorServices.get().containerTimeline().getTimelineModel(), actorRegistry, group, actorId, !member);
                 modified = true;
             }
         }
         if (modified) {
             ActorRegistryManager.save();
         }
+        ImGui.endDisabled();
         return modified;
     }
     
@@ -839,7 +850,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         while (actorRegistry.hasGroupWithName(candidate)) {
             candidate = name + " " + suffix++;
         }
-        actorRegistry.createGroup(candidate);
+        com.director.ui.actor.ActorProjectEditing.createGroup(DirectorServices.get().containerTimeline().getTimelineModel(), actorRegistry, candidate);
         ActorRegistryManager.save();
         LOGGER.info("[ActorProjectPropertyAdapter] Created ActorGroup: {}", candidate);
     }

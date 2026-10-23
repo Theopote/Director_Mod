@@ -17,6 +17,29 @@ class ActorAnimationAssetEditingTest {
     ActorAnimationAssetEditingTest() { TimelineCommandBridge.bind(history); }
     @AfterEach void cleanup() { TimelineCommandBridge.bind(null); }
 
+    @Test void applyingPresetReusesSpawnAndPreservesManualKeysThroughUndo() {
+        var registry = new com.director.actor.ActorRegistry();
+        com.director.actor.ActorRegistryManager.setRegistry(registry);
+        try {
+            var actor = registry.createActor("P", com.director.actor.ActorType.PLAYER);
+            var track = new TimelineTrack("Actor", TrackType.ACTOR); model.addTrack(track);
+            var payload = track.getOrCreateActorTrackPayload(); payload.setActorRef(com.director.actor.ActorRef.of(actor));
+            var spawn = new com.director.timeline.model.entity.EntitySpawnClip("Spawn", 0, 5);
+            spawn.setBoneAnimationId("manual:keys"); payload.addClip(spawn);
+            var wrapper = new com.director.timeline.model.entity.EntityTimelineClip(spawn, 0); track.addClip(wrapper);
+            var asset = ActorAnimationAssetEditing.createForActor(model, library, "project:preset", "Preset", 2, actor.getActorId());
+            ActorAnimationAssetEditing.applyPreset(model, library, asset.id(), track);
+            assertEquals(asset.id(), spawn.getPreset().animationId());
+            assertEquals("manual:keys", spawn.getBoneAnimationId());
+            assertEquals(1, payload.getClips().size()); assertEquals(java.util.List.of(wrapper), track.getClips());
+            assertTrue(history.undo()); assertNull(spawn.getPreset());
+            assertTrue(history.redo()); assertEquals(asset.id(), spawn.getPreset().animationId());
+            track.setLocked(true);
+            assertThrows(IllegalArgumentException.class, () -> ActorAnimationAssetEditing.applyPreset(model, library, asset.id(), track));
+            assertEquals(1, payload.getClips().size());
+        } finally { com.director.actor.ActorRegistryManager.setRegistry(null); }
+    }
+
     @Test void independentPresetChangesOnlyLowerReferenceAndUndoRedoKeepSharedSource() {
         var registry=new com.director.actor.ActorRegistry();com.director.actor.ActorRegistryManager.setRegistry(registry);
         var actor=registry.createActor("A",com.director.actor.ActorType.PLAYER);

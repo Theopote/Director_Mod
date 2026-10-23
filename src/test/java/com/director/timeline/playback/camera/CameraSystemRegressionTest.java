@@ -7,6 +7,8 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 import java.util.List;
+import java.util.Objects;
+
 import static org.junit.jupiter.api.Assertions.*;
 class CameraSystemRegressionTest {
     private CameraKeyframe key(float t, float x) {
@@ -188,7 +190,7 @@ class CameraSystemRegressionTest {
         var next=model(shot("B",100)); next.setCurrentTime(2); controller.init(next);
         controller.restoreStateAfterExport(saved);
         assertEquals(2,next.getCurrentTime());
-        assertEquals("B",controller.getActiveCameraTrack().getName());
+        assertEquals("B", Objects.requireNonNull(controller.getActiveCameraTrack()).getName());
     }
     @Test void repeatingModelAndTrackBindingDoesNotDiscardEditedPreview() {
         var track=shot("A",10); var model=model(track);

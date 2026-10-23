@@ -47,7 +47,7 @@ public final class ActorAnimationAssetPanel {
             ImGui.textDisabled("时间线引用：" + ActorAnimationAssetEditing.referenceCount(model, selected.id()));
             ImGui.textWrapped("编辑此资产会影响所有引用它的片段。需要独立修改时，请先复制。");
         }
-        boolean readOnly = model.isPlaying() || ActorBoneGizmoController.getInstance().isDragging()
+        boolean readOnly = model.isPlaying() || model.isScrubbing() || ActorBoneGizmoController.getInstance().isDragging()
                 || ActorBonePropertiesPanel.hasNumericDraft();
         if (readOnly) ImGui.textWrapped(I18n.translate("gui.director.actor.assets.read_only"));
         var actor = actorId == null ? null : com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
@@ -86,20 +86,22 @@ public final class ActorAnimationAssetPanel {
                 return;
             }
             TimelineTrack target = null;
-            ActorAnimationAssetEditing.AttachmentPreview preview = null;
+            com.director.timeline.model.entity.EntitySpawnClip preview = null;
             String reason = "";
             try {
                 target = ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
-                preview = ActorAnimationAssetEditing.previewAttachment(model, library, selected.id(), target);
+                preview = ActorAnimationAssetEditing.previewPresetAttachment(model, library, selected.id(), target);
             } catch (IllegalArgumentException e) { reason = e.getMessage(); }
-            if (preview != null && preview.overlappingClips() > 0)
-                ImGui.textWrapped(I18n.translate("gui.director.actor.assets.overlap", preview.overlappingClips()));
+            if (preview != null) {
+                ImGui.textWrapped("应用到片段：" + preview.getName() + "。保留手动骨骼关键帧。");
+                if (preview.getPreset() != null)
+                    ImGui.textWrapped("将替换此片段当前的动作预设，可撤销。");
+            }
             if (!reason.isEmpty()) ImGui.textWrapped(reason);
             ImGui.beginDisabled(preview == null);
-            if (ImGui.button("放到所选演员的播放头##assetAttach")) run(() -> {
+            if (ImGui.button("作为当前演员片段的动作预设##assetAttach")) run(() -> {
                 var track = ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
-                var wrapper = ActorAnimationAssetEditing.attach(model, library, selected.id(), track);
-                model.selectItem(wrapper, false);
+                ActorAnimationAssetEditing.applyPreset(model, library, selected.id(), track);
             });
             ImGui.endDisabled();
             EntityAnimationClip active = activeClip(model, target);
@@ -129,7 +131,7 @@ public final class ActorAnimationAssetPanel {
                         throw new IllegalArgumentException(I18n.translate("gui.director.actor.assets.import_context_changed"));
                     selectAsset(ActorAnimationAssetEditing.importFile(model, library,
                             java.nio.file.Path.of(file), importId.get()), library);
-                    message = "导入完成，可撤销。通过放到播放头复用此动作。";
+                    message = "导入完成，可撤销。可将此动作设为演员片段的预设。";
                 }
             } catch (java.io.IOException | RuntimeException e) {
                 message = "导入失败：" + e.getMessage();
@@ -173,7 +175,7 @@ public final class ActorAnimationAssetPanel {
     private static EntityAnimationClip activeClip(TimelineModel model, TimelineTrack track) {
         if (track == null || track.getActorTrackPayload() == null) return null;
         EntityAnimationClip active = null;
-        for (var clip : track.getActorTrackPayload().getClips()) {
+        for (var clip : ActorEmbeddedAnimation.clips(track.getActorTrackPayload())) {
             if (clip instanceof EntityAnimationClip animation && !animation.isMuted()
                     && model.getCurrentTime() >= clip.getStartTime() && model.getCurrentTime() <= clip.getEndTime()
                     && (active == null || clip.getStartTime() >= active.getStartTime())) active = animation;

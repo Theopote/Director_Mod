@@ -1,6 +1,5 @@
 package com.director.actor.runtime;
 
-import com.director.timeline.model.entity.EntityLookAtClip;
 import com.director.actor.ActorRegistryManager;
 import com.director.actor.preview.ActorPreviewManager;
 import net.minecraft.client.MinecraftClient;
@@ -15,11 +14,12 @@ public final class ActorLookAtTargetResolver {
     private ActorLookAtTargetResolver() {}
     public static Vec3d resolve(String mode, Vector3f point, UUID target, UUID source,
                                Supplier<Vec3d> camera, Function<UUID, Vec3d> entities) {
-        Vec3d result;
-        if ("WORLD_POINT".equals(mode)) result = point == null ? null : new Vec3d(point.x, point.y, point.z);
-        else if ("CAMERA".equals(mode)) result = camera.get();
-        else if ("ENTITY_UUID".equals(mode)) result = target == null || target.equals(source) ? null : entities.apply(target);
-        else result = null;
+        Vec3d result = switch (mode) {
+            case "WORLD_POINT" -> point == null ? null : new Vec3d(point.x, point.y, point.z);
+            case "CAMERA" -> camera.get();
+            case "ENTITY_UUID" -> target == null || target.equals(source) ? null : entities.apply(target);
+            case null, default -> null;
+        };
         return result != null && Double.isFinite(result.x) && Double.isFinite(result.y) && Double.isFinite(result.z) ? result : null;
     }
     public static Vec3d resolveClient(String mode, Vector3f point, UUID target, UUID source) {

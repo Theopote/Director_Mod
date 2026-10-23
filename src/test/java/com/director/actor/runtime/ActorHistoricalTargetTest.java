@@ -21,7 +21,7 @@ class ActorHistoricalTargetTest {
             public void addTrackStructureListener(TrackStructureListener l){}
             public void removeTrackStructureListener(TrackStructureListener l){}
         };
-        for(var entry:Map.<String,Object>of("timelineSource",source,"actorRegistry",registry).entrySet()) {
+        for(var entry:Map.of("timelineSource",source,"actorRegistry",registry).entrySet()) {
             var field=ActorRuntimeController.class.getDeclaredField(entry.getKey());field.setAccessible(true);
             original.put(entry.getKey(),field.get(controller));field.set(controller,entry.getValue());
         }
@@ -74,7 +74,9 @@ class ActorHistoricalTargetTest {
         method.invoke(runtime,null,7f,slot,attachment);
         var repeat=(org.joml.Matrix4f)method.invoke(runtime,null,3f,slot,attachment);assertTrue(dynamic.equals(repeat,1e-6f));
         var eye=controller.sampleHistoricalActorEye(target,3);
-        gaze.setMode(EntityLookAtClip.TargetMode.WORLD_POINT);gaze.setWorldPoint((float)eye.x,(float)eye.y,(float)eye.z);
+        gaze.setMode(EntityLookAtClip.TargetMode.WORLD_POINT);
+        assertNotNull(eye);
+        gaze.setWorldPoint((float)eye.x,(float)eye.y,(float)eye.z);
         var fixed=(org.joml.Matrix4f)method.invoke(runtime,null,3f,slot,attachment);
         assertTrue(dynamic.equals(fixed,1e-6f));
     }
