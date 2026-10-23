@@ -237,5 +237,15 @@ public class CameraKeyframe implements TimelineSelectable {
     
     public float getAperture() { return aperture; }
     public void setAperture(float aperture) { this.aperture = aperture; }
+    /** Detached authoring snapshot used by non-playback queries. */
+    public CameraKeyframe copy() {
+        CameraKeyframe copy=new CameraKeyframe(getName(),getTime());
+        copy.setPosition(new org.joml.Vector3f(getPosition()));copy.setRotation(new org.joml.Vector3f(getRotation()));
+        copy.setFov(getFov());copy.setNearPlane(getNearPlane());copy.setFarPlane(getFarPlane());
+        copy.setKeyType(getKeyType());copy.setSegmentPathType(getSegmentPathType());copy.setRotationInterpolation(getRotationInterpolation());
+        copy.setBezierInHandle(getBezierInHandle());copy.setBezierOutHandle(getBezierOutHandle());copy.setHandleMode(getHandleMode());
+        copy.setDepthOfFieldEnabled(isDepthOfFieldEnabled());copy.setFocusDistance(getFocusDistance());copy.setAperture(getAperture());
+        return copy;
+    }
 }
 

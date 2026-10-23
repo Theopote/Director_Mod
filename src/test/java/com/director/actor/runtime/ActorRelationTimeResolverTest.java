@@ -32,10 +32,10 @@ class ActorRelationTimeResolverTest {
     @Test void unsupportedRelationDoesNotRewritePosition() {
         var s=follower(b); s.relationType="PASS_OBJECT"; ActorRelationTimeResolver.resolveInto(a,s,1,(id,t)->base(4,0)); assertEquals(10,s.position.x);
     }
-    @Test void maintainGazeWritesWorldPointAndLaunchYawMatchesPreviewFormula() {
+    @Test void maintainGazeWritesWorldPointWithoutRewritingRootRotation() {
         var s=follower(b); s.relationMaintainLookAt=true; ActorRelationTimeResolver.resolveInto(a,s,1,(id,t)->base(0,0));
         assertEquals("WORLD_POINT",s.lookAtMode); assertEquals(new Vector3f(0,1.6f,0),s.lookAtPoint);
-        float yaw=ActorRelationTimeResolver.worldLookYaw(s); ActorRelationTimeResolver.applyWorldLookRotation(s); assertEquals(yaw,s.rotation.x);
+        assertEquals(0,s.rotation.x);assertEquals(0,s.rotation.y);
     }
     @Test void relativePositionDoesNotForceLookAt() {
         var s=follower(b); s.relationMaintainLookAt=true; s.relationType="RELATIVE_POSITION";

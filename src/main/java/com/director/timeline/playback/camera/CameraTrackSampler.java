@@ -64,6 +64,7 @@ public final class CameraTrackSampler {
     private final Map<CameraPathClip, CameraPathEnterContext> entries = new IdentityHashMap<>();
     private final Set<CameraPathClip> resolving = Collections.newSetFromMap(new IdentityHashMap<>());
     private CameraSample entrySeed;
+    private boolean allowRuntimeSeed=true;
     public void resetPathState() {
         entries.clear(); resolving.clear(); lastActivePathClip = null;
         entryOrientationClip = null; lastSample = null; entrySeed = null;
@@ -193,6 +194,37 @@ public final class CameraTrackSampler {
      * @param timeSeconds 时间（秒）
      * @return 如果成功采样则返回 CameraSample，否则返回 empty
      */
+    private static boolean hasExplicitEntry(CameraPathClip clip) {
+        if(clip instanceof CustomPathClip) return true;
+        if(clip instanceof com.director.timeline.model.camera.path.DollyPathClip value)
+            return !value.isAlignStartToCurrentPosition() && value.getStartPosition()!=null && value.getDollyDirection()!=null;
+        if(clip instanceof com.director.timeline.model.camera.path.CranePathClip value)
+            return !value.isAlignStartToCurrentPosition() && value.getStartPosition()!=null;
+        if(clip instanceof com.director.timeline.model.camera.path.OrbitPathClip value)
+            return value.getHeightMode()==com.director.timeline.model.camera.path.OrbitPathClip.HeightMode.ABSOLUTE
+                    && value.getRadiusMode()==com.director.timeline.model.camera.path.OrbitPathClip.RadiusMode.ABSOLUTE
+                    && value.getStartAngleMode()==com.director.timeline.model.camera.path.OrbitPathClip.StartAngleMode.CUSTOM;
+        return false;
+    }
+
+    /** Query on detached clips/keys; never consumes playback entry state or current camera. */
+    public Optional<CameraSample> sampleSnapshot(TimelineTrack source,Collection<CameraKeyframe> frames,float time) {
+        if(source==null || source.isMuted() || !Float.isFinite(time) || time<0) return Optional.empty();
+        var track=new TimelineTrack(source.getName(),com.director.timeline.model.TrackType.CAMERA);
+        for(var clip:source.getCameraPathClips()) {
+            var copy=clip.copy();
+            if(clip instanceof com.director.timeline.model.camera.path.DollyPathClip original && copy instanceof com.director.timeline.model.camera.path.DollyPathClip value)
+                value.setAlignStartToCurrentPosition(original.isAlignStartToCurrentPosition());
+            if(clip instanceof com.director.timeline.model.camera.path.CranePathClip original && copy instanceof com.director.timeline.model.camera.path.CranePathClip value)
+                value.setAlignStartToCurrentPosition(original.isAlignStartToCurrentPosition());
+            track.addCameraPathClip(copy);
+        }
+        var query=new CameraTrackSampler();query.setCameraTrack(track);
+        query.setKeyframes(frames.stream().map(CameraKeyframe::copy).toList());
+        query.entrySeed=entrySeed;query.allowRuntimeSeed=false;
+        return query.sample(time);
+    }
+
     public Optional<CameraSample> sample(float timeSeconds) {
         return sampleAtTime(timeSeconds);
     }
@@ -246,6 +278,7 @@ public final class CameraTrackSampler {
             }
 
             CameraPathEnterContext ctx = resolvePathClipEnterContext(activePathClip);
+            if(ctx==null && !allowRuntimeSeed && !hasExplicitEntry(activePathClip)) return Optional.empty();
             if (ctx != null) {
                 activePathClip.onEnter(ctx);
                 entryOrientationClip = activePathClip;
@@ -457,11 +490,13 @@ public final class CameraTrackSampler {
             if (before.isEmpty() && !keyframes.isEmpty()) before = pathManager.sample(entryTime);
             CameraSample seed = before.orElseGet(() -> {
                 if (entrySeed == null) {
+                    if(!allowRuntimeSeed) return null;
                     var runtime = CameraRuntime.getInstance().getCurrentSample();
                     entrySeed = runtime == null ? CameraSample.EMPTY : runtime;
                 }
                 return entrySeed;
             });
+            if(seed==null) return null;
             var ctx = new CameraPathEnterContext(seed.position(), seed.yaw(), seed.pitch());
             entries.put(enteringClip, ctx);
             return ctx;
@@ -490,6 +525,7 @@ public final class CameraTrackSampler {
         }
 
         var context = resolvePathClipEnterContext(activePathClip);
+        if(context==null && !allowRuntimeSeed && !hasExplicitEntry(activePathClip)) return Optional.empty();
         if (context != null) activePathClip.onEnter(context);
         CameraPathSample pathSample = activePathClip.sample(timeSeconds);
         if (pathSample == null) {

@@ -65,14 +65,5 @@ public final class ActorRelationTimeResolver {
         float target=(float)Math.toDegrees(Math.atan2(d.z,d.x))-90;
         return s.rotation.x+(target-s.rotation.x)*Math.max(0,Math.min(1,s.lookAtStrength));
     }
-    /** Match the preview's world-point gaze when sampling a launch matrix, without mutating an entity. */
-    public static void applyWorldLookRotation(EntitySample s) {
-        if (!worldLook(s)) return;
-        var d=new org.joml.Vector3f(s.lookAtPoint).sub(s.position).normalize();
-        float strength=Math.max(0,Math.min(1,s.lookAtStrength));
-        s.rotation.x=worldLookYaw(s);
-        float pitch=(float)-Math.toDegrees(Math.asin(d.y));
-        s.rotation.y+=(pitch-s.rotation.y)*strength;
-    }
     private static final class Cycle extends RuntimeException {}
 }

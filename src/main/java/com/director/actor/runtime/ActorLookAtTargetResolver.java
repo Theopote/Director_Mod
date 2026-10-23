@@ -31,7 +31,20 @@ public final class ActorLookAtTargetResolver {
         }, id -> {
             var previews = ActorPreviewManager.getInstance();
             var preview = previews.getPreview(id);
-            if (preview != null) return preview.isInvisible() || preview.isRemoved() ? null : preview.getEyePos();
+            if(preview!=null) {
+                if(preview.isInvisible() || preview.isRemoved()) return null;
+                if(preview instanceof com.director.actor.preview.ActorPosePreview rigPreview) {
+                    var pose=rigPreview.getFinalRigPose();
+                    if(pose!=null) {
+                        boolean player=preview instanceof com.director.actor.preview.PreviewPlayerActorEntity;
+                        var world=ActorWorldPoseEvaluator.resolve(pose,new Vector3f((float)preview.getX(),(float)preview.getY(),(float)preview.getZ()),
+                                preview.getYaw(),rigPreview.getActorTransformScale(),player);
+                        var eye=ActorWorldPoseEvaluator.eyePosition(pose,world,player);
+                        if(eye!=null) return new Vec3d(eye.x,eye.y,eye.z);
+                    }
+                }
+                return preview.getEyePos();
+            }
             // A project actor may temporarily have no visible preview; do not reinterpret its ID.
             if (ActorRegistryManager.getInstance().contains(id)) return null;
             var client = MinecraftClient.getInstance();

@@ -388,6 +388,12 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
         return cachedHasOverride;
     }
 
+    /** Historical query without changing camera owner, playhead or playback path state. */
+    public synchronized Optional<CameraSample> sampleSnapshot(float time) {
+        if(!isValidTrack(activeTrack)) return Optional.empty();
+        return sampler.sampleSnapshot(activeTrack,collectTrackCameraKeyframes(activeTrack),time);
+    }
+
     @Override
     public synchronized CameraSample getCurrentSample() {
         return CameraRuntime.getInstance().getCurrentSample();

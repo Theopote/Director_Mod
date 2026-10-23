@@ -219,4 +219,41 @@ class CameraSystemRegressionTest {
         var next=model(shot("B",100)); controller.init(next); controller.updateOwnerAndSample(.016f);
         assertTrue(CameraRuntime.getInstance().isPlayerOwner());
     }
+    @Test void historicalSnapshotDoesNotEnterOriginalPathsOrChangeCameraOwner() {
+        var track=new TimelineTrack("query",TrackType.CAMERA);
+        var dolly=new DollyPathClip("Dolly",0,2);dolly.setDistance(10);track.addCameraPathClip(dolly);
+        var sampler=new CameraTrackSampler();sampler.setCameraTrack(track);
+        var frames=List.of(key(0,0));sampler.setKeyframes(frames);
+        var owner=CameraRuntime.getInstance().isTimelineOwner();var current=CameraRuntime.getInstance().getCurrentSample();
+        var before=dolly.getStartPosition();
+        var a=sampler.sampleSnapshot(track,frames,1).orElseThrow();
+        assertEquals(5,a.position().z,1e-5);assertEquals(before,dolly.getStartPosition());
+        sampler.sampleSnapshot(track,frames,.2f);assertEquals(a,sampler.sampleSnapshot(track,frames,1).orElseThrow());
+        assertEquals(owner,CameraRuntime.getInstance().isTimelineOwner());assertEquals(current,CameraRuntime.getInstance().getCurrentSample());
+        assertEquals(a,sampler.sample(1).orElseThrow());
+    }
+    @Test void controllerSnapshotLeavesPlayheadPreviewAndBindingUnchanged() {
+        var track=shot("A",10);var model=model(track);model.setCurrentTime(1);
+        var controller=TimelineCameraController.getInstance();controller.init(model);controller.previewAt(1);
+        var current=controller.getCurrentSample();var owner=CameraRuntime.getInstance().isTimelineOwner();
+        assertEquals(10,controller.sampleSnapshot(3).orElseThrow().position().x);
+        assertEquals(1,model.getCurrentTime());assertSame(track,controller.getActiveCameraTrack());
+        assertEquals(current,controller.getCurrentSample());assertEquals(owner,CameraRuntime.getInstance().isTimelineOwner());
+        track.setMuted(true);assertTrue(controller.sampleSnapshot(3).isEmpty());
+    }
+    @Test void historyWithoutRelativeEntryAnchorNeverReadsCurrentCamera() {
+        var track=new TimelineTrack("relative",TrackType.CAMERA);track.addCameraPathClip(new DollyPathClip("Dolly",0,2));
+        var sampler=new CameraTrackSampler();sampler.setCameraTrack(track);
+        assertTrue(sampler.sampleSnapshot(track,List.of(),1).isEmpty());
+        assertTrue(sampler.sampleSnapshot(track,List.of(),Float.NaN).isEmpty());
+    }
+    @Test void explicitlyAnchoredCameraPathCanBeQueriedWithoutKeyframes() {
+        var track=new TimelineTrack("fixed",TrackType.CAMERA);var dolly=new DollyPathClip("Dolly",0,2);
+        dolly.setStartPosition(new Vec3d(10,20,30));dolly.setDollyDirection(new Vec3d(0,0,1));
+        dolly.setAlignStartToCurrentPosition(false);dolly.setDistance(8);track.addCameraPathClip(dolly);
+        var sampler=new CameraTrackSampler();
+        var at=sampler.sampleSnapshot(track,List.of(),1).orElseThrow();
+        assertEquals(new Vec3d(10,20,34),at.position());
+        assertEquals(new Vec3d(10,20,30),dolly.getStartPosition());
+    }
 }

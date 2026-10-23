@@ -264,9 +264,25 @@ public final class ActorRuntimeController {
     // Runtime 管理
     // =========================================================
 
-    /**
-     * 重建运行时（当模型结构变化时调用）
-     */
+    /** Committed same-time eye anchor without spawning previews or resolving target gaze. */
+    public Vec3d sampleHistoricalActorEye(UUID id,float time) {
+        if(timelineSource==null || actorRegistry==null || id==null || !Float.isFinite(time) || time<0 || actorRegistry.getActor(id).isEmpty()) return null;
+        for(var track:timelineSource.getTracks()) {
+            var payload=track.getActorTrackPayload();
+            if(track.isMuted() || payload==null || payload.getActorRef()==null || !id.equals(payload.getActorRef().getActorId())) continue;
+            var runtime=runtimes.get(track);
+            if(runtime==null) runtime=new TrackRuntime(track);
+            var sampled=runtime.sampleCommittedPose(time);
+            if(sampled==null) return null;
+            boolean player=sampled.actor().getType()==com.director.actor.ActorType.PLAYER;
+            var value=sampled.sample();
+            var world=ActorWorldPoseEvaluator.resolve(sampled.pose(),value.position,value.rotation.x,value.scale,player);
+            var eye=ActorWorldPoseEvaluator.eyePosition(sampled.pose(),world,player);
+            return eye==null?null:new Vec3d(eye.x,eye.y,eye.z);
+        }
+        return null;
+    }
+
     private void rebuildRuntimes() {
         diagnostics.clear();
         runtimes.clear();
@@ -522,46 +538,53 @@ public final class ActorRuntimeController {
             return null;
         }
 
-        private org.joml.Matrix4f samplePropLaunchTransform(Entity entity, float time, ActorPropSlot slot,
-                com.director.actor.prop.ActorPropTimelineSampler.Attachment attachment) {
+        private record CommittedPose(com.director.actor.Actor actor,EntitySample sample,com.director.actor.rig.skeleton.RigPose pose) {}
+        private CommittedPose sampleCommittedPose(float time) {
+            var sourceActor=actorRegistry.resolve(actorTrack.getActorRef()).orElse(null);
+            if(sourceActor==null || ownerTrack.isMuted()) return null;
             var at = new EntityClipSampler(actorTrack).sampleSnapshot(time);
-            var rig = com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElse(null);
-            if (at == null || rig == null || !com.director.actor.ActorBehaviorCapabilities.supportsLegacyPose(actor)) return null;
-            applyGroundRoute(actor.getActorId(),at,time);
-            ActorRelationTimeResolver.resolveInto(actor.getActorId(),at,time,this::sampleRelationTarget,this::constrainRelationPlacement,
+            var rig = com.director.actor.rig.ActorRigCompatibility.resolveRig(sourceActor).orElse(null);
+            if (at == null || rig == null || !com.director.actor.ActorBehaviorCapabilities.supportsLegacyPose(sourceActor)) return null;
+            applyGroundRoute(sourceActor.getActorId(),at,time);
+            ActorRelationTimeResolver.resolveInto(sourceActor.getActorId(),at,time,this::sampleRelationTarget,this::constrainRelationPlacement,
                             (id,message)->reportPlacement(id,time,"relation",false,message));
             restoreRelationJump(at,time);
             if (!previewActive(at) || at.visibility<=.01f) return null;
-            ActorRelationTimeResolver.applyWorldLookRotation(at);
-            var base = ActorRouteGait.sample(at,actor.getRigProfile(),new ActorRuntime()).pose;
-            base=ActorRouteGait.settle(base,at,actor.getRigProfile());
+            var base = ActorRouteGait.sample(at,sourceActor.getRigProfile(),new ActorRuntime()).pose;
+            base=ActorRouteGait.settle(base,at,sourceActor.getRigProfile());
             var asset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(at.animationId)
-                    .filter(value -> com.director.actor.rig.ActorRigCompatibility.accepts(actor,value.rigId()));
+                    .filter(value -> com.director.actor.rig.ActorRigCompatibility.accepts(sourceActor,value.rigId()));
             var definition=asset.isPresent()?asset.get().rig():rig;
-            var primaryClock=ActorPresetClock.resolve(com.director.timeline.playback.entity.ActorAnimationLayerSample.from(at),at,actor.getRigProfile());
+            var primaryClock=ActorPresetClock.resolve(com.director.timeline.playback.entity.ActorAnimationLayerSample.from(at),at,sourceActor.getRigProfile());
             var authored=asset.isPresent()?asset.get().sample(at.animationLocalTime*Math.max(.01f,at.animationSpeed),
                     at.animationLoop?asset.get().loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE)
                     :AnimationDataSampler.sampleRig(primaryClock.id(),definition,primaryClock.localTime(),primaryClock.loop(),primaryClock.speed());
-            var preset=ActorPresetClock.resolve(at.presetAnimation,at,actor.getRigProfile());
+            var preset=ActorPresetClock.resolve(at.presetAnimation,at,sourceActor.getRigProfile());
             var presetPose=preset==null?null:preset.sample(definition);
-            var evaluated=ActorPoseEvaluator.evaluate(actor.getType(),actor.getRigProfile(),definition,base,at,
+            var evaluated=ActorPoseEvaluator.evaluate(sourceActor.getType(),sourceActor.getRigProfile(),definition,base,at,
                     presetPose==null?null:new ActorPoseEvaluator.Layer(presetPose,preset.settings(),preset.envelope()),
-                    authored==null?null:new ActorPoseEvaluator.Layer(authored,at.animationBlendSettings,primaryClock.envelope()),actor.getLimbBendMode());
-            for(var diagnostic:evaluated.diagnostics()) reportPlacement(actor.getActorId(),time,diagnostic.stage(),false,diagnostic.detail().reason());
+                    authored==null?null:new ActorPoseEvaluator.Layer(authored,at.animationBlendSettings,primaryClock.envelope()),sourceActor.getLimbBendMode());
+            for(var diagnostic:evaluated.diagnostics()) reportPlacement(sourceActor.getActorId(),time,diagnostic.stage(),false,diagnostic.detail().reason());
             var pose=evaluated.pose();
-            var root=pose.localTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT);
-            if(root.translation().lengthSquared()>1e-10f) {
-                var finalPosition=finalRootPlacement(new Vec3d(at.position.x,at.position.y,at.position.z),root.translation(),at.rotation.x,at,time);
-                if(finalPosition.position()==null) return null;
-                var feet=finalPosition.position(); at.position.set((float)feet.x,(float)feet.y,(float)feet.z);
-                pose.setLocalTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT,
-                        new com.director.actor.rig.skeleton.BoneTransform(new org.joml.Vector3f(),root.rotation(),root.scale()));
-            }
-            boolean player=actor.getType()==com.director.actor.ActorType.PLAYER;
+            var placed=resolveRootPlacement(sourceActor.getActorId(),pose,new Vec3d(at.position.x,at.position.y,at.position.z),at.rotation.x,at,time);
+            if(placed.position()==null) return null;
+            var feet=placed.position();at.position.set((float)feet.x,(float)feet.y,(float)feet.z);
+            pose=placed.pose();
+            return new CommittedPose(sourceActor,at,pose);
+        }
+
+        private org.joml.Matrix4f samplePropLaunchTransform(Entity entity,float time,ActorPropSlot slot,
+                com.director.actor.prop.ActorPropTimelineSampler.Attachment attachment) {
+            var sampled=sampleCommittedPose(time);
+            if(sampled==null) return null;
+            var at=sampled.sample();var pose=sampled.pose();
+            boolean player=sampled.actor().getType()==com.director.actor.ActorType.PLAYER;
             // No current-camera/current-entity fallback for a past-time query.
             var target=at.lookAtEnabled?ActorLookAtTargetResolver.resolve(at.lookAtMode,at.lookAtPoint,
-                    at.lookAtEntityUuid,actor.getActorId(),()->null,id->null):null;
-            if(at.lookAtEnabled && target==null) reportPlacement(actor.getActorId(),time,"gaze-history",false,
+                    at.lookAtEntityUuid,sampled.actor().getActorId(),
+                    ()->com.director.timeline.playback.camera.TimelineCameraController.getInstance().sampleSnapshot(time).map(value->value.position()).orElse(null),
+                    id->sampleHistoricalActorEye(id,time)):null;
+            if(at.lookAtEnabled && at.lookAtStrength>0 && target==null) reportPlacement(sampled.actor().getActorId(),time,"gaze-history",false,
                     "历史注视目标无法在该时刻解析，已保留头部动画。");
             var placed=ActorWorldPoseEvaluator.evaluate(pose,at.position,at.rotation.x,at.scale,player,
                     target==null?null:new org.joml.Vector3f((float)target.x,(float)target.y,(float)target.z),at.lookAtStrength);
@@ -831,7 +854,7 @@ public final class ActorRuntimeController {
                     boolean boneDragging = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
                             && actor.getActorId().equals(com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().getActorId());
                     if (!boneDragging || boneDraft!=null) {
-                        applyRootAnimationOffset((Entity)previewEntity, finalRigPose,s);
+                        finalRigPose=applyRootPlacement((Entity)previewEntity,finalRigPose,s);
                         previewEntity.setFinalRigPose(finalRigPose);
                     }
                 }
@@ -897,39 +920,25 @@ public final class ActorRuntimeController {
             // Route height is authored on the curve; legacy procedural hops are not applied.
         }
 
-        private com.director.actor.path.ActorRelationGroundConstraint.Result finalRootPlacement(
-                Vec3d base,org.joml.Vector3f offset,float yaw,EntitySample sample,float time) {
-            if (sample.routeClip != null) {
-                var worldOffset = new org.joml.Matrix4f().rotateY((float)Math.toRadians(-yaw)).scale(sample.scale)
-                        .transformDirection(new org.joml.Vector3f(offset));
-                return new com.director.actor.path.ActorRelationGroundConstraint.Result(
-                        base.add(worldOffset.x,worldOffset.y,worldOffset.z), "");
-            }
-            var terrain=terrainFor(actor.getActorId(),sample);
-            if(terrain==null) { reportPlacement(actor.getActorId(),time,"root",true,"动作地形尚未就绪");
-                return new com.director.actor.path.ActorRelationGroundConstraint.Result(null,"动作地形尚未就绪"); }
-            var worldOffset=new org.joml.Matrix4f().rotateY((float)Math.toRadians(-yaw)).scale(sample.scale)
-                    .transformDirection(new org.joml.Vector3f(offset));
-            double jump=sample.routeClip==null?0:com.director.actor.path.GroundRoute.jumpOffset(
-                    Math.max(0,time-sample.routeClip.getStartTime()),sample.routeClip.getJumpStart(),sample.routeClip.getJumpDuration(),sample.routeClip.getJumpHeight());
-            var result=com.director.actor.path.ActorFinalGroundPlacement.project(base,
-                    new Vec3d(worldOffset.x,worldOffset.y,worldOffset.z),jump,terrain);
-            reportPlacement(actor.getActorId(),time,"root",result.position()==null,result.warning());
+        private ActorRootPlacementEvaluator.Result resolveRootPlacement(UUID actorId,com.director.actor.rig.skeleton.RigPose pose,
+                Vec3d base,float yaw,EntitySample sample,float time) {
+            var mode=sample.routeClip!=null?ActorRootPlacementEvaluator.Mode.EXACT_ROUTE:ActorRootPlacementEvaluator.Mode.GROUND_CONSTRAINED;
+            var terrain=ActorRootPlacementEvaluator.needsTerrain(pose,mode)?terrainFor(actorId,sample):null;
+            var result=ActorRootPlacementEvaluator.evaluate(pose,base,yaw,sample.scale,mode,terrain);
+            reportPlacement(actorId,time,"root",result.position()==null,result.warning());
             return result;
         }
-        private void applyRootAnimationOffset(Entity entity,com.director.actor.rig.skeleton.RigPose pose,EntitySample sample) {
-            if(entity==null || pose==null || pose.rig().findBoneIndex(com.director.actor.rig.skeleton.HumanoidRig.ROOT)<0) return;
+        private com.director.actor.rig.skeleton.RigPose applyRootPlacement(Entity entity,com.director.actor.rig.skeleton.RigPose pose,EntitySample sample) {
+            if(entity==null || pose==null) return pose;
             var gizmo=com.director.ui.actor.gizmo.ActorGizmoController.getInstance();
-            if(gizmo.isDragging() && actor.getActorId().equals(gizmo.getTargetActorId())) return;
-            var offset=pose.localTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT).translation();
-            if(offset.lengthSquared()<=1e-10f) return;
-            var result=finalRootPlacement(new Vec3d(entity.getX(),entity.getY(),entity.getZ()),offset,entity.getYaw(),sample,timelineSource.getCurrentTime());
+            if(gizmo.isDragging() && actor.getActorId().equals(gizmo.getTargetActorId())) return pose;
+            // The sampled base never contains the prior frame's bone root offset.
+            var result=resolveRootPlacement(actor.getActorId(),pose,new Vec3d(sample.position.x,sample.position.y,sample.position.z),
+                    sample.rotation.x,sample,timelineSource.getCurrentTime());
             if(!result.warning().isEmpty() && sample.routeClip!=null) sample.routeClip.setTerrainWarning(result.warning());
-            if(result.position()==null) { sample.visibility=0; sample.speed=0; entity.setInvisible(true); return; }
-            var feet=result.position(); entity.refreshPositionAndAngles(feet.x,feet.y,feet.z,entity.getYaw(),entity.getPitch());
-            var root=pose.localTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT);
-            pose.setLocalTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT,
-                    new com.director.actor.rig.skeleton.BoneTransform(new org.joml.Vector3f(),root.rotation(),root.scale()));
+            if(result.position()==null) {sample.visibility=0;sample.speed=0;entity.setInvisible(true);return result.pose();}
+            var feet=result.position();entity.refreshPositionAndAngles(feet.x,feet.y,feet.z,entity.getYaw(),entity.getPitch());
+            return result.pose();
         }
 
         /**

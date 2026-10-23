@@ -18,7 +18,8 @@ public final class ActorGazeConstraint {
         if(Math.abs(local.determinant())<1e-10f) return false;
         var basis=world.transform(head).mul(local.invert());
         if(!basis.isFinite() || Math.abs(basis.determinant())<1e-10f) return false;
-        var eye=basis.transformPosition(new Vector3f(0,(playerModelAxes?-.25f:.125f)*current.scale().y,0));
+        var eye=ActorWorldPoseEvaluator.eyePosition(pose,world,playerModelAxes);
+        if(eye==null) return false;
         var direction=new Vector3f(target).sub(eye);
         if(direction.lengthSquared()<1e-4f) return false;
         basis.invert().transformDirection(direction);
