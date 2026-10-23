@@ -28,6 +28,14 @@ class ActorRoutePropertyEditSessionTest {
     }
     @AfterEach void cleanup() { TimelineCommandBridge.bind(null); ActorRegistryManager.setRegistry(null); }
     ActorRoutePropertyEditSession session() { return new ActorRoutePropertyEditSession(model, track, route); }
+    @Test void endpointTurnEditsAreUndoableAndInvalidateOlderGeometryDrafts() {
+        var stale=ActorPathEditing.route(model,track,route);
+        var edit=session();edit.draft().setLoopMode(ActorRouteClip.LoopMode.PING_PONG);edit.draft().setEndpointTurnDuration(.4f);
+        assertTrue(edit.commit());assertEquals(.4f,route.getEndpointTurnDuration());assertFalse(stale.isCurrent());
+        assertTrue(history.undo());assertEquals(0,route.getEndpointTurnDuration());
+        assertTrue(history.redo());assertEquals(.4f,route.getEndpointTurnDuration());
+    }
+
     @Test void manyDraftUpdatesProduceOneUndoAndPreserveIndependentDuration() {
         var edit = session();
         for (int i = 1; i <= 10; i++) edit.draft().setSpeed(i);

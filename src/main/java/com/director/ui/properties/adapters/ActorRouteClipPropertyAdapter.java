@@ -141,6 +141,18 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
             }
 
             observe("loop");
+            if(clip.getLoopMode()==ActorRouteClip.LoopMode.PING_PONG) {
+                boolean stopTurn=clip.getEndpointTurnDuration()>0;
+                if(ImGui.checkbox("端点停下转身##routeStopTurn",stopTurn)) clip.setEndpointTurnDuration(stopTurn?0:.35f);
+                observe("stopTurn");
+                if(clip.getEndpointTurnDuration()>0) {
+                    float[] seconds={clip.getEndpointTurnDuration()};
+                    if(ImGui.sliderFloat("转身时长（秒）##routeTurnDuration",seconds,.1f,2)) clip.setEndpointTurnDuration(seconds[0]);
+                    observe("turnDuration");
+                    ImGui.textWrapped("每段行进先加速再减速，到端点原地转身；速度为行进段平均速度，每次折返增加转身时间。步态相位在转身期间暂停。");
+                    if(!clip.isAlignRotationToRoute()) ImGui.textWrapped("沿路朝向已关闭：会停顿折返，整体旋转继续由用户控制。");
+                }
+            }
             boolean align = clip.isAlignRotationToRoute();
             if (ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.ALIGN_ROTATION) + "##routeAlign", align)) {
                 clip.setAlignRotationToRoute(!align);

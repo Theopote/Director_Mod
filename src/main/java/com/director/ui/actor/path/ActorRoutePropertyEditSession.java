@@ -9,14 +9,14 @@ import java.util.UUID;
 public final class ActorRoutePropertyEditSession {
     private record State(ActorPathEditing.Geometry geometry, float start, float end, float speed,
                          ActorRouteClip.LoopMode loop, boolean align, float jumpStart,
-                         float jumpDuration, float jumpHeight, boolean smoothTravel) {
+                         float jumpDuration, float jumpHeight, boolean smoothTravel, float turnDuration) {
         static State capture(ActorRouteClip clip) {
             return new State(new ActorPathEditing.Geometry(clip.getWaypoints(), clip.getInterpolationMode()),
                     clip.getStartTime(), clip.getEndTime(), clip.getSpeed(), clip.getLoopMode(),
-                    clip.isAlignRotationToRoute(), clip.getJumpStart(), clip.getJumpDuration(), clip.getJumpHeight(), clip.isSmoothTravel());
+                    clip.isAlignRotationToRoute(), clip.getJumpStart(), clip.getJumpDuration(), clip.getJumpHeight(), clip.isSmoothTravel(),clip.getEndpointTurnDuration());
         }
         void validate() {
-            if (!Float.isFinite(start) || start < 0 || !Float.isFinite(end) || end - start < .1f
+            if (!Float.isFinite(turnDuration) || turnDuration<0 || turnDuration>2 || !Float.isFinite(start) || start < 0 || !Float.isFinite(end) || end - start < .1f
                     || !Float.isFinite(speed) || speed < .05f || speed > 20 || loop == null
                     || !Float.isFinite(jumpStart) || jumpStart < 0
                     || !Float.isFinite(jumpDuration) || jumpDuration < .1f || jumpDuration > .8f
@@ -27,7 +27,7 @@ public final class ActorRoutePropertyEditSession {
             if (!geometry.matches(clip.getWaypoints(), clip.getInterpolationMode())) geometry.apply(clip);
             clip.setTimeRange(start, end); clip.setSpeed(speed); clip.setLoopMode(loop);
             clip.setAlignRotationToRoute(align); clip.setJumpStart(jumpStart);
-            clip.setJumpDuration(jumpDuration); clip.setJumpHeight(jumpHeight); clip.setSmoothTravel(smoothTravel);
+            clip.setJumpDuration(jumpDuration); clip.setJumpHeight(jumpHeight); clip.setSmoothTravel(smoothTravel);clip.setEndpointTurnDuration(turnDuration);
         }
     }
     private final TimelineModel model;

@@ -12,6 +12,10 @@ public final class ActorRouteGait {
     }
     /** Bounded start/stop pose release; never changes distance, speed, or the gait phase. */
     public static float motionWeight(EntitySample sample) {
+        if(sample.routeClip!=null && sample.routeClip.hasEndpointTurns()) {
+            float ratio=ActorRouteMotion.stopTurn(sample.routeClip,sample.routeLocalTime).speed()/Math.max(.05f,sample.routeClip.getSpeed());
+            float t=Math.clamp(ratio,0f,1f);return t*t*(3-2*t);
+        }
         if(sample.routeClip==null || sample.routeClip.getLoopMode()!=com.director.timeline.model.entity.ActorRouteClip.LoopMode.ONCE) return 1;
         float duration=sample.routeClip.getLength(),local=sample.routeLocalTime;
         if(!Float.isFinite(duration) || duration<=0 || !Float.isFinite(local) || local<=0 || local>=duration) return 0;

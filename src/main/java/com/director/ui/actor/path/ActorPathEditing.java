@@ -40,6 +40,7 @@ public final class ActorPathEditing {
         private final float start, end, speed, jumpStart, jumpDuration, jumpHeight;
         private final ActorRouteClip.LoopMode loop;
         private final boolean align, smoothTravel;
+        private final float turnDuration;
         private final long terrainRevision;
         private final Runnable save;
 
@@ -56,6 +57,7 @@ public final class ActorPathEditing {
             speed = route == null ? 0 : route.getSpeed(); loop = route == null ? null : route.getLoopMode();
             align = route != null && route.isAlignRotationToRoute();
             smoothTravel = route != null && route.isSmoothTravel();
+            turnDuration=route==null?0:route.getEndpointTurnDuration();
             jumpStart = route == null ? 0 : route.getJumpStart(); jumpDuration = route == null ? 0 : route.getJumpDuration();
             jumpHeight = route == null ? 0 : route.getJumpHeight(); terrainRevision = route == null ? 0 : route.getTerrainRevision();
             if (!isCurrent()) throw new IllegalArgumentException("路径当前不可编辑，请重新选择目标");
@@ -71,7 +73,7 @@ public final class ActorPathEditing {
                     && route.getTimelineClip() != null && owner.getClips().contains(route.getTimelineClip())
                     && before.matches(route.getWaypoints(), route.getInterpolationMode())
                     && start == route.getStartTime() && end == route.getEndTime() && speed == route.getSpeed()
-                    && loop == route.getLoopMode() && align == route.isAlignRotationToRoute() && smoothTravel == route.isSmoothTravel()
+                    && loop == route.getLoopMode() && align == route.isAlignRotationToRoute() && smoothTravel == route.isSmoothTravel() && turnDuration==route.getEndpointTurnDuration()
                     && jumpStart == route.getJumpStart() && jumpDuration == route.getJumpDuration()
                     && jumpHeight == route.getJumpHeight() && terrainRevision == route.getTerrainRevision();
         }
@@ -99,7 +101,7 @@ public final class ActorPathEditing {
                     || route.getStartTime() != start || route.getEndTime() != expectedEnd
                     || route.getSpeed() != speed || route.getLoopMode() != loop
                     || route.isAlignRotationToRoute() != align || route.getJumpStart() != jumpStart
-                    || route.isSmoothTravel() != smoothTravel || route.getJumpDuration() != jumpDuration || route.getJumpHeight() != jumpHeight)
+                    || route.isSmoothTravel() != smoothTravel || route.getEndpointTurnDuration()!=turnDuration || route.getJumpDuration() != jumpDuration || route.getJumpHeight() != jumpHeight)
                 throw new IllegalArgumentException("路线目标或行为已变化，请重新选择");
             rejectOverlap(payload, route, start, nextEnd);
             next.apply(route); route.setTimeRange(start, nextEnd);

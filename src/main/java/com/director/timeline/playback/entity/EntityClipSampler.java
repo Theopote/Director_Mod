@@ -707,7 +707,8 @@ public class EntityClipSampler {
         float duration = routeDuration > 0.0f ? routeDuration : clipLength;
         float travelTime = resolveRouteTime(active, localTime, duration);
         var onceMotion = ActorRouteMotion.once(active, localTime);
-        float distance = fit ? onceMotion.distance() : travelTime * effectiveSpeed;
+        var turnMotion=active.hasEndpointTurns()?ActorRouteMotion.stopTurn(active,localTime):null;
+        float distance = turnMotion!=null?turnMotion.curveDistance():fit ? onceMotion.distance() : travelTime * effectiveSpeed;
 
         ActorRouteSampler.RouteSample sample = ActorRouteSampler.sampleAtDistance(active,distance);
         result.position.set(sample.position());
@@ -715,8 +716,10 @@ public class EntityClipSampler {
         result.motionLocalTime = localTime;
         result.speed = curveLength <= 1e-6f || routeDuration <= 0f || (active.getLoopMode() == ActorRouteClip.LoopMode.ONCE
                 && localTime >= routeDuration) ? 0f : fit ? onceMotion.speed() : effectiveSpeed;
-        Vector3f direction = active.isAlignRotationToRoute()?ActorRouteSampler.facingAtDistance(active,distance):sample.direction();
-        if (active.getLoopMode() == ActorRouteClip.LoopMode.PING_PONG && duration > 0f
+        if(turnMotion!=null) result.speed=turnMotion.speed();
+        Vector3f direction = turnMotion!=null?ActorRouteMotion.stopTurnFacing(active,turnMotion):
+                active.isAlignRotationToRoute()?ActorRouteSampler.facingAtDistance(active,distance):sample.direction();
+        if (turnMotion==null && active.getLoopMode() == ActorRouteClip.LoopMode.PING_PONG && duration > 0f
                 && localTime % (2f * duration) >= duration) direction.negate();
         if (active.isAlignRotationToRoute() && direction.lengthSquared() > 1.0e-6f) {
             result.rotation.x = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));

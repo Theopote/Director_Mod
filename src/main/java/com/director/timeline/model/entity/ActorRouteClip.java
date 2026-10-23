@@ -34,6 +34,13 @@ public final class ActorRouteClip extends EntityClip {
     private boolean smoothTravel;
     public boolean isSmoothTravel() { return smoothTravel; }
     public void setSmoothTravel(boolean value) { smoothTravel = value; }
+    private float endpointTurnDuration;
+    public float getEndpointTurnDuration() { return endpointTurnDuration; }
+    public void setEndpointTurnDuration(float value) {
+        if(!Float.isFinite(value) || value<0 || value>2) throw new IllegalArgumentException("转身时长必须为 0–2 秒");
+        endpointTurnDuration=value;
+    }
+    public boolean hasEndpointTurns() { return loopMode==LoopMode.PING_PONG && endpointTurnDuration>0; }
     private float speed = 2.0f;
     private boolean alignRotationToRoute = true;
     private float jumpStart;

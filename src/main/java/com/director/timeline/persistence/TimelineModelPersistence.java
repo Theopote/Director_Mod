@@ -302,6 +302,7 @@ public class TimelineModelPersistence {
         public String routeInterpolationMode;
         public String routeLoopMode;
         public Boolean routeSmoothTravel;
+        public Float routeEndpointTurnDuration;
         public String routeSourcePathId;
         public Float routeSpeed;
         public Boolean routeAlignRotation;
@@ -1518,6 +1519,7 @@ public class TimelineModelPersistence {
                 cdto.routeLoopMode = rc.getLoopMode() != null ? rc.getLoopMode().name() : null;
                 cdto.routeSourcePathId = rc.getSourcePathId() == null ? null : rc.getSourcePathId().toString();
                 cdto.routeSmoothTravel = rc.isSmoothTravel();
+                cdto.routeEndpointTurnDuration=rc.getEndpointTurnDuration();
                 cdto.routeSpeed = rc.getSpeed();
                 cdto.routeAlignRotation = rc.isAlignRotationToRoute();
                 cdto.routeJumpStart = rc.getJumpStart();
@@ -1702,6 +1704,11 @@ public class TimelineModelPersistence {
                     catch (IllegalArgumentException invalid) { /* Keep old geometry fallback. */ }
                 }
                 if (cdto.routeSmoothTravel != null) rc.setSmoothTravel(cdto.routeSmoothTravel);
+                if(cdto.routeEndpointTurnDuration!=null) {
+                    float turn=cdto.routeEndpointTurnDuration;
+                    if(Float.isFinite(turn) && turn>=0 && turn<=2) rc.setEndpointTurnDuration(turn);
+                    else LOGGER.warn("[TimelineModelPersistence] 已忽略无效路径转身时长，保留路线数据");
+                }
                 if (cdto.routeSpeed != null) rc.setSpeed(cdto.routeSpeed);
                 if (cdto.routeAlignRotation != null) rc.setAlignRotationToRoute(cdto.routeAlignRotation);
                 if (cdto.routeJumpStart != null) rc.setJumpStart(cdto.routeJumpStart);
