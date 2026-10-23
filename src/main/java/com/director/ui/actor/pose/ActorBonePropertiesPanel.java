@@ -370,7 +370,7 @@ public final class ActorBonePropertiesPanel {
                 if (ActorBoneInspector.supports(rig,boneId,channel))
                     ImGui.textWrapped(ActorBoneInspector.label(channel)+"："+ActorBoneControlSource.source(boneId,channel,sample,authored,preset));
             }
-            if (sample.routeClip != null) ImGui.textDisabled("整体移动：沿路径；路径只控制整体，不直接控制局部骨骼。");
+            if (sample.routeClip != null) ImGui.textDisabled("整体移动：沿路径；自动步态与端点换脚可影响局部骨骼，上层动画仍可覆盖。");
             if (HumanoidRig.HEAD.equals(boneId) && sample.lookAtEnabled && sample.lookAtStrength > 0)
                 ImGui.textWrapped("注视约束正在控制头部朝向。制作手工转头动画时，请关闭注视约束。");
         }

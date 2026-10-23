@@ -1469,3 +1469,10 @@ ActorRouteFootContact只接入无手工动画的标准玩家自动ONCE路径姿�
 - Correction releases at each exchange and turn boundary, is capped at 0.2 model units, and fades with authored root/thigh/shin control. Relation, quick pose and disabled route facing retain priority.
 - This reduces sole-position drift; it is not full IK or an exact world-space sole orientation lock. Visual acceptance in Minecraft is still required.
 - Added anchor-error, lifted-leg preservation, authored priority/weight, deterministic seek and boundary regression tests.
+
+### 2026-10-23 — Region ownership and procedural source feedback
+
+- Fixed foot contact being disabled by any quick-pose region: only enabled leg overrides suppress locomotion and endpoint support correction. Head, arms and waist do not parent the legs in the articulated rig. Authored root/leg weights still retain priority.
+- Bone properties now identify endpoint turn rotations and foot-contact translations, then describe preset/manual ownership on top. Updated path feedback to include procedural local effects instead of claiming paths never affect local bones.
+- Regression coverage includes upper-body isolation, leg protection, source labels and authored priority. 631 tests pass; in-game visual verification remains outstanding.
+- Next priorities: actual foot IK and sole orientation, species-specific turn capability/stride, integrated path + preset + manual keys + gaze + props acceptance. Current support correction remains bounded translation, not complete IK.

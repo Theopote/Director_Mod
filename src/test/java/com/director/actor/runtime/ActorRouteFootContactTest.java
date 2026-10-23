@@ -139,4 +139,16 @@ class ActorRouteFootContactTest {
             assertEquals(new RigPose(HumanoidRig.DEFINITION).localTransform(HumanoidRig.LEFT_LEG),manual.localTransform(HumanoidRig.LEFT_LEG));
         }
     }
+    @Test void upperBodyQuickPoseDoesNotDisableLegContact() {
+        for(int region=0;region<3;region++) {
+            var s=sample(.15f);s.poseOverrideEnabled=true;
+            s.poseOverrideHead=region==0;s.poseOverrideArms=region==1;s.poseOverrideBody=region==2;
+            var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
+            var rest=pose.localTransform(HumanoidRig.LEFT_LEG).translation();
+            ActorRouteFootContact.apply(pose,s);
+            assertNotEquals(rest,pose.localTransform(HumanoidRig.LEFT_LEG).translation());
+            s.poseOverrideLegs=true;pose=new RigPose(pose.rig());ActorRouteFootContact.apply(pose,s);
+            assertEquals(rest,pose.localTransform(HumanoidRig.LEFT_LEG).translation());
+        }
+    }
 }

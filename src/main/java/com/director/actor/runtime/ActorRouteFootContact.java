@@ -24,7 +24,7 @@ public final class ActorRouteFootContact {
     }
     public static void apply(RigPose pose,EntitySample sample,com.director.actor.rig.ActorRigProfile profile,
                              java.util.Map<String,Float> authoredWeights) {
-        if (ActorRouteTurnPose.supports(pose,sample) && !sample.poseOverrideEnabled
+        if (ActorRouteTurnPose.supports(pose,sample) && !(sample.poseOverrideEnabled && sample.poseOverrideLegs)
                 && sample.scale.x > .001f && sample.scale.y > .001f && sample.scale.z > .001f) {
             float progress=ActorRouteMotion.stopTurn(sample.routeClip,sample.routeLocalTime).turnProgress();
             if (progress>0 && progress<1) {
@@ -37,7 +37,7 @@ public final class ActorRouteFootContact {
                 || !sample.routeClip.isAlignRotationToRoute()
                 || (sample.actionExplicit && sample.action!=com.director.actor.action.ActorActionType.WALK
                     && sample.action!=com.director.actor.action.ActorActionType.RUN) || sample.relationEnabled
-                || sample.poseOverrideEnabled || sample.speed <= .02f || !HumanoidTopology.matches(pose.rig())
+                || (sample.poseOverrideEnabled && sample.poseOverrideLegs) || sample.speed <= .02f || !HumanoidTopology.matches(pose.rig())
                 || sample.scale.x <= .001f || sample.scale.y <= .001f || sample.scale.z <= .001f) return;
         float distance = ActorRouteMotion.distanceTravelled(sample.routeClip, sample.routeLocalTime);
         correct(pose,sample,HumanoidRig.LEFT_LEG,distance,stride,0,contactWeight(authoredWeights,HumanoidRig.LEFT_LEG,ArticulatedPlayerRig.LEFT_SHIN));

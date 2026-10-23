@@ -43,9 +43,27 @@ final class ActorBoneControlSource {
         return String.format(java.util.Locale.ROOT,"%s（%s %.0f%%）＋%s",name,
                 settings.mode()==PoseLayer.BlendMode.ADDITIVE?"叠加":"混合",100*weight,lower);
     }
+    private static String turnSource(String bone,int channel,EntitySample sample,RigPose reference) {
+        if(reference==null || channel==RigPose.SCALE) return null;
+        var base=new RigPose(reference.rig());
+        if(!com.director.actor.runtime.ActorRouteTurnPose.supports(base,sample)) return null;
+        int index=base.rig().findBoneIndex(bone);
+        if(index<0) return null;
+        com.director.actor.runtime.ActorRouteTurnPose.apply(base,sample);
+        if(channel==RigPose.ROTATION && (base.authoredChannels(index)&channel)!=0)
+            return "路径端点转身／换脚";
+        if(channel==RigPose.TRANSLATION) {
+            com.director.actor.runtime.ActorRouteFootContact.apply(base,sample);
+            if((base.authoredChannels(index)&channel)!=0) return "路径脚底接触修正（上层动画优先）";
+        }
+        return null;
+    }
+
     private static String baseSource(String bone,int channel,EntitySample sample,RigPose authored) {
         boolean humanoid=authored==null || HumanoidTopology.matches(authored.rig());
         if (!humanoid) return "模型默认姿态";
+        String turn=turnSource(bone,channel,sample,authored);
+        if(turn!=null) return turn;
         if (channel != RigPose.ROTATION || HumanoidRig.ROOT.equals(bone)) return "默认局部姿态／运行时修正";
         boolean arm=HumanoidRig.LEFT_ARM.equals(bone)||HumanoidRig.RIGHT_ARM.equals(bone);
         boolean leg=HumanoidRig.LEFT_LEG.equals(bone)||HumanoidRig.RIGHT_LEG.equals(bone);

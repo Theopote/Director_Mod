@@ -86,4 +86,11 @@ class ActorRouteTurnPoseTest {
             for(String leg:List.of(HumanoidRig.LEFT_LEG,HumanoidRig.RIGHT_LEG)) assertTrue(unchanged(pose,leg));
         }
     }
+    @Test void upperBodyQuickPoseKeepsTurnSupportWhileLegPoseDisablesIt() {
+        var s=sample(2.1f);s.poseOverrideEnabled=true;s.poseOverrideHead=true;s.poseOverrideArms=true;s.poseOverrideBody=true;
+        var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);var rest=pose.localTransform(HumanoidRig.RIGHT_LEG).translation();
+        ActorRouteFootContact.apply(pose,s);assertNotEquals(rest,pose.localTransform(HumanoidRig.RIGHT_LEG).translation());
+        s.poseOverrideLegs=true;pose=new RigPose(pose.rig());ActorRouteFootContact.apply(pose,s);
+        assertEquals(rest,pose.localTransform(HumanoidRig.RIGHT_LEG).translation());
+    }
 }
