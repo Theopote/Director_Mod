@@ -1454,3 +1454,11 @@ ActorRouteFootContact只接入无手工动画的标准玩家自动ONCE路径姿�
 游戏内入口：选中演员路径片段，在属性中将循环设为“往返”，开启“端点停下转身”，调整转身时长；检查端点停住、原地转向、相位暂停、反向行进，并测试关闭沿路朝向与手工整体旋转。
 
 下一项：完善原地转身的脚步表现及身体/头部跟随，区分演员类型能力；核验转身期间的注视、手持物品和上层手工姿态不会被过程化动作覆盖。
+
+
+### 2026-10-23 — Player endpoint turn stepping
+
+- Added stateless alternating hip/knee lifts and a small waist follow during enabled path endpoint turns, only for articulated player rigs. Travel and turn boundaries remain neutral; seeking does not accumulate state.
+- Applied before preset/manual channel composition in live and prop socket sampling. Quick body/leg overrides, explicit performance actions, relation constraints, and disabled route orientation suppress their corresponding procedural changes. Head and arms are not directly modified.
+- No extra clips, keyframes, or persistent actor settings are created. Other species retain whole-actor turns.
+- Regression suite: 625 tests, zero failures/errors. In-game visual validation remains required; support-foot locking is not implemented by this lift pose.

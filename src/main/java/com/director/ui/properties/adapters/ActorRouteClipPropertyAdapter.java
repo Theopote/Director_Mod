@@ -150,6 +150,7 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
                     if(ImGui.sliderFloat("转身时长（秒）##routeTurnDuration",seconds,.1f,2)) clip.setEndpointTurnDuration(seconds[0]);
                     observe("turnDuration");
                     ImGui.textWrapped("每段行进先加速再减速，到端点原地转身；速度为行进段平均速度，每次折返增加转身时间。步态相位在转身期间暂停。");
+                    ImGui.textWrapped("玩家转身时交替抬脚；手工姿态优先。其他生物暂只调整整体朝向。");
                     if(!clip.isAlignRotationToRoute()) ImGui.textWrapped("沿路朝向已关闭：会停顿折返，整体旋转继续由用户控制。");
                 }
             }
