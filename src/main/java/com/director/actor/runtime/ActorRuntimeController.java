@@ -531,32 +531,24 @@ public final class ActorRuntimeController {
             ActorRelationTimeResolver.resolveInto(actor.getActorId(),at,time,this::sampleRelationTarget,this::constrainRelationPlacement,
                             (id,message)->reportPlacement(id,time,"relation",false,message));
             restoreRelationJump(at,time);
-            if (at.visibility<=.01f) return null;
+            if (!previewActive(at) || at.visibility<=.01f) return null;
             ActorRelationTimeResolver.applyWorldLookRotation(at);
             var base = ActorRouteGait.sample(at,actor.getRigProfile(),new ActorRuntime()).pose;
             base=ActorRouteGait.settle(base,at,actor.getRigProfile());
-            var pose = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(base,rig);
-            if(actor.getType()==com.director.actor.ActorType.PLAYER) {
-                ActorRouteGait.applyJoints(pose,at,actor.getRigProfile(),!at.poseOverrideArms,!at.poseOverrideLegs);
-                ActorRouteTurnPose.apply(pose,at);
-            }
             var asset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(at.animationId)
                     .filter(value -> com.director.actor.rig.ActorRigCompatibility.accepts(actor,value.rigId()));
+            var definition=asset.isPresent()?asset.get().rig():rig;
             var primaryClock=ActorPresetClock.resolve(com.director.timeline.playback.entity.ActorAnimationLayerSample.from(at),at,actor.getRigProfile());
-            var authored = asset.isPresent()
-                    ? asset.get().sample(at.animationLocalTime*Math.max(.01f,at.animationSpeed),
-                            at.animationLoop?asset.get().loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE)
-                    : AnimationDataSampler.sampleRig(primaryClock.id(),rig,primaryClock.localTime(),primaryClock.loop(),primaryClock.speed());
-            pose=ActorRigPoseComposition.prependPreset(pose,ActorPresetClock.resolve(at.presetAnimation,at,actor.getRigProfile()),
-                    diagnostic -> reportPlacement(actor.getActorId(),time,"preset-layer",false,
-                            "预设动作骨架与当前手工动画不兼容，已跳过预设。"),new java.util.HashMap<>());
-            if (authored != null) {
-                pose=ActorRigPoseComposition.compose(pose,authored,
-                        value -> applyRigPoseOverrides(value,at),diagnostic -> reportPlacement(actor.getActorId(),time,
-                                "pose-layer",false,"骨骼动作层与当前演员不兼容，已跳过该层。"),at.animationBlendSettings,primaryClock.envelope());
-            }
-            if (authored == null) applyRigPoseOverrides(pose,at);
-            pose.setLimbBendMode(actor.getLimbBendMode());
+            var authored=asset.isPresent()?asset.get().sample(at.animationLocalTime*Math.max(.01f,at.animationSpeed),
+                    at.animationLoop?asset.get().loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE)
+                    :AnimationDataSampler.sampleRig(primaryClock.id(),definition,primaryClock.localTime(),primaryClock.loop(),primaryClock.speed());
+            var preset=ActorPresetClock.resolve(at.presetAnimation,at,actor.getRigProfile());
+            var presetPose=preset==null?null:preset.sample(definition);
+            var evaluated=ActorPoseEvaluator.evaluate(actor.getType(),actor.getRigProfile(),definition,base,at,
+                    presetPose==null?null:new ActorPoseEvaluator.Layer(presetPose,preset.settings(),preset.envelope()),
+                    authored==null?null:new ActorPoseEvaluator.Layer(authored,at.animationBlendSettings,primaryClock.envelope()),actor.getLimbBendMode());
+            for(var diagnostic:evaluated.diagnostics()) reportPlacement(actor.getActorId(),time,diagnostic.stage(),false,diagnostic.detail().reason());
+            var pose=evaluated.pose();
             var root=pose.localTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT);
             if(root.translation().lengthSquared()>1e-10f) {
                 var finalPosition=finalRootPlacement(new Vec3d(at.position.x,at.position.y,at.position.z),root.translation(),at.rotation.x,at,time);
@@ -804,16 +796,10 @@ public final class ActorRuntimeController {
             var legacyPose = rigAsset.isEmpty() && boneDraft == null
                     ? AnimationDataSampler.sampleRig(primaryClock.id(), legacyRig, primaryClock.localTime(),
                             primaryClock.loop(), primaryClock.speed()) : null;
-            if (rigAsset.isPresent() || boneDraft!=null || legacyPose!=null || s.presetAnimation!=null && legacyRig!=null) {
+            if (rigAsset.isPresent() || boneDraft!=null || legacyPose!=null || legacyRig!=null && (s.presetAnimation!=null || actor.getType()==com.director.actor.ActorType.PLAYER)) {
                 var definition=boneDraft!=null?boneDraft.rig():rigAsset.isPresent()?rigAsset.get().rig():legacyRig;
                 var blend=boneDraft!=null?boneDraft.settings():s.animationBlendSettings;
                 float envelope=boneDraft!=null?boneDraft.envelope():primaryClock.envelope();
-                var proceduralPose = com.director.actor.rig.skeleton.HumanoidTopology.matches(definition)
-                        ? com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(rigPose.pose, definition)
-                        : null;
-                if (actor.getType() == com.director.actor.ActorType.PLAYER)
-                    ActorRouteGait.applyJoints(proceduralPose,s,rig,!s.poseOverrideArms,!s.poseOverrideLegs);
-                if (actor.getType() == com.director.actor.ActorType.PLAYER) ActorRouteTurnPose.apply(proceduralPose,s);
                 com.director.actor.rig.skeleton.RigPose authoredPose;
                 if(boneDraft!=null) authoredPose=boneDraft.authoredPose();
                 else if(legacyPose!=null) authoredPose=legacyPose;
@@ -824,24 +810,15 @@ public final class ActorRuntimeController {
                     authoredPose=com.director.ui.actor.pose.ActorBonePropertiesPanel.previewAuthoredPose(
                             actor.getActorId(),asset.id(),asset.sample(s.animationLocalTime*Math.max(.01f,s.animationSpeed),mode));
                 }
-                var authoredWeights = new java.util.HashMap<String,Float>();
-                if (proceduralPose == null) proceduralPose = new com.director.actor.rig.skeleton.RigPose(definition);
                 String presetId=presetInput==null?null:presetInput.id();
-                proceduralPose=ActorRigPoseComposition.prependPreset(proceduralPose,presetInput,
-                        diagnostic -> reportPlacement(actor.getActorId(),timelineSource.getCurrentTime(),
-                                "preset-layer",false,"预设动作骨架与当前手工动画不兼容，已跳过预设。"),authoredWeights,presetDraft,
-                        pose->com.director.ui.actor.pose.ActorBonePropertiesPanel.previewAuthoredPose(actor.getActorId(),presetId,pose));
-                var finalRigPose = ActorRigPoseComposition.compose(proceduralPose,
-                        authoredPose, pose -> applyRigPoseOverrides(pose, s),
-                        diagnostic -> reportPlacement(actor.getActorId(),timelineSource.getCurrentTime(),
-                                "pose-layer",false,"骨骼动作层与当前演员不兼容，已跳过该层。"),blend,envelope);
-                finalRigPose.setLimbBendMode(actor.getLimbBendMode());
-                if (actor.getType() == com.director.actor.ActorType.PLAYER) {
-                    for (int i=0;i<authoredPose.rig().boneCount();i++)
-                        if (blend.contributes(authoredPose,i,envelope))
-                            authoredWeights.merge(authoredPose.rig().bone(i).id(),blend.effectiveWeight(envelope),Math::max);
-                    ActorRouteFootContact.apply(finalRigPose,s,rig,authoredWeights);
-                }
+                var presetPose=presetInput==null?null:presetDraft!=null?presetDraft.authoredPose():presetInput.sample(definition);
+                if(presetPose!=null && presetDraft==null) presetPose=com.director.ui.actor.pose.ActorBonePropertiesPanel.previewAuthoredPose(actor.getActorId(),presetId,presetPose);
+                var evaluated=ActorPoseEvaluator.evaluate(actor.getType(),rig,definition,rigPose.pose,s,
+                        presetPose==null?null:new ActorPoseEvaluator.Layer(presetPose,presetInput.settings(),presetInput.envelope()),
+                        new ActorPoseEvaluator.Layer(authoredPose,blend,envelope),actor.getLimbBendMode());
+                for(var diagnostic:evaluated.diagnostics()) reportPlacement(actor.getActorId(),timelineSource.getCurrentTime(),
+                        diagnostic.stage(),false,diagnostic.detail().reason());
+                var finalRigPose=evaluated.pose();
                 applyPoseToRuntime(rigPose.pose);
                 Entity preview = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
                 if (preview instanceof com.director.actor.preview.ActorPosePreview previewEntity) {
@@ -878,17 +855,7 @@ public final class ActorRuntimeController {
             if (entity instanceof com.director.actor.preview.ActorPosePreview previewEntity) {
                 boolean boneDragging = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
                         && actor.getActorId().equals(com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().getActorId());
-                if (!boneDragging) {
-                    if (actor.getType() == com.director.actor.ActorType.PLAYER) {
-                        var contactPose = com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(finalPose,
-                                com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION);
-                        contactPose.setLimbBendMode(actor.getLimbBendMode());
-                        if (animPose == null) ActorRouteGait.applyJoints(contactPose,s,rig,!s.poseOverrideArms,!s.poseOverrideLegs);
-                        if (animPose == null) ActorRouteTurnPose.apply(contactPose,s);
-                        if (animPose == null) ActorRouteFootContact.apply(contactPose,s,rig,java.util.Map.of());
-                        previewEntity.setFinalRigPose(contactPose);
-                    } else previewEntity.setFinalPose(finalPose);
-                }
+                if (!boneDragging) previewEntity.setFinalPose(finalPose);
             }
         }
 
@@ -957,34 +924,6 @@ public final class ActorRuntimeController {
             var root=pose.localTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT);
             pose.setLocalTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT,
                     new com.director.actor.rig.skeleton.BoneTransform(new org.joml.Vector3f(),root.rotation(),root.scale()));
-        }
-
-        private void applyRigPoseOverrides(com.director.actor.rig.skeleton.RigPose pose, EntitySample s) {
-            if (pose == null || s == null || !s.poseOverrideEnabled
-                    || !com.director.actor.ActorBehaviorCapabilities.supportsLegacyPose(actor)
-                    || !com.director.actor.rig.skeleton.HumanoidTopology.matches(pose.rig())) return;
-            if (s.poseOverrideBody) setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.BODY,
-                    s.poseBodyPitch, s.poseBodyYaw, s.poseBodyRoll);
-            if (s.poseOverrideHead) setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.HEAD,
-                    s.poseHeadPitch, s.poseHeadYaw, 0f);
-            if (s.poseOverrideArms) {
-                setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.LEFT_ARM,
-                        s.poseLeftArmPitch, s.poseLeftArmYaw, s.poseLeftArmRoll);
-                setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.RIGHT_ARM,
-                        s.poseRightArmPitch, s.poseRightArmYaw, s.poseRightArmRoll);
-            }
-            if (s.poseOverrideLegs) {
-                setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.LEFT_LEG, s.poseLeftLegPitch, 0f, 0f);
-                setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.RIGHT_LEG, s.poseRightLegPitch, 0f, 0f);
-            }
-        }
-
-        private void setRigRotation(com.director.actor.rig.skeleton.RigPose pose, String boneId,
-                                    float pitch, float yaw, float roll) {
-            var current = pose.localTransform(boneId);
-            pose.setLocalTransform(pose.rig().requireBoneIndex(boneId), current.withRotation(
-                    new org.joml.Quaternionf().rotateXYZ(pitch, yaw, roll)),
-                    com.director.actor.rig.skeleton.RigPose.ROTATION);
         }
 
         /**
