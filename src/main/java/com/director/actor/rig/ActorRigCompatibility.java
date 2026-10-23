@@ -82,9 +82,12 @@ public final class ActorRigCompatibility {
         for (var track : model.getAllTracks()) {
             var payload = track.getActorTrackPayload();
             if (payload == null || payload.getActorRef() == null || !actorId.equals(payload.getActorRef().getActorId())) continue;
-            for (var clip : payload.getClips()) if (clip instanceof EntityAnimationClip animation) {
-                var asset = AnimationAssetLibrary.getInstance().find(animation.getAnimationId()).orElse(null);
-                if (asset != null && !accepts(type, asset.rigId())) return false;
+            for (String id:com.director.actor.query.ActorAnimationReferences.ids(payload)) {
+                var asset=AnimationAssetLibrary.getInstance().find(id).orElse(null);
+                if(asset!=null) {
+                    if(!accepts(type,asset.rigId())) return false;
+                } else if(com.director.actor.animation.AnimationLibrary.getInstance().get(id).isPresent()
+                        && family(type)!=Family.HUMANOID) return false;
             }
         }
         return true;

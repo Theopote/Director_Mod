@@ -29,13 +29,16 @@ final class ActorLegContactIk {
         int hip=pose.rig().requireBoneIndex(leg),knee=pose.rig().requireBoneIndex(shin);
         var hipRest=pose.localTransform(hip);var kneeRest=pose.localTransform(knee);
         var encoded=LimbBendTransform.angles(kneeRest.rotation());
+        float bendSign=encoded.x<0?-1f:1f;
+        float minimum=bendSign>0?Math.max(-.9f,-encoded.x):-.9f;
+        float maximum=bendSign>0?.9f:Math.min(.9f,-encoded.x);
         var working=pose.copy();
         float[] angles=new float[4];
         float error=ActorRouteFootContact.solePosition(pose,leg).distanceSquared(target);
         boolean changed=false;
         // A straight leg is a singular start: seed a small paired hip/knee bend.
         for(float bend:new float[]{.3f,.6f,.9f}) {
-            float[] seed={-.5f*bend,0,0,bend};
+            float[] seed={-.5f*bend*bendSign,0,0,bend*bendSign};
             write(working,hip,knee,hipRest,kneeRest,encoded,seed);
             float candidate=ActorRouteFootContact.solePosition(working,leg).distanceSquared(target);
             if(Float.isFinite(candidate) && candidate<error) {angles=seed;error=candidate;changed=true;}
@@ -47,7 +50,7 @@ final class ActorLegContactIk {
             for(int axis=0;axis<4;axis++) {
                 float original=angles[axis],best=original,bestError=error;
                 for(int sign:new int[]{-1,1}) {
-                    angles[axis]=Math.clamp(original+sign*step,axis==3?Math.max(-.9f,-encoded.x):-.5f,axis==3?.9f:.5f);
+                    angles[axis]=Math.clamp(original+sign*step,axis==3?minimum:-.5f,axis==3?maximum:.5f);
                     write(working,hip,knee,hipRest,kneeRest,encoded,angles);
                     float candidate=ActorRouteFootContact.solePosition(working,leg).distanceSquared(target);
                     if(Float.isFinite(candidate) && candidate<bestError) {best=angles[axis];bestError=candidate;}

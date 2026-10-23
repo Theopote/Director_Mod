@@ -1046,44 +1046,35 @@ public final class ActorRuntimeController {
         }
 
         private void applyLookAt(Entity entity, EntitySample s) {
-            Vec3d pos = entity.getEyePos();
+            float strength=s.lookAtStrength;
+            if(!Float.isFinite(strength) || strength<=0) return;
+            strength=Math.clamp(strength,0,1);
             var lookDraft=com.director.ui.actor.lookat.MarkerDragController.getInstance().previewPoint(actor.getActorId(),null);
             var point=lookDraft==null?s.lookAtPoint:new org.joml.Vector3f((float)lookDraft.x,(float)lookDraft.y,(float)lookDraft.z);
-            Vec3d target = ActorLookAtTargetResolver.resolveClient(s.lookAtMode, point,
-                    s.lookAtEntityUuid, actor.getActorId());
-            if (target == null) return;
-
-            Vec3d dir = target.subtract(pos);
-            double length = dir.length();
-            
-            if (length < 0.01) {
-                // 目标太近，不处理
-                return;
-            }
-            
-            dir = dir.normalize();
-
-            float yaw = (float) (Math.atan2(dir.z, dir.x) * 180 / Math.PI) - 90;
-            float pitch = (float) (-Math.asin(dir.y) * 180 / Math.PI);
-
-            float strength= Math.clamp(s.lookAtStrength, 0f, 1f);
-            if(!Float.isFinite(strength) || !Float.isFinite(yaw) || !Float.isFinite(pitch)) return;
-            // Gaze changes the head, never the actor root or armor-stand base plate.
-            float relativeYaw=net.minecraft.util.math.MathHelper.wrapDegrees(yaw-s.rotation.x)*strength;
-            float headPitch=pitch*strength;
-            entity.setHeadYaw(s.rotation.x+relativeYaw);
+            Vec3d target=ActorLookAtTargetResolver.resolveClient(s.lookAtMode,point,s.lookAtEntityUuid,actor.getActorId());
+            if(target==null) return;
             if(entity instanceof com.director.actor.preview.ActorPosePreview preview) {
                 var pose=preview.getFinalRigPose();
-                if(pose!=null && pose.rig().findBoneIndex("head")>=0) {
-                    var head=pose.localTransform("head");
-                    pose.setLocalTransform(pose.rig().requireBoneIndex("head"),
-                        new com.director.actor.rig.skeleton.BoneTransform(head.translation(),
-                            new org.joml.Quaternionf().rotationYXZ((float)Math.toRadians(relativeYaw),
-                                (float)Math.toRadians(headPitch),0),head.scale()),
-                        com.director.actor.rig.skeleton.RigPose.ROTATION);
-                    preview.setFinalRigPose(pose);
+                if(pose!=null && pose.rig().findBoneIndex(com.director.actor.rig.skeleton.HumanoidRig.HEAD)>=0) {
+                    boolean player=entity instanceof com.director.actor.preview.PreviewPlayerActorEntity;
+                    var position=new org.joml.Vector3f((float)entity.getX(),(float)entity.getY(),(float)entity.getZ());
+                    var world=player?com.director.actor.rig.skeleton.PlayerRenderWorldPose.resolve(pose,position,entity.getYaw(),preview.getActorTransformScale())
+                            :com.director.actor.rig.skeleton.RigWorldPose.resolve(pose,new org.joml.Matrix4f().translate(position)
+                                .rotateY((float)Math.toRadians(-entity.getYaw())).scale(preview.getActorTransformScale()));
+                    if(ActorGazeConstraint.apply(pose,world,new org.joml.Vector3f((float)target.x,(float)target.y,(float)target.z),player,strength))
+                        preview.setFinalRigPose(pose);
+                    return;
                 }
-            } else entity.setPitch(headPitch);
+            }
+            // Native mobs have no editable pose: blend their current world head angles.
+            var direction=target.subtract(entity.getEyePos());
+            if(direction.lengthSquared()<1e-4) return;
+            direction=direction.normalize();
+            float yaw=(float)(Math.atan2(direction.z,direction.x)*180/Math.PI)-90;
+            float pitch=(float)(-Math.asin(direction.y)*180/Math.PI);
+            if(!Float.isFinite(yaw) || !Float.isFinite(pitch)) return;
+            entity.setHeadYaw(entity.getHeadYaw()+net.minecraft.util.math.MathHelper.wrapDegrees(yaw-entity.getHeadYaw())*strength);
+            entity.setPitch(entity.getPitch()+(pitch-entity.getPitch())*strength);
         }
 
         /**

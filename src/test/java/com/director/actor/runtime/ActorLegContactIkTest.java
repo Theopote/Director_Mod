@@ -36,4 +36,15 @@ class ActorLegContactIkTest {
         ActorLegContactIk.solve(pose,HumanoidRig.LEFT_LEG,ActorRouteFootContact.solePosition(pose,HumanoidRig.LEFT_LEG));
         assertTrue(pose.authoredBones().isEmpty());
     }
+    @Test void negativeKneesRemainOnTheirAuthoredSideAtPartialWeights() {
+        for(var mode:LimbBendMode.values()) for(float angle:new float[]{-.2f,-1.2f,-2.5f}) {
+            var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);pose.setLimbBendMode(mode);
+            String knee=ArticulatedPlayerRig.LEFT_SHIN;
+            pose.setLocalTransform(knee,pose.localTransform(knee).withRotation(LimbBendTransform.encodedRotation(angle,.4f)));
+            var target=ActorRouteFootContact.solePosition(pose,HumanoidRig.LEFT_LEG).add(.05f,-.04f,.1f);
+            assertDoesNotThrow(()->ActorLegContactIk.solve(pose,HumanoidRig.LEFT_LEG,target,.6f));
+            assertTrue(LimbBendTransform.angles(pose.localTransform(knee).rotation()).x<=1e-5f);
+            assertTrue(ActorRouteFootContact.solePosition(pose,HumanoidRig.LEFT_LEG).isFinite());
+        }
+    }
 }

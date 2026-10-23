@@ -170,6 +170,9 @@ class ActorGroupTimelineCommandServiceTest {
                 new Vector3f(0, 64, 0),
                 new Vector3f(0, 64, 10)
         ));
+        srcRoute.setSmoothTravel(true);
+        srcRoute.setEndpointTurnDuration(.65f);
+        srcRoute.setLoopMode(ActorRouteClip.LoopMode.PING_PONG);
         srcRoute.setJumpStart(1f);
         srcRoute.setJumpDuration(0.7f);
         srcRoute.setJumpHeight(0.8f);
@@ -200,6 +203,9 @@ class ActorGroupTimelineCommandServiceTest {
         assertEquals(1f, copied.getJumpStart());
         assertEquals(0.7f, copied.getJumpDuration());
         assertEquals(0.8f, copied.getJumpHeight());
+        assertTrue(copied.isSmoothTravel());
+        assertEquals(.65f,copied.getEndpointTurnDuration());
+        assertEquals(srcRoute.getLoopMode(),copied.getLoopMode());
 
         // Compare against controller formation (single source of truth).
         assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt1.getActorTrackPayload(), t1);

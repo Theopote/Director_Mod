@@ -1492,3 +1492,19 @@ ActorRouteFootContact只接入无手工动画的标准玩家自动ONCE路径姿�
 - Sole queries calculate only the selected bone chain instead of every unrelated bone matrix on each solver candidate. Both deformation modes and nonuniform segment scales are checked against full-rig FK.
 - Added physical foot-error checks for loop/return traversal, deterministic seeking, preserved hips and rotation-weight release. Not full terrain IK or exact sole-orientation locking; game visual/performance validation remains required.
 - Regression result: 636 tests, 0 failures, 0 errors.
+
+
+## 2026-10-23 整体框架回顾
+
+参见 `actor_framework_review_2026_10_23.md`。本轮仅审查和记录，不修改运行时；下一阶段优先修注视混合/父空间、IK 负向范围、Spawn 动画引用校验与群体路径参数复制，再统一姿态求解入口。
+
+
+## 2026-10-23 框架审查首批四项修复
+
+- 新增纯 ActorGazeConstraint，头部旋转按权重与原动画混合；从实际头部世界基准逆变换目标方向，处理父级旋转/非等比缩放。零/无效强度不写回；原生生物使用短弧 yaw 和 pitch 混合。
+- ActorAnimationReferences 统一遍历独立动画、Spawn 内手工动画及预设；类型切换校验包括静音/非当前区间引用，已注册固定 Pose 动作要求目标具备人形拓扑适配。
+- 群体路径快照复制保留 smoothTravel 和 endpointTurnDuration；不改变原来的独立快照/编队偏移语义。事务回归检查重做后参数仍保留。
+- IK 正负膝角使用对应方向的候选起点和增量区间，部分动画权重下不再产生反向膝角的非法 clamp 范围。
+- 新增注视 0/0.5/1 权重、父级旋转/缩放、非法目标；负向弯曲；内嵌动画引用和固定预设兼容性测试，并扩展群体复制/事务断言。
+- Regression: 641 tests, 0 failures, 0 errors. 游戏内视觉及导出组合验收尚未执行。
+- 下一阶段：提取统一姿态 evaluator，逐步对齐实时、历史挂点和导出，同时显式传入交互草稿，保持查询不触发播放事件。

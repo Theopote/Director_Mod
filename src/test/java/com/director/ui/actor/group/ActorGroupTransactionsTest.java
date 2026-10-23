@@ -78,6 +78,7 @@ class ActorGroupTransactionsTest {
         var sourceTrack = member(ActorType.PLAYER); var target = member(ActorType.COW);
         var conflicting = member(ActorType.PLAYER); var locked = member(ActorType.PLAYER); locked.setLocked(true);
         var source = new ActorRouteClip("Road", 0, 8); source.setWaypoints(List.of(new Vector3f(),new Vector3f(5,0,0)));
+        source.setSmoothTravel(true);source.setEndpointTurnDuration(.7f);source.setLoopMode(ActorRouteClip.LoopMode.PING_PONG);
         var sourceWrapper = attach(sourceTrack, source);
         var transform = new EntityTransformClip("Move", 1, 4); attach(conflicting, transform);
         UUID sourceId = sourceTrack.getActorTrackPayload().getActorRef().getActorId();
@@ -88,6 +89,7 @@ class ActorGroupTransactionsTest {
         assertTrue(history.undo()); assertTrue(target.getClips().isEmpty()); assertTrue(target.getActorTrackPayload().getClips().isEmpty());
         assertEquals(List.of(source), sourceTrack.getActorTrackPayload().getClips()); assertSame(sourceWrapper, source.getTimelineClip());
         assertTrue(history.redo()); assertSame(copy, target.getActorTrackPayload().getClips().getFirst());
+        assertTrue(((ActorRouteClip)copy).isSmoothTravel());assertEquals(.7f,((ActorRouteClip)copy).getEndpointTurnDuration());
         assertFalse(service.previewRoutes(model, group, sourceId).canExecute());
     }
     @Test void placementUndoRestoresExistingSpawnAndRemovesNewSpawnTogether() {

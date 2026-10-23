@@ -296,6 +296,8 @@ public final class ActorGroupTimelineCommandService {
         copy.setSpeed(source.getSpeed());
         copy.setInterpolationMode(source.getInterpolationMode());
         copy.setLoopMode(source.getLoopMode());
+        copy.setSmoothTravel(source.isSmoothTravel());
+        copy.setEndpointTurnDuration(source.getEndpointTurnDuration());
         copy.setAlignRotationToRoute(source.isAlignRotationToRoute());
         copy.setJumpStart(source.getJumpStart());
         copy.setJumpDuration(source.getJumpDuration());
