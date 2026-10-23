@@ -14,6 +14,8 @@ public interface ActorTimelineSource {
 
     float getCurrentTime();
 
+    default long getActorEditContextRevision() { return 0; }
+
     /** World-owned previews changed; pending editor gestures must not cross this boundary. */
     default void invalidateActorEditContext() {}
 

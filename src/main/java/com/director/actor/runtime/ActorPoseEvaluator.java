@@ -15,23 +15,35 @@ public final class ActorPoseEvaluator {
     }
     public record Diagnostic(String stage,RigPoseComposer.Diagnostic detail) {}
     /** Pose is owned by the caller; layer inputs and samples are never modified. */
-    public record Result(RigPose pose,Map<String,Float> authoredWeights,List<Diagnostic> diagnostics) {
-        public Result {authoredWeights=Map.copyOf(authoredWeights);diagnostics=List.copyOf(diagnostics);}
+    public record Result(RigPose pose,Map<String,Float> authoredWeights,List<Diagnostic> diagnostics,Map<ActorPoseSources.Channel,String> sources) {
+        public Result {authoredWeights=Map.copyOf(authoredWeights);diagnostics=List.copyOf(diagnostics);sources=Map.copyOf(sources);}
     }
     public static Result evaluate(ActorType type,ActorRigProfile profile,RigDefinition rig,Pose base,
                                   EntitySample sample,Layer preset,Layer manual,LimbBendMode bendMode) {
         RigPose pose=HumanoidTopology.matches(rig)?LegacyHumanoidPoseAdapter.convert(base,rig):new RigPose(rig);
+        var sources=new ActorPoseSources();
+        var before=ActorPoseSources.capture(pose);
         if(type==ActorType.PLAYER) {
             ActorRouteGait.applyJoints(pose,sample,profile,!(sample.poseOverrideEnabled && sample.poseOverrideArms),!(sample.poseOverrideEnabled && sample.poseOverrideLegs));
+            sources.changed(before,pose,"基础步态／关节动作");
+            before=ActorPoseSources.capture(pose);
             ActorRouteTurnPose.apply(pose,sample);
+            sources.changed(before,pose,"路径端点转身／换脚");
         }
         var weights=new HashMap<String,Float>();var diagnostics=new ArrayList<Diagnostic>();
         pose=applyLayer(pose,preset,"preset-layer",weights,diagnostics);
+        if(diagnostics.isEmpty()) sources.layer(preset,"动作预设");
+        var quickBefore=ActorPoseSources.capture(pose);
         applyQuickPose(pose,sample);
+        sources.changed(quickBefore,pose,"快速姿态");
+        int previousDiagnostics=diagnostics.size();
         pose=applyLayer(pose,manual,"pose-layer",weights,diagnostics);
+        if(diagnostics.size()==previousDiagnostics) sources.layer(manual,sample.animationIsPreset?"动作预设":"手工骨骼关键帧");
         pose.setLimbBendMode(bendMode);
+        before=ActorPoseSources.capture(pose);
         if(type==ActorType.PLAYER) ActorRouteFootContact.apply(pose,sample,profile,weights);
-        return new Result(pose,weights,diagnostics);
+        sources.changed(before,pose,"路径脚底接触修正");
+        return new Result(pose,weights,diagnostics,sources.snapshot());
     }
     private static RigPose applyLayer(RigPose base,Layer layer,String stage,Map<String,Float> weights,List<Diagnostic> diagnostics) {
         if(layer==null) return base;

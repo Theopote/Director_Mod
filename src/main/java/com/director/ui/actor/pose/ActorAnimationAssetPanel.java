@@ -61,16 +61,12 @@ public final class ActorAnimationAssetPanel {
         ImGui.inputText("名称##assetName", name);
         ImGui.inputText("新建/副本 ID##assetTargetId", targetId);
         ImGui.beginDisabled(actorId != null && rig == null);
-        if (ImGui.button("新建##assetCreate")) run(() -> {
-            selectAsset(ActorAnimationAssetEditing.createForActor(model, library, targetId.get().trim(),
-                    name.get(), settings.getNewAssetDuration(), actorId), library);
-        });
+        if (ImGui.button("新建##assetCreate")) run(() -> selectAsset(ActorAnimationAssetEditing.createForActor(model, library, targetId.get().trim(),
+                name.get(), settings.getNewAssetDuration(), actorId), library));
         ImGui.endDisabled();
         if (selected != null) {
             ImGui.sameLine();
-            if (ImGui.button("复制##assetDuplicate")) run(() -> {
-                selectAsset(ActorAnimationAssetEditing.duplicate(model, library, selected.id(), targetId.get().trim(), name.get()), library);
-            });
+            if (ImGui.button("复制##assetDuplicate")) run(() -> selectAsset(ActorAnimationAssetEditing.duplicate(model, library, selected.id(), targetId.get().trim(), name.get()), library));
             if (ImGui.button("重命名##assetRename")) run(() ->
                     ActorAnimationAssetEditing.rename(model, library, selected.id(), name.get()));
             ImGui.sameLine();

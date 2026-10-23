@@ -123,6 +123,23 @@ public final class ActorRuntimeController {
     private final ActorRuntimeDiagnostics diagnostics = new ActorRuntimeDiagnostics();
     public ActorRuntimeDiagnostics diagnostics() { return diagnostics; }
 
+    /** Read only; never samples animations, creates previews or resolves targets. */
+    public ActorPoseFeedback poseFeedback(ActorTimelineSource source,UUID actorId) {
+        if(source==null || source!=timelineSource || actorId==null) return null;
+        ActorPoseFeedback result=null;
+        for(var entry:runtimes.entrySet()) {
+            var runtime=entry.getValue();
+            if(runtime.actor==null || !actorId.equals(runtime.actor.getActorId())) continue;
+            var feedback=runtime.poseFeedback;
+            if(!runtime.spawned || entry.getKey().isMuted() || !source.getTracks().contains(entry.getKey())
+                    || runtime.lastSample==null || !previewActive(runtime.lastSample) || runtime.lastSample.visibility<=.01f
+                    || feedback==null || !feedback.matches(source.getCurrentTime(),source.getActorEditContextRevision())) return null;
+            if(result!=null) return null;
+            result=feedback;
+        }
+        return result;
+    }
+
     /** Re-evaluate pose/constraints with a pure animation snapshot; never consume or dispatch events. */
     public boolean refreshPosePreview(UUID actorId) {
         synchronizePreviewWorld();
@@ -376,6 +393,7 @@ public final class ActorRuntimeController {
 
         /** 上一帧 Sample（用于 Action edge trigger） */
         private EntitySample lastSample;
+        private ActorPoseFeedback poseFeedback;
 
         /** 上一帧时间（用于计算 deltaTime） */
         private float lastTime = -1f;
@@ -409,7 +427,7 @@ public final class ActorRuntimeController {
          * @param time 当前时间（秒）
          */
         private void resetWorldResources() {
-            spawned=false;lastSample=null;lastTime=-1;
+            spawned=false;lastSample=null;lastTime=-1;poseFeedback=null;
             groundRoute=null;groundClip=null;groundWorld=null;groundDimensions=null;groundRevision=-1;
             // Keep sampler event caches: loading a new world is not rewinding or replaying events.
         }
@@ -787,6 +805,7 @@ public final class ActorRuntimeController {
                     .previewAnimationDraft(actor.getActorId(),timelineSource.getCurrentTime()));
         }
         private void applyRigProfile(EntitySample s,float deltaTime,com.director.ui.actor.pose.ActorBoneAnimationDraft boneDraft) {
+            poseFeedback=null;
             if (actor == null) {
                 return;
             }
@@ -856,6 +875,9 @@ public final class ActorRuntimeController {
                     if (!boneDragging || boneDraft!=null) {
                         finalRigPose=applyRootPlacement((Entity)previewEntity,finalRigPose,s);
                         previewEntity.setFinalRigPose(finalRigPose);
+                        poseFeedback=new ActorPoseFeedback(timelineSource.getCurrentTime(),timelineSource.getActorEditContextRevision(),
+                                evaluated.sources(),evaluated.diagnostics().stream().map(d->d.stage()+": "+d.detail().reason()).toList(),
+                                s.lookAtEnabled?"注视等待求解":"注视未启用",false,0);
                     }
                 }
                 return;
@@ -989,7 +1011,9 @@ public final class ActorRuntimeController {
             if (ownerTrack.isMuted() || actor == null || !spawned || lastSample == null
                     || !lastSample.lookAtEnabled || lastSample.visibility <= .01f) return;
             var gizmo = com.director.ui.actor.gizmo.ActorGizmoController.getInstance();
-            if (gizmo.isDragging() && actor.getActorId().equals(com.director.ui.actor.selection.ActorSelectionHub.getSelectedActorId())) return;
+            if (gizmo.isDragging() && actor.getActorId().equals(com.director.ui.actor.selection.ActorSelectionHub.getSelectedActorId())) {
+                gazeFeedback("整体操作期间暂停注视",false,0); return;
+            }
             var entity = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
             if (entity == null) return;
             applyLookAt(entity, lastSample);
@@ -999,14 +1023,18 @@ public final class ActorRuntimeController {
             if (props != null) props.update();
         }
 
+        private void gazeFeedback(String message,boolean applied,float weight) {
+            if(poseFeedback!=null) poseFeedback=poseFeedback.withGaze(message,applied,weight);
+        }
+
         private void applyLookAt(Entity entity, EntitySample s) {
             float strength=s.lookAtStrength;
-            if(!Float.isFinite(strength) || strength<=0) return;
+            if(!Float.isFinite(strength) || strength<=0) { gazeFeedback("注视未生效：权重为零或无效",false,0); return; }
             strength=Math.clamp(strength,0,1);
             var lookDraft=com.director.ui.actor.lookat.MarkerDragController.getInstance().previewPoint(actor.getActorId(),null);
             var point=lookDraft==null?s.lookAtPoint:new org.joml.Vector3f((float)lookDraft.x,(float)lookDraft.y,(float)lookDraft.z);
             Vec3d target=ActorLookAtTargetResolver.resolveClient(s.lookAtMode,point,s.lookAtEntityUuid,actor.getActorId());
-            if(target==null) return;
+            if(target==null) { gazeFeedback("注视未生效：目标不存在或无法解析",false,0); return; }
             if(entity instanceof com.director.actor.preview.ActorPosePreview preview) {
                 var pose=preview.getFinalRigPose();
                 if(pose!=null && pose.rig().findBoneIndex(com.director.actor.rig.skeleton.HumanoidRig.HEAD)>=0) {
@@ -1015,6 +1043,7 @@ public final class ActorRuntimeController {
                     var placed=ActorWorldPoseEvaluator.evaluate(pose,position,entity.getYaw(),preview.getActorTransformScale(),player,
                             new org.joml.Vector3f((float)target.x,(float)target.y,(float)target.z),strength);
                     preview.setFinalRigPose(placed.pose());
+                    gazeFeedback(placed.gazeApplied()?"注视已生效":"注视未生效：目标过近或头部变换无效",placed.gazeApplied(),strength);
                     return;
                 }
             }
