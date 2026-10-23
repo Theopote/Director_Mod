@@ -114,6 +114,11 @@ public final class RigPose {
         return result;
     }
 
+    /** Calculates only the requested bone and its ancestors, for repeated constraint queries. */
+    public Matrix4f calculateModelTransform(int index) {
+        return calculateModelTransform(checkedIndex(index),new Matrix4f[localTransforms.length]);
+    }
+
     private Matrix4f calculateModelTransform(int index, Matrix4f[] cache) {
         if (cache[index] != null) {
             return cache[index];

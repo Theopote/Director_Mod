@@ -6,7 +6,7 @@ import com.director.timeline.model.entity.ActorRouteClip;
 import org.joml.Vector3f;
 import org.joml.Quaternionf;
 
-/** Bounded contact correction using the complete leg chain, not terrain IK. */
+/** Bounded route contact: articulated leg rotation solve, rigid-rig translation fallback; no terrain projection. */
 public final class ActorRouteFootContact {
     private static final com.director.actor.rig.ActorRigProfile DEFAULT_PROFILE=new com.director.actor.rig.HumanoidRigProfile();
     private ActorRouteFootContact() {}
@@ -63,7 +63,7 @@ public final class ActorRouteFootContact {
         if (correction.length()>.2f) correction.normalize().mul(.2f);
         if(!correction.isFinite()) return;
         var desired=solePosition(pose,leg).add(correction.mul(envelope*strength));
-        ActorTurnLegIk.solve(pose,leg,desired);
+        ActorLegContactIk.solve(pose,leg,desired);
     }
 
     private static float contactWeight(java.util.Map<String,Float> weights,String leg,String shin) {
@@ -103,6 +103,10 @@ public final class ActorRouteFootContact {
         var sole = solePosition(pose, bone);
         var correction = target.sub(sole);
         if (correction.length() > .3f) correction.normalize().mul(.3f);
+        if (RigPoseComposer.sameLayout(pose.rig(),ArticulatedPlayerRig.DEFINITION)) {
+            ActorLegContactIk.solve(pose,bone,new Vector3f(sole).add(correction),weight*strength);
+            return;
+        }
         // Correction is measured in model space; the leg translation is parent-local.
         int parent = pose.rig().bone(pose.rig().requireBoneIndex(bone)).parentIndex();
         if (parent >= 0) {
@@ -119,6 +123,6 @@ public final class ActorRouteFootContact {
         int index = pose.rig().findBoneIndex(shin);
         float length = .375f;
         if (index < 0) { index = pose.rig().requireBoneIndex(leg); length = .75f; }
-        return pose.calculateModelTransforms()[index].transformPosition(new Vector3f(0,-length,0));
+        return pose.calculateModelTransform(index).transformPosition(new Vector3f(0,-length,0));
     }
 }

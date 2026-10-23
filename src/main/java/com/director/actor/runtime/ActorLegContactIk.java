@@ -4,8 +4,25 @@ import com.director.actor.rig.skeleton.*;
 import org.joml.Vector3f;
 
 /** Bounded deterministic coordinate solve against the actual deformed player sole. */
-final class ActorTurnLegIk {
-    private ActorTurnLegIk() {}
+final class ActorLegContactIk {
+    private ActorLegContactIk() {}
+    /** Blend solved rotations, rather than a quantized target solve, for continuous release. */
+    static void solve(RigPose pose,String leg,Vector3f target,float weight) {
+        if(!Float.isFinite(weight) || weight<=0) return;
+        weight=Math.clamp(weight,0,1);
+        var solved=pose.copy();
+        solve(solved,leg,target);
+        String shin=HumanoidRig.LEFT_LEG.equals(leg)?ArticulatedPlayerRig.LEFT_SHIN:ArticulatedPlayerRig.RIGHT_SHIN;
+        for(String bone:new String[]{leg,shin}) {
+            int i=pose.rig().findBoneIndex(bone);
+            if(i<0) continue;
+            var before=pose.localTransform(i);var after=solved.localTransform(i);
+            if(before.rotation().equals(after.rotation(),1e-7f)) continue;
+            var rotation=before.rotation().slerp(after.rotation(),weight);
+            pose.setLocalTransform(i,before.withRotation(rotation),RigPose.ROTATION);
+        }
+    }
+
     static void solve(RigPose pose,String leg,Vector3f target) {
         if(!target.isFinite() || !RigPoseComposer.sameLayout(pose.rig(),ArticulatedPlayerRig.DEFINITION)) return;
         String shin=HumanoidRig.LEFT_LEG.equals(leg)?ArticulatedPlayerRig.LEFT_SHIN:ArticulatedPlayerRig.RIGHT_SHIN;
@@ -30,7 +47,7 @@ final class ActorTurnLegIk {
             for(int axis=0;axis<4;axis++) {
                 float original=angles[axis],best=original,bestError=error;
                 for(int sign:new int[]{-1,1}) {
-                    angles[axis]=Math.clamp(original+sign*step,axis==3?0f:-.5f,axis==3?.9f:.5f);
+                    angles[axis]=Math.clamp(original+sign*step,axis==3?Math.max(-.9f,-encoded.x):-.5f,axis==3?.9f:.5f);
                     write(working,hip,knee,hipRest,kneeRest,encoded,angles);
                     float candidate=ActorRouteFootContact.solePosition(working,leg).distanceSquared(target);
                     if(Float.isFinite(candidate) && candidate<bestError) {best=angles[axis];bestError=candidate;}

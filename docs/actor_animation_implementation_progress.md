@@ -1484,3 +1484,11 @@ ActorRouteFootContact只接入无手工动画的标准玩家自动ONCE路径姿�
 - Existing authored-control release and foot-exchange envelope remain in effect. Source feedback now identifies support correction on rotation channels. Ordinary walking still uses the previous contact correction.
 - Added smooth/sharp deformation, reachable/unreachable target, unchanged hip/scale and no-op channel tests. Actor regression suite: 634 tests, zero failures/errors.
 - Remaining: in-game quality/performance verification, sole orientation locking, locomotion IK, terrain-specific constraints, and species-specific turning. This is not full terrain foot IK.
+
+### 2026-10-23 — Articulated locomotion contact solve
+
+- Generalized the endpoint solver to ActorLegContactIk and applied it to articulated player stance contact during ordinary route travel. Rigid rigs retain their translation fallback. Player hip/knee local translations and segment scales remain unchanged.
+- Existing gait knees can now extend toward neutral as well as bend. Solved rotations blend back to the incoming animation with the contact envelope and authored weight, retaining continuous release and full authored root/leg protection.
+- Sole queries calculate only the selected bone chain instead of every unrelated bone matrix on each solver candidate. Both deformation modes and nonuniform segment scales are checked against full-rig FK.
+- Added physical foot-error checks for loop/return traversal, deterministic seeking, preserved hips and rotation-weight release. Not full terrain IK or exact sole-orientation locking; game visual/performance validation remains required.
+- Regression result: 636 tests, 0 failures, 0 errors.

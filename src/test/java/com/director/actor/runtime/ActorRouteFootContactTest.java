@@ -38,7 +38,7 @@ class ActorRouteFootContactTest {
         assertEquals(.375f-meshFoot.y,sole.y,1e-5f);
         assertEquals(-meshFoot.z,sole.z,1e-5f);
     }
-    @Test void articulatedStanceCorrectionRunsAndKeepsJointRotation() {
+    @Test void articulatedStanceCorrectionImprovesSoleWithoutMovingHip() {
         var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
         var sample=sample(.2f);
         int knee=pose.rig().requireBoneIndex(ArticulatedPlayerRig.LEFT_SHIN);
@@ -48,7 +48,7 @@ class ActorRouteFootContactTest {
         ActorRouteFootContact.apply(pose,sample);
         var after=ActorRouteFootContact.solePosition(pose,HumanoidRig.LEFT_LEG).add(sample.position);
         assertTrue(after.distance(new Vector3f(.125f,0,.2f)) < before.distance(new Vector3f(.125f,0,.2f)));
-        assertTrue(pose.localTransform(knee).rotation().equals(rotation,1e-6f));
+        assertEquals(new RigPose(pose.rig()).localTransform(HumanoidRig.LEFT_LEG).translation(),pose.localTransform(HumanoidRig.LEFT_LEG).translation());
         var replay=new RigPose(ArticulatedPlayerRig.DEFINITION);
         replay.setLocalTransform(knee,replay.localTransform(knee).withRotation(rotation),RigPose.ROTATION);
         ActorRouteFootContact.apply(replay,sample);
@@ -56,26 +56,28 @@ class ActorRouteFootContactTest {
     }
     @Test void keyedLegIsUntouchedWhileOtherLegCanReceiveContactCorrection() {
         var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
-        var left=pose.localTransform(HumanoidRig.LEFT_LEG).translation();
-        var right=pose.localTransform(HumanoidRig.RIGHT_LEG).translation();
+        var left=pose.localTransform(HumanoidRig.LEFT_LEG).toMatrix();
+        var right=pose.localTransform(HumanoidRig.RIGHT_LEG).toMatrix();
         ActorRouteFootContact.apply(pose,sample(.56f),java.util.Set.of(ArticulatedPlayerRig.LEFT_SHIN));
-        assertEquals(left,pose.localTransform(HumanoidRig.LEFT_LEG).translation());
-        assertNotEquals(right,pose.localTransform(HumanoidRig.RIGHT_LEG).translation());
+        assertTrue(left.equals(pose.localTransform(HumanoidRig.LEFT_LEG).toMatrix(),1e-6f));
+        assertFalse(right.equals(pose.localTransform(HumanoidRig.RIGHT_LEG).toMatrix(),1e-6f));
     }
     @Test void contactCorrectionReleasesContinuouslyWithAuthoredWeight() {
-        var sample=sample(.2f);
-        var rest=new RigPose(ArticulatedPlayerRig.DEFINITION).localTransform(HumanoidRig.LEFT_LEG).translation();
-        var full=new RigPose(ArticulatedPlayerRig.DEFINITION);ActorRouteFootContact.apply(full,sample);
-        var correction=full.localTransform(HumanoidRig.LEFT_LEG).translation().sub(rest);
+        var sample=sample(.15f);
+        var rest=new RigPose(ArticulatedPlayerRig.DEFINITION);
+        var full=rest.copy();ActorRouteFootContact.apply(full,sample);
+        assertFalse(full.localTransform(HumanoidRig.LEFT_LEG).rotation().equals(rest.localTransform(HumanoidRig.LEFT_LEG).rotation(),1e-6f));
         for(float weight:new float[]{0,.001f,.25f,.5f,.999f,1,0}) {
-            var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
+            var pose=rest.copy();
             ActorRouteFootContact.apply(pose,sample,java.util.Map.of(ArticulatedPlayerRig.LEFT_SHIN,weight));
-            var expected=new Vector3f(rest).add(new Vector3f(correction).mul(1-weight));
-            assertTrue(expected.equals(pose.localTransform(HumanoidRig.LEFT_LEG).translation(),1e-6f));
+            for(String bone:List.of(HumanoidRig.LEFT_LEG,ArticulatedPlayerRig.LEFT_SHIN)) {
+                var expected=rest.localTransform(bone).rotation().slerp(full.localTransform(bone).rotation(),1-weight);
+                assertTrue(expected.equals(pose.localTransform(bone).rotation(),1e-6f));
+                assertEquals(rest.localTransform(bone).translation(),pose.localTransform(bone).translation());
+            }
         }
-        var protectedPose=new RigPose(ArticulatedPlayerRig.DEFINITION);
-        ActorRouteFootContact.apply(protectedPose,sample,java.util.Map.of(HumanoidRig.ROOT,1f));
-        assertEquals(rest,protectedPose.localTransform(HumanoidRig.LEFT_LEG).translation());
+        var protectedPose=rest.copy();ActorRouteFootContact.apply(protectedPose,sample,java.util.Map.of(HumanoidRig.ROOT,1f));
+        assertTrue(rest.localTransform(HumanoidRig.LEFT_LEG).toMatrix().equals(protectedPose.localTransform(HumanoidRig.LEFT_LEG).toMatrix(),1e-6f));
     }
     private EntitySample repeated(ActorRouteClip.LoopMode mode,float time) {
         var sample=sample(time);sample.routeClip.setLoopMode(mode);sample.routeClip.setSpeed(1);
@@ -144,11 +146,34 @@ class ActorRouteFootContactTest {
             var s=sample(.15f);s.poseOverrideEnabled=true;
             s.poseOverrideHead=region==0;s.poseOverrideArms=region==1;s.poseOverrideBody=region==2;
             var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
-            var rest=pose.localTransform(HumanoidRig.LEFT_LEG).translation();
+            var rest=ActorRouteFootContact.solePosition(pose,HumanoidRig.LEFT_LEG);
             ActorRouteFootContact.apply(pose,s);
-            assertNotEquals(rest,pose.localTransform(HumanoidRig.LEFT_LEG).translation());
+            assertNotEquals(rest,ActorRouteFootContact.solePosition(pose,HumanoidRig.LEFT_LEG));
             s.poseOverrideLegs=true;pose=new RigPose(pose.rig());ActorRouteFootContact.apply(pose,s);
-            assertEquals(rest,pose.localTransform(HumanoidRig.LEFT_LEG).translation());
+            assertEquals(rest,ActorRouteFootContact.solePosition(pose,HumanoidRig.LEFT_LEG));
+        }
+    }
+    @Test void articulatedLoopAndReturnContactsReduceWorldErrorWithoutMovingHip() {
+        for(var mode:List.of(ActorRouteClip.LoopMode.LOOP,ActorRouteClip.LoopMode.PING_PONG)) {
+            var s=repeated(mode,4.15f);var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
+            var hip=pose.localTransform(HumanoidRig.LEFT_LEG).translation();
+            var target=new Vector3f(mode==ActorRouteClip.LoopMode.LOOP?.125f:-.125f,0,mode==ActorRouteClip.LoopMode.LOOP?.2f:3.8f);
+            float error=worldSole(pose,s).distance(target);
+            ActorRouteFootContact.apply(pose,s);
+            assertTrue(worldSole(pose,s).distance(target)<error);
+            assertEquals(hip,pose.localTransform(HumanoidRig.LEFT_LEG).translation());
+            var replay=new RigPose(pose.rig());ActorRouteFootContact.apply(replay,s);
+            assertTrue(pose.localTransform(HumanoidRig.LEFT_LEG).toMatrix().equals(replay.localTransform(HumanoidRig.LEFT_LEG).toMatrix(),1e-6f));
+        }
+    }
+    @Test void singleBoneQueryMatchesFullDeformedRigForBothBendModesAndScales() {
+        for(var mode:LimbBendMode.values()) {
+            var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);pose.setLimbBendMode(mode);
+            int hip=pose.rig().requireBoneIndex(HumanoidRig.LEFT_LEG),knee=pose.rig().requireBoneIndex(ArticulatedPlayerRig.LEFT_SHIN);
+            pose.setLocalTransform(hip,new BoneTransform(pose.localTransform(hip).translation(),new org.joml.Quaternionf().rotateXYZ(.3f,.2f,.1f),new Vector3f(1,.8f,1.2f)));
+            pose.setLocalTransform(knee,new BoneTransform(pose.localTransform(knee).translation(),LimbBendTransform.encodedRotation(.7f,.2f),new Vector3f(1.2f,.9f,1)));
+            var all=pose.calculateModelTransforms();
+            for(int i=0;i<pose.rig().boneCount();i++) assertTrue(all[i].equals(pose.calculateModelTransform(i),1e-6f));
         }
     }
 }

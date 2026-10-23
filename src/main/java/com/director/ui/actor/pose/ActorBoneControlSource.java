@@ -46,13 +46,15 @@ final class ActorBoneControlSource {
     private static String turnSource(String bone,int channel,EntitySample sample,RigPose reference) {
         if(reference==null || channel==RigPose.SCALE) return null;
         var base=new RigPose(reference.rig());
-        if(!com.director.actor.runtime.ActorRouteTurnPose.supports(base,sample)) return null;
+        boolean turning=com.director.actor.runtime.ActorRouteTurnPose.supports(base,sample);
+        if(sample.routeClip==null) return null;
         int index=base.rig().findBoneIndex(bone);
         if(index<0) return null;
-        com.director.actor.runtime.ActorRouteTurnPose.apply(base,sample);
+        if(turning) com.director.actor.runtime.ActorRouteTurnPose.apply(base,sample);
         if(channel==RigPose.ROTATION && (base.authoredChannels(index)&channel)!=0)
             return "路径端点转身／换脚";
-        if(channel==RigPose.ROTATION) {
+        if(channel==RigPose.ROTATION && (HumanoidRig.LEFT_LEG.equals(bone)||HumanoidRig.RIGHT_LEG.equals(bone)
+                ||ArticulatedPlayerRig.LEFT_SHIN.equals(bone)||ArticulatedPlayerRig.RIGHT_SHIN.equals(bone))) {
             com.director.actor.runtime.ActorRouteFootContact.apply(base,sample);
             if((base.authoredChannels(index)&channel)!=0) return "路径脚底接触修正（上层动画优先）";
         }
