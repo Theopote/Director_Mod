@@ -145,15 +145,24 @@ public final class RuntimeProp {
             pose.setLocalTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT,
                     new com.director.actor.rig.skeleton.BoneTransform(new Vector3f(),root.rotation(),root.scale()));
         }
-        var actorWorld = new org.joml.Matrix4f().translate((float)actor.getX(),(float)actor.getY(),(float)actor.getZ())
-                .rotateY((float)Math.toRadians(-actor.getYaw())).scale(preview.getActorTransformScale());
-        updateSocketTransform(pose,actorWorld);
+        if(pose==null) {worldPosition=null;worldTransform=null;return;}
+        var world=com.director.actor.runtime.ActorWorldPoseEvaluator.resolve(pose,
+                new Vector3f((float)actor.getX(),(float)actor.getY(),(float)actor.getZ()),actor.getYaw(),
+                preview.getActorTransformScale(),actor instanceof com.director.actor.preview.PreviewPlayerActorEntity);
+        updateSocketTransform(world,actor instanceof com.director.actor.preview.PreviewPlayerActorEntity);
     }
 
     /** Pure matrix update, also usable without a Minecraft preview entity. */
     public void updateSocketTransform(com.director.actor.rig.skeleton.RigPose pose, org.joml.Matrix4f actorWorld) {
         if (!boundToActor) return;
         var matrix = ActorPropSocketResolver.resolve(pose,actorWorld,slot,localOffset,localRotation);
+        setSocketResult(matrix);
+    }
+    public void updateSocketTransform(com.director.actor.rig.skeleton.RigWorldPose world,boolean player) {
+        if(!boundToActor) return;
+        setSocketResult(ActorPropSocketResolver.resolve(world,player,slot,localOffset,localRotation));
+    }
+    private void setSocketResult(java.util.Optional<org.joml.Matrix4f> matrix) {
         worldTransform = matrix.orElse(null);
         if (worldTransform == null) { worldPosition=null; return; }
         var position=worldTransform.getTranslation(new Vector3f());

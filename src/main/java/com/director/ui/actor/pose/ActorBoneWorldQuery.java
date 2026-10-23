@@ -4,7 +4,6 @@ import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.preview.ActorPosePreview;
 import com.director.actor.rig.skeleton.RigPose;
 import com.director.actor.rig.skeleton.RigWorldPose;
-import org.joml.Matrix4f;
 
 import java.util.UUID;
 
@@ -19,14 +18,8 @@ public final class ActorBoneWorldQuery {
         }
         RigPose pose = entity.getFinalRigPose();
         if (pose == null) return null;
-        if (entity instanceof com.director.actor.preview.PreviewPlayerActorEntity player)
-            return com.director.actor.rig.skeleton.PlayerRenderWorldPose.resolve(pose,
-                    new org.joml.Vector3f((float)entity.getX(),(float)entity.getY(),(float)entity.getZ()),
-                    entity.getYaw(), player.getActorTransformScale());
-        Matrix4f actorTransform = new Matrix4f()
-                .translate((float) entity.getX(), (float) entity.getY(), (float) entity.getZ())
-                .rotateY((float) Math.toRadians(-entity.getYaw()))
-                .scale(entity.getActorTransformScale());
-        return RigWorldPose.resolve(pose, actorTransform);
+        return com.director.actor.runtime.ActorWorldPoseEvaluator.resolve(pose,
+                new org.joml.Vector3f((float)entity.getX(),(float)entity.getY(),(float)entity.getZ()),
+                entity.getYaw(),entity.getActorTransformScale(),entity instanceof com.director.actor.preview.PreviewPlayerActorEntity);
     }
 }

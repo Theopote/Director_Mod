@@ -557,9 +557,15 @@ public final class ActorRuntimeController {
                 pose.setLocalTransform(com.director.actor.rig.skeleton.HumanoidRig.ROOT,
                         new com.director.actor.rig.skeleton.BoneTransform(new org.joml.Vector3f(),root.rotation(),root.scale()));
             }
-            var world = new org.joml.Matrix4f().translate(at.position)
-                    .rotateY((float)Math.toRadians(-at.rotation.x)).scale(at.scale);
-            var socket = com.director.actor.prop.ActorPropSocketResolver.resolve(pose,world,slot,
+            boolean player=actor.getType()==com.director.actor.ActorType.PLAYER;
+            // No current-camera/current-entity fallback for a past-time query.
+            var target=at.lookAtEnabled?ActorLookAtTargetResolver.resolve(at.lookAtMode,at.lookAtPoint,
+                    at.lookAtEntityUuid,actor.getActorId(),()->null,id->null):null;
+            if(at.lookAtEnabled && target==null) reportPlacement(actor.getActorId(),time,"gaze-history",false,
+                    "历史注视目标无法在该时刻解析，已保留头部动画。");
+            var placed=ActorWorldPoseEvaluator.evaluate(pose,at.position,at.rotation.x,at.scale,player,
+                    target==null?null:new org.joml.Vector3f((float)target.x,(float)target.y,(float)target.z),at.lookAtStrength);
+            var socket=com.director.actor.prop.ActorPropSocketResolver.resolve(placed.world(),player,slot,
                     new org.joml.Vector3f(attachment.x(),attachment.y(),attachment.z()),
                     new org.joml.Vector3f(attachment.rx(),attachment.ry(),attachment.rz()));
             return socket.orElse(null);
@@ -997,11 +1003,9 @@ public final class ActorRuntimeController {
                 if(pose!=null && pose.rig().findBoneIndex(com.director.actor.rig.skeleton.HumanoidRig.HEAD)>=0) {
                     boolean player=entity instanceof com.director.actor.preview.PreviewPlayerActorEntity;
                     var position=new org.joml.Vector3f((float)entity.getX(),(float)entity.getY(),(float)entity.getZ());
-                    var world=player?com.director.actor.rig.skeleton.PlayerRenderWorldPose.resolve(pose,position,entity.getYaw(),preview.getActorTransformScale())
-                            :com.director.actor.rig.skeleton.RigWorldPose.resolve(pose,new org.joml.Matrix4f().translate(position)
-                                .rotateY((float)Math.toRadians(-entity.getYaw())).scale(preview.getActorTransformScale()));
-                    if(ActorGazeConstraint.apply(pose,world,new org.joml.Vector3f((float)target.x,(float)target.y,(float)target.z),player,strength))
-                        preview.setFinalRigPose(pose);
+                    var placed=ActorWorldPoseEvaluator.evaluate(pose,position,entity.getYaw(),preview.getActorTransformScale(),player,
+                            new org.joml.Vector3f((float)target.x,(float)target.y,(float)target.z),strength);
+                    preview.setFinalRigPose(placed.pose());
                     return;
                 }
             }
