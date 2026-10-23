@@ -1462,3 +1462,10 @@ ActorRouteFootContact只接入无手工动画的标准玩家自动ONCE路径姿�
 - Applied before preset/manual channel composition in live and prop socket sampling. Quick body/leg overrides, explicit performance actions, relation constraints, and disabled route orientation suppress their corresponding procedural changes. Head and arms are not directly modified.
 - No extra clips, keyframes, or persistent actor settings are created. Other species retain whole-actor turns.
 - Regression suite: 625 tests, zero failures/errors. In-game visual validation remains required; support-foot locking is not implemented by this lift pose.
+
+### 2026-10-23 — Endpoint support-foot stabilization
+
+- Zero-speed endpoint turns now receive bounded support-leg translation correction, computed from absolute turn progress; no previous-frame state or persisted keys. The lifted leg is left unchanged.
+- Correction releases at each exchange and turn boundary, is capped at 0.2 model units, and fades with authored root/thigh/shin control. Relation, quick pose and disabled route facing retain priority.
+- This reduces sole-position drift; it is not full IK or an exact world-space sole orientation lock. Visual acceptance in Minecraft is still required.
+- Added anchor-error, lifted-leg preservation, authored priority/weight, deterministic seek and boundary regression tests.

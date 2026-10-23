@@ -47,4 +47,43 @@ class ActorRouteTurnPoseTest {
         var manual=new RigPose(base.rig());manual.setLocalTransform(base.rig().requireBoneIndex(HumanoidRig.LEFT_LEG),base.rig().bone(5).restLocal(),RigPose.ROTATION);
         var result=base.overlay(manual);assertTrue(unchanged(result,HumanoidRig.LEFT_LEG));assertFalse(unchanged(result,ArticulatedPlayerRig.LEFT_SHIN));
     }
+    @Test void supportCorrectionReducesAnchorErrorAndLeavesLiftedLegAlone() {
+        var s=sample(2.1f);s.speed=0;
+        var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);ActorRouteTurnPose.apply(pose,s);
+        var lifted=pose.localTransform(HumanoidRig.LEFT_LEG).toMatrix();
+        float p=com.director.timeline.playback.entity.ActorRouteMotion.stopTurn(s.routeClip,s.routeLocalTime).turnProgress();
+        var target=ActorRouteFootContact.solePosition(new RigPose(pose.rig()),HumanoidRig.RIGHT_LEG);
+        new org.joml.Quaternionf().rotateY((float)Math.PI*p).transform(target);
+        float before=ActorRouteFootContact.solePosition(pose,HumanoidRig.RIGHT_LEG).distance(target);
+        ActorRouteFootContact.apply(pose,s);
+        assertTrue(ActorRouteFootContact.solePosition(pose,HumanoidRig.RIGHT_LEG).distance(target)<before);
+        assertTrue(lifted.equals(pose.localTransform(HumanoidRig.LEFT_LEG).toMatrix(),1e-6f));
+    }
+    @Test void authoredSupportAndRootSuppressCorrectionAndSeekingIsRepeatable() {
+        var s=sample(2.3f);s.speed=0;
+        for(String bone:List.of(HumanoidRig.ROOT,HumanoidRig.LEFT_LEG,ArticulatedPlayerRig.LEFT_SHIN)) {
+            var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);ActorRouteTurnPose.apply(pose,s);
+            var before=pose.localTransform(HumanoidRig.LEFT_LEG).toMatrix();
+            ActorRouteFootContact.apply(pose,s,java.util.Map.of(bone,1f));
+            assertTrue(before.equals(pose.localTransform(HumanoidRig.LEFT_LEG).toMatrix(),1e-6f));
+        }
+        var a=new RigPose(ArticulatedPlayerRig.DEFINITION);var b=new RigPose(ArticulatedPlayerRig.DEFINITION);
+        ActorRouteTurnPose.apply(a,s);ActorRouteFootContact.apply(a,s);
+        ActorRouteTurnPose.apply(new RigPose(a.rig()),sample(5));
+        ActorRouteTurnPose.apply(b,s);ActorRouteFootContact.apply(b,s);
+        for(int i=0;i<a.rig().boneCount();i++) assertTrue(a.localTransform(i).toMatrix().equals(b.localTransform(i).toMatrix(),1e-6f));
+    }
+    @Test void supportReleaseIsContinuousAndAuthoredWeightScalesCorrection() {
+        var s=sample(2.1f);
+        var full=new RigPose(ArticulatedPlayerRig.DEFINITION);var half=new RigPose(full.rig());
+        ActorRouteFootContact.apply(full,s);
+        ActorRouteFootContact.apply(half,s,java.util.Map.of(HumanoidRig.RIGHT_LEG,.5f));
+        var rest=full.rig().bone(full.rig().requireBoneIndex(HumanoidRig.RIGHT_LEG)).restLocal().translation();
+        assertTrue(full.localTransform(HumanoidRig.RIGHT_LEG).translation().sub(rest).mul(.5f)
+                .equals(half.localTransform(HumanoidRig.RIGHT_LEG).translation().sub(rest),1e-6f));
+        for(float time:new float[]{2,2.2f,2.4f}) {
+            var pose=new RigPose(full.rig());ActorRouteFootContact.apply(pose,sample(time));
+            for(String leg:List.of(HumanoidRig.LEFT_LEG,HumanoidRig.RIGHT_LEG)) assertTrue(unchanged(pose,leg));
+        }
+    }
 }

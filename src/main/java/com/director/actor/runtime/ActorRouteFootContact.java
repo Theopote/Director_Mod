@@ -24,6 +24,14 @@ public final class ActorRouteFootContact {
     }
     public static void apply(RigPose pose,EntitySample sample,com.director.actor.rig.ActorRigProfile profile,
                              java.util.Map<String,Float> authoredWeights) {
+        if (ActorRouteTurnPose.supports(pose,sample) && !sample.poseOverrideEnabled
+                && sample.scale.x > .001f && sample.scale.y > .001f && sample.scale.z > .001f) {
+            float progress=ActorRouteMotion.stopTurn(sample.routeClip,sample.routeLocalTime).turnProgress();
+            if (progress>0 && progress<1) {
+                correctTurnSupport(pose,sample,authoredWeights,progress);
+                return;
+            }
+        }
         float stride=ActorRouteGait.stride(sample,profile);
         if (!Float.isFinite(stride) || sample.routeClip == null
                 || !sample.routeClip.isAlignRotationToRoute()
@@ -35,6 +43,33 @@ public final class ActorRouteFootContact {
         correct(pose,sample,HumanoidRig.LEFT_LEG,distance,stride,0,contactWeight(authoredWeights,HumanoidRig.LEFT_LEG,ArticulatedPlayerRig.LEFT_SHIN));
         correct(pose,sample,HumanoidRig.RIGHT_LEG,distance,stride,.5f,contactWeight(authoredWeights,HumanoidRig.RIGHT_LEG,ArticulatedPlayerRig.RIGHT_SHIN));
     }
+    /** Bounded support-foot stabilization, released smoothly at each foot exchange. */
+    private static void correctTurnSupport(RigPose pose,EntitySample sample,
+                                            java.util.Map<String,Float> weights,float progress) {
+        boolean first=progress<.5f;
+        String leg=first?HumanoidRig.RIGHT_LEG:HumanoidRig.LEFT_LEG;
+        String shin=first?ArticulatedPlayerRig.RIGHT_SHIN:ArticulatedPlayerRig.LEFT_SHIN;
+        float strength=contactWeight(weights,leg,shin);
+        if (strength<=0) return;
+        float phase=first?progress*2:(progress-.5f)*2;
+        float envelope=(float)Math.pow(Math.sin(Math.PI*phase),2);
+        // Reconstruct the half-turn entry from absolute scene time, never last-frame state.
+        float relativeYaw=(float)(Math.PI*(progress-(first?0:.5f)));
+        var restPose=new RigPose(pose.rig());
+        var target=solePosition(restPose,leg).mul(sample.scale);
+        new Quaternionf().rotateY(relativeYaw).transform(target);
+        target.div(sample.scale);
+        var correction=target.sub(solePosition(pose,leg));
+        if (correction.length()>.2f) correction.normalize().mul(.2f);
+        int index=pose.rig().requireBoneIndex(leg);
+        int parent=pose.rig().bone(index).parentIndex();
+        if(parent>=0) pose.calculateModelTransforms()[parent].invert().transformDirection(correction);
+        if(!correction.isFinite()) return;
+        var current=pose.localTransform(index);
+        pose.setLocalTransform(index,new BoneTransform(current.translation().add(correction.mul(envelope*strength)),
+                current.rotation(),current.scale()),RigPose.TRANSLATION);
+    }
+
     private static float contactWeight(java.util.Map<String,Float> weights,String leg,String shin) {
         float authored=Math.max(weights.getOrDefault(HumanoidRig.ROOT,0f),
                 Math.max(weights.getOrDefault(leg,0f),weights.getOrDefault(shin,0f)));
