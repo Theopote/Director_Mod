@@ -31,6 +31,27 @@ class ActorPathEditingTest {
         var path = new ActorPathDefinition("Path"); path.setWaypoints(points); path.setInterpolationMode(mode); library.add(path); return path;
     }
     ActorRouteClip route() { return (ActorRouteClip) ActorPathEditing.attach(model, track, points, mode, "Route").getEntityClip(); }
+    @Test void libraryControlsExplainRejectedMutationsButAllowUnlockAndVisibility() {
+        var path = path();
+        assertEquals("", ActorPathEditAvailability.reason(model, path));
+        ActorPathEditing.setLocked(model, library, path, true, saves::incrementAndGet);
+        assertFalse(ActorPathEditAvailability.reason(model, path).isEmpty());
+        assertEquals("", ActorPathEditAvailability.reason(model, null));
+        assertThrows(IllegalArgumentException.class, () -> ActorPathEditing.rename(model, library, path, "New", saves::incrementAndGet));
+        assertThrows(IllegalArgumentException.class, () -> ActorPathEditing.remove(model, library, path, saves::incrementAndGet));
+        boolean visible = path.isVisible();
+        ActorPathEditing.setVisible(model, library, path, !visible, saves::incrementAndGet);
+        assertEquals(!visible, path.isVisible());
+        ActorPathEditing.setLocked(model, library, path, false, saves::incrementAndGet);
+        assertEquals("", ActorPathEditAvailability.reason(model, path));
+        model.setScrubbing(true);
+        assertFalse(ActorPathEditAvailability.reason(model, null).isEmpty());
+        assertThrows(IllegalArgumentException.class, () -> ActorPathEditing.rename(model, library, path, "New", saves::incrementAndGet));
+        model.setScrubbing(false); model.setPlaying(true);
+        assertFalse(ActorPathEditAvailability.reason(model, path).isEmpty());
+        assertFalse(ActorPathEditAvailability.reason(null, path).isEmpty());
+    }
+
     @Test void switchingLegacyRouteBindsNewGeometryWithoutCreatingClipsAndCanUndo() {
         var route = route(); var sampler = new com.director.timeline.playback.entity.EntityClipSampler(track.getActorTrackPayload());
         var next = new ActorPathDefinition("Switch test"); next.setWaypoints(List.of(new Vector3f(),new Vector3f(0,0,8))); next.setInterpolationMode(mode);

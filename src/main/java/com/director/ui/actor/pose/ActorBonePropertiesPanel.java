@@ -365,14 +365,14 @@ public final class ActorBonePropertiesPanel {
                     && sample.routeClip!=null && !sample.actionExplicit && sample.speed>3 && sample.speed<5)
                 ImGui.textDisabled(String.format(java.util.Locale.ROOT,"基础走跑过渡：跑步姿态占比 %.0f%%（上层动画仍可覆盖）",
                         100*com.director.actor.runtime.ActorRouteGait.runWeight(sample.speed)));
-            ImGui.textDisabled("局部通道控制来源（不含未保存草稿）");
+            ImGui.textDisabled("局部通道来源（按配置推断，不含未保存草稿）");
             for (int channel : new int[]{RigPose.TRANSLATION,RigPose.ROTATION,RigPose.SCALE}) {
                 if (ActorBoneInspector.supports(rig,boneId,channel))
                     ImGui.textWrapped(ActorBoneInspector.label(channel)+"："+ActorBoneControlSource.source(boneId,channel,sample,authored,preset));
             }
             if (sample.routeClip != null) ImGui.textDisabled("整体移动：沿路径；自动步态与端点换脚可影响局部骨骼，上层动画仍可覆盖。");
             if (HumanoidRig.HEAD.equals(boneId) && sample.lookAtEnabled && sample.lookAtStrength > 0)
-                ImGui.textWrapped("注视约束正在控制头部朝向。制作手工转头动画时，请关闭注视约束。");
+                ImGui.textWrapped("注视在目标可解析时参与头部旋转混合：权重为 1 时覆盖，较低权重保留部分原动画。这里的配置状态不代表本帧已生效。");
         }
 
     }

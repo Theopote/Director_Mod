@@ -59,7 +59,11 @@ public final class ActorPathLibraryPanel {
             ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.HINT));
             ImGui.spacing();
 
-            ImGui.beginDisabled(model == null || model.isPlaying());
+            String readOnlyReason = mutationReason(null);
+            if (!readOnlyReason.isEmpty()) ImGui.textWrapped(readOnlyReason);
+            if (selectedPathId != null && library.get(selectedPathId) == null) selectedPathId = null;
+            if (renamingPathId != null && (library.get(renamingPathId) == null || !mutationReason(library.get(renamingPathId)).isEmpty()))
+                renamingPathId = null;
             var paths = ActorPathLibraryManager.getAllPaths();
             if (paths.isEmpty()) {
                 ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.EMPTY));
@@ -77,7 +81,6 @@ public final class ActorPathLibraryPanel {
                     ImGui.popID();
                 }
             }
-            ImGui.endDisabled();
             if (!lastError.isEmpty()) ImGui.textWrapped(lastError);
         }
 
@@ -98,30 +101,25 @@ public final class ActorPathLibraryPanel {
             label = Icons.LOCK + " " + label;
         }
 
-        float controlsWidth = CONTROL_BUTTON_SIZE * 4.0f + ImGui.getStyle().getItemInnerSpacingX() * 3.0f;
-        float iconRegionStart = ImGui.getContentRegionMaxX() - controlsWidth;
-        float rowStartX = ImGui.getCursorPosX();
-        float nameWidth = Math.max(0.0f, iconRegionStart - rowStartX - ImGui.getStyle().getItemInnerSpacingX());
-
+        float spacing = ImGui.getStyle().getItemSpacingX();
+        float controlsWidth = CONTROL_BUTTON_SIZE * 4 + spacing * 3;
+        float available = ImGui.getContentRegionAvailX();
+        boolean wrapped = available < controlsWidth + 100;
+        float nameWidth = wrapped ? Math.max(1, available) : Math.max(1, available - controlsWidth - spacing);
         if (ImGui.selectable(label, selected, 0, nameWidth, 0)) {
             selectedPathId = path.getId();
-            if (path.isLocked()) {
-                LOGGER.info("[ActorPathLibraryPanel] Path '{}' is locked", path.getName());
-            } else {
-                ActorPathController.getInstance().loadPathForEditing(path.getId());
-            }
+            if (mutationReason(path).isEmpty()) ActorPathController.getInstance().loadPathForEditing(path.getId());
         }
-        if (path.isLocked() && ImGui.isItemHovered()) {
-            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.LOCKED_HINT));
+        if (ImGui.isItemHovered()) {
+            String reason = mutationReason(path);
+            ImGui.setTooltip(label + (reason.isEmpty() ? "" : "\n" + reason));
         }
-
-        ImGui.sameLine();
-        ImGui.setCursorPosX(iconRegionStart);
-
+        if (!wrapped) ImGui.sameLine();
+        ImGui.beginDisabled(!mutationReason(null).isEmpty());
         if (iconButton(path.isLocked() ? Icons.LOCK : Icons.UNLOCK, "##lock")) {
             boolean becomingLocked = !path.isLocked();
-            if (!edit(model -> ActorPathEditing.setLocked(model, viewLibrary, path, becomingLocked, ActorPathController.librarySaver()))) return;
-            if (becomingLocked && path.getId().equals(ActorPathController.getInstance().getEditingLibraryPathId())) {
+            boolean changed = edit(model -> ActorPathEditing.setLocked(model, viewLibrary, path, becomingLocked, ActorPathController.librarySaver()));
+            if (changed && becomingLocked && path.getId().equals(ActorPathController.getInstance().getEditingLibraryPathId())) {
                 ActorPathController.getInstance().onPathRemovedFromLibrary(path.getId());
             }
         }
@@ -145,23 +143,29 @@ public final class ActorPathLibraryPanel {
             ));
         }
 
-        ImGui.sameLine();
+        ImGui.endDisabled();
+        if (!wrapped || available >= controlsWidth)
+            ImGui.sameLine();
+        ImGui.beginDisabled(!mutationReason(path).isEmpty());
         if (iconButton(Icons.EDIT, "##rename")) {
-            if (!path.isLocked()) {
-                renamingPathId = path.getId();
-                renameBuffer.set(path.getName());
-            }
+            renamingPathId = path.getId();
+            renameBuffer.set(path.getName());
         }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.RENAME));
-        }
-
+        disabledTooltip(path, ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.RENAME));
         ImGui.sameLine();
-        if (iconButton(Icons.DELETE, "##delete")) {
-            openDeleteConfirmPopup(path.getId());
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.DELETE));
+        if (iconButton(Icons.DELETE, "##delete")) openDeleteConfirmPopup(path.getId());
+        disabledTooltip(path, ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.DELETE));
+        ImGui.endDisabled();
+    }
+
+    private String mutationReason(ActorPathDefinition path) {
+        return ActorPathEditAvailability.reason(viewModel, path);
+    }
+
+    private void disabledTooltip(ActorPathDefinition path, String action) {
+        if (ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled)) {
+            String reason = mutationReason(path);
+            ImGui.setTooltip(reason.isEmpty() ? action : reason);
         }
     }
 
@@ -170,11 +174,10 @@ public final class ActorPathLibraryPanel {
     }
 
     private void renderRenameRow(ActorPathDefinition path) {
-        ImGui.setNextItemWidth(-120);
+        ImGui.setNextItemWidth(Math.max(1, ImGui.getContentRegionAvailX()));
         if (ImGui.inputText("##renameInput", renameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
             commitRename(path.getId());
         }
-        ImGui.sameLine();
         if (ImGui.button(Icons.CHECK + "##ok")) {
             commitRename(path.getId());
         }
@@ -212,10 +215,14 @@ public final class ActorPathLibraryPanel {
                     ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.DELETE_WARNING));
             ImGui.separator();
 
+            String reason = path == null ? "路径已删除" : mutationReason(path);
+            if (!reason.isEmpty()) ImGui.textWrapped(reason);
+            ImGui.beginDisabled(!reason.isEmpty());
             if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DELETE), 100, 0)) {
                 confirmDelete();
                 ImGui.closeCurrentPopup();
             }
+            ImGui.endDisabled();
             ImGui.sameLine();
             if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CANCEL), 100, 0)) {
                 cancelDelete();
@@ -251,9 +258,11 @@ public final class ActorPathLibraryPanel {
     private void commitRename(UUID pathId) {
         String newName = renameBuffer.get().trim();
         if (newName.isEmpty()) {
+            lastError = "路径名称不能为空";
             return;
         }
         if (!ActorPathLibraryManager.getInstance().isNameAvailable(newName, pathId)) {
+            lastError = "路径名称已存在，请使用其他名称";
             LOGGER.warn("[ActorPathLibraryPanel] 路径名称已存在: {}", newName);
             return;
         }

@@ -66,7 +66,7 @@ public final class ActorPathEditing {
         public TimelineTrack owner() { return owner; }
         public ActorPathLibrary library() { return library; }
         public boolean isCurrent() {
-            if (!context.isCurrent(model) || model.isPlaying() || !Float.isFinite(time) || time < 0 || Float.compare(time, model.getCurrentTime()) != 0) return false;
+            if (!context.isCurrent(model) || model.isPlaying() || model.isScrubbing() || !Float.isFinite(time) || time < 0 || Float.compare(time, model.getCurrentTime()) != 0) return false;
             if (route == null) return library.get(path.getId()) == path && !path.isLocked()
                     && before.matches(path.getWaypoints(), path.getInterpolationMode());
             return validOwner(model, owner, payload, actorId) && payload.getClips().contains(route) && !route.isMuted()
@@ -257,7 +257,7 @@ public final class ActorPathEditing {
                 && ActorRegistryManager.getInstance().getActor(actorId).isPresent();
     }
     static void requireEditing(TimelineModel model) {
-        if (model == null || model.isPlaying() || !Float.isFinite(model.getCurrentTime()) || model.getCurrentTime() < 0)
+        if (model == null || model.isPlaying() || model.isScrubbing() || !Float.isFinite(model.getCurrentTime()) || model.getCurrentTime() < 0)
             throw new IllegalArgumentException("请先暂停时间线再编辑路径");
     }
     private static float duration(Geometry geometry, float speed) {

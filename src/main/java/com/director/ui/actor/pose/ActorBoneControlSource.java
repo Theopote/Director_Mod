@@ -29,7 +29,7 @@ final class ActorBoneControlSource {
         boolean humanoid=authored==null || HumanoidTopology.matches(authored.rig());
         if(humanoid && channel==RigPose.ROTATION && HumanoidRig.HEAD.equals(bone)
                 && sample.lookAtEnabled && sample.lookAtStrength>0)
-            return sample.lookAtStrength>=1?"注视约束（覆盖头部动画）":"注视约束（部分影响）＋"+lower;
+            return "注视配置已启用（目标有效时"+(sample.lookAtStrength>=1?"覆盖头部旋转":"部分影响")+"）；基础来源："+lower;
         return lower;
     }
     private static boolean contributes(RigPose pose,String bone,int channel,PoseBlendSettings settings,float envelope) {
