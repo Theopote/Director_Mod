@@ -125,13 +125,16 @@ public final class ActorRuntimeController {
 
     /** Read only; never samples animations, creates previews or resolves targets. */
     public ActorPoseFeedback poseFeedback(ActorTimelineSource source,UUID actorId) {
-        if(source==null || source!=timelineSource || actorId==null) return null;
+        if(!enabled || source==null || source!=timelineSource || actorId==null) return null;
         ActorPoseFeedback result=null;
         for(var entry:runtimes.entrySet()) {
             var runtime=entry.getValue();
             if(runtime.actor==null || !actorId.equals(runtime.actor.getActorId())) continue;
             var feedback=runtime.poseFeedback;
             if(!runtime.spawned || entry.getKey().isMuted() || !source.getTracks().contains(entry.getKey())
+                    || entry.getKey().getActorTrackPayload()!=runtime.actorTrack || runtime.actorTrack.getActorRef()==null
+                    || !actorId.equals(runtime.actorTrack.getActorRef().getActorId())
+                    || actorRegistry==null || actorRegistry.getActor(actorId).orElse(null)!=runtime.actor
                     || runtime.lastSample==null || !previewActive(runtime.lastSample) || runtime.lastSample.visibility<=.01f
                     || feedback==null || !feedback.matches(source.getCurrentTime(),source.getActorEditContextRevision())) return null;
             if(result!=null) return null;
@@ -875,8 +878,12 @@ public final class ActorRuntimeController {
                     if (!boneDragging || boneDraft!=null) {
                         finalRigPose=applyRootPlacement((Entity)previewEntity,finalRigPose,s);
                         previewEntity.setFinalRigPose(finalRigPose);
+                        var issues=new java.util.ArrayList<>(evaluated.diagnostics().stream().map(d->d.stage()+": "+d.detail().reason()).toList());
+                        if(presetInput!=null && presetPose==null) issues.add("动作预设不存在或无法适配当前骨架");
+                        if(primaryClock.id()!=null && !primaryClock.id().isBlank() && rigAsset.isEmpty() && legacyPose==null && boneDraft==null)
+                            issues.add("手工动画引用不存在或无法适配当前骨架");
                         poseFeedback=new ActorPoseFeedback(timelineSource.getCurrentTime(),timelineSource.getActorEditContextRevision(),
-                                evaluated.sources(),evaluated.diagnostics().stream().map(d->d.stage()+": "+d.detail().reason()).toList(),
+                                evaluated.sources(),issues,
                                 s.lookAtEnabled?"注视等待求解":"注视未启用",false,0);
                     }
                 }

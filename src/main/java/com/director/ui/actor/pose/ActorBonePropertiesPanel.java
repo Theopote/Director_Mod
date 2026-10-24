@@ -326,56 +326,19 @@ public final class ActorBonePropertiesPanel {
                     + " / 旋转 " + (track == null ? 0 : track.rotation().keyframes().size())
                     + " / 缩放 " + (track == null ? 0 : track.scale().keyframes().size()));
         }
-        var owner = ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
-        if (owner != null) {
-            var sample = new com.director.timeline.playback.entity.EntityClipSampler(owner.getActorTrackPayload())
-                    .sampleSnapshot(model.getCurrentTime());
-            var actor=com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
-            if(actor!=null) {
-                var clock=com.director.actor.runtime.ActorPresetClock.resolve(
-                        com.director.timeline.playback.entity.ActorAnimationLayerSample.from(sample),sample,actor.getRigProfile());
-                sample.animationBlendEnvelope=clock.envelope();sample.animationLocalTime=clock.localTime();
-                sample.animationLoop=clock.loop();sample.animationSpeed=clock.speed();
-                sample.presetAnimation=com.director.actor.runtime.ActorPresetClock.resolve(sample.presetAnimation,sample,actor.getRigProfile());
-            }
-            RigPose authored = new RigPose(rig);
-            var asset = AnimationAssetLibrary.getInstance().find(sample.animationId)
-                    .filter(value -> value.rigId().equals(rig.id())).orElse(null);
-            if (asset != null) authored = asset.sample(sample.animationLocalTime * Math.max(.01f,sample.animationSpeed),
-                    sample.animationLoop ? asset.loopMode() : AnimationLoopMode.ONCE);
-            else {
-                var adapted=com.director.actor.animation.AnimationDataSampler.sampleRig(sample.animationId,rig,
-                        sample.animationLocalTime,sample.animationLoop,sample.animationSpeed);
-                if(adapted!=null) authored=adapted;
-            }
-            var preset=sample.presetAnimation==null?null:sample.presetAnimation.sample(rig);
-            if(preset!=null && !RigPoseComposer.sameLayout(rig,preset.rig())) {
-                ImGui.textWrapped("下层预设骨架不兼容，已跳过该层；手工关键帧仍可使用。");preset=null;
-            } else if(sample.presetAnimation!=null && preset==null)
-                ImGui.textWrapped("下层预设引用不存在或不能适配当前骨架，请在片段预设设置中重新选择或清除。");
-            if(sample.animationId!=null && !sample.animationId.isBlank()) {
-                var referenced=AnimationAssetLibrary.getInstance().find(sample.animationId).orElse(null);
-                if(referenced==null && com.director.actor.animation.AnimationLibrary.getInstance().get(sample.animationId).isEmpty())
-                    ImGui.textWrapped((sample.animationIsPreset?"动作预设":"手工动画")+"引用不存在："+sample.animationId);
-                else if(referenced!=null && !RigPoseComposer.sameLayout(rig,referenced.rig()))
-                    ImGui.textWrapped("当前动画骨架与此编辑骨架不同，不能用此处的部位通道解释其效果。");
-            }
-            if(actor!=null && actor.getRigProfile().supports(com.director.actor.action.ActorActionType.WALK)
-                    && actor.getRigProfile().supports(com.director.actor.action.ActorActionType.RUN)
-                    && sample.routeClip!=null && !sample.actionExplicit && sample.speed>3 && sample.speed<5)
-                ImGui.textDisabled(String.format(java.util.Locale.ROOT,"基础走跑过渡：跑步姿态占比 %.0f%%（上层动画仍可覆盖）",
-                        100*com.director.actor.runtime.ActorRouteGait.runWeight(sample.speed)));
-            ImGui.textDisabled("局部通道来源（按配置推断，不含未保存草稿）");
-            for (int channel : new int[]{RigPose.TRANSLATION,RigPose.ROTATION,RigPose.SCALE}) {
-                if (ActorBoneInspector.supports(rig,boneId,channel))
-                    ImGui.textWrapped(ActorBoneInspector.label(channel)+"："+ActorBoneControlSource.source(boneId,channel,sample,authored,preset));
-            }
-            if (sample.routeClip != null) ImGui.textDisabled("整体移动：沿路径；自动步态与端点换脚可影响局部骨骼，上层动画仍可覆盖。");
-            if (HumanoidRig.HEAD.equals(boneId) && sample.lookAtEnabled && sample.lookAtStrength > 0)
-                ImGui.textWrapped("注视在目标可解析时参与头部旋转混合：权重为 1 时覆盖，较低权重保留部分原动画。这里的配置状态不代表本帧已生效。");
+        var feedback=com.director.actor.runtime.ActorRuntimeController.getInstance().poseFeedback(model,actorId);
+        ImGui.textDisabled("本帧实际控制来源（包含当前预览草稿）");
+        if(feedback==null) {
+            ImGui.textWrapped("当前没有可用的本帧求解结果，请等待预览刷新。");
+        } else {
+            for(int channel:new int[]{RigPose.TRANSLATION,RigPose.ROTATION,RigPose.SCALE})
+                if(ActorBoneInspector.supports(rig,boneId,channel))
+                    ImGui.textWrapped(ActorBoneInspector.label(channel)+"："+feedback.source(boneId,channel));
+            if(HumanoidRig.HEAD.equals(boneId)) ImGui.textWrapped(feedback.gaze());
+            for(String issue:feedback.diagnostics()) ImGui.textWrapped("未生效图层："+issue);
         }
-
     }
+
 
     private static void renderChildren(RigDefinition rig, int parent, ActorBoneSelectionController selection, UUID actorId) {
         for (int i = 0; i < rig.boneCount(); i++) {

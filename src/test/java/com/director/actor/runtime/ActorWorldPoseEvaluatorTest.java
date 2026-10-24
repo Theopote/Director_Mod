@@ -13,6 +13,17 @@ class ActorWorldPoseEvaluatorTest {
         p.setLocalTransform(ArticulatedPlayerRig.RIGHT_FOREARM,p.localTransform(ArticulatedPlayerRig.RIGHT_FOREARM).withRotation(LimbBendTransform.encodedRotation(-.8f,.3f)));
         return p;
     }
+    @Test void gazeFeedbackDistinguishesSuccessFromMissingTargetZeroWeightAndDegenerateScale() {
+        var p=pose();var position=new Vector3f();var scale=new Vector3f(1);var target=new Vector3f(3,4,5);
+        assertTrue(ActorWorldPoseEvaluator.evaluate(p,position,0,scale,true,target,.5f).gazeApplied());
+        assertFalse(ActorWorldPoseEvaluator.evaluate(p,position,0,scale,true,null,1).gazeApplied());
+        assertFalse(ActorWorldPoseEvaluator.evaluate(p,position,0,scale,true,target,0).gazeApplied());
+        assertFalse(ActorWorldPoseEvaluator.evaluate(p,position,0,new Vector3f(0),true,target,1).gazeApplied());
+        var world=ActorWorldPoseEvaluator.resolve(p,position,0,scale,true);
+        var eye=ActorWorldPoseEvaluator.eyePosition(p,world,true);
+        assertFalse(ActorWorldPoseEvaluator.evaluate(p,position,0,scale,true,eye,1).gazeApplied());
+    }
+
     @Test void playerSocketsUseRenderedPivotsAndCorrectModelYAxis() {
         var p=pose();var position=new Vector3f(3,4,5);var scale=new Vector3f(1.2f,.8f,1.5f);
         var world=ActorWorldPoseEvaluator.resolve(p,position,37,scale,true);

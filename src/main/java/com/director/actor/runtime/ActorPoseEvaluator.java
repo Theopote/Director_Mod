@@ -33,16 +33,19 @@ public final class ActorPoseEvaluator {
         var weights=new HashMap<String,Float>();var diagnostics=new ArrayList<Diagnostic>();
         pose=applyLayer(pose,preset,"preset-layer",weights,diagnostics);
         if(diagnostics.isEmpty()) sources.layer(preset,"动作预设");
-        var quickBefore=ActorPoseSources.capture(pose);
         applyQuickPose(pose,sample);
-        sources.changed(quickBefore,pose,"快速姿态");
+        if(sample.poseOverrideEnabled) {
+            var quick=new RigPose(rig);
+            applyQuickPose(quick,sample);
+            sources.layer(new Layer(quick,PoseBlendSettings.DEFAULT,1),"快速姿态");
+        }
         int previousDiagnostics=diagnostics.size();
         pose=applyLayer(pose,manual,"pose-layer",weights,diagnostics);
         if(diagnostics.size()==previousDiagnostics) sources.layer(manual,sample.animationIsPreset?"动作预设":"手工骨骼关键帧");
         pose.setLimbBendMode(bendMode);
         before=ActorPoseSources.capture(pose);
         if(type==ActorType.PLAYER) ActorRouteFootContact.apply(pose,sample,profile,weights);
-        sources.changed(before,pose,"路径脚底接触修正");
+        sources.changed(before,pose,"路径脚底接触修正",true);
         return new Result(pose,weights,diagnostics,sources.snapshot());
     }
     private static RigPose applyLayer(RigPose base,Layer layer,String stage,Map<String,Float> weights,List<Diagnostic> diagnostics) {

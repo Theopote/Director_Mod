@@ -28,6 +28,28 @@ class ActorPoseEvaluatorTest {
         s.routeClip=new ActorRouteClip("Path",0,4);s.routeClip.setWaypoints(List.of(new Vector3f(),new Vector3f(0,0,4)));
         return s;
     }
+    @Test void feedbackReportsAcceptedSparseChannelsAndActualWeight() {
+        var s=route(); var preset=keyed(HumanoidRig.HEAD,.4f); var manual=keyed(HumanoidRig.HEAD,.7f);
+        var settings=new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,.25f,2,true,java.util.Set.of());
+        var result=evaluate(s,new ActorPoseEvaluator.Layer(preset,PoseBlendSettings.DEFAULT,1),
+                new ActorPoseEvaluator.Layer(manual,settings,1));
+        var head=new ActorPoseSources.Channel(HumanoidRig.HEAD,2);
+        assertTrue(result.sources().get(head).contains("25%"));
+        assertTrue(result.sources().get(head).contains("动作预设"));
+        assertFalse(result.sources().containsKey(new ActorPoseSources.Channel(HumanoidRig.HEAD,4)));
+        var invalid=new RigPose(HumanoidRig.DEFINITION);
+        invalid.setLocalTransform(0,BoneTransform.identity(),2);
+        var rejected=evaluate(s,null,new ActorPoseEvaluator.Layer(invalid,PoseBlendSettings.DEFAULT,1));
+        assertFalse(rejected.diagnostics().isEmpty());
+        assertFalse(rejected.sources().containsValue("手工骨骼关键帧"));
+    }
+    @Test void zeroWeightDoesNotClaimControlAndQuickPoseOwnsEqualValues() {
+        var s=route();s.poseOverrideEnabled=true;s.poseOverrideHead=true;s.poseHeadYaw=0;
+        var zero=new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,0,2,true,java.util.Set.of());
+        var result=evaluate(s,null,new ActorPoseEvaluator.Layer(keyed(HumanoidRig.HEAD,1),zero,1));
+        assertEquals("快速姿态",result.sources().get(new ActorPoseSources.Channel(HumanoidRig.HEAD,2)));
+    }
+
     @Test void manualSparseChannelsOverrideQuickPoseAndPresetWithoutMutatingInputs() {
         var s=route();s.poseOverrideEnabled=true;s.poseOverrideHead=true;s.poseHeadYaw=.8f;
         var preset=keyed(HumanoidRig.HEAD,.4f);var manual=keyed(HumanoidRig.HEAD,1.1f);

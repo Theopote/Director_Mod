@@ -31,11 +31,18 @@ public final class ActorPoseSources {
         return result;
     }
     public void changed(BoneTransform[] before,RigPose after,String label) {
+        changed(before,after,label,false);
+    }
+    private void changedChannel(String bone,int channel,String label,boolean correction) {
+        var key=new Channel(bone,channel);
+        values.put(key,correction?label+"＋"+values.getOrDefault(key,"基础姿态"):label);
+    }
+    public void changed(BoneTransform[] before,RigPose after,String label,boolean correction) {
         for(int i=0;i<before.length;i++) {
             var a=before[i];var b=after.localTransform(i);String bone=after.rig().bone(i).id();
-            if(!a.translation().equals(b.translation(),1e-6f)) values.put(new Channel(bone,1),label);
-            if(1-Math.abs(a.rotation().dot(b.rotation()))>1e-7f) values.put(new Channel(bone,2),label);
-            if(!a.scale().equals(b.scale(),1e-6f)) values.put(new Channel(bone,4),label);
+            if(!a.translation().equals(b.translation(),1e-6f)) changedChannel(bone,1,label,correction);
+            if(1-Math.abs(a.rotation().dot(b.rotation()))>1e-7f) changedChannel(bone,2,label,correction);
+            if(!a.scale().equals(b.scale(),1e-6f)) changedChannel(bone,4,label,correction);
         }
     }
 }
