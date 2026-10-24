@@ -29,6 +29,18 @@ class ActorBehaviorPropertyEditSessionTest {
     ActorRelationClip relation(TimelineTrack owner, UUID target, float start, float end) {
         var c = new ActorRelationClip("Relation", start,end); c.setTargetActorId(target); attach(owner, c); return c;
     }
+    @Test void presetScopeIsOneUndoWithoutNewClipsOrManualReferenceChanges() {
+        var spawn=new EntitySpawnClip("Spawn",0,5);spawn.setBoneAnimationId("test:manual");
+        var binding=ActorPresetBinding.select("wave",null);spawn.setPreset(binding);attach(track,spawn);
+        var wrapper=spawn.getTimelineClip();var edit=new ActorClipPropertyEditSession(model,spawn);
+        var draft=(EntitySpawnClip)edit.draft();
+        draft.setPreset(com.director.ui.properties.actor.ActorPresetScope.UPPER.apply(binding,com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION));
+        assertEquals(binding,spawn.getPreset());assertTrue(edit.commit());assertFalse(spawn.getPreset().blend().allBones());
+        assertEquals(1,track.getClips().size());assertSame(wrapper,track.getClips().getFirst());assertEquals("test:manual",spawn.getBoneAnimationId());
+        assertTrue(history.undo());assertEquals(binding,spawn.getPreset());assertFalse(history.undo());
+        assertTrue(history.redo());assertFalse(spawn.getPreset().blend().allBones());
+    }
+
     @Test void actionSliderTimeAndLoopAreOneDetachedUndo() {
         var c = action(); var wrapper = c.getTimelineClip(); var edit = new ActorClipPropertyEditSession(model,c);
         var draft = (ActorActionClip) edit.draft();

@@ -66,13 +66,12 @@ public final class ActorSpawnPresetPropertyUI {
             var model=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
             var playback=payload==null?null:new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleSnapshot(model.getCurrentTime());
             boolean distanceClock=playback!=null && com.director.actor.runtime.ActorPresetClock.followsDistance(binding.animationId(),playback);
-            var data=AnimationAssetLibrary.getInstance().contains(binding.animationId())?null:AnimationLibrary.getInstance().get(binding.animationId()).orElse(null);
             if(distanceClock) ImGui.textWrapped("此循环步态按路径行进距离推进，单次路径起止阶段自动淡化步态；缩短演员片段会加快位移和步频。循环与速度设置仅用于原地播放。");
             else if(com.director.actor.runtime.ActorPresetClock.purpose(binding.animationId())==com.director.actor.animation.AnimationData.Purpose.LOCOMOTION)
                 ImGui.textWrapped("原地步态：只改变身体动作，不移动演员。沿路径走跑通常直接使用自动步态即可。");
             else ImGui.textWrapped("表演预设按片段本地时间播放；路径继续控制整体位移，未声明的骨骼通道保留底层动作。");
-            if(playback!=null && playback.routeClip!=null && data!=null
-                    && data.purpose()==com.director.actor.animation.AnimationData.Purpose.STATIC_POSE)
+            if(playback!=null && playback.routeClip!=null
+                    && com.director.actor.runtime.ActorPresetClock.purpose(binding.animationId())==com.director.actor.animation.AnimationData.Purpose.STATIC_POSE)
                 ImGui.textWrapped("静态姿态可能覆盖腿部步态；需要边走边表演时，可在部位范围中排除双腿。");
             ImGui.beginDisabled(distanceClock);
             boolean loop=binding.loop();changed=ImGui.checkbox("循环",loop);
@@ -95,10 +94,24 @@ public final class ActorSpawnPresetPropertyUI {
                 changed=ImGui.checkbox(channelLabels[i],(channels&bits[i])!=0);
                 if(changed) channels^=bits[i];gesture.observe("presetChannel"+i,changed);
             }
+            var rig=ActorRigCompatibility.resolveRig(actor).orElse(null);
+            if(ImGui.beginCombo("部位快捷范围",ActorPresetScope.currentLabel(binding,rig))) {
+                for(var scope:ActorPresetScope.values()) {
+                    ImGui.beginDisabled(!scope.supported(rig));
+                    if(ImGui.selectable(scope.label())) {
+                        blend=scope.apply(new ActorPresetBinding(binding.animationId(),loop,speed[0],
+                                new PoseBlendSettings(PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,
+                                        blend.allBones(),blend.boneIds(),fades[0],fades[1])),rig).blend();
+                        gesture.requestCommit();
+                    }
+                    ImGui.endDisabled();
+                }
+                ImGui.endCombo();
+            }
+            ImGui.textWrapped("仅上半身保留双腿的底层步态；仅双腿不包含模型根，避免改变整体位移。范围只筛选已有动画通道。");
             boolean all=blend.allBones();changed=ImGui.checkbox("所有部位",all);
             if(changed) all=!all;gesture.observe("presetAllBones",changed);
             var bones=new LinkedHashSet<>(blend.boneIds());
-            var rig=ActorRigCompatibility.resolveRig(actor).orElse(null);
             if(!all && rig!=null) for(var bone:rig.bones()) {
                 changed=ImGui.checkbox(bone.displayName()+"##presetBone"+bone.id(),bones.contains(bone.id()));
                 if(changed) { if(!bones.remove(bone.id())) bones.add(bone.id()); }
@@ -115,6 +128,17 @@ public final class ActorSpawnPresetPropertyUI {
             else if(feedback.bones().isEmpty()) ImGui.textWrapped("所选部位与通道没有对应动画，预设当前不产生影响。");
             else if(rig!=null) ImGui.textWrapped("影响部位："+feedback.bones().stream()
                     .map(id->rig.bone(rig.requireBoneIndex(id)).displayName()).collect(java.util.stream.Collectors.joining("、")));
+            if(!muted && playback!=null && playback.routeClip!=null && feedback.available() && feedback.weight()>0
+                    && feedback.rotationBones().stream().anyMatch(ActorPresetScope::isLeg)) {
+                ImGui.textWrapped("此预设正在影响腿部旋转：玩家脚底接触会按动画权重释放。若只是边走边表演，可选择“仅上半身”；自制走跑动作则可以保留腿部。");
+            }
+            if(ImGui.treeNode("预设、关键帧与路径怎么配合？")) {
+                ImGui.textWrapped("路径决定整体位置，基础步态或循环步态资产决定行走；表演预设可只影响上半身。");
+                ImGui.textWrapped("普通部位编辑写入演员的手工修正层，不必先复制预设。只有修改预设资产本身且不想影响其他引用时，才制作独立副本。");
+                ImGui.textWrapped("覆盖和叠加都受权重影响。叠加使用相对静止姿态的增量，适合单独制作的呼吸、颤抖；不要把完整基础动作再次当作增量叠加。");
+                ImGui.textWrapped("排错时先把预设权重设为 0 验证底层动作，再逐层恢复；选中骨骼可在属性面板查看本帧实际控制来源。");
+                ImGui.treePop();
+            }
             ImGui.textWrapped("部位与通道只筛选预设已有数据；手工关键帧仍可覆盖同一通道。");
             ImGui.textWrapped(distanceClock?"步态相位跟随路径距离，淡入淡出跟随演员片段；清除预设会保留手工关键帧。":"时间跟随演员片段；先播放预设，再叠加已编辑的骨骼通道。清除预设会保留手工关键帧。");
         } finally { ImGui.popID(); }

@@ -11,6 +11,23 @@ class ActorPresetFeedbackTest {
         return new ActorPresetBinding(id,false,1,new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,.8f,
                 channels,false,bones,2,1));
     }
+    @Test void routeLegWarningUsesActualRotationChannelsRatherThanScaleOrEmptyMask() {
+        var library=com.director.actor.animation.asset.AnimationAssetLibrary.getInstance();
+        var asset=new com.director.actor.animation.asset.AnimationAsset("test:scope-feedback","Test",ArticulatedPlayerRig.DEFINITION,2,com.director.actor.animation.asset.AnimationLoopMode.ONCE);
+        asset.getOrCreateBoneTrack("left_leg").scale().put(0,new org.joml.Vector3f(1.2f),com.director.actor.animation.asset.InterpolationMode.LINEAR);
+        asset.getOrCreateBoneTrack("right_arm").rotation().put(0,new org.joml.Quaternionf(),com.director.actor.animation.asset.InterpolationMode.LINEAR);
+        library.register(asset);
+        try {
+            var binding=new ActorPresetBinding(asset.id(),false,1,PoseBlendSettings.DEFAULT);
+            var feedback=ActorPresetFeedback.resolve(binding,asset.rig(),1,4);
+            assertTrue(feedback.bones().contains("left_leg"));assertFalse(feedback.rotationBones().stream().anyMatch(ActorPresetScope::isLeg));
+            asset.getOrCreateBoneTrack("left_leg").rotation().put(0,new org.joml.Quaternionf(),com.director.actor.animation.asset.InterpolationMode.LINEAR);
+            assertTrue(ActorPresetFeedback.resolve(binding,asset.rig(),1,4).rotationBones().stream().anyMatch(ActorPresetScope::isLeg));
+            var upper=ActorPresetScope.UPPER.apply(binding,asset.rig());
+            assertFalse(ActorPresetFeedback.resolve(upper,asset.rig(),1,4).rotationBones().stream().anyMatch(ActorPresetScope::isLeg));
+        } finally {library.remove(asset.id());}
+    }
+
     @Test void feedbackIncludesPathStopFadeOnlyForLocomotionPreset() {
         var sample=new com.director.timeline.playback.entity.EntitySample();
         sample.action=com.director.actor.action.ActorActionType.WALK;sample.routeLocalTime=0;
