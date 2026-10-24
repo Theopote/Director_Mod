@@ -38,9 +38,10 @@ public final class ActorAnimationAssetEditing {
         var asset = requireAsset(library, id);
         var target = Target.capture(model, track, asset);
         var before = spawn.getPreset();
+        if(before!=null && id.equals(before.animationId())) return;
         var after = new com.director.timeline.model.entity.ActorPresetBinding(id,
-                asset.loopMode() != AnimationLoopMode.ONCE, before == null ? 1 : before.speed(),
-                before == null ? com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT : before.blend());
+                asset.loopMode() != AnimationLoopMode.ONCE, 1,
+                com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT);
         if (after.equals(before)) return;
         Runnable validate = () -> {
             target.validate(model, asset);
@@ -50,6 +51,15 @@ public final class ActorAnimationAssetEditing {
         TimelineCommandBridge.execute(new StateChangeCommand(model, "Apply actor preset",
                 () -> { validate.run(); spawn.setPreset(before); model.invalidateActorEditContext(); },
                 () -> { validate.run(); spawn.setPreset(after); model.invalidateActorEditContext(); }));
+    }
+
+    public static void setPurpose(TimelineModel model, AnimationAssetLibrary library, String id,
+                                  com.director.actor.animation.AnimationData.Purpose purpose) {
+        requireEditing(model); var asset=requireAsset(library,id); var before=asset.purpose();
+        Objects.requireNonNull(purpose); if(before==purpose) return;
+        TimelineCommandBridge.execute(new StateChangeCommand(model,"Change animation purpose",
+                ()->{requireIdentity(library,asset);asset.setPurpose(before);model.invalidateActorEditContext();},
+                ()->{requireIdentity(library,asset);asset.setPurpose(purpose);model.invalidateActorEditContext();}));
     }
 
     public static AnimationAsset importFile(TimelineModel model, AnimationAssetLibrary library,
@@ -105,6 +115,7 @@ public final class ActorAnimationAssetEditing {
 
     private static AnimationAsset copy(AnimationAsset source, String id, String name) {
         AnimationAsset copy = new AnimationAsset(id, name, source.rig(), source.duration(), source.loopMode());
+        copy.setPurpose(source.purpose());
         source.boneTracks().forEach((bone, track) -> {
             BoneTrack target = copy.getOrCreateBoneTrack(bone);
             track.translation().keyframes().forEach(k -> target.translation().put(k.time(), k.value(), k.interpolation()));

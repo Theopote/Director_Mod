@@ -77,7 +77,7 @@ class ActorRouteFootContactTest {
             }
         }
         var protectedPose=rest.copy();ActorRouteFootContact.apply(protectedPose,sample,java.util.Map.of(HumanoidRig.ROOT,1f));
-        assertTrue(rest.localTransform(HumanoidRig.LEFT_LEG).toMatrix().equals(protectedPose.localTransform(HumanoidRig.LEFT_LEG).toMatrix(),1e-6f));
+        assertTrue(full.localTransform(HumanoidRig.LEFT_LEG).toMatrix().equals(protectedPose.localTransform(HumanoidRig.LEFT_LEG).toMatrix(),1e-6f));
     }
     private EntitySample repeated(ActorRouteClip.LoopMode mode,float time) {
         var sample=sample(time);sample.routeClip.setLoopMode(mode);sample.routeClip.setSpeed(1);

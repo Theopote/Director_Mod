@@ -119,7 +119,10 @@ public final class RigPose {
         return calculateModelTransform(checkedIndex(index),new Matrix4f[localTransforms.length]);
     }
 
-    private Matrix4f calculateModelTransform(int index, Matrix4f[] cache) {
+    /** Caller-owned query cache. After edits invalidate affected bones and their descendants. */
+    public Matrix4f calculateModelTransform(int index, Matrix4f[] cache) {
+        checkedIndex(index);
+        if(cache==null || cache.length!=localTransforms.length) throw new IllegalArgumentException("Invalid model transform cache");
         if (cache[index] != null) {
             return cache[index];
         }

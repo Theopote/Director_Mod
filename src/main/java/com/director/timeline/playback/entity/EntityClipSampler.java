@@ -185,7 +185,7 @@ public class EntityClipSampler {
         }
 
         // Only a lifecycle clip can make an actor exist; action/path clips cannot respawn it.
-        result.active = !spawnClips.isEmpty();
+        result.active = track.isPresentAt(timeSeconds);
         // ========== 处理 Spawn Clip（优先级最高，作为基础）==========
         if (!spawnClips.isEmpty()) {
             // 使用最后一个 Spawn Clip（如果有多个重叠）
@@ -283,7 +283,6 @@ public class EntityClipSampler {
                     prev.getTime(), next.getTime(), time, next.getInterpolation());
         }
         result.visibility = clip.isVisibleOnSpawn() ? 1.0f : 0.0f;
-        result.active = true;
     }
 
     /**
@@ -516,7 +515,7 @@ public class EntityClipSampler {
      */
     private void applyDespawnClip(EntitySample result, EntityDespawnClip clip, float time) {
         // Despawn Clip 在结束时生效
-        if (time >= clip.getEndTime() - 0.01f) { // 接近结束时
+        if (time >= clip.getEndTime()) { // 接近结束时
             if (clip.getMode() == EntityDespawnClip.DespawnMode.HIDE) {
                 result.visibility = 0.0f;
             } else if (clip.getMode() == EntityDespawnClip.DespawnMode.REMOVE) {

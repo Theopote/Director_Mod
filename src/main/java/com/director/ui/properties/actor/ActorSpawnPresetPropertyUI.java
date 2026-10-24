@@ -68,7 +68,7 @@ public final class ActorSpawnPresetPropertyUI {
             boolean distanceClock=playback!=null && com.director.actor.runtime.ActorPresetClock.followsDistance(binding.animationId(),playback);
             var data=AnimationAssetLibrary.getInstance().contains(binding.animationId())?null:AnimationLibrary.getInstance().get(binding.animationId()).orElse(null);
             if(distanceClock) ImGui.textWrapped("此循环步态按路径行进距离推进，单次路径起止阶段自动淡化步态；缩短演员片段会加快位移和步频。循环与速度设置仅用于原地播放。");
-            else if(data!=null && data.purpose()==com.director.actor.animation.AnimationData.Purpose.LOCOMOTION)
+            else if(com.director.actor.runtime.ActorPresetClock.purpose(binding.animationId())==com.director.actor.animation.AnimationData.Purpose.LOCOMOTION)
                 ImGui.textWrapped("原地步态：只改变身体动作，不移动演员。沿路径走跑通常直接使用自动步态即可。");
             else ImGui.textWrapped("表演预设按片段本地时间播放；路径继续控制整体位移，未声明的骨骼通道保留底层动作。");
             if(playback!=null && playback.routeClip!=null && data!=null
@@ -81,7 +81,7 @@ public final class ActorSpawnPresetPropertyUI {
             ImGui.endDisabled();
             var blend=binding.blend();float[] weight={blend.weight()};
             changed=ImGui.sliderFloat("预设权重",weight,0,1);gesture.observe("presetWeight",changed);
-            var mode=new ImInt(blend.mode().ordinal());changed=ImGui.combo("预设混合",mode,new String[]{"覆盖","叠加（相对绑定姿态）"});
+            var mode=new ImInt(blend.mode().ordinal());changed=ImGui.combo("预设混合",mode,new String[]{"覆盖","叠加（相对静止姿态）"});
             gesture.observe("presetMode",changed);
             float[] fades={blend.fadeIn(),blend.fadeOut()};changed=ImGui.inputFloat2("淡入 / 淡出（秒）",fades);
             if(!Float.isFinite(fades[0]) || !Float.isFinite(fades[1]) || fades[0]<0 || fades[1]<0) {
@@ -116,7 +116,7 @@ public final class ActorSpawnPresetPropertyUI {
             else if(rig!=null) ImGui.textWrapped("影响部位："+feedback.bones().stream()
                     .map(id->rig.bone(rig.requireBoneIndex(id)).displayName()).collect(java.util.stream.Collectors.joining("、")));
             ImGui.textWrapped("部位与通道只筛选预设已有数据；手工关键帧仍可覆盖同一通道。");
-            ImGui.textWrapped("时间跟随演员片段；先播放预设，再叠加已编辑的骨骼通道。清除预设会保留手工关键帧。");
+            ImGui.textWrapped(distanceClock?"步态相位跟随路径距离，淡入淡出跟随演员片段；清除预设会保留手工关键帧。":"时间跟随演员片段；先播放预设，再叠加已编辑的骨骼通道。清除预设会保留手工关键帧。");
         } finally { ImGui.popID(); }
     }
 }

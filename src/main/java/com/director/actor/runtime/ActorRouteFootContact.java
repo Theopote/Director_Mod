@@ -67,8 +67,8 @@ public final class ActorRouteFootContact {
     }
 
     private static float contactWeight(java.util.Map<String,Float> weights,String leg,String shin) {
-        float authored=Math.max(weights.getOrDefault(HumanoidRig.ROOT,0f),
-                Math.max(weights.getOrDefault(leg,0f),weights.getOrDefault(shin,0f)));
+        // Root offsets and authored scale/translation do not own leg rotation channels.
+        float authored=Math.max(weights.getOrDefault(leg,0f),weights.getOrDefault(shin,0f));
         return Float.isFinite(authored)?1-Math.clamp(authored,0f,1f):0;
     }
     private static void correct(RigPose pose, EntitySample sample, String bone, float distance,float stride,float shift,float strength) {

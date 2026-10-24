@@ -17,6 +17,18 @@ class ActorBlendPersistenceTest {
         var dto=gson.fromJson(gson.toJson(TimelineModelPersistence.entityClipToDTO(clip)),TimelineModelPersistence.EntityClipDTO.class);
         return TimelineModelPersistence.entityClipFromDTO(dto);
     }
+    @Test void presetPersistenceUsesOnlyDataAndDoesNotTouchEmbeddedWrapper() {
+        var spawn=new EntitySpawnClip("Spawn",2,12);spawn.setBoneAnimationId("manual:test");
+        var manual=spawn.getBoneAnimation();var wrapper=manual.getTimelineClip();
+        var binding=new ActorPresetBinding("preset:test",true,1.4f,settings());spawn.setPreset(binding);
+        var dto=TimelineModelPersistence.entityClipToDTO(spawn);
+        assertNull(dto.spawnPreset.clipType); // No synthetic model clip was serialized.
+        assertEquals(binding.animationId(),dto.spawnPreset.animationId);
+        assertSame(wrapper,spawn.getBoneAnimation().getTimelineClip());
+        var restored=(EntitySpawnClip)roundTrip(spawn);
+        assertEquals(binding,restored.getPreset());assertEquals("manual:test",restored.getBoneAnimationId());
+    }
+
     @Test void spawnReloadRetainsOwnedReferenceAndPlaybackSettingsWithoutExtraClips() {
         var spawn=new EntitySpawnClip("Spawn",2,8);spawn.setBoneAnimationId("project:test");spawn.setBlendSettings(settings());
         var restored=(EntitySpawnClip)roundTrip(spawn);

@@ -230,7 +230,7 @@ public class TimelineModelPersistence {
             poseBlendFadeIn=new com.google.gson.JsonPrimitive(settings.fadeIn());
             poseBlendFadeOut=new com.google.gson.JsonPrimitive(settings.fadeOut());
         }
-        public void restorePoseBlend(EntityClip clip) {
+        private ActorPoseBlendRecovery.Result readPoseBlend() {
             var data=new com.google.gson.JsonObject();
             if(poseBlendMode!=null)data.add("poseBlendMode",poseBlendMode);
             if(poseBlendWeight!=null)data.add("poseBlendWeight",poseBlendWeight);
@@ -239,7 +239,10 @@ public class TimelineModelPersistence {
             if(poseBlendBones!=null)data.add("poseBlendBones",poseBlendBones);
             if(poseBlendFadeIn!=null)data.add("poseBlendFadeIn",poseBlendFadeIn);
             if(poseBlendFadeOut!=null)data.add("poseBlendFadeOut",poseBlendFadeOut);
-            var restored=ActorPoseBlendRecovery.read(data);
+            return ActorPoseBlendRecovery.read(data);
+        }
+        public void restorePoseBlend(EntityClip clip) {
+            var restored=readPoseBlend();
             if(clip instanceof com.director.timeline.model.entity.EntitySpawnClip spawn) spawn.setBlendSettings(restored.settings());
             else if(clip instanceof com.director.timeline.model.entity.EntityAnimationClip animation) animation.setBlendSettings(restored.settings());
             clip.setLoadWarnings(restored.issues());
@@ -1444,7 +1447,11 @@ public class TimelineModelPersistence {
                 cdto.yawDeg = sc.getYawDeg();
                 cdto.pitchDeg = sc.getPitchDeg();
                 cdto.spawnBoneAnimationId = sc.getBoneAnimationId();
-                if(sc.getPreset()!=null) cdto.spawnPreset=entityClipToDTO(sc.getPreset().asClip(sc.getStartTime(),sc.getEndTime()));
+                if(sc.getPreset()!=null) {
+                    var binding=sc.getPreset();var preset=new EntityClipDTO();
+                    preset.animationId=binding.animationId();preset.animationLoop=binding.loop();preset.animationSpeed=binding.speed();
+                    preset.setPoseBlend(binding.blend());cdto.spawnPreset=preset;
+                }
                 cdto.setPoseBlend(sc.getBlendSettings());
                 cdto.spawnRoll = sc.getRollDeg();
                 cdto.spawnScaleX = sc.getScale().x; cdto.spawnScaleY = sc.getScale().y; cdto.spawnScaleZ = sc.getScale().z;
@@ -1590,12 +1597,11 @@ public class TimelineModelPersistence {
                 if(cdto.spawnPreset!=null) {
                     var preset=cdto.spawnPreset;
                     try {
-                        // Read only animation fields; nested Spawn data is never recursively followed.
-                        var animation=new com.director.timeline.model.entity.EntityAnimationClip("演员预设",sc.getStartTime(),sc.getEndTime());
-                        preset.restorePoseBlend(animation);
+                        var recovered=preset.readPoseBlend();
+                        if(!recovered.issues().isEmpty()) LOGGER.warn("[TimelineModelPersistence] 已恢复预设混合参数：{}",recovered.issues());
                         sc.setPreset(new com.director.timeline.model.entity.ActorPresetBinding(preset.animationId,
                                 preset.animationLoop==null || preset.animationLoop,
-                                preset.animationSpeed==null?1:preset.animationSpeed,animation.getBlendSettings()));
+                                preset.animationSpeed==null?1:preset.animationSpeed,recovered.settings()));
                     } catch(IllegalArgumentException invalid) {
                         LOGGER.warn("[TimelineModelPersistence] 已跳过无效演员预设: {}",invalid.getMessage());
                     }

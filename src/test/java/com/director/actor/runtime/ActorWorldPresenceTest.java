@@ -4,6 +4,30 @@ import com.director.timeline.playback.entity.*;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 class ActorWorldPresenceTest {
+    @Test void lifecycleWindowAndCompletedRemovalAgreeWithSamplerAfterSeeking() {
+        var track=new ActorTrack();track.addDefaultSpawnClip(3);
+        assertEquals(5,track.getClips().getFirst().getLength());
+        var remove=new EntityDespawnClip("Remove",5,6);remove.setMode(EntityDespawnClip.DespawnMode.REMOVE);track.addClip(remove);
+        var sampler=new EntityClipSampler(track);
+        for(float time:new float[]{2,3,5.5f,6,7,9,4})
+            assertEquals(track.isPresentAt(time),ActorRuntimeController.previewActive(sampler.sampleSnapshot(time)),"time="+time);
+        assertFalse(track.isPresentAt(7));
+        remove.setMuted(true);assertTrue(track.isPresentAt(7));
+    }
+    @Test void wrapperMovementInvalidatesSortedClipCacheAndSpawnReadsArePure() {
+        var track=new ActorTrack();var a=new EntitySpawnClip("A",3,8);var b=new EntitySpawnClip("B",10,15);
+        track.addClip(a);track.addClip(b);track.getClips();
+        var wrapper=new EntityTimelineClip(b,0);wrapper.setTimeRange(1,6);
+        assertTrue(track.findClipsAt(2).contains(b));
+        b.setBoneAnimationId("test:keys");var animation=b.getBoneAnimation();
+        var childWrapper=animation.getTimelineClip();
+        animation.setSpeed(2);
+        for(int i=0;i<3;i++) {assertSame(animation,b.getBoneAnimation());assertEquals(2,animation.getSpeed());}
+        wrapper.setTimeRange(4,9);assertEquals(4,animation.getStartTime());assertEquals(9,animation.getEndTime());
+        assertSame(childWrapper,animation.getTimelineClip());
+        b.setMuted(true);assertTrue(animation.isMuted());
+    }
+
     @Test void rebuildingAtPausedTimeRequiresEnabledPresenceAndCannotRespawnOutsideClip() {
         var track=new ActorTrack();track.addClip(new EntitySpawnClip("Spawn",3,8));
         var sampler=new EntityClipSampler(track);

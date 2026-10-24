@@ -28,6 +28,19 @@ class ActorPoseEvaluatorTest {
         s.routeClip=new ActorRouteClip("Path",0,4);s.routeClip.setWaypoints(List.of(new Vector3f(),new Vector3f(0,0,4)));
         return s;
     }
+    @Test void rootTranslationAndLegScaleDoNotClaimLegRotationContact() {
+        var s=route();var manual=new RigPose(ArticulatedPlayerRig.DEFINITION);
+        int root=manual.rig().requireBoneIndex(HumanoidRig.ROOT);
+        var rest=manual.localTransform(root);
+        manual.setLocalTransform(root,new BoneTransform(rest.translation().add(0,.02f,0),rest.rotation(),rest.scale()),RigPose.TRANSLATION);
+        int leg=manual.rig().requireBoneIndex(HumanoidRig.LEFT_LEG);var local=manual.localTransform(leg);
+        manual.setLocalTransform(leg,new BoneTransform(local.translation(),local.rotation(),new Vector3f(1.1f)),RigPose.SCALE);
+        var result=evaluate(s,null,new ActorPoseEvaluator.Layer(manual,PoseBlendSettings.DEFAULT,1));
+        assertFalse(result.authoredWeights().containsKey(HumanoidRig.ROOT));
+        assertFalse(result.authoredWeights().containsKey(HumanoidRig.LEFT_LEG));
+        assertTrue(result.sources().values().stream().anyMatch(source->source.contains("脚底")));
+    }
+
     @Test void feedbackReportsAcceptedSparseChannelsAndActualWeight() {
         var s=route(); var preset=keyed(HumanoidRig.HEAD,.4f); var manual=keyed(HumanoidRig.HEAD,.7f);
         var settings=new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,.25f,2,true,java.util.Set.of());

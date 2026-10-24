@@ -294,11 +294,28 @@ public class ActorTrack {
      *
      * @param time 时间（秒）
      */
+    public boolean isPresentAt(float time) {
+        if(!enabled || !Float.isFinite(time)) return false;
+        EntitySpawnClip active=null;
+        for(var clip:getClips()) {
+            if(clip.getStartTime()>time) break;
+            if(clip instanceof EntitySpawnClip spawn && !spawn.isMuted() && time<=spawn.getEndTime()) active=spawn;
+        }
+        if(active==null) return false;
+        for(var clip:getClips()) {
+            if(clip.getStartTime()>time) break;
+            if(clip instanceof EntityDespawnClip despawn && !despawn.isMuted()
+                    && despawn.getMode()==EntityDespawnClip.DespawnMode.REMOVE
+                    && despawn.getStartTime()>=active.getStartTime() && time>=despawn.getEndTime()) return false;
+        }
+        return true;
+    }
+
     public void addDefaultSpawnClip(float time) {
         EntitySpawnClip clip = new EntitySpawnClip(
                 "Spawn",
                 time,
-                time + 0.01f  // 极短的片段，表示"瞬间生成"
+                time + 5f  // 生命周期窗口，默认提供可编辑的五秒区间
         );
         // 默认位置在原点（0, 0, 0），导演可以在属性面板中调整
         clip.setPosition(0f, 0f, 0f);

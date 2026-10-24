@@ -20,6 +20,7 @@ public final class AnimationAsset {
     private final RigDefinition rig;
     private float duration;
     private AnimationLoopMode loopMode;
+    private com.director.actor.animation.AnimationData.Purpose purpose = com.director.actor.animation.AnimationData.Purpose.PERFORMANCE;
     private final Map<String, BoneTrack> boneTracks = new LinkedHashMap<>();
     private final List<AnimationMarker> markers = new ArrayList<>();
 
@@ -92,6 +93,8 @@ public final class AnimationAsset {
 
     public int schemaVersion() { return CURRENT_SCHEMA_VERSION; }
     public String id() { return id; }
+    public com.director.actor.animation.AnimationData.Purpose purpose() { return purpose; }
+    public void setPurpose(com.director.actor.animation.AnimationData.Purpose purpose) { this.purpose=Objects.requireNonNull(purpose); }
     public String name() { return name; }
     public void setName(String name) { this.name = name == null || name.isBlank() ? id : name; }
     public RigDefinition rig() { return rig; }

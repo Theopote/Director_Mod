@@ -22,6 +22,23 @@ class ActorPresetClockTest {
     private ActorAnimationLayerSample input(String id) {
         return new ActorAnimationLayerSample(id,19,false,3,PoseBlendSettings.DEFAULT,.4f);
     }
+    @Test void declaredProjectLocomotionUsesDistanceAndNewPresetClearsOldMask() {
+        var library=AnimationAssetLibrary.getInstance();String id="test:distance-cycle";
+        var asset=new AnimationAsset(id,"Walk",ArticulatedPlayerRig.DEFINITION,2,AnimationLoopMode.LOOP);
+        asset.setPurpose(AnimationData.Purpose.LOCOMOTION);library.register(asset);
+        try {
+            var s=moving();var profile=new HumanoidRigProfile();
+            var clock=ActorPresetClock.resolve(input(id),s,profile);
+            assertEquals((ActorRouteGait.phaseCycles(s,profile)%1)*2,clock.localTime(),1e-5f);
+            assertEquals(.4f,clock.envelope(),1e-5f);
+            asset.setPurpose(AnimationData.Purpose.PERFORMANCE);assertFalse(ActorPresetClock.followsDistance(id,s));
+            var old=new ActorPresetBinding("wave",false,3,new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,.2f,2,false,Set.of("head")));
+            var next=ActorPresetBinding.select(id,old);
+            assertEquals(PoseBlendSettings.DEFAULT,next.blend());assertEquals(1,next.speed());
+            assertSame(next,ActorPresetBinding.select(id,next));
+        } finally { library.remove(id); }
+    }
+
     @Test void selectionDefaultsFollowPurposeWithoutInheritingOldLoopFlags() {
         assertEquals(AnimationData.Purpose.LOCOMOTION,AnimationLibrary.getInstance().get("walk").orElseThrow().purpose());
         var walk=ActorPresetBinding.select("walk",null);assertTrue(walk.loop());

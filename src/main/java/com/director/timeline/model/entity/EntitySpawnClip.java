@@ -16,7 +16,7 @@ import org.joml.Vector3f;
 public class EntitySpawnClip extends EntityClip {
     private com.director.actor.rig.skeleton.PoseBlendSettings blendSettings = com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT;
     public com.director.actor.rig.skeleton.PoseBlendSettings getBlendSettings() { return blendSettings; }
-    public void setBlendSettings(com.director.actor.rig.skeleton.PoseBlendSettings settings) { blendSettings = java.util.Objects.requireNonNull(settings); }
+    public void setBlendSettings(com.director.actor.rig.skeleton.PoseBlendSettings settings) { blendSettings = java.util.Objects.requireNonNull(settings); syncBoneAnimation(); }
 
 
     private ActorPresetBinding preset;
@@ -36,14 +36,21 @@ public class EntitySpawnClip extends EntityClip {
             boneAnimation.setAnimationId(id);boneAnimation.setSource(EntityAnimationClip.AnimationSource.CUSTOM);boneAnimation.setLoop(false);
             new EntityTimelineClip(boneAnimation,0);
         }
+        syncBoneAnimation();
     }
-    public EntityAnimationClip getBoneAnimation() {
-        if(boneAnimationId==null)return null;
+    /** Pure read; derived state is synchronized when the owner changes. */
+    public EntityAnimationClip getBoneAnimation() { return boneAnimationId==null?null:boneAnimation; }
+    void syncBoneAnimation() {
+        if(boneAnimationId==null || boneAnimation==null) return;
         boneAnimation.setBlendSettings(blendSettings);
         boneAnimation.setTimeRange(getStartTime(),getEndTime());boneAnimation.setMuted(isMuted());
-        if(getTimelineClip()!=null)boneAnimation.getTimelineClip().setParentTrack(getTimelineClip().getParentTrack());
-        return boneAnimation;
+        if(getTimelineClip()!=null && boneAnimation.getTimelineClip()!=null)
+            boneAnimation.getTimelineClip().setParentTrack(getTimelineClip().getParentTrack());
     }
+    @Override public void setTimeRange(float start,float end) { super.setTimeRange(start,end);syncBoneAnimation(); }
+    @Override public void setMuted(boolean value) { super.setMuted(value);syncBoneAnimation(); }
+    @Override public void setTimelineClip(EntityTimelineClip clip) { super.setTimelineClip(clip);syncBoneAnimation(); }
+
     private final Vector3f position = new Vector3f();
     private float yawDeg = 0f;
     private float pitchDeg = 0f;

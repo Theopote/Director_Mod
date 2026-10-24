@@ -40,7 +40,7 @@ public final class ActorAnimationBlendPropertyUI {
         if(source instanceof com.director.timeline.model.entity.EntitySpawnClip spawn && spawn.getBoneAnimationId()==null)
             ImGui.textWrapped("尚未创建骨骼关键帧；以下设置将在创建后生效。");
         var mode=new ImInt(initial.mode().ordinal());
-        boolean changed=ImGui.combo("混合方式",mode,new String[]{"覆盖（替换选中通道）","叠加（相对绑定姿态）"});
+        boolean changed=ImGui.combo("混合方式",mode,new String[]{"覆盖（替换选中通道）","叠加（相对静止姿态）"});
         gesture.observe("blendMode",changed);
         float[] weight={initial.weight()};
         changed=ImGui.sliderFloat("动作权重",weight,0,1); gesture.observe("blendWeight",changed);

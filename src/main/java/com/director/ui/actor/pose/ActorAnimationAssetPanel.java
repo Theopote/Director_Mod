@@ -58,6 +58,13 @@ public final class ActorAnimationAssetPanel {
         if (actorId == null || rig != null) ImGui.textDisabled(I18n.translate("gui.director.actor.assets.new_rig",
                 rig == null ? com.director.actor.rig.skeleton.HumanoidRig.DEFINITION.displayName() : rig.displayName()));
         ImGui.beginDisabled(readOnly);
+        if(selected!=null) {
+            var purposes=com.director.actor.animation.AnimationData.Purpose.values();
+            var purpose=new imgui.type.ImInt(selected.purpose().ordinal());
+            if(ImGui.combo("动作用途##assetPurpose",purpose,java.util.Arrays.stream(purposes).map(p->p.label()).toArray(String[]::new)))
+                run(()->ActorAnimationAssetEditing.setPurpose(model,library,selected.id(),purposes[purpose.get()]));
+            ImGui.textWrapped("循环步态沿路径时按行进距离播放；表演和静态姿态保留片段时钟。");
+        }
         ImGui.inputText("名称##assetName", name);
         ImGui.inputText("新建/副本 ID##assetTargetId", targetId);
         ImGui.beginDisabled(actorId != null && rig == null);

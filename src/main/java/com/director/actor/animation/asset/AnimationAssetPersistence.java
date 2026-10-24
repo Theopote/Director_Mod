@@ -136,6 +136,7 @@ public final class AnimationAssetPersistence {
         out.addProperty("rigId", asset.rigId());
         out.addProperty("duration", asset.duration());
         out.addProperty("loopMode", asset.loopMode().name());
+        out.addProperty("purpose", asset.purpose().name());
         JsonObject tracks = new JsonObject();
         for (var entry : asset.boneTracks().entrySet()) {
             JsonObject track = new JsonObject();
@@ -165,6 +166,7 @@ public final class AnimationAssetPersistence {
         AnimationAsset asset = new AnimationAsset(required(in, "id").getAsString(), required(in, "name").getAsString(),
                 rig, required(in, "duration").getAsFloat(),
                 AnimationLoopMode.valueOf(required(in, "loopMode").getAsString()));
+        if(in.has("purpose")) asset.setPurpose(com.director.actor.animation.AnimationData.Purpose.valueOf(in.get("purpose").getAsString()));
         JsonObject tracks = required(in, "boneTracks").getAsJsonObject();
         for (var entry : tracks.entrySet()) {
             BoneTrack track = asset.getOrCreateBoneTrack(entry.getKey());

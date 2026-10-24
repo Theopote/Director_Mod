@@ -24,6 +24,11 @@ public class EntityTimelineClip extends TimelineClip {
         syncKeyframesFromEntityClip(entityClip);
     }
 
+    @Override public void setParentTrack(com.director.timeline.model.TimelineTrack track) {
+        super.setParentTrack(track);
+        if(entityClip instanceof EntitySpawnClip spawn) spawn.syncBoneAnimation();
+    }
+
     public EntityClip getEntityClip() {
         return entityClip;
     }

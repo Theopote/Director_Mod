@@ -59,9 +59,9 @@ class ActorRouteTurnPoseTest {
         assertTrue(ActorRouteFootContact.solePosition(pose,HumanoidRig.RIGHT_LEG).distance(target)<before);
         assertTrue(lifted.equals(pose.localTransform(HumanoidRig.LEFT_LEG).toMatrix(),1e-6f));
     }
-    @Test void authoredSupportAndRootSuppressCorrectionAndSeekingIsRepeatable() {
+    @Test void authoredSupportSuppressesCorrectionAndSeekingIsRepeatable() {
         var s=sample(2.3f);s.speed=0;
-        for(String bone:List.of(HumanoidRig.ROOT,HumanoidRig.LEFT_LEG,ArticulatedPlayerRig.LEFT_SHIN)) {
+        for(String bone:List.of(HumanoidRig.LEFT_LEG,ArticulatedPlayerRig.LEFT_SHIN)) {
             var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);ActorRouteTurnPose.apply(pose,s);
             var before=pose.localTransform(HumanoidRig.LEFT_LEG).toMatrix();
             ActorRouteFootContact.apply(pose,s,java.util.Map.of(bone,1f));

@@ -17,6 +17,16 @@ class ActorAnimationAssetEditingTest {
     ActorAnimationAssetEditingTest() { TimelineCommandBridge.bind(history); }
     @AfterEach void cleanup() { TimelineCommandBridge.bind(null); }
 
+    @Test void purposeChangesAreUndoableAndCopiesRetainPurpose() {
+        var asset=ActorAnimationAssetEditing.create(model,library,"test:purpose","Cycle",2);
+        ActorAnimationAssetEditing.setPurpose(model,library,asset.id(),com.director.actor.animation.AnimationData.Purpose.LOCOMOTION);
+        assertEquals(com.director.actor.animation.AnimationData.Purpose.LOCOMOTION,asset.purpose());
+        assertTrue(history.undo());assertEquals(com.director.actor.animation.AnimationData.Purpose.PERFORMANCE,asset.purpose());
+        assertTrue(history.redo());
+        var copy=ActorAnimationAssetEditing.duplicate(model,library,asset.id(),"test:purpose-copy","Copy");
+        assertEquals(asset.purpose(),copy.purpose());
+    }
+
     @Test void applyingPresetReusesSpawnAndPreservesManualKeysThroughUndo() {
         var registry = new com.director.actor.ActorRegistry();
         com.director.actor.ActorRegistryManager.setRegistry(registry);

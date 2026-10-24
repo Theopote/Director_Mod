@@ -22,6 +22,7 @@ class AnimationAssetPersistenceTest {
     @Test
     void roundTripsSparseChannelsMarkersAndInterpolation() throws Exception {
         AnimationAsset asset = asset("project:wave", "Wave");
+        asset.setPurpose(com.director.actor.animation.AnimationData.Purpose.LOCOMOTION);
         BoneTrack arm = asset.getOrCreateBoneTrack(HumanoidRig.LEFT_ARM);
         arm.translation().put(0f, new Vector3f(1f, 2f, 3f), InterpolationMode.STEP);
         arm.rotation().put(0.5f, new Quaternionf().rotateXYZ(0.1f, 0.2f, 0.3f), InterpolationMode.SMOOTH);
@@ -35,6 +36,7 @@ class AnimationAssetPersistenceTest {
         AnimationAssetPersistence.load(file, library);
 
         AnimationAsset restored = library.find("project:wave").orElseThrow();
+        assertEquals(com.director.actor.animation.AnimationData.Purpose.LOCOMOTION,restored.purpose());
         BoneTrack restoredArm = restored.findBoneTrack(HumanoidRig.LEFT_ARM).orElseThrow();
         assertEquals(InterpolationMode.STEP, restoredArm.translation().keyframes().getFirst().interpolation());
         assertEquals(0.2f, restoredArm.rotation().keyframes().getFirst().value()

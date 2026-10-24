@@ -349,10 +349,7 @@ public final class ActorRuntimeController {
             var payload = track.getActorTrackPayload();
             if (isActorTrack(track) && !track.isMuted() && payload != null && payload.getActorRef() != null
                     && actorRegistry != null && actorRegistry.resolve(payload.getActorRef()).isPresent()
-                    && payload.isEnabled() && payload.getClips().stream().anyMatch(clip ->
-                        clip instanceof com.director.timeline.model.entity.EntitySpawnClip && !clip.isMuted()
-                        && timelineSource.getCurrentTime() >= clip.getStartTime()
-                        && timelineSource.getCurrentTime() <= clip.getEndTime()))
+                    && payload.isPresentAt(timelineSource.getCurrentTime()))
                 liveActors.add(payload.getActorRef().getActorId());
         }
         for (var id : ActorPreviewManager.getInstance().previewActorIds()) if (!liveActors.contains(id)) {
