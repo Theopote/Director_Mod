@@ -38,6 +38,24 @@ class ActorHistoricalTargetTest {
         var route=new ActorRouteClip("Route",0,10);route.setWaypoints(List.of(new Vector3f(),new Vector3f(10,0,0)));payload.addClip(route);
         tracks.add(track);return actor.getActorId();
     }
+    @Test void authoredLocomotionAssetUsesDistanceClockForHistoricalPoseToo() {
+        var id=actor();var spawn=tracks.getFirst().getActorTrackPayload().getClips().stream().filter(c->c instanceof EntitySpawnClip).map(c->(EntitySpawnClip)c).findFirst().orElseThrow();
+        var library=com.director.actor.animation.asset.AnimationAssetLibrary.getInstance();
+        var asset=new com.director.actor.animation.asset.AnimationAsset("test:historical-distance","Cycle",com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION,2,com.director.actor.animation.asset.AnimationLoopMode.LOOP);
+        asset.setPurpose(com.director.actor.animation.AnimationData.Purpose.LOCOMOTION);
+        asset.getOrCreateBoneTrack("root").translation().put(0,new Vector3f(),com.director.actor.animation.asset.InterpolationMode.LINEAR);
+        asset.getOrCreateBoneTrack("root").translation().put(2,new Vector3f(0,.3f,0),com.director.actor.animation.asset.InterpolationMode.LINEAR);
+        library.register(asset);
+        try {
+            spawn.setPreset(new ActorPresetBinding(asset.id(),true,1,com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT));
+            var normal=controller.sampleHistoricalActorEye(id,.7f);assertNotNull(normal);
+            spawn.setPreset(new ActorPresetBinding(asset.id(),true,3,com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT));
+            assertEquals(normal,controller.sampleHistoricalActorEye(id,.7f));
+            asset.setPurpose(com.director.actor.animation.AnimationData.Purpose.PERFORMANCE);
+            assertNotEquals(normal,controller.sampleHistoricalActorEye(id,.7f));
+        } finally {library.remove(asset.id());}
+    }
+
     @Test void actorTargetUsesRequestedTimeWithoutPreviewOrCurrentPlayhead() {
         var id=actor();var a=controller.sampleHistoricalActorEye(id,2);assertNotNull(a);
         var b=controller.sampleHistoricalActorEye(id,8);assertNotNull(b);assertTrue(b.x-a.x>4);

@@ -574,8 +574,8 @@ public final class ActorRuntimeController {
                     .filter(value -> com.director.actor.rig.ActorRigCompatibility.accepts(sourceActor,value.rigId()));
             var definition=asset.isPresent()?asset.get().rig():rig;
             var primaryClock=ActorPresetClock.resolve(com.director.timeline.playback.entity.ActorAnimationLayerSample.from(at),at,sourceActor.getRigProfile());
-            var authored=asset.isPresent()?asset.get().sample(at.animationLocalTime*Math.max(.01f,at.animationSpeed),
-                    at.animationLoop?asset.get().loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE)
+            var authored=asset.isPresent()?asset.get().sample(primaryClock.localTime()*Math.max(.01f,primaryClock.speed()),
+                    primaryClock.loop()?asset.get().loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE)
                     :AnimationDataSampler.sampleRig(primaryClock.id(),definition,primaryClock.localTime(),primaryClock.loop(),primaryClock.speed());
             var preset=ActorPresetClock.resolve(at.presetAnimation,at,sourceActor.getRigProfile());
             var presetPose=preset==null?null:preset.sample(definition);
@@ -835,8 +835,10 @@ public final class ActorRuntimeController {
                     presetInput=com.director.timeline.playback.entity.ActorAnimationLayerSample.from(s);
                 }
             }
+            var presetRaw=presetInput;
             presetInput=ActorPresetClock.resolve(presetInput,s,rig);
-            var primaryClock=ActorPresetClock.resolve(com.director.timeline.playback.entity.ActorAnimationLayerSample.from(s),s,rig);
+            var primaryRaw=com.director.timeline.playback.entity.ActorAnimationLayerSample.from(s);
+            var primaryClock=ActorPresetClock.resolve(primaryRaw,s,rig);
             var rigAsset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance()
                     .find(s.animationId)
                     .filter(asset -> com.director.actor.rig.ActorRigCompatibility.accepts(actor, asset.rigId()));
@@ -854,16 +856,16 @@ public final class ActorRuntimeController {
                 else if(rigAsset.isEmpty()) authoredPose=new com.director.actor.rig.skeleton.RigPose(definition);
                 else {
                     var asset=rigAsset.orElseThrow();
-                    var mode=s.animationLoop?asset.loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE;
+                    var mode=primaryClock.loop()?asset.loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE;
                     authoredPose=com.director.ui.actor.pose.ActorBonePropertiesPanel.previewAuthoredPose(
-                            actor.getActorId(),asset.id(),asset.sample(s.animationLocalTime*Math.max(.01f,s.animationSpeed),mode));
+                            actor.getActorId(),asset.id(),asset.sample(primaryClock.localTime()*Math.max(.01f,primaryClock.speed()),mode));
                 }
                 String presetId=presetInput==null?null:presetInput.id();
                 var presetPose=presetInput==null?null:presetDraft!=null?presetDraft.authoredPose():presetInput.sample(definition);
                 if(presetPose!=null && presetDraft==null) presetPose=com.director.ui.actor.pose.ActorBonePropertiesPanel.previewAuthoredPose(actor.getActorId(),presetId,presetPose);
                 var evaluated=ActorPoseEvaluator.evaluate(actor.getType(),rig,definition,rigPose.pose,s,
                         presetPose==null?null:new ActorPoseEvaluator.Layer(presetPose,presetInput.settings(),presetInput.envelope()),
-                        new ActorPoseEvaluator.Layer(authoredPose,blend,envelope),actor.getLimbBendMode());
+                        (boneDraft!=null || primaryClock.id()!=null)?new ActorPoseEvaluator.Layer(authoredPose,blend,envelope):null,actor.getLimbBendMode());
                 for(var diagnostic:evaluated.diagnostics()) reportPlacement(actor.getActorId(),timelineSource.getCurrentTime(),
                         diagnostic.stage(),false,diagnostic.detail().reason());
                 var finalRigPose=evaluated.pose();
@@ -881,7 +883,9 @@ public final class ActorRuntimeController {
                             issues.add("手工动画引用不存在或无法适配当前骨架");
                         poseFeedback=new ActorPoseFeedback(timelineSource.getCurrentTime(),timelineSource.getActorEditContextRevision(),
                                 evaluated.sources(),issues,
-                                s.lookAtEnabled?"注视等待求解":"注视未启用",false,0);
+                                s.lookAtEnabled?"注视等待求解":"注视未启用",false,0,
+                                new ActorCoordinationFeedback(ActorCoordinationFeedback.Motion.capture(s),s.animationIsPreset?primaryClock.id():presetId,
+                                        s.animationIsPreset?primaryClock!=primaryRaw:presetInput!=presetRaw,evaluated.stages()));
                     }
                 }
                 return;

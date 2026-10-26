@@ -15,11 +15,14 @@ public final class ActorPoseEvaluator {
     }
     public record Diagnostic(String stage,RigPoseComposer.Diagnostic detail) {}
     /** Pose is owned by the caller; layer inputs and samples are never modified. */
-    public record Result(RigPose pose,Map<String,Float> authoredWeights,List<Diagnostic> diagnostics,Map<ActorPoseSources.Channel,String> sources) {
-        public Result {authoredWeights=Map.copyOf(authoredWeights);diagnostics=List.copyOf(diagnostics);sources=Map.copyOf(sources);}
+    public record Result(RigPose pose,Map<String,Float> authoredWeights,List<Diagnostic> diagnostics,Map<ActorPoseSources.Channel,String> sources,List<ActorPoseStage> stages) {
+        public Result {authoredWeights=Map.copyOf(authoredWeights);diagnostics=List.copyOf(diagnostics);sources=Map.copyOf(sources);stages=List.copyOf(stages);}
     }
     public static Result evaluate(ActorType type,ActorRigProfile profile,RigDefinition rig,Pose base,
                                   EntitySample sample,Layer preset,Layer manual,LimbBendMode bendMode) {
+        // A Spawn preset may be carried in the primary sampler slot when no manual layer exists.
+        if(sample.animationIsPreset && preset==null && manual!=null) {preset=manual;manual=null;}
+        var stages=new ArrayList<ActorPoseStage>();
         RigPose pose=HumanoidTopology.matches(rig)?LegacyHumanoidPoseAdapter.convert(base,rig):new RigPose(rig);
         var sources=new ActorPoseSources();
         var before=ActorPoseSources.capture(pose);
@@ -33,20 +36,29 @@ public final class ActorPoseEvaluator {
         var weights=new HashMap<String,Float>();var diagnostics=new ArrayList<Diagnostic>();
         pose=applyLayer(pose,preset,"preset-layer",weights,diagnostics);
         if(diagnostics.isEmpty()) sources.layer(preset,"动作预设");
+        stages.add(stage(ActorPoseStage.Kind.PRESET,preset,diagnostics.isEmpty()?null:diagnostics.getFirst().detail().reason()));
         applyQuickPose(pose,sample);
         if(sample.poseOverrideEnabled) {
             var quick=new RigPose(rig);
             applyQuickPose(quick,sample);
             sources.layer(new Layer(quick,PoseBlendSettings.DEFAULT,1),"快速姿态");
-        }
+            stages.add(HumanoidTopology.matches(rig)?ActorPoseStage.layer(ActorPoseStage.Kind.QUICK,quick,PoseBlendSettings.DEFAULT,1,null):
+                    ActorPoseStage.status(ActorPoseStage.Kind.QUICK,ActorPoseStage.State.UNSUPPORTED,"此骨架不支持快速人形姿态"));
+        } else stages.add(ActorPoseStage.status(ActorPoseStage.Kind.QUICK,ActorPoseStage.State.ABSENT,"未启用快速姿态"));
         int previousDiagnostics=diagnostics.size();
         pose=applyLayer(pose,manual,"pose-layer",weights,diagnostics);
-        if(diagnostics.size()==previousDiagnostics) sources.layer(manual,sample.animationIsPreset?"动作预设":"手工骨骼关键帧");
+        if(diagnostics.size()==previousDiagnostics) sources.layer(manual,"手工骨骼关键帧");
+        stages.add(stage(ActorPoseStage.Kind.MANUAL,manual,diagnostics.size()==previousDiagnostics?null:diagnostics.getLast().detail().reason()));
         pose.setLimbBendMode(bendMode);
         before=ActorPoseSources.capture(pose);
         if(type==ActorType.PLAYER) ActorRouteFootContact.apply(pose,sample,profile,weights);
         sources.changed(before,pose,"路径脚底接触修正",true);
-        return new Result(pose,weights,diagnostics,sources.snapshot());
+        stages.add(ActorPoseStage.contact(before,pose,type==ActorType.PLAYER));
+        return new Result(pose,weights,diagnostics,sources.snapshot(),stages);
+    }
+    private static ActorPoseStage stage(ActorPoseStage.Kind kind,Layer layer,String rejection) {
+        return ActorPoseStage.layer(kind,layer==null?null:layer.pose,layer==null?PoseBlendSettings.DEFAULT:layer.settings,
+                layer==null?0:layer.envelope,rejection);
     }
     private static RigPose applyLayer(RigPose base,Layer layer,String stage,Map<String,Float> weights,List<Diagnostic> diagnostics) {
         if(layer==null) return base;

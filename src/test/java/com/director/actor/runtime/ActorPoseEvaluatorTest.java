@@ -28,6 +28,51 @@ class ActorPoseEvaluatorTest {
         s.routeClip=new ActorRouteClip("Path",0,4);s.routeClip.setWaypoints(List.of(new Vector3f(),new Vector3f(0,0,4)));
         return s;
     }
+    private ActorPoseStage stage(ActorPoseEvaluator.Result result,ActorPoseStage.Kind kind) {
+        return result.stages().stream().filter(s->s.kind()==kind).findFirst().orElseThrow();
+    }
+    @Test void stageFeedbackUsesAcceptedChannelsAndDoesNotInventContactWeight() {
+        var s=route();var settings=new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,.4f,2,true,java.util.Set.of());
+        var result=evaluate(s,new ActorPoseEvaluator.Layer(keyed("head",.2f),settings,1),null);
+        var preset=stage(result,ActorPoseStage.Kind.PRESET);
+        assertEquals(ActorPoseStage.State.APPLIED,preset.state());assertEquals(.4f,preset.weight());
+        assertEquals(java.util.Set.of(new ActorPoseSources.Channel("head",2)),preset.channels());
+        assertEquals(ActorPoseStage.State.ABSENT,stage(result,ActorPoseStage.Kind.MANUAL).state());
+        assertFalse(Float.isFinite(stage(result,ActorPoseStage.Kind.CONTACT).weight()));
+        assertThrows(UnsupportedOperationException.class,()->result.stages().clear());
+        assertThrows(UnsupportedOperationException.class,()->preset.channels().clear());
+        var wrong=new RigPose(HumanoidRig.DEFINITION);wrong.setLocalTransform(wrong.rig().requireBoneIndex("head"),wrong.localTransform("head"),2);
+        var rejected=evaluate(s,new ActorPoseEvaluator.Layer(wrong,PoseBlendSettings.DEFAULT,1),null);
+        assertEquals(ActorPoseStage.State.REJECTED,stage(rejected,ActorPoseStage.Kind.PRESET).state());
+        assertTrue(stage(rejected,ActorPoseStage.Kind.PRESET).channels().isEmpty());
+    }
+    @Test void primarySlotPresetIsBelowQuickPoseAndNeverReportedAsManualKeys() {
+        var s=route();s.animationIsPreset=true;s.poseOverrideEnabled=true;s.poseOverrideHead=true;s.poseHeadYaw=.8f;
+        var result=evaluate(s,null,new ActorPoseEvaluator.Layer(keyed("head",.2f),PoseBlendSettings.DEFAULT,1));
+        assertEquals(ActorPoseStage.State.APPLIED,stage(result,ActorPoseStage.Kind.PRESET).state());
+        assertEquals(ActorPoseStage.State.ABSENT,stage(result,ActorPoseStage.Kind.MANUAL).state());
+        assertTrue(new Quaternionf().rotateXYZ(0,.8f,0).equals(result.pose().localTransform("head").rotation(),1e-6f));
+        var manual=keyed("head",1.2f);
+        var corrected=evaluate(s,new ActorPoseEvaluator.Layer(keyed("head",.2f),PoseBlendSettings.DEFAULT,1),new ActorPoseEvaluator.Layer(manual,PoseBlendSettings.DEFAULT,1));
+        assertEquals(ActorPoseStage.State.APPLIED,stage(corrected,ActorPoseStage.Kind.MANUAL).state());
+        assertTrue(manual.localTransform("head").rotation().equals(corrected.pose().localTransform("head").rotation(),1e-6f));
+    }
+    @Test void nonPlayerNeverReportsPlayerContactAsActive() {
+        var s=route();
+        var result=ActorPoseEvaluator.evaluate(ActorType.COW,profile,HumanoidRig.DEFINITION,new Pose(),s,null,null,LimbBendMode.SHARP);
+        assertEquals(ActorPoseStage.State.UNSUPPORTED,stage(result,ActorPoseStage.Kind.CONTACT).state());
+        assertTrue(stage(result,ActorPoseStage.Kind.CONTACT).channels().isEmpty());
+    }
+
+    @Test void zeroWeightAndEmptyMasksAreDifferentStageStates() {
+        var s=route();var zero=new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,0,2,true,java.util.Set.of());
+        var disabled=evaluate(s,new ActorPoseEvaluator.Layer(keyed("head",.2f),zero,1),null);
+        assertEquals(ActorPoseStage.State.DISABLED,stage(disabled,ActorPoseStage.Kind.PRESET).state());
+        var mask=new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,1,4,true,java.util.Set.of());
+        var empty=evaluate(s,new ActorPoseEvaluator.Layer(keyed("head",.2f),mask,1),null);
+        assertEquals(ActorPoseStage.State.EMPTY,stage(empty,ActorPoseStage.Kind.PRESET).state());
+    }
+
     @Test void rootTranslationAndLegScaleDoNotClaimLegRotationContact() {
         var s=route();var manual=new RigPose(ArticulatedPlayerRig.DEFINITION);
         int root=manual.rig().requireBoneIndex(HumanoidRig.ROOT);

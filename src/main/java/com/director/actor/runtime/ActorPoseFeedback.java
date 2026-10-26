@@ -4,7 +4,7 @@ import java.util.*;
 
 /** Immutable feedback for exactly one timeline edit context and sample time. */
 public record ActorPoseFeedback(float time,long revision,Map<ActorPoseSources.Channel,String> sources,
-                                List<String> diagnostics,String gaze,boolean gazeApplied,float gazeWeight) {
+                                List<String> diagnostics,String gaze,boolean gazeApplied,float gazeWeight,ActorCoordinationFeedback coordination) {
     public ActorPoseFeedback {
         sources=Map.copyOf(sources); diagnostics=List.copyOf(diagnostics); Objects.requireNonNull(gaze);
     }
@@ -12,7 +12,7 @@ public record ActorPoseFeedback(float time,long revision,Map<ActorPoseSources.Ch
         return Float.compare(time,currentTime)==0 && revision==currentRevision;
     }
     public ActorPoseFeedback withGaze(String message,boolean applied,float weight) {
-        return new ActorPoseFeedback(time,revision,sources,diagnostics,message,applied,weight);
+        return new ActorPoseFeedback(time,revision,sources,diagnostics,message,applied,weight,coordination);
     }
     public String source(String bone,int channel) {
         String lower=sources.getOrDefault(new ActorPoseSources.Channel(bone,channel),"基础动作／模型默认姿态");

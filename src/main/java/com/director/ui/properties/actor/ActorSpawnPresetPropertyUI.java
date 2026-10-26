@@ -13,6 +13,8 @@ import java.util.*;
 /** Edits the Spawn inspector draft; the existing gesture commits one undoable change. */
 public final class ActorSpawnPresetPropertyUI {
     private ActorSpawnPresetPropertyUI() {}
+    private static EntitySpawnClip focusTarget;
+    public static void requestFocus(EntitySpawnClip source) {focusTarget=source;}
     private static EntitySpawnClip browserOwner;
     private static final imgui.type.ImString search=new imgui.type.ImString(256);
     private static final ImInt sourceFilter=new ImInt(0),purposeFilter=new ImInt(0);
@@ -62,7 +64,10 @@ public final class ActorSpawnPresetPropertyUI {
     }
 
     public static void render(EntitySpawnClip source,EntitySpawnClip draft,ActorClipInspectorGesture gesture) {
+        boolean focus=focusTarget==source;
+        if(focus) {ImGui.setNextItemOpen(true,imgui.flag.ImGuiCond.Always);focusTarget=null;}
         if(!ImGui.collapsingHeader("演员动作预设")) return;
+        if(focus) ImGui.setScrollHereY(0);
         ImGui.pushID("spawnPreset");
         try {
             var wrapper=source.getTimelineClip();

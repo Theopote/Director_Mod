@@ -12,8 +12,9 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
     @Override public Class<EntitySpawnClip> getTargetType() { return EntitySpawnClip.class; }
     private String tr(String key) { return ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit."+key); }
     @Override public boolean renderProperties(EntitySpawnClip source) {
+        var navigation=com.director.ui.properties.actor.ActorCoordinationPanel.render(source);
         var draft = gesture.begin(source);
-        if (!(draft instanceof EntitySpawnClip clip)) { gesture.end(); return false; }
+        if (!(draft instanceof EntitySpawnClip clip)) { gesture.end(); com.director.ui.properties.actor.ActorCoordinationPanel.navigate(source,navigation); return false; }
         ImGui.text(tr("title"));
         ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.range",clip.getStartTime(),clip.getEndTime()));
         var end = new ImFloat(clip.getEndTime());
@@ -57,6 +58,7 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.render(source,clip,gesture);
         com.director.ui.properties.actor.ActorAnimationBlendPropertyUI.render(source,clip.getBlendSettings(),clip::setBlendSettings,gesture);
         gesture.end();
+        com.director.ui.properties.actor.ActorCoordinationPanel.navigate(source,navigation);
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.renderIndependentAction(source);
         com.director.ui.properties.actor.ActorRootKeyframePropertyUI.render(source); return false;
     }
