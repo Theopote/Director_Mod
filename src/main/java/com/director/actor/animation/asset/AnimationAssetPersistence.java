@@ -166,7 +166,15 @@ public final class AnimationAssetPersistence {
         AnimationAsset asset = new AnimationAsset(required(in, "id").getAsString(), required(in, "name").getAsString(),
                 rig, required(in, "duration").getAsFloat(),
                 AnimationLoopMode.valueOf(required(in, "loopMode").getAsString()));
-        if(in.has("purpose")) asset.setPurpose(com.director.actor.animation.AnimationData.Purpose.valueOf(in.get("purpose").getAsString()));
+        if(in.has("purpose")) {
+            var raw=in.get("purpose");
+            try {
+                if(!raw.isJsonPrimitive() || !raw.getAsJsonPrimitive().isString()) throw new IllegalArgumentException("Purpose must be a string");
+                asset.setPurpose(com.director.actor.animation.AnimationData.Purpose.valueOf(raw.getAsString()));
+            } catch(IllegalArgumentException invalid) {
+                LOGGER.warn("[AnimationAssetPersistence] 动画 {} 的用途字段无效，已恢复为 PERFORMANCE",asset.id());
+            }
+        }
         JsonObject tracks = required(in, "boneTracks").getAsJsonObject();
         for (var entry : tracks.entrySet()) {
             BoneTrack track = asset.getOrCreateBoneTrack(entry.getKey());

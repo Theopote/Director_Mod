@@ -34,6 +34,30 @@ public final class ActorSpawnPresetPropertyUI {
         ImGui.endDisabled();
         if(ImGui.isItemHovered()) ImGui.setTooltip("只替换当前片段的预设引用；手工关键帧及其他演员仍使用原资产。");
     }
+    private static ActorPresetBinding renderScopeButtons(ActorPresetBinding binding,RigDefinition rig,ActorClipInspectorGesture gesture) {
+        var result=binding;
+        float available=Math.max(1,ImGui.getContentRegionAvailX());
+        float rowEnd=ImGui.getCursorScreenPosX()+available;
+        boolean first=true;
+        for(var scope:ActorPresetScope.values()) {
+            float width=Math.min(available,ImGui.calcTextSize(scope.label()).x+ImGui.getStyle().getFramePaddingX()*2);
+            if(!first && ImGui.getItemRectMaxX()+ImGui.getStyle().getItemSpacingX()+width<=rowEnd) ImGui.sameLine();
+            first=false;
+            boolean selected=scope.matches(result,rig);
+            if(selected) ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,ImGui.getColorU32(imgui.flag.ImGuiCol.ButtonActive));
+            ImGui.beginDisabled(!scope.supported(rig));
+            if(ImGui.button(scope.label()+"##presetScope"+scope.name(),width,0)) {
+                result=scope.apply(result,rig);gesture.requestCommit();
+            }
+            ImGui.endDisabled();
+            if(selected) ImGui.popStyleColor();
+            if(!scope.supported(rig) && ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.setTooltip("此骨架没有标准人形分组，请逐个勾选部位。");
+        }
+        if(ActorPresetScope.currentLabel(result,rig).equals("自定义部位")) ImGui.textDisabled("自定义部位；点击范围按钮可恢复该分组。");
+        return result;
+    }
+
     public static void render(EntitySpawnClip source,EntitySpawnClip draft,ActorClipInspectorGesture gesture) {
         if(!ImGui.collapsingHeader("演员动作预设")) return;
         ImGui.pushID("spawnPreset");
@@ -95,19 +119,11 @@ public final class ActorSpawnPresetPropertyUI {
                 if(changed) channels^=bits[i];gesture.observe("presetChannel"+i,changed);
             }
             var rig=ActorRigCompatibility.resolveRig(actor).orElse(null);
-            if(ImGui.beginCombo("部位快捷范围",ActorPresetScope.currentLabel(binding,rig))) {
-                for(var scope:ActorPresetScope.values()) {
-                    ImGui.beginDisabled(!scope.supported(rig));
-                    if(ImGui.selectable(scope.label())) {
-                        blend=scope.apply(new ActorPresetBinding(binding.animationId(),loop,speed[0],
-                                new PoseBlendSettings(PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,
-                                        blend.allBones(),blend.boneIds(),fades[0],fades[1])),rig).blend();
-                        gesture.requestCommit();
-                    }
-                    ImGui.endDisabled();
-                }
-                ImGui.endCombo();
-            }
+            ImGui.text("部位范围");
+            var scopeInput=new ActorPresetBinding(binding.animationId(),loop,speed[0],
+                    new PoseBlendSettings(PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,
+                            blend.allBones(),blend.boneIds(),fades[0],fades[1]));
+            blend=renderScopeButtons(scopeInput,rig,gesture).blend();
             ImGui.textWrapped("仅上半身保留双腿的底层步态；仅双腿不包含模型根，避免改变整体位移。范围只筛选已有动画通道。");
             boolean all=blend.allBones();changed=ImGui.checkbox("所有部位",all);
             if(changed) all=!all;gesture.observe("presetAllBones",changed);
@@ -128,9 +144,18 @@ public final class ActorSpawnPresetPropertyUI {
             else if(feedback.bones().isEmpty()) ImGui.textWrapped("所选部位与通道没有对应动画，预设当前不产生影响。");
             else if(rig!=null) ImGui.textWrapped("影响部位："+feedback.bones().stream()
                     .map(id->rig.bone(rig.requireBoneIndex(id)).displayName()).collect(java.util.stream.Collectors.joining("、")));
-            if(!muted && playback!=null && playback.routeClip!=null && feedback.available() && feedback.weight()>0
-                    && feedback.rotationBones().stream().anyMatch(ActorPresetScope::isLeg)) {
-                ImGui.textWrapped("此预设正在影响腿部旋转：玩家脚底接触会按动画权重释放。若只是边走边表演，可选择“仅上半身”；自制走跑动作则可以保留腿部。");
+            var routeFeedback=ActorPresetRouteFeedback.resolve(feedback,playback,muted);
+            if(routeFeedback==ActorPresetRouteFeedback.LOCAL_CLOCK) {
+                ImGui.textWrapped("此预设正在影响腿部旋转，但当前未使用路径距离时钟，可能与行进节奏不一致。");
+                ImGui.beginDisabled(!ActorPresetScope.UPPER.supported(rig));
+                if(ImGui.button("当前片段改为仅上半身##fixPresetLegScope")) {
+                    draft.setPreset(ActorPresetScope.UPPER.apply(next,rig));
+                    gesture.requestCommit();
+                }
+                ImGui.endDisabled();
+                ImGui.textWrapped("若这是自制走跑动作，请在动画资产库检查“动作用途”。修改用途会影响所有引用该资产的演员，不会在这里自动修改。");
+            } else if(routeFeedback==ActorPresetRouteFeedback.DISTANCE_CLOCK) {
+                ImGui.textWrapped("腿部预设使用路径距离时钟；玩家脚底接触按腿部动画权重释放。这不代表已保证完全无滑步。");
             }
             if(ImGui.treeNode("预设、关键帧与路径怎么配合？")) {
                 ImGui.textWrapped("路径决定整体位置，基础步态或循环步态资产决定行走；表演预设可只影响上半身。");

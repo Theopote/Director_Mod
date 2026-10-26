@@ -19,6 +19,23 @@ class AnimationAssetPersistenceTest {
 
     @AfterEach void cleanUp() { library.clear(); }
 
+    @Test void invalidOptionalPurposeDoesNotDiscardAssetsOrTheirKeys() throws Exception {
+        var first=asset("project:a","A");
+        first.getOrCreateBoneTrack("head").rotation().put(0,new Quaternionf().rotateY(.4f),InterpolationMode.LINEAR);
+        library.register(first);library.register(asset("project:b","B"));
+        Path file=tempDir.resolve("purpose.json");AnimationAssetPersistence.save(file,library);
+        String original=Files.readString(file);
+        for(String raw:new String[]{"\"UNKNOWN\"","null","1","true","{}","[]"}) {
+            var root=com.google.gson.JsonParser.parseString(original).getAsJsonObject();
+            root.getAsJsonArray("assets").get(0).getAsJsonObject().add("purpose",com.google.gson.JsonParser.parseString(raw));
+            Files.writeString(file,root.toString());library.clear();AnimationAssetPersistence.load(file,library);
+            assertEquals(2,library.size());
+            var restored=library.find("project:a").orElseThrow();
+            assertEquals(com.director.actor.animation.AnimationData.Purpose.PERFORMANCE,restored.purpose());
+            assertEquals(.4f,restored.sample(0).localTransform("head").rotation().getEulerAnglesXYZ(new Vector3f()).y,1e-5f);
+        }
+    }
+
     @Test
     void roundTripsSparseChannelsMarkersAndInterpolation() throws Exception {
         AnimationAsset asset = asset("project:wave", "Wave");
