@@ -162,7 +162,7 @@ public class TimelineClipBlockController {
                 || (cache.blocks.isEmpty() && container.getBlockCount() > 0)) {
             cache.modifiedTime = mod;
             cache.blocks = new ArrayList<>(container.getBlocksView());
-            cache.all = Set.copyOf(cache.blocks);
+            cache.all = BlockPositionSets.immutableCopy(cache.blocks);
         }
         return cache.blocks != null ? cache.blocks : List.of();
     }

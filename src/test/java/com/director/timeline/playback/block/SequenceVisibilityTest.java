@@ -7,6 +7,29 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SequenceVisibilityTest {
+    @Test void denseBuildingViewsKeepMembershipAndOldFramesAcrossSeeks() {
+        var entries = new ArrayList<BlockSequenceEntry>();
+        var positions = new ArrayList<BlockPos>();
+        for (int x = 0; x < 128; x++)
+            for (int z = 0; z < 16; z++)
+                for (int y = 0; y < 32; y++) {
+                    var pos = new BlockPos(x - 500, y - 43, z + 1785);
+                    positions.add(pos);
+                    entries.add(new BlockSequenceEntry(pos, positions.size() / 65536f, 0, 0));
+                }
+        var all = BlockPositionSets.immutableCopy(positions);
+        var sequence = new SequenceVisibility(entries, all);
+        var before = sequence.sample(30000, 20000, false);
+        sequence.sample(60000, 50000, false);
+        var exit = sequence.sample(30000, 20000, true);
+        for (int i = 0; i < positions.size(); i++) {
+            assertEquals(i < 30000, before.render().contains(positions.get(i)));
+            assertEquals(i < 20000, before.world().contains(positions.get(i)));
+            assertEquals(i >= 30000, exit.render().contains(positions.get(i)));
+        }
+        assertEquals(new HashSet<>(positions.subList(0, 30000)), before.render());
+    }
+
     @Test void prefixAndDemolitionViewsMatchExplicitSetsAcrossForwardAndBackwardSeeks() {
         var positions = new ArrayList<BlockPos>();
         var entries = new ArrayList<BlockSequenceEntry>();
@@ -42,7 +65,7 @@ class SequenceVisibilityTest {
             var pos = new BlockPos(i, 5, 0); all.add(pos);
             entries.add(new BlockSequenceEntry(pos, i / 99999f, 0, 0));
         }
-        var sequence = new SequenceVisibility(entries, Set.copyOf(all));
+        var sequence = new SequenceVisibility(entries, BlockPositionSets.immutableCopy(all));
         var old = sequence.sample(50000, 40000, false);
         for (int i = 0; i < 1000; i++) assertSame(old, sequence.sample(50000, 40000, false));
         var next = sequence.sample(60000, 40000, false);

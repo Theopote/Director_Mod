@@ -3,6 +3,8 @@ package com.director.compatibility;
 import com.director.config.DirectorConfig;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
+import net.fabricmc.loader.api.SemanticVersion;
+import net.fabricmc.loader.api.VersionParsingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -231,7 +233,7 @@ public class ModCompatibilityChecker {
     /**
      * 检查单个版本兼容性
      */
-    private static boolean isVersionCompatible(String currentVersion, String supportedVersion) {
+    static boolean isVersionCompatible(String currentVersion, String supportedVersion) {
         try {
             // Handle different version formats
             if (supportedVersion.endsWith("+")) {
@@ -259,21 +261,10 @@ public class ModCompatibilityChecker {
     /**
      * 比较版本号
      */
-    private static int compareVersions(String version1, String version2) {
-        String[] v1Parts = version1.split("\\.");
-        String[] v2Parts = version2.split("\\.");
-        
-        int maxLength = Math.max(v1Parts.length, v2Parts.length);
-        
-        for (int i = 0; i < maxLength; i++) {
-            int v1Part = i < v1Parts.length ? Integer.parseInt(v1Parts[i]) : 0;
-            int v2Part = i < v2Parts.length ? Integer.parseInt(v2Parts[i]) : 0;
-            
-            if (v1Part < v2Part) return -1;
-            if (v1Part > v2Part) return 1;
-        }
-        
-        return 0;
+    private static int compareVersions(String version1, String version2) throws VersionParsingException {
+        // Fabric API includes Minecraft's version as build metadata (e.g. +1.21.10).
+        // Loader's parser ignores that metadata for precedence and handles prereleases.
+        return SemanticVersion.parse(version1).compareTo(SemanticVersion.parse(version2));
     }
     
     /**
