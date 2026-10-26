@@ -11,6 +11,24 @@ class ActorPresetFeedbackTest {
         return new ActorPresetBinding(id,false,1,new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,.8f,
                 channels,false,bones,2,1));
     }
+    @Test void emptyAssetDiffersFromAnExcludedChannelMask() {
+        var library=com.director.actor.animation.asset.AnimationAssetLibrary.getInstance();
+        var asset=new com.director.actor.animation.asset.AnimationAsset("test:empty-feedback","Empty",ArticulatedPlayerRig.DEFINITION,2,com.director.actor.animation.asset.AnimationLoopMode.ONCE);
+        library.register(asset);
+        try {
+            var binding=new ActorPresetBinding(asset.id(),false,1,PoseBlendSettings.DEFAULT);
+            var empty=ActorPresetFeedback.resolve(binding,asset.rig(),1,4);
+            assertTrue(empty.available());assertFalse(empty.authoredData());
+            asset.getOrCreateBoneTrack("head").rotation().put(0,new org.joml.Quaternionf(),com.director.actor.animation.asset.InterpolationMode.LINEAR);
+            var masked=new ActorPresetBinding(asset.id(),false,1,new PoseBlendSettings(PoseLayer.BlendMode.OVERRIDE,1,0,false,Set.of()));
+            var excluded=ActorPresetFeedback.resolve(masked,asset.rig(),1,4);
+            assertTrue(excluded.authoredData());assertTrue(excluded.bones().isEmpty());
+            var restored=ActorPresetScope.restoreChannelsAndBones(masked);
+            assertEquals(java.util.List.of("head"),ActorPresetFeedback.resolve(restored,asset.rig(),1,4).bones());
+            assertEquals(masked.animationId(),restored.animationId());assertEquals(masked.speed(),restored.speed());
+        } finally {library.remove(asset.id());}
+    }
+
     @Test void routeLegWarningUsesActualRotationChannelsRatherThanScaleOrEmptyMask() {
         var library=com.director.actor.animation.asset.AnimationAssetLibrary.getInstance();
         var asset=new com.director.actor.animation.asset.AnimationAsset("test:scope-feedback","Test",ArticulatedPlayerRig.DEFINITION,2,com.director.actor.animation.asset.AnimationLoopMode.ONCE);

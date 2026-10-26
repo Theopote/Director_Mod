@@ -21,5 +21,10 @@ public enum ActorPresetScope {
         if(LOWER.matches(binding,rig)) return LOWER.label;
         return "自定义部位";
     }
+    public static ActorPresetBinding restoreChannelsAndBones(ActorPresetBinding binding) {
+        var blend=binding.blend();
+        return new ActorPresetBinding(binding.animationId(),binding.loop(),binding.speed(),new PoseBlendSettings(
+                blend.mode(),blend.weight(),RigPose.ALL_CHANNELS,true,java.util.Set.of(),blend.fadeIn(),blend.fadeOut()));
+    }
     public static boolean isLeg(String bone) { return PoseScope.isLeg(bone); }
 }

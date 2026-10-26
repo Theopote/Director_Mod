@@ -13,6 +13,9 @@ import java.util.*;
 /** Edits the Spawn inspector draft; the existing gesture commits one undoable change. */
 public final class ActorSpawnPresetPropertyUI {
     private ActorSpawnPresetPropertyUI() {}
+    private static EntitySpawnClip browserOwner;
+    private static final imgui.type.ImString search=new imgui.type.ImString(256);
+    private static final ImInt sourceFilter=new ImInt(0),purposeFilter=new ImInt(0);
     /** Called after the inspector draft commits, so duplication never races a pending property edit. */
     public static void renderIndependentAction(EntitySpawnClip source) {
         if(source.getPreset()==null) return;
@@ -66,27 +69,36 @@ public final class ActorSpawnPresetPropertyUI {
             var payload=wrapper==null || wrapper.getParentTrack()==null?null:wrapper.getParentTrack().getActorTrackPayload();
             var actor=payload==null || payload.getActorRef()==null?null:
                     ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
-            var choices=new LinkedHashMap<String,String>();
-            AnimationAssetLibrary.getInstance().all().stream()
-                    .filter(a->ActorRigCompatibility.accepts(actor,a.rigId())
-                            && ActorRigCompatibility.resolveRig(actor).map(r->RigPoseComposer.sameLayout(r,a.rig())).orElse(false)
-                            && !a.id().equals(draft.getBoneAnimationId()))
-                    .forEach(a->choices.put(a.id(),a.name()+" · "+a.id()));
-            if(ActorRigCompatibility.resolveRig(actor).map(HumanoidTopology::matches).orElse(false))
-                AnimationLibrary.getInstance().getAllAnimations().forEach(a->choices.putIfAbsent(a.getId(),a.purpose().label()+" · "+a.getName()+" · "+a.getId()));
+            if(browserOwner!=source) {browserOwner=source;search.set("");sourceFilter.set(0);purposeFilter.set(0);}
+            var catalog=com.director.ui.actor.pose.ActorAnimationCatalog.entries(AnimationAssetLibrary.getInstance(),AnimationLibrary.getInstance().getAllAnimations(),actor);
             var binding=draft.getPreset();
-            var ids=new ArrayList<String>();ids.add(null);ids.addAll(choices.keySet());
-            if(binding!=null && !ids.contains(binding.animationId())) ids.add(binding.animationId());
-            String[] labels=ids.stream().map(id->id==null?"无预设":choices.getOrDefault(id,"缺失或不兼容 · "+id)).toArray(String[]::new);
-            var selected=new ImInt(binding==null?0:ids.indexOf(binding.animationId()));
-            boolean changed=ImGui.combo("动作",selected,labels);
-            if(changed) {
-                String id=ids.get(selected.get());
-                binding=ActorPresetBinding.select(id,binding);
-                draft.setPreset(binding);
+            String current="无预设";
+            if(binding!=null) {
+                String id=binding.animationId();
+                current=catalog.stream().filter(e->e.id().equals(id)).map(e->e.name()+" · "+e.purpose().label()+(e.compatible()?"":" · 不兼容")).findFirst().orElse("缺失引用 · "+id);
             }
-            gesture.observe("presetId",changed);
-            if(binding==null) { ImGui.textWrapped("绑定预设后可直接叠加手工骨骼关键帧，不会创建额外片段。");return; }
+            ImGui.textWrapped("当前动作："+current);
+            boolean changed=false;
+            if(ImGui.treeNode("浏览与选择动作##presetBrowser")) {
+                ImGui.inputTextWithHint("##presetSearch","搜索动作名称、ID 或骨架",search);
+                ImGui.combo("来源##presetSource",sourceFilter,new String[]{"全部来源","项目动画","内置动作"});
+                ImGui.combo("用途##presetPurpose",purposeFilter,new String[]{"全部用途","表演","循环步态","静态姿态"});
+                var sources=com.director.ui.actor.pose.ActorAnimationCatalog.Source.values();
+                var purposes=com.director.actor.animation.AnimationData.Purpose.values();
+                var visible=com.director.ui.actor.pose.ActorAnimationCatalog.filter(catalog,search.get(),
+                        sourceFilter.get()==0?null:sources[sourceFilter.get()-1],purposeFilter.get()==0?null:purposes[purposeFilter.get()-1],true,draft.getBoneAnimationId());
+                ImGui.beginChild("presetResults",0,Math.min(180,Math.max(60,(visible.size()+1)*ImGui.getTextLineHeightWithSpacing()+8)),true);
+                if(ImGui.selectable("无预设##clearPreset",binding==null)) {binding=null;draft.setPreset(null);gesture.requestCommit();}
+                for(var entry:visible) {
+                    if(ImGui.selectable(entry.name()+" · "+entry.purpose().label()+"##preset:"+entry.id(),binding!=null && entry.id().equals(binding.animationId()))) {
+                        binding=ActorPresetBinding.select(entry.id(),binding);draft.setPreset(binding);gesture.requestCommit();
+                    }
+                    if(ImGui.isItemHovered()) ImGui.setTooltip((entry.source()==com.director.ui.actor.pose.ActorAnimationCatalog.Source.PROJECT?"项目动画":"内置动作")+" · "+entry.id()+" · "+entry.rigName());
+                }
+                if(visible.isEmpty()) ImGui.textWrapped("没有匹配的兼容动作，请调整搜索或筛选。");
+                ImGui.endChild();ImGui.treePop();
+            }
+            if(binding==null) { ImGui.textWrapped("展开“浏览与选择动作”，选择一个兼容动作即可绑定到当前演员片段。");return; }
             var model=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
             var playback=payload==null?null:new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleSnapshot(model.getCurrentTime());
             boolean distanceClock=playback!=null && com.director.actor.runtime.ActorPresetClock.followsDistance(binding.animationId(),playback);
@@ -104,19 +116,25 @@ public final class ActorSpawnPresetPropertyUI {
             ImGui.endDisabled();
             var blend=binding.blend();float[] weight={blend.weight()};
             changed=ImGui.sliderFloat("预设权重",weight,0,1);gesture.observe("presetWeight",changed);
-            var mode=new ImInt(blend.mode().ordinal());changed=ImGui.combo("预设混合",mode,new String[]{"覆盖","叠加（相对静止姿态）"});
-            gesture.observe("presetMode",changed);
-            float[] fades={blend.fadeIn(),blend.fadeOut()};changed=ImGui.inputFloat2("淡入 / 淡出（秒）",fades);
-            if(!Float.isFinite(fades[0]) || !Float.isFinite(fades[1]) || fades[0]<0 || fades[1]<0) {
-                fades[0]=blend.fadeIn();fades[1]=blend.fadeOut();
-            }
-            gesture.observe("presetFades",changed);
+            var mode=new ImInt(blend.mode().ordinal());
+            float[] fades={blend.fadeIn(),blend.fadeOut()};
             int channels=blend.channels();
-            int[] bits={RigPose.TRANSLATION,RigPose.ROTATION,RigPose.SCALE};
-            String[] channelLabels={"位置通道","旋转通道","缩放通道"};
-            for(int i=0;i<bits.length;i++) {
-                changed=ImGui.checkbox(channelLabels[i],(channels&bits[i])!=0);
-                if(changed) channels^=bits[i];gesture.observe("presetChannel"+i,changed);
+            if(ImGui.treeNode("高级混合：叠加、淡入淡出与通道##presetAdvancedBlend")) {
+                changed=ImGui.combo("预设混合",mode,new String[]{"覆盖","叠加（相对静止姿态）"});
+                gesture.observe("presetMode",changed);
+                changed=ImGui.inputFloat2("淡入 / 淡出（秒）",fades);
+                if(!Float.isFinite(fades[0]) || !Float.isFinite(fades[1]) || fades[0]<0 || fades[1]<0) {
+                    fades[0]=blend.fadeIn();fades[1]=blend.fadeOut();
+                }
+                gesture.observe("presetFades",changed);
+                ImGui.textDisabled("淡入淡出跟随演员片段边界，不在每次动画循环时重新开始。");
+                int[] bits={RigPose.TRANSLATION,RigPose.ROTATION,RigPose.SCALE};
+                String[] labels={"位置通道","旋转通道","缩放通道"};
+                for(int i=0;i<bits.length;i++) {
+                    changed=ImGui.checkbox(labels[i],(channels&bits[i])!=0);
+                    if(changed) channels^=bits[i];gesture.observe("presetChannel"+i,changed);
+                }
+                ImGui.treePop();
             }
             var rig=ActorRigCompatibility.resolveRig(actor).orElse(null);
             ImGui.text("部位范围");
@@ -124,14 +142,19 @@ public final class ActorSpawnPresetPropertyUI {
                     new PoseBlendSettings(PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,
                             blend.allBones(),blend.boneIds(),fades[0],fades[1]));
             blend=renderScopeButtons(scopeInput,rig,gesture).blend();
-            ImGui.textWrapped("仅上半身保留双腿的底层步态；仅双腿不包含模型根，避免改变整体位移。范围只筛选已有动画通道。");
-            boolean all=blend.allBones();changed=ImGui.checkbox("所有部位",all);
-            if(changed) all=!all;gesture.observe("presetAllBones",changed);
+            ImGui.textDisabled("范围说明 (?)");
+            if(ImGui.isItemHovered()) ImGui.setTooltip("仅上半身保留双腿底层动作；仅双腿不含模型根。范围只筛选资产已有通道。");
+            boolean all=blend.allBones();
             var bones=new LinkedHashSet<>(blend.boneIds());
-            if(!all && rig!=null) for(var bone:rig.bones()) {
-                changed=ImGui.checkbox(bone.displayName()+"##presetBone"+bone.id(),bones.contains(bone.id()));
-                if(changed) { if(!bones.remove(bone.id())) bones.add(bone.id()); }
-                gesture.observe("presetBone"+bone.id(),changed);
+            if(ImGui.treeNode("自定义部位##presetCustomBones")) {
+                changed=ImGui.checkbox("所有部位",all);
+                if(changed) all=!all;gesture.observe("presetAllBones",changed);
+                if(!all && rig!=null) for(var bone:rig.bones()) {
+                    changed=ImGui.checkbox(bone.displayName()+"##presetBone"+bone.id(),bones.contains(bone.id()));
+                    if(changed) {if(!bones.remove(bone.id())) bones.add(bone.id());}
+                    gesture.observe("presetBone"+bone.id(),changed);
+                }
+                ImGui.treePop();
             }
             var next=new ActorPresetBinding(binding.animationId(),loop,speed[0],new PoseBlendSettings(
                     PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,all,bones,fades[0],fades[1]));
@@ -141,7 +164,13 @@ public final class ActorSpawnPresetPropertyUI {
             boolean muted=source.isMuted() || wrapper!=null && wrapper.getParentTrack()!=null && wrapper.getParentTrack().isMuted();
             ImGui.text(String.format(Locale.ROOT,"当前预设层权重：%.1f%%",100*(muted?0:feedback.weight())));
             if(!feedback.available()) ImGui.textWrapped("预设缺失或骨架不兼容，当前不参与合成。");
-            else if(feedback.bones().isEmpty()) ImGui.textWrapped("所选部位与通道没有对应动画，预设当前不产生影响。");
+            else if(!feedback.authoredData()) ImGui.textWrapped("此资产尚无可用的骨骼关键帧；请先制作动画，调整范围不会生成动作。");
+            else if(feedback.bones().isEmpty()) {
+                ImGui.textWrapped("当前部位或通道筛选排除了已有动画。");
+                if(ImGui.button("恢复全部部位与通道##restorePresetMask")) {
+                    draft.setPreset(ActorPresetScope.restoreChannelsAndBones(next));gesture.requestCommit();
+                }
+            }
             else if(rig!=null) ImGui.textWrapped("影响部位："+feedback.bones().stream()
                     .map(id->rig.bone(rig.requireBoneIndex(id)).displayName()).collect(java.util.stream.Collectors.joining("、")));
             var routeFeedback=ActorPresetRouteFeedback.resolve(feedback,playback,muted);
@@ -164,8 +193,8 @@ public final class ActorSpawnPresetPropertyUI {
                 ImGui.textWrapped("排错时先把预设权重设为 0 验证底层动作，再逐层恢复；选中骨骼可在属性面板查看本帧实际控制来源。");
                 ImGui.treePop();
             }
-            ImGui.textWrapped("部位与通道只筛选预设已有数据；手工关键帧仍可覆盖同一通道。");
-            ImGui.textWrapped(distanceClock?"步态相位跟随路径距离，淡入淡出跟随演员片段；清除预设会保留手工关键帧。":"时间跟随演员片段；先播放预设，再叠加已编辑的骨骼通道。清除预设会保留手工关键帧。");
+
+
         } finally { ImGui.popID(); }
     }
 }

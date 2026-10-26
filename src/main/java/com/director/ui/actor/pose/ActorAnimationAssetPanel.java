@@ -14,6 +14,9 @@ import java.util.UUID;
 public final class ActorAnimationAssetPanel {
     private static final ImString targetId = new ImString(256);
     private static final ImString name = new ImString(256);
+    private static final ImString search = new ImString(256);
+    private static final imgui.type.ImBoolean compatibleOnly = new imgui.type.ImBoolean(true);
+    private static final imgui.type.ImInt purposeFilter = new imgui.type.ImInt(0);
     private static final ImString importId = new ImString(256);
     private static AnimationAsset selected;
     private static String message = "";
@@ -27,7 +30,7 @@ public final class ActorAnimationAssetPanel {
         var settings = ActorAnimationAuthoringSettings.getInstance();
         if (ownerModel != model) {
             ownerModel = model;
-            selected = null;
+            selected = null; search.set(""); purposeFilter.set(0); compatibleOnly.set(true);
             name.set(""); importId.set(""); message = "";
             targetId.set(ActorAnimationAssetEditing.uniqueId(library, "project:animation"));
         }
@@ -35,13 +38,27 @@ public final class ActorAnimationAssetPanel {
             selected = null;
             message = "";
         }
-        for (AnimationAsset asset : library.all()) {
-            if (ImGui.selectable(asset.name() + "##asset:" + asset.id(), selected == asset)) {
-                selectAsset(asset, library);
-                message = "";
+        var actor = actorId == null ? null : com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
+        ImGui.inputTextWithHint("##assetSearch","搜索名称、ID 或骨架",search);
+        ImGui.combo("用途筛选##assetPurposeFilter",purposeFilter,new String[]{"全部用途","表演","循环步态","静态姿态"});
+        if(actorId!=null) ImGui.checkbox("仅显示兼容当前演员##assetCompatible",compatibleOnly);
+        var catalog=ActorAnimationCatalog.entries(library,java.util.List.of(),actor);
+        var filterPurposes=com.director.actor.animation.AnimationData.Purpose.values();
+        var visible=ActorAnimationCatalog.filter(catalog,search.get(),ActorAnimationCatalog.Source.PROJECT,
+                purposeFilter.get()==0?null:filterPurposes[purposeFilter.get()-1],actorId!=null && compatibleOnly.get(),null);
+        if(visible.isEmpty()) ImGui.textDisabled("没有匹配的动画；可清空搜索或调整用途、兼容筛选。");
+        ImGui.beginChild("assetResults",0,Math.min(180,Math.max(36,visible.size()*ImGui.getTextLineHeightWithSpacing()+8)),true);
+        for(var entry:visible) {
+            var asset=library.find(entry.id()).orElse(null);
+            if(ImGui.selectable(entry.name()+" · "+entry.purpose().label()+"##asset:"+entry.id(),selected==asset)) {
+                selectAsset(asset,library);message="";
             }
+            if(ImGui.isItemHovered()) ImGui.setTooltip(entry.id()+" · "+entry.rigName()+(entry.compatible() || actorId==null?"":" · 与当前演员不兼容"));
         }
+        ImGui.endChild();
         if (selected != null) {
+            ImGui.textWrapped("选中资产："+selected.name());
+            if(visible.stream().noneMatch(e->e.id().equals(selected.id()))) ImGui.textDisabled("此资产不在当前筛选结果中；筛选不会更改现有引用。");
             ImGui.textDisabled(selected.id() + " · " + selected.duration() + "s");
             ImGui.textDisabled(I18n.translate("gui.director.actor.assets.rig") + selected.rig().displayName());
             ImGui.textDisabled("时间线引用：" + ActorAnimationAssetEditing.referenceCount(model, selected.id()));
@@ -50,7 +67,6 @@ public final class ActorAnimationAssetPanel {
         boolean readOnly = model.isPlaying() || model.isScrubbing() || ActorBoneGizmoController.getInstance().isDragging()
                 || ActorBonePropertiesPanel.hasNumericDraft();
         if (readOnly) ImGui.textWrapped(I18n.translate("gui.director.actor.assets.read_only"));
-        var actor = actorId == null ? null : com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
         var rig = actor == null ? null : com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElse(null);
         if (actorId != null && rig == null) ImGui.textWrapped(actor == null
                 ? I18n.translate("gui.director.actor.authoring.unavailable")
@@ -66,7 +82,11 @@ public final class ActorAnimationAssetPanel {
             ImGui.textWrapped("循环步态沿路径时按行进距离播放；表演和静态姿态保留片段时钟。");
         }
         ImGui.inputText("名称##assetName", name);
-        ImGui.inputText("新建/副本 ID##assetTargetId", targetId);
+        if(ImGui.treeNode("高级：资产标识##assetIdentity")) {
+            ImGui.inputText("新建/副本 ID##assetTargetId",targetId);
+            ImGui.textWrapped("通常无需修改。名称用于显示，ID 用于稳定引用。");
+            ImGui.treePop();
+        }
         ImGui.beginDisabled(actorId != null && rig == null);
         if (ImGui.button("新建##assetCreate")) run(() -> selectAsset(ActorAnimationAssetEditing.createForActor(model, library, targetId.get().trim(),
                 name.get(), settings.getNewAssetDuration(), actorId), library));
