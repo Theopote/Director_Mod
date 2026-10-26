@@ -49,6 +49,15 @@ final class OcclusionSurfaceRenderer {
     }
 
     static Prepared prepare(ClientWorld world, Collection<BlockVisualStateManager.RenderEntry> entries) {
+        return prepare(world, entries, IrisTerrainCompat.shaderPackInUse());
+    }
+
+    static Prepared prepare(ClientWorld world, Collection<BlockVisualStateManager.RenderEntry> entries,
+                            boolean shaderPackInUse) {
+        // The tiled shader encodes sprite bounds in normal/overlay attributes. Iris replaces
+        // that shader, so let the regular terrain tessellator emit original UVs and metadata.
+        // Re-evaluate each pass: toggling/reloading a pack must not keep stale handled blocks.
+        if (shaderPackInUse) return new Prepared(Set.of(), List.of(), List.of());
         var groups = new IdentityHashMap<Object, List<BlockVisualStateManager.RenderEntry>>();
         for (var entry : entries) if (accepts(entry))
             groups.computeIfAbsent(entry.clip(), key -> new ArrayList<>()).add(entry);

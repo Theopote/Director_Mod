@@ -10,14 +10,21 @@ import net.minecraft.util.Identifier;
 /** Terrain lightmap interpolation, with blending and transparent texel rejection for fades. */
 final class WholeContainerRenderLayers {
     private WholeContainerRenderLayers() {}
-    private static final RenderPipeline FADED_PIPELINE = RenderPipeline.builder(RenderPipelines.TERRAIN_SNIPPET)
-            .withLocation(Identifier.of("director", "pipeline/whole_container_fade"))
+    static final RenderLayer FADED = create(true);
+    static final RenderLayer FADED_NO_DEPTH = create(false);
+
+    private static RenderLayer create(boolean depthWrite) {
+        String name = "whole_container_fade" + (depthWrite ? "" : "_no_depth");
+        var pipeline = IrisTerrainCompat.terrain(RenderPipeline.builder(RenderPipelines.TERRAIN_SNIPPET)
+            .withLocation(Identifier.of("director", "pipeline/" + name))
             .withBlend(BlendFunction.TRANSLUCENT)
+            .withDepthWrite(depthWrite)
             .withShaderDefine("ALPHA_CUTOUT", 0.01f)
-            .build();
-    static final RenderLayer FADED = RenderLayer.of("director_whole_container_fade", 786432,
-            false, true, FADED_PIPELINE, RenderLayer.MultiPhaseParameters.builder()
+            .build());
+        return RenderLayer.of("director_" + name, 786432,
+            false, true, pipeline, RenderLayer.MultiPhaseParameters.builder()
                     .lightmap(RenderPhase.ENABLE_LIGHTMAP)
                     .texture(RenderPhase.MIPMAP_BLOCK_ATLAS_TEXTURE)
                     .target(RenderPhase.ITEM_ENTITY_TARGET).build(false));
+    }
 }

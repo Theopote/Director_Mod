@@ -363,7 +363,7 @@ public class BlockAnimationRenderer {
             // Use native world tessellation: AO, biome tint, randomized model parts and internal face culling.
             var parts = new ArrayList<BlockModelPart>();
             manager.getModel(state).addParts(net.minecraft.util.math.random.Random.create(state.getRenderingSeed(pos)), parts);
-            RenderLayer layer = finalWorldLayer(state, alpha);
+            RenderLayer layer = finalWorldLayer(RenderLayers.getBlockLayer(state), alpha, depthWrite);
             VertexConsumer vertices = provider.getBuffer(layer);
             if (alpha < 0.999f) vertices = new AlphaVertexConsumer(vertices, alpha);
             manager.renderBlock(state, pos, assemblyView, matrices, vertices,
@@ -418,8 +418,13 @@ public class BlockAnimationRenderer {
     }
 
     static RenderLayer finalWorldLayer(BlockRenderLayer type, float alpha) {
+        return finalWorldLayer(type, alpha, true);
+    }
+
+    static RenderLayer finalWorldLayer(BlockRenderLayer type, float alpha, boolean depthWrite) {
         // Entity shaders add directional lighting even without PER_FACE_LIGHTING.
         // World tessellation already includes that shading and AO; use terrain shaders.
+        if (!depthWrite) return WholeContainerRenderLayers.FADED_NO_DEPTH;
         if (alpha < 0.999f) return WholeContainerRenderLayers.FADED;
         return switch (type) {
             case SOLID -> RenderLayer.getSolid();
