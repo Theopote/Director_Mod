@@ -112,3 +112,29 @@ dakaiduka:890～892 一次，latest 中四次；关闭时均残留 `[DockSpace:D
 - `gradlew.bat test remapJar --offline --continue`：成功；全量 1171 项测试全部通过，无失败、错误或跳过。
 - 可替换的模组包：`build/libs/director-1.0.0.jar`。
 - 尚未运行用户原存档的游戏内复测；不能承诺此次已消除全部卡顿。Iris 淡入淡出管线报错、UI 关闭跟踪警告与资源纹理问题未在本轮更改。下一次复测应重点比较相同容器/播放头操作下 step1_visible、step3_apply+entries、oldestTargetMs 和实际画面交接。
+
+## Iris 兼容适配与验证（2026-10-27）
+
+针对原日志的 Iris 1.9.7+mc1.21.10、BSL_v10.1.1 组合，完成适配代码及回归验证。检查依据为 Iris 官方 1.21.9 分支（其构建配置的 Minecraft 为 1.21.10、模组版本为 1.9.7），不是根据其他 Minecraft 版本推测接口。
+
+### 原因与实现
+
+- Iris 用管线对象到程序键的映射选择着色器，原 Director 淡入淡出管线没有加入映射，因此触发 Missing program。单纯注册进 Minecraft 的 RenderPipelines 列表不能解决这条映射缺失。
+- Iris 1.9.7 的公共 assignPipeline 仅增加主通道映射；本轮通过可选反射桥调用 IrisPipelines.copyPipeline，继承内置 TRANSLUCENT 的主画面和阴影映射，保留 Director 管线的混合、深度写入与地形顶点布局。没有打包 Iris，也没有将其变为必需依赖。
+- Director 遮挡合并着色器使用 normal/overlay 属性传递纹理平铺信息；Iris 替换着色器后不会执行原平铺解码。启用光影时跳过这条合并路径，交回普通地形模型绘制，保留原始 UV；未启用光影时仍保留合并优化。每个覆盖层 pass 查询当前光影状态，支持开关及重载。
+- 补齐不写深度的淡入淡出层。此前普通地形绘制路径忽略 depthWrite 参数；改为实际选用 FADED_NO_DEPTH，避免透明遮挡层先写入深度后挡住后续动画。
+- 如果可选 Iris 接口不可用或调用失败，使用 Iris 已知的内置透明管线并记录警告。该降级路径不能保留 Director 的全部自定义深度/透明裁切设置，主要保证不会因缺失映射继续使用未知自定义管线；目标 1.9.7 的正常桥接路径保留这些设置。
+
+源码依据：
+
+- [Iris 版本配置](https://github.com/IrisShaders/Iris/blob/1.21.9/build.gradle.kts)
+- [IrisPipelines 的主通道、阴影映射与 copyPipeline](https://github.com/IrisShaders/Iris/blob/1.21.9/common/src/main/java/net/irisshaders/iris/pipeline/IrisPipelines.java)
+- [Missing program 的触发路径](https://github.com/IrisShaders/Iris/blob/1.21.9/common/src/main/java/net/irisshaders/iris/mixin/MixinShaderManager_Overrides.java)
+
+### 验证结果与边界
+
+- 新增五项回归：主画面/阴影映射继承并保留管线状态；光影开关状态动态读取；映射失败降级；启用光影时不输出自定义平铺着色器顶点；原生透明遮挡路径不写深度。
+- Iris 桥接测试使用与官方接口签名一致的测试替身，分别维护主通道和阴影映射；不是运行真实 Iris/BSL 的 OpenGL 集成测试。
+- `gradlew.bat test remapJar --offline --continue` 成功，全量 1176 项测试全部通过，无失败、错误或跳过。
+- 已重新生成 `build/libs/director-1.0.0.jar`，检查包内包含 IrisTerrainCompat 及其桥接类。
+- 当前 run/mods 没有 Iris/BSL 环境，尚未进行实际游戏画面验收。复测应覆盖淡入淡出、静态透明遮挡、阴影、光影开关和重载，并确认原 Missing program 不再出现。开启光影时遮挡透明效果回到普通模型绘制，可能比合并路径增加开销；本轮优先保证着色器兼容与纹理正确。

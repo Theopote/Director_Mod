@@ -6,6 +6,17 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class WholeContainerRenderLayersTest {
+    @Test void transparentOccludersDoNotWriteDepthOnTheNativeTerrainPath() {
+        for (var type : BlockRenderLayer.values()) {
+            var layer = BlockAnimationRenderer.finalWorldLayer(type, 0.4f, false);
+            assertSame(WholeContainerRenderLayers.FADED_NO_DEPTH, layer);
+            assertFalse(layer.getRenderPipeline().isWriteDepth());
+            assertTrue(layer.isTranslucent());
+            assertEquals(RenderLayer.getSolid().getVertexFormat(), layer.getVertexFormat());
+            assertSame(layer, BlockAnimationRenderer.finalWorldLayer(type, 1, false));
+        }
+        assertTrue(WholeContainerRenderLayers.FADED.getRenderPipeline().isWriteDepth());
+    }
     @Test void opaqueAndCutoutModelsUseTheirNativeTerrainShaders() {
         assertSame(RenderLayer.getSolid(), BlockAnimationRenderer.finalWorldLayer(BlockRenderLayer.SOLID, 1));
         assertSame(RenderLayer.getCutout(), BlockAnimationRenderer.finalWorldLayer(BlockRenderLayer.CUTOUT, 1));
