@@ -571,16 +571,17 @@ public class ToolPreviewManager {
         float[] fillColor = facePreviewTint.fillColor;
         float[] outlineColor = facePreviewTint.outlineColor;
 
-        VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayers.getPreviewLayer());
-        VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayers.getLineOverlay());
-
         if (settings.tool_showFill) {
+            VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayers.getPreviewLayer());
             for (BlockPos pos : facePreviewBlocks) {
                 renderBlockPreview(matrix, fillConsumer, pos, fillColor);
             }
         }
         // 使用贪婪合并生成的外轮廓线，避免内部线与公用边
         if (settings.tool_showOutline) {
+            // Switching layers may finish the previous buffer. Acquire lines only after
+            // all fill vertices have been written; never keep consumers across a switch.
+            VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayers.getLineOverlay());
             BlockOutlineMeshCache.Mesh mesh = previewMeshCache.getOrCreateMesh(facePreviewBlocks);
             for (BlockOutlineMeshCache.Line ln : mesh.lines()) {
                 renderLine(lineConsumer, matrix,
@@ -609,9 +610,6 @@ public class ToolPreviewManager {
             return;
         }
 
-        VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayers.getPreviewLayer());
-        VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayers.getLineOverlay());
-
         final float baseR = 0.2f;
         final float baseG = 0.7f;
         final float baseB = 1.0f;
@@ -638,6 +636,7 @@ public class ToolPreviewManager {
         boolean useGradient = maxDepth > 0;
 
         if (settings.tool_showFill) {
+            VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayers.getPreviewLayer());
             for (BlockPos pos : faceHoverBlocks) {
                 float intensity = 1.0f;
                 float alphaFactor = 1.0f;
@@ -657,6 +656,10 @@ public class ToolPreviewManager {
                 renderBlockPreview(matrix, fillConsumer, pos, color);
             }
         }
+
+        boolean drawArrow = faceHoverCenter != null && faceHoverNormal != null;
+        if (!settings.tool_showOutline && !drawArrow) return;
+        VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayers.getLineOverlay());
 
         // 外轮廓线（贪婪合并结果）：更清晰的轮廓，不显示内部线
         if (settings.tool_showOutline) {
