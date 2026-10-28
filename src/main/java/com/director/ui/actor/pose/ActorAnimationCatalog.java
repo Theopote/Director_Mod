@@ -17,6 +17,44 @@ public final class ActorAnimationCatalog {
         }
     }
     private ActorAnimationCatalog() {}
+    /** One current context per browser, not a global map retaining old worlds/actors. */
+    public static final class Cache {
+        private AnimationAssetLibrary project;
+        private AnimationLibrary builtin;
+        private long projectRevision=-1, builtinRevision=-1;
+        private RigDefinition rig;
+        private com.director.actor.ActorType type;
+        private List<Entry> rows;
+        private List<Entry> filteredInput, filtered;
+        private String query, excluded;
+        private Source source;
+        private AnimationData.Purpose purpose;
+        private boolean compatible;
+
+        public List<Entry> entries(AnimationAssetLibrary library,AnimationLibrary builtins,Actor actor) {
+            var nextRig=ActorRigCompatibility.resolveRig(actor).orElse(null);
+            var nextType=actor==null?null:actor.getType();
+            long nextBuiltinRevision=builtins==null?0:builtins.revision();
+            if(rows==null || project!=library || builtin!=builtins || projectRevision!=library.revision()
+                    || builtinRevision!=nextBuiltinRevision || rig!=nextRig || type!=nextType) {
+                rows=ActorAnimationCatalog.entries(library,builtins==null?List.of():builtins.getAllAnimations(),actor);
+                project=library; builtin=builtins; projectRevision=library.revision();
+                builtinRevision=nextBuiltinRevision; rig=nextRig; type=nextType;
+            }
+            return rows;
+        }
+        public List<Entry> filter(List<Entry> entries,String query,Source source,AnimationData.Purpose purpose,
+                                  boolean compatibleOnly,String excludedId) {
+            if(filtered==null || filteredInput!=entries || !Objects.equals(this.query,query)
+                    || this.source!=source || this.purpose!=purpose || compatible!=compatibleOnly
+                    || !Objects.equals(excluded,excludedId)) {
+                filtered=ActorAnimationCatalog.filter(entries,query,source,purpose,compatibleOnly,excludedId);
+                filteredInput=entries; this.query=query; this.source=source; this.purpose=purpose;
+                compatible=compatibleOnly; excluded=excludedId;
+            }
+            return filtered;
+        }
+    }
     public static List<Entry> entries(AnimationAssetLibrary library,Collection<AnimationData> builtins,Actor actor) {
         RigDefinition rig=ActorRigCompatibility.resolveRig(actor).orElse(null);
         var entries=new LinkedHashMap<String,Entry>();

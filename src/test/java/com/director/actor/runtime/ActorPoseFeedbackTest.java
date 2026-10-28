@@ -3,6 +3,32 @@ import org.junit.jupiter.api.Test;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 class ActorPoseFeedbackTest {
+    @Test void standardStageDetailsAreCodesAndEveryCodeHasBothUiTranslations() throws Exception {
+        var absent=ActorPoseStage.layer(ActorPoseStage.Kind.PRESET,null,
+                com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT,0,null);
+        assertEquals(ActorPoseStage.Detail.ABSENT,absent.detailCode());assertEquals("",absent.detail());
+        for(String language:List.of("en_us","zh_cn")) {
+            try(var stream=getClass().getResourceAsStream("/assets/director/lang/"+language+".json")) {
+                assertNotNull(stream);
+                var json=com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(stream,
+                        java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+                assertTrue(String.format(Locale.ROOT,json.get("gui.director.actor.coordination.layer_order").getAsString()).contains("100%"));
+                for(var code:ActorPoseStage.Detail.values()) if(code!=ActorPoseStage.Detail.DIAGNOSTIC)
+                    assertTrue(json.has("gui.director.actor.coordination.detail."+code.name().toLowerCase(Locale.ROOT)),code.name());
+                for(var state:ActorPoseStage.State.values())
+                    assertTrue(json.has("gui.director.actor.coordination.state."+state.name().toLowerCase(Locale.ROOT)),state.name());
+            }
+        }
+    }
+    @Test void motionKeepsSemanticEnumsInsteadOfPreformattedUiText() {
+        var sample=new com.director.timeline.playback.entity.EntitySample();
+        sample.action=com.director.actor.action.ActorActionType.WALK;
+        sample.routeClip=new com.director.timeline.model.entity.ActorRouteClip("Route",0,4);
+        sample.routeClip.setLoopMode(com.director.timeline.model.entity.ActorRouteClip.LoopMode.PING_PONG);
+        var motion=ActorCoordinationFeedback.Motion.capture(sample);
+        assertEquals(com.director.actor.action.ActorActionType.WALK,motion.action());
+        assertEquals(com.director.timeline.model.entity.ActorRouteClip.LoopMode.PING_PONG,motion.loop());
+    }
     @Test void coordinationSnapshotSurvivesGazeUpdateWithoutFollowingMutableRouteEdits() {
         var sample=new com.director.timeline.playback.entity.EntitySample();sample.speed=2;
         sample.routeClip=new com.director.timeline.model.entity.ActorRouteClip("Before",0,4);

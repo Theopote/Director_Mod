@@ -40,6 +40,26 @@ public class EntityClipSampler {
     /** 要采样的演员轨道 */
     private final ActorTrack track;
 
+    // A sampler is thread-confined. Classification scratch is reused, never returned in a sample.
+    private final List<EntitySpawnClip> spawnClips = new ArrayList<>();
+    private final List<EntityTransformClip> transformClips = new ArrayList<>();
+    private final List<EntityAnimationClip> animationClips = new ArrayList<>();
+    private final List<EntityActionClip> actionClips = new ArrayList<>();
+    private final List<EntityStateClip> stateClips = new ArrayList<>();
+    private final List<EntityLookAtClip> lookAtClips = new ArrayList<>();
+    private final List<EntityDespawnClip> despawnClips = new ArrayList<>();
+    private final List<ActorActionClip> actorActionClips = new ArrayList<>();
+    private final List<ActorPoseClip> actorPoseClips = new ArrayList<>();
+    private final List<ActorRouteClip> actorRouteClips = new ArrayList<>();
+    private final List<ActorRelationClip> actorRelationClips = new ArrayList<>();
+    private final List<EntityAnimationClip> embedded = new ArrayList<>();
+
+    private void clearScratch() {
+        spawnClips.clear(); transformClips.clear(); animationClips.clear(); actionClips.clear();
+        stateClips.clear(); lookAtClips.clear(); despawnClips.clear(); actorActionClips.clear();
+        actorPoseClips.clear(); actorRouteClips.clear(); actorRelationClips.clear(); embedded.clear();
+    }
+
     /** 用于 Action Clip 的"已触发记录"（防止重复触发） */
     private final ActionTriggerCache actionCache = new ActionTriggerCache();
 
@@ -87,6 +107,7 @@ public class EntityClipSampler {
     public EntitySample sampleSnapshot(float timeSeconds) { return sampleAt(timeSeconds,false); }
 
     private EntitySample sampleAt(float timeSeconds,boolean emitEvents) {
+        clearScratch();
         if (track == null || !track.isEnabled()) {
             return EntitySample.disabled();
         }
@@ -103,17 +124,6 @@ public class EntityClipSampler {
         result.motionLocalTime = Math.max(0f, timeSeconds);
 
         // 按类型分类处理 clips
-        List<EntitySpawnClip> spawnClips = new ArrayList<>();
-        List<EntityTransformClip> transformClips = new ArrayList<>();
-        List<EntityAnimationClip> animationClips = new ArrayList<>();
-        List<EntityActionClip> actionClips = new ArrayList<>();
-        List<EntityStateClip> stateClips = new ArrayList<>();
-        List<EntityLookAtClip> lookAtClips = new ArrayList<>();
-        List<EntityDespawnClip> despawnClips = new ArrayList<>();
-        List<ActorActionClip> actorActionClips = new ArrayList<>();
-        List<ActorPoseClip> actorPoseClips = new ArrayList<>();
-        List<ActorRouteClip> actorRouteClips = new ArrayList<>();
-        List<ActorRelationClip> actorRelationClips = new ArrayList<>();
 
         // PoseClip 需要轨道上下文来查找前一个目标姿态，不能只收集当前时刻覆盖的片段。
         for (EntityClip clip : track.getClips()) {
@@ -215,7 +225,6 @@ public class EntityClipSampler {
             result.animationBlendEnvelope=binding.blend().envelopeAt(result.animationLocalTime,presetOwner.getLength());
         }
         var preset = result.animationId == null ? null : ActorAnimationLayerSample.from(result);
-        var embedded = new ArrayList<EntityAnimationClip>();
         for(var candidate:track.getClips()) if(candidate instanceof EntitySpawnClip spawn && !spawn.isMuted()
                 && timeSeconds>=spawn.getStartTime() && timeSeconds<=spawn.getEndTime() && spawn.getBoneAnimation()!=null)
             embedded.add(spawn.getBoneAnimation());

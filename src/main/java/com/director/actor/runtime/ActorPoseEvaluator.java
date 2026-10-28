@@ -12,6 +12,8 @@ public final class ActorPoseEvaluator {
     public record Layer(RigPose pose,PoseBlendSettings settings,float envelope) {
         public Layer { pose=Objects.requireNonNull(pose).copy();Objects.requireNonNull(settings);settings.effectiveWeight(envelope); }
         @Override public RigPose pose() {return pose.copy();}
+        // Runtime attribution only reads this frozen input; public callers still receive copies.
+        RigPose sourceSnapshot() { return pose; }
     }
     public record Diagnostic(String stage,RigPoseComposer.Diagnostic detail) {}
     /** Pose is owned by the caller; layer inputs and samples are never modified. */
@@ -41,10 +43,10 @@ public final class ActorPoseEvaluator {
         if(sample.poseOverrideEnabled) {
             var quick=new RigPose(rig);
             applyQuickPose(quick,sample);
-            sources.layer(new Layer(quick,PoseBlendSettings.DEFAULT,1),"快速姿态");
+            sources.layer(quick,PoseBlendSettings.DEFAULT,1,"快速姿态");
             stages.add(HumanoidTopology.matches(rig)?ActorPoseStage.layer(ActorPoseStage.Kind.QUICK,quick,PoseBlendSettings.DEFAULT,1,null):
-                    ActorPoseStage.status(ActorPoseStage.Kind.QUICK,ActorPoseStage.State.UNSUPPORTED,"此骨架不支持快速人形姿态"));
-        } else stages.add(ActorPoseStage.status(ActorPoseStage.Kind.QUICK,ActorPoseStage.State.ABSENT,"未启用快速姿态"));
+                    ActorPoseStage.status(ActorPoseStage.Kind.QUICK,ActorPoseStage.State.UNSUPPORTED,ActorPoseStage.Detail.UNSUPPORTED_QUICK));
+        } else stages.add(ActorPoseStage.status(ActorPoseStage.Kind.QUICK,ActorPoseStage.State.ABSENT,ActorPoseStage.Detail.QUICK_ABSENT));
         int previousDiagnostics=diagnostics.size();
         pose=applyLayer(pose,manual,"pose-layer",weights,diagnostics);
         if(diagnostics.size()==previousDiagnostics) sources.layer(manual,"手工骨骼关键帧");

@@ -26,6 +26,8 @@ public class AnimationLibrary {
     private static final AnimationLibrary INSTANCE = new AnimationLibrary();
 
     private final Map<String, AnimationData> animations = new LinkedHashMap<>();
+    private long revision;
+    public long revision() { return revision; }
 
     private AnimationLibrary() {
         BuiltInAnimations.registerInto(this);
@@ -51,7 +53,7 @@ public class AnimationLibrary {
             return;
         }
 
-        animations.put(animationData.getId(), animationData);
+        if(animations.put(animationData.getId(), animationData)!=animationData) revision++;
         LOGGER.info("[AnimationLibrary] 注册动画: {} ({})", animationData.getId(), animationData.getName());
     }
 
@@ -74,6 +76,7 @@ public class AnimationLibrary {
     public boolean remove(String animationId) {
         boolean removed = animations.remove(animationId) != null;
         if (removed) {
+            revision++;
             LOGGER.info("[AnimationLibrary] 移除动画: {}", animationId);
         }
         return removed;
@@ -85,6 +88,7 @@ public class AnimationLibrary {
     public void clear() {
         int count = animations.size();
         animations.clear();
+        if(count>0) revision++;
         LOGGER.info("[AnimationLibrary] 清空所有动画 (共 {} 个)", count);
     }
 

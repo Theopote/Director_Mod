@@ -221,14 +221,14 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         if (ImGui.isItemHovered()) ImGui.setTooltip("位移关键帧目前用于支持该通道的骨骼；标准人形首先开放 Root");
 
         if(ImGui.treeNode("高级：新资产设置##actorNewAssetSettings")) {
-        animationAssetId.set(settings.getAssetId());
-        if (ImGui.inputText("动画资产 ID##actorAnimationAssetId", animationAssetId)) {
-            settings.setAssetId(animationAssetId.get());
-        }
-        float[] duration = { settings.getNewAssetDuration() };
-        if (ImGui.sliderFloat("新资产时长##actorAnimationDuration", duration, 0.1f, 60f, "%.2fs")) {
-            settings.setNewAssetDuration(duration[0]);
-        }
+            animationAssetId.set(settings.getAssetId());
+            if (ImGui.inputText("动画资产 ID##actorAnimationAssetId", animationAssetId)) {
+                settings.setAssetId(animationAssetId.get());
+            }
+            float[] duration = { settings.getNewAssetDuration() };
+            if (ImGui.sliderFloat("新资产时长##actorAnimationDuration", duration, 0.1f, 60f, "%.2fs")) {
+                settings.setNewAssetDuration(duration[0]);
+            }
             ImGui.treePop();
         }
         var modes = com.director.actor.animation.asset.InterpolationMode.values();

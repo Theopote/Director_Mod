@@ -13,8 +13,10 @@ import java.util.*;
 /** Edits the Spawn inspector draft; the existing gesture commits one undoable change. */
 public final class ActorSpawnPresetPropertyUI {
     private ActorSpawnPresetPropertyUI() {}
-    private static EntitySpawnClip focusTarget;
-    public static void requestFocus(EntitySpawnClip source) {focusTarget=source;}
+    private static final ActorPresetFocusRequest<EntitySpawnClip> focusRequest=new ActorPresetFocusRequest<>();
+    public static void requestFocus(EntitySpawnClip source) {focusRequest.request(source);}
+    private static final com.director.ui.actor.pose.ActorAnimationCatalog.Cache catalogCache=new com.director.ui.actor.pose.ActorAnimationCatalog.Cache();
+    private static final com.director.ui.actor.pose.ActorInspectorPlayback playbackQuery=new com.director.ui.actor.pose.ActorInspectorPlayback();
     private static EntitySpawnClip browserOwner;
     private static final imgui.type.ImString search=new imgui.type.ImString(256);
     private static final ImInt sourceFilter=new ImInt(0),purposeFilter=new ImInt(0);
@@ -64,9 +66,9 @@ public final class ActorSpawnPresetPropertyUI {
     }
 
     public static void render(EntitySpawnClip source,EntitySpawnClip draft,ActorClipInspectorGesture gesture) {
-        boolean focus=focusTarget==source;
-        if(focus) {ImGui.setNextItemOpen(true,imgui.flag.ImGuiCond.Always);focusTarget=null;}
-        if(!ImGui.collapsingHeader("演员动作预设")) return;
+        boolean focus=focusRequest.consume(source);
+        if(focus) ImGui.setNextItemOpen(true,imgui.flag.ImGuiCond.Always);
+        if(!ImGui.collapsingHeader("演员动作预设")) {playbackQuery.clear();return;}
         if(focus) ImGui.setScrollHereY(0);
         ImGui.pushID("spawnPreset");
         try {
@@ -75,7 +77,7 @@ public final class ActorSpawnPresetPropertyUI {
             var actor=payload==null || payload.getActorRef()==null?null:
                     ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
             if(browserOwner!=source) {browserOwner=source;search.set("");sourceFilter.set(0);purposeFilter.set(0);}
-            var catalog=com.director.ui.actor.pose.ActorAnimationCatalog.entries(AnimationAssetLibrary.getInstance(),AnimationLibrary.getInstance().getAllAnimations(),actor);
+            var catalog=catalogCache.entries(AnimationAssetLibrary.getInstance(),AnimationLibrary.getInstance(),actor);
             var binding=draft.getPreset();
             String current="无预设";
             if(binding!=null) {
@@ -90,7 +92,7 @@ public final class ActorSpawnPresetPropertyUI {
                 ImGui.combo("用途##presetPurpose",purposeFilter,new String[]{"全部用途","表演","循环步态","静态姿态"});
                 var sources=com.director.ui.actor.pose.ActorAnimationCatalog.Source.values();
                 var purposes=com.director.actor.animation.AnimationData.Purpose.values();
-                var visible=com.director.ui.actor.pose.ActorAnimationCatalog.filter(catalog,search.get(),
+                var visible=catalogCache.filter(catalog,search.get(),
                         sourceFilter.get()==0?null:sources[sourceFilter.get()-1],purposeFilter.get()==0?null:purposes[purposeFilter.get()-1],true,draft.getBoneAnimationId());
                 ImGui.beginChild("presetResults",0,Math.min(180,Math.max(60,(visible.size()+1)*ImGui.getTextLineHeightWithSpacing()+8)),true);
                 if(ImGui.selectable("无预设##clearPreset",binding==null)) {binding=null;draft.setPreset(null);gesture.requestCommit();}
@@ -103,17 +105,14 @@ public final class ActorSpawnPresetPropertyUI {
                 if(visible.isEmpty()) ImGui.textWrapped("没有匹配的兼容动作，请调整搜索或筛选。");
                 ImGui.endChild();ImGui.treePop();
             }
-            if(binding==null) { ImGui.textWrapped("展开“浏览与选择动作”，选择一个兼容动作即可绑定到当前演员片段。");return; }
+            if(binding==null) { playbackQuery.clear();ImGui.textWrapped("展开“浏览与选择动作”，选择一个兼容动作即可绑定到当前演员片段。");return; }
             var model=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
-            var playback=payload==null?null:new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleSnapshot(model.getCurrentTime());
+            var playback=playbackQuery.sample(payload,model.getCurrentTime());
             boolean distanceClock=playback!=null && com.director.actor.runtime.ActorPresetClock.followsDistance(binding.animationId(),playback);
             if(distanceClock) ImGui.textWrapped("此循环步态按路径行进距离推进，单次路径起止阶段自动淡化步态；缩短演员片段会加快位移和步频。循环与速度设置仅用于原地播放。");
             else if(com.director.actor.runtime.ActorPresetClock.purpose(binding.animationId())==com.director.actor.animation.AnimationData.Purpose.LOCOMOTION)
                 ImGui.textWrapped("原地步态：只改变身体动作，不移动演员。沿路径走跑通常直接使用自动步态即可。");
             else ImGui.textWrapped("表演预设按片段本地时间播放；路径继续控制整体位移，未声明的骨骼通道保留底层动作。");
-            if(playback!=null && playback.routeClip!=null
-                    && com.director.actor.runtime.ActorPresetClock.purpose(binding.animationId())==com.director.actor.animation.AnimationData.Purpose.STATIC_POSE)
-                ImGui.textWrapped("静态姿态可能覆盖腿部步态；需要边走边表演时，可在部位范围中排除双腿。");
             ImGui.beginDisabled(distanceClock);
             boolean loop=binding.loop();changed=ImGui.checkbox("循环",loop);
             if(changed) loop=!loop;gesture.observe("presetLoop",changed);

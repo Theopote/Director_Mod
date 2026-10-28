@@ -10,11 +10,13 @@ public final class ActorPoseSources {
     public Map<Channel,String> snapshot() { return Map.copyOf(values); }
     public void layer(ActorPoseEvaluator.Layer layer, String label) {
         if (layer == null) return;
-        var pose = layer.pose(); var settings = layer.settings();
-        float weight = settings.effectiveWeight(layer.envelope());
+        layer(layer.sourceSnapshot(),layer.settings(),layer.envelope(),label);
+    }
+    void layer(RigPose pose,PoseBlendSettings settings,float envelope,String label) {
+        float weight = settings.effectiveWeight(envelope);
         for (int i=0;i<pose.rig().boneCount();i++) {
             String bone=pose.rig().bone(i).id();
-            if (!settings.contributes(pose,i,layer.envelope())) continue;
+            if (!settings.contributes(pose,i,envelope)) continue;
             for (int channel : new int[]{1,2,4}) {
                 if ((pose.authoredChannels(i)&settings.channels()&channel)==0) continue;
                 var key=new Channel(bone,channel);

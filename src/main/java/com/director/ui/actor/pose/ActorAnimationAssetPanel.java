@@ -21,6 +21,8 @@ public final class ActorAnimationAssetPanel {
     private static AnimationAsset selected;
     private static String message = "";
     private static TimelineModel ownerModel;
+    private static UUID ownerActor;
+    private static final ActorAnimationCatalog.Cache catalogCache=new ActorAnimationCatalog.Cache();
 
     private ActorAnimationAssetPanel() {}
 
@@ -34,6 +36,11 @@ public final class ActorAnimationAssetPanel {
             name.set(""); importId.set(""); message = "";
             targetId.set(ActorAnimationAssetEditing.uniqueId(library, "project:animation"));
         }
+        if(!java.util.Objects.equals(ownerActor,actorId)) {
+            ownerActor=actorId; selected=null; search.set(""); purposeFilter.set(0);
+            compatibleOnly.set(true); name.set(""); importId.set(""); message="";
+            targetId.set(ActorAnimationAssetEditing.uniqueId(library,"project:animation"));
+        }
         if (selected != null && library.find(selected.id()).orElse(null) != selected) {
             selected = null;
             message = "";
@@ -42,20 +49,22 @@ public final class ActorAnimationAssetPanel {
         ImGui.inputTextWithHint("##assetSearch","搜索名称、ID 或骨架",search);
         ImGui.combo("用途筛选##assetPurposeFilter",purposeFilter,new String[]{"全部用途","表演","循环步态","静态姿态"});
         if(actorId!=null) ImGui.checkbox("仅显示兼容当前演员##assetCompatible",compatibleOnly);
-        var catalog=ActorAnimationCatalog.entries(library,java.util.List.of(),actor);
+        var catalog=catalogCache.entries(library,null,actor);
         var filterPurposes=com.director.actor.animation.AnimationData.Purpose.values();
-        var visible=ActorAnimationCatalog.filter(catalog,search.get(),ActorAnimationCatalog.Source.PROJECT,
+        var visible=catalogCache.filter(catalog,search.get(),ActorAnimationCatalog.Source.PROJECT,
                 purposeFilter.get()==0?null:filterPurposes[purposeFilter.get()-1],actorId!=null && compatibleOnly.get(),null);
         if(visible.isEmpty()) ImGui.textDisabled("没有匹配的动画；可清空搜索或调整用途、兼容筛选。");
-        ImGui.beginChild("assetResults",0,Math.min(180,Math.max(36,visible.size()*ImGui.getTextLineHeightWithSpacing()+8)),true);
-        for(var entry:visible) {
-            var asset=library.find(entry.id()).orElse(null);
-            if(ImGui.selectable(entry.name()+" · "+entry.purpose().label()+"##asset:"+entry.id(),selected==asset)) {
-                selectAsset(asset,library);message="";
+        if(!visible.isEmpty()) {
+            ImGui.beginChild("assetResults",0,Math.min(180,visible.size()*ImGui.getTextLineHeightWithSpacing()+8),true);
+            for(var entry:visible) {
+                var asset=library.find(entry.id()).orElse(null);
+                if(ImGui.selectable(entry.name()+" · "+entry.purpose().label()+"##asset:"+entry.id(),selected==asset)) {
+                    selectAsset(asset,library);message="";
+                }
+                if(ImGui.isItemHovered()) ImGui.setTooltip(entry.id()+" · "+entry.rigName()+(entry.compatible() || actorId==null?"":" · 与当前演员不兼容"));
             }
-            if(ImGui.isItemHovered()) ImGui.setTooltip(entry.id()+" · "+entry.rigName()+(entry.compatible() || actorId==null?"":" · 与当前演员不兼容"));
+            ImGui.endChild();
         }
-        ImGui.endChild();
         if (selected != null) {
             ImGui.textWrapped("选中资产："+selected.name());
             if(visible.stream().noneMatch(e->e.id().equals(selected.id()))) ImGui.textDisabled("此资产不在当前筛选结果中；筛选不会更改现有引用。");

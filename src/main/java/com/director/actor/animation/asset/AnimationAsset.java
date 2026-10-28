@@ -23,6 +23,10 @@ public final class AnimationAsset {
     private com.director.actor.animation.AnimationData.Purpose purpose = com.director.actor.animation.AnimationData.Purpose.PERFORMANCE;
     private final Map<String, BoneTrack> boneTracks = new LinkedHashMap<>();
     private final List<AnimationMarker> markers = new ArrayList<>();
+    private final java.util.Set<Runnable> metadataListeners = new java.util.HashSet<>();
+    void addMetadataListener(Runnable listener) { metadataListeners.add(listener); }
+    void removeMetadataListener(Runnable listener) { metadataListeners.remove(listener); }
+    private void metadataChanged() { metadataListeners.forEach(Runnable::run); }
 
     public AnimationAsset(String id, String name, RigDefinition rig, float duration, AnimationLoopMode loopMode) {
         if (id == null || id.isBlank()) throw new IllegalArgumentException("Animation asset id must not be blank");
@@ -94,9 +98,15 @@ public final class AnimationAsset {
     public int schemaVersion() { return CURRENT_SCHEMA_VERSION; }
     public String id() { return id; }
     public com.director.actor.animation.AnimationData.Purpose purpose() { return purpose; }
-    public void setPurpose(com.director.actor.animation.AnimationData.Purpose purpose) { this.purpose=Objects.requireNonNull(purpose); }
+    public void setPurpose(com.director.actor.animation.AnimationData.Purpose purpose) {
+        Objects.requireNonNull(purpose);
+        if (this.purpose != purpose) { this.purpose=purpose; metadataChanged(); }
+    }
     public String name() { return name; }
-    public void setName(String name) { this.name = name == null || name.isBlank() ? id : name; }
+    public void setName(String name) {
+        String next = name == null || name.isBlank() ? id : name;
+        if (!this.name.equals(next)) { this.name=next; metadataChanged(); }
+    }
     public RigDefinition rig() { return rig; }
     public String rigId() { return rig.id(); }
     public float duration() { return duration; }
