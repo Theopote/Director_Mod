@@ -47,12 +47,19 @@ public abstract class WorldRendererMixin {
 
     @Inject(method = "setWorld(Lnet/minecraft/client/world/ClientWorld;)V", at = @At("HEAD"))
     private void director$resetReadiness(net.minecraft.client.world.ClientWorld nextWorld, CallbackInfo ci) {
+        com.director.core.animation.StaticSectionMeshRenderer.release();
         com.director.core.container.visibility.ClientSectionInvalidation.getInstance().reset(nextWorld);
     }
 
     @Inject(method = "reload()V", at = @At("HEAD"))
     private void director$reloadReadiness(CallbackInfo ci) {
+        com.director.core.animation.StaticSectionMeshRenderer.release();
         com.director.core.container.visibility.ClientSectionInvalidation.getInstance().reset(world);
+    }
+
+    @Inject(method = "scheduleChunkRender(IIIZ)V", at = @At("HEAD"))
+    private void director$invalidateCachedLight(int x, int y, int z, boolean important, CallbackInfo ci) {
+        com.director.core.animation.StaticSectionMeshRenderer.invalidate();
     }
 
     @Inject(method = "updateChunks", at = @At("HEAD"))

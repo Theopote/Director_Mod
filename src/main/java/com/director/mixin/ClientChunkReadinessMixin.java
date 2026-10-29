@@ -18,7 +18,9 @@ public abstract class ClientChunkReadinessMixin {
     private void director$invalidateReadiness(BlockPos pos, BlockState state, int flags,
             CallbackInfoReturnable<BlockState> cir) {
         var world = ((WorldChunk) (Object) this).getWorld();
-        if (world instanceof ClientWorld && cir.getReturnValue() != null)
+        if (world instanceof ClientWorld && cir.getReturnValue() != null) {
             ClientSectionInvalidation.getInstance().invalidateBlock(world, pos);
+            com.director.core.animation.StaticSectionMeshRenderer.invalidate();
+        }
     }
 }

@@ -191,8 +191,10 @@ public class BlockAnimationRenderer {
         matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
         try {
             var shell = OcclusionSurfaceRenderer.prepare(world, entries);
+            var cached = StaticSectionMeshRenderer.draw(world, matrices, entries, staticAssemblies, staticViews,
+                    shell.handled(), BlockAnimationRenderer::isStaticOpaqueEntry);
             for (BlockVisualStateManager.RenderEntry entry : entries) {
-                if (entry == null || entry.pos() == null || shell.handled().contains(entry.pos())) {
+                if (entry == null || entry.pos() == null || shell.handled().contains(entry.pos()) || cached.contains(entry.pos())) {
                     continue;
                 }
 

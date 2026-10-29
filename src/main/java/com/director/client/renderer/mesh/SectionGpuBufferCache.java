@@ -12,6 +12,7 @@ import net.minecraft.client.render.RenderLayer;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
+import java.util.function.BiFunction;
 
 /** Render-thread-owned persistent vertex buffers. Call clear on world/resource changes. */
 public final class SectionGpuBufferCache implements AutoCloseable {
@@ -19,21 +20,34 @@ public final class SectionGpuBufferCache implements AutoCloseable {
     private final long budget;
     private final Map<Key, GpuBuffer> buffers = new LinkedHashMap<>(16, 0.75f, true);
     private long bytes;
+    private final BiFunction<Key, ByteBuffer, GpuBuffer> uploader;
+    private final Runnable threadCheck;
 
     public SectionGpuBufferCache(long budget) {
+        this(budget, (key, data) -> RenderSystem.getDevice().createBuffer(
+                () -> "Director section " + key.section(), GpuBuffer.USAGE_VERTEX, data), RenderSystem::assertOnRenderThread);
+    }
+
+    SectionGpuBufferCache(long budget, BiFunction<Key, ByteBuffer, GpuBuffer> uploader, Runnable threadCheck) {
         if (budget <= 0) throw new IllegalArgumentException("GPU budget must be positive");
         this.budget = budget;
+        this.uploader = uploader;
+        this.threadCheck = threadCheck;
     }
 
     public GpuBuffer get(Key key) {
-        RenderSystem.assertOnRenderThread();
-        return buffers.get(key);
+        threadCheck.run();
+        var buffer = buffers.get(key);
+        if (buffer != null && buffer.isClosed()) {
+            buffers.remove(key); bytes -= buffer.size(); return null;
+        }
+        return buffer;
     }
 
     /** Oversized geometry stays on the caller's existing fallback path. */
     public GpuBuffer upload(Key key, ByteBuffer vertices) {
-        RenderSystem.assertOnRenderThread();
-        var cached = buffers.get(key);
+        threadCheck.run();
+        var cached = get(key);
         if (cached != null) return cached;
         int size = vertices.remaining();
         if (size == 0 || size > budget) return null;
@@ -44,15 +58,14 @@ public final class SectionGpuBufferCache implements AutoCloseable {
             iterator.remove(); bytes -= removed.size(); removed.close();
         }
         // Unlike RenderLayer.draw(BuiltBuffer), this buffer survives the current draw call.
-        var uploaded = RenderSystem.getDevice().createBuffer(() -> "Director section " + key.section(),
-                GpuBuffer.USAGE_VERTEX, vertices.duplicate());
+        var uploaded = uploader.apply(key, vertices.duplicate());
         buffers.put(key, uploaded);
         bytes += uploaded.size();
         return uploaded;
     }
 
     public void invalidate(long section) {
-        RenderSystem.assertOnRenderThread();
+        threadCheck.run();
         var iterator = buffers.entrySet().iterator();
         while (iterator.hasNext()) {
             var entry = iterator.next();
@@ -68,7 +81,7 @@ public final class SectionGpuBufferCache implements AutoCloseable {
     public boolean draw(Key key, RenderLayer layer, Framebuffer target, Matrix4f modelView, int indexCount) {
         RenderSystem.assertOnRenderThread();
         if (indexCount <= 0) return false;
-        var vertices = buffers.get(key);
+        var vertices = get(key);
         if (vertices == null) return false;
         var indices = RenderSystem.getSequentialBuffer(layer.getDrawMode());
         var indexBuffer = indices.getIndexBuffer(indexCount);
@@ -103,11 +116,18 @@ public final class SectionGpuBufferCache implements AutoCloseable {
     }
 
     @Override public void close() {
-        RenderSystem.assertOnRenderThread();
+        threadCheck.run();
+        RuntimeException failure = null;
         try {
-            for (var buffer : buffers.values()) buffer.close();
+            for (var buffer : buffers.values()) {
+                try { buffer.close(); }
+                catch (RuntimeException e) {
+                    if (failure == null) failure = e; else failure.addSuppressed(e);
+                }
+            }
         } finally {
             buffers.clear(); bytes = 0;
         }
+        if (failure != null) throw failure;
     }
 }

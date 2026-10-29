@@ -113,6 +113,7 @@ public class DirectorClient implements ClientModInitializer {
 
         // 注册客户端停止事件
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            com.director.core.animation.StaticSectionMeshRenderer.release();
             // ImGui 清理现在由 ImGuiRenderer 统一处理
             com.director.actor.runtime.ActorRuntimeController.getInstance().clearWorldPreviews();
             // 这里只处理客户端特定的清理
@@ -136,6 +137,7 @@ public class DirectorClient implements ClientModInitializer {
     private static void invalidateContainerChunk(net.minecraft.client.world.ClientWorld world,
             net.minecraft.world.chunk.WorldChunk chunk) {
         if (chunk == null) return;
+        com.director.core.animation.StaticSectionMeshRenderer.invalidate();
         com.director.core.container.visibility.ClientSectionInvalidation.getInstance().invalidateChunk(
                 world, chunk.getPos().x, chunk.getPos().z, world.getBottomY() >> 4,
                 (world.getBottomY() + world.getHeight()) >> 4);
