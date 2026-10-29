@@ -87,6 +87,9 @@ public final class StaticSectionMeshRenderer {
             groups.computeIfAbsent(entry.clip(), ignored -> new LinkedHashMap<>())
                     .computeIfAbsent(section, ignored -> new ArrayList<>()).add(entry);
         }
+        // Release clips that no longer contribute eligible geometry before admitting new meshes.
+        for (var clip : new ArrayList<>(assemblies.keySet()))
+            if (!groups.containsKey(clip)) remove(clip);
         var handled = new HashSet<BlockPos>();
         int built = 0;
         long deadline = System.nanoTime() + 2_000_000L;

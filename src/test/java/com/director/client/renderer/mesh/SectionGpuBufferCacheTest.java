@@ -72,6 +72,28 @@ class SectionGpuBufferCacheTest {
         cache.close();
     }
 
+    @Test void activeWorkingSetOverBudgetDoesNotEvictOrRepeatedlyUpload() {
+        var uploads = new ArrayList<Buffer>();
+        var cache = new SectionGpuBufferCache(8, (key, data) -> {
+            var buffer = new Buffer(data.remaining()); uploads.add(buffer); return buffer;
+        }, () -> {});
+        var first = cache.uploadIfSpace(key(1, 1), ByteBuffer.allocate(4));
+        var second = cache.uploadIfSpace(key(2, 1), ByteBuffer.allocate(4));
+        for (int frame = 0; frame < 100; frame++) {
+            assertFalse(cache.hasCapacity(4));
+            assertNull(cache.uploadIfSpace(key(3, 1), ByteBuffer.allocate(4)));
+            assertSame(first, cache.get(key(1, 1)));
+            assertSame(second, cache.get(key(2, 1)));
+        }
+        assertEquals(2, uploads.size());
+        cache.invalidate(key(1, 1));
+        assertTrue(cache.hasCapacity(4));
+        assertNotNull(cache.uploadIfSpace(key(3, 1), ByteBuffer.allocate(4)));
+        assertFalse(cache.hasCapacity(9));
+        assertFalse(cache.hasCapacity(0));
+        cache.close();
+    }
+
     @Test void closingOneFailedResourceStillClosesRemainingResourcesAndResetsAccounting() {
         var cache = new SectionGpuBufferCache(32, (key, data) -> new Buffer(data.remaining()), () -> {});
         var a = (Buffer) cache.upload(key(1, 1), ByteBuffer.allocate(4));
