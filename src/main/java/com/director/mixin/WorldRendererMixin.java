@@ -45,6 +45,16 @@ public abstract class WorldRendererMixin {
     @org.spongepowered.asm.mixin.Shadow private net.minecraft.client.render.chunk.ChunkBuilder chunkBuilder;
     @org.spongepowered.asm.mixin.Shadow private net.minecraft.client.world.ClientWorld world;
 
+    @Inject(method = "setWorld(Lnet/minecraft/client/world/ClientWorld;)V", at = @At("HEAD"))
+    private void director$resetReadiness(net.minecraft.client.world.ClientWorld nextWorld, CallbackInfo ci) {
+        com.director.core.container.visibility.ClientSectionInvalidation.getInstance().reset(nextWorld);
+    }
+
+    @Inject(method = "reload()V", at = @At("HEAD"))
+    private void director$reloadReadiness(CallbackInfo ci) {
+        com.director.core.container.visibility.ClientSectionInvalidation.getInstance().reset(world);
+    }
+
     @Inject(method = "updateChunks", at = @At("HEAD"))
     private void director$flushWholeContainerHandoffs(net.minecraft.client.render.Camera camera, CallbackInfo ci) {
         if (world == null || chunks == null || chunkBuilder == null) return;

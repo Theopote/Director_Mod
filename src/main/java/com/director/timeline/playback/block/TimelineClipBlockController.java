@@ -97,6 +97,8 @@ public class TimelineClipBlockController {
     private boolean timelineDrivingPaused = true;
     private boolean worldHandoffPending;
     private long frameSequenceVisits;
+    private long frameSettledChecks, frameSettledSkipped;
+    private long lastHandledSectionRevision = -1;
     private final WholeContainerEffectCursor wholeEffectCursor = new WholeContainerEffectCursor();
     private TimelineModel observedModel;
     private final TimelineModel.ModelChangeListener modelChangeListener = changeType -> timelineRevision++;
@@ -113,6 +115,8 @@ public class TimelineClipBlockController {
         long geometryRevision = -1;
         List<BlockPos> blocks = List.of();
         Set<BlockPos> all = Set.of();
+        final SettledBlockSections settled = new SettledBlockSections(
+                com.director.core.container.visibility.ClientSectionInvalidation.getInstance());
     }
 
     /**
@@ -428,6 +432,8 @@ public class TimelineClipBlockController {
             return true;
         }
         if (worldHandoffPending || TimelinePlacementBudget.isCatchUp()) return true;
+        if (lastHandledSectionRevision != com.director.core.container.visibility.ClientSectionInvalidation.getInstance().revision())
+            return true;
         if (timelineRevision != lastHandledRevision) {
             return true;
         }
@@ -495,6 +501,8 @@ public class TimelineClipBlockController {
 
         final long t0 = System.nanoTime();
         ensureModelListenerBound(activeModel);
+        var sectionChanges = com.director.core.container.visibility.ClientSectionInvalidation.getInstance();
+        long sectionRevision = sectionChanges.revision();
 
         float currentTime = activeModel.getCurrentTime();
         boolean playing = activeModel.isPlaying();
@@ -519,6 +527,7 @@ public class TimelineClipBlockController {
                 && !previewTimeChanged
                 && !worldHandoffPending
                 && !TimelinePlacementBudget.isCatchUp()
+                && sectionRevision == lastHandledSectionRevision
                 && timelineRevision == lastHandledRevision) {
             timelineDrivingPaused = true;
             return;
@@ -527,6 +536,9 @@ public class TimelineClipBlockController {
         wasScrubbing = scrubbing;
         worldHandoffPending = false;
         frameSequenceVisits = 0;
+        frameSettledChecks = frameSettledSkipped = 0;
+        // Changes made during this update receive a follow-up pass, including overlapping containers.
+        lastHandledSectionRevision = sectionRevision;
 
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
 
@@ -999,7 +1011,7 @@ public class TimelineClipBlockController {
             double msRerender = (tAfterRerender - tAfterEntries) / 1_000_000.0;
 
             LOGGER.info(
-                    "[Perf][TimelineClipBlockController] total={}ms (clear={}ms, step1_visible={}ms, diff={}ms, occlusion={}ms, step3_apply+entries={}ms, rerender={}ms) containers={}, visibleTotal={}, seqTotal={}, sequenceVisits={}, renderEntries={}",
+                    "[Perf][TimelineClipBlockController] total={}ms (clear={}ms, step1_visible={}ms, diff={}ms, occlusion={}ms, step3_apply+entries={}ms, rerender={}ms) containers={}, visibleTotal={}, seqTotal={}, sequenceVisits={}, settledChecks={}, settledSkipped={}, renderEntries={}",
                     String.format("%.2f", msTotal),
                     String.format("%.2f", msClear),
                     String.format("%.2f", msStep1),
@@ -1011,6 +1023,8 @@ public class TimelineClipBlockController {
                     visibleTotal,
                     seqTotal,
                     frameSequenceVisits,
+                    frameSettledChecks,
+                    frameSettledSkipped,
                     renderEntryCount);
         }
     }
@@ -1343,21 +1357,26 @@ public class TimelineClipBlockController {
     private void registerSettledContainerEntries(BlockVisualStateManager manager, Container container,
             TimelineClip clip, Set<BlockPos> visibleBlocks) {
         var world = MinecraftClient.getInstance().world;
-        for (BlockPos pos : visibleBlocks) {
+        getCachedContainerBlocks(container);
+        var visits = blocksCacheByContainer.get(container).settled.visit(world, visibleBlocks,
+                container.getBlockStore().getRevision(), pos -> {
             var visual = manager.getBlockState(pos);
-            if (visual.isHidden()) continue;
+            if (visual.isHidden()) return true;
             BlockState state = resolveBlockStateForRender(container, pos);
-            if (state == null) continue;
+            if (state == null) return false;
             boolean ready = world != null && state.equals(world.getBlockState(pos));
             if (!ready) worldHandoffPending = true;
-            if (ready && visual.isNormal() && !visual.shouldSuppressWorldRendering()) continue;
+            if (ready && visual.isNormal() && !visual.shouldSuppressWorldRendering()) return true;
             var snapshot = new BlockAnimationSnapshot(pos, state);
             snapshot.markFullyVisible();
             snapshot.setTransform(null);
             var overlay = visual.withSuppressWorldRendering(true);
             manager.setAnimatedBlockState(pos, overlay);
             manager.addRenderEntry(new BlockVisualStateManager.RenderEntry(pos, state, overlay, clip, null, snapshot));
-        }
+            return false;
+        });
+        frameSettledChecks += visits.checked();
+        frameSettledSkipped += visits.skipped();
     }
 
     private void registerRenderEntriesForContainer(

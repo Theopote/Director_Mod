@@ -99,8 +99,12 @@ public class BlockVisualStateManager {
         }
         
         public void setMode(BlockRenderMode mode) {
-            this.mode = mode != null ? mode : BlockRenderMode.SOLID;
-            this.useOverlay = (mode == BlockRenderMode.GHOST_WITH_DEPTH || mode == BlockRenderMode.GHOST_NO_DEPTH);
+            BlockRenderMode next = mode != null ? mode : BlockRenderMode.SOLID;
+            boolean overlay = next == BlockRenderMode.GHOST_WITH_DEPTH || next == BlockRenderMode.GHOST_NO_DEPTH;
+            if (this.mode != next || this.useOverlay != overlay)
+                ClientSectionInvalidation.getInstance().invalidateAllVisual();
+            this.mode = next;
+            this.useOverlay = overlay;
         }
         
         public float getAlphaMultiplier() {
@@ -136,6 +140,8 @@ public class BlockVisualStateManager {
          * @param suppressWorldRendering 是否阻止世界方块渲染
          */
         public void setSuppressWorldRendering(boolean suppressWorldRendering) {
+            if (this.suppressWorldRendering != suppressWorldRendering)
+                ClientSectionInvalidation.getInstance().invalidateAllVisual();
             this.suppressWorldRendering = suppressWorldRendering;
         }
 
@@ -163,6 +169,7 @@ public class BlockVisualStateManager {
         }
         
         public void setHidden(boolean hidden) {
+            if (hidden != isHidden()) ClientSectionInvalidation.getInstance().invalidateAllVisual();
             if (hidden) {
                 this.mode = BlockRenderMode.HIDDEN;
                 this.alphaMultiplier = 0.0f;
@@ -177,6 +184,8 @@ public class BlockVisualStateManager {
         }
         
         public void setAlpha(float alpha) {
+            if (Float.compare(this.alphaMultiplier, Math.clamp(alpha, 0f, 1f)) != 0)
+                ClientSectionInvalidation.getInstance().invalidateAllVisual();
             this.alphaMultiplier = Math.clamp(alpha, 0f, 1f);
         }
         
@@ -199,6 +208,7 @@ public class BlockVisualStateManager {
         }
 
         public void setUseOverlay(boolean useOverlay) {
+            if (this.useOverlay != useOverlay) ClientSectionInvalidation.getInstance().invalidateAllVisual();
             this.useOverlay = useOverlay;
         }
 
@@ -295,6 +305,7 @@ public class BlockVisualStateManager {
      * 清除当前帧的所有视觉状态（每帧开始时调用）
      */
     public void clearFrame() {
+        ClientSectionInvalidation.getInstance().invalidateAllVisual();
         animationBaseStates.clear();
         visualOverrides.clear();
         renderEntries.clear();
@@ -305,7 +316,7 @@ public class BlockVisualStateManager {
 
     /** Keep persistent visibility deltas, but remove last frame's temporary animation suppression. */
     public void beginTimelineFrame() {
-        visualOverrides.putAll(animationBaseStates);
+        for (var entry : animationBaseStates.entrySet()) setBlockState(entry.getKey(), entry.getValue());
         animationBaseStates.clear();
         renderEntries.clear();
         overlayBlocksCacheDirty = true;
@@ -332,7 +343,7 @@ public class BlockVisualStateManager {
             if (pos == null) {
                 continue;
             }
-            visualOverrides.remove(pos);
+            if (visualOverrides.remove(pos) != null) ClientSectionInvalidation.getInstance().invalidateVisual(pos);
             animationBaseStates.remove(pos);
             renderEntries.remove(pos);
             lastFrameStates.remove(pos);
@@ -350,8 +361,17 @@ public class BlockVisualStateManager {
         if (pos == null || state == null) {
             return;
         }
-        visualOverrides.put(pos, state);
+        var previous = visualOverrides.put(pos, state);
+        if (!sameVisualState(previous, state)) ClientSectionInvalidation.getInstance().invalidateVisual(pos);
         overlayBlocksCacheDirty = true;  // ⭐ 标记缓存为脏
+    }
+
+    private static boolean sameVisualState(BlockVisualState previous, BlockVisualState next) {
+        if (previous == next) return true;
+        if (previous == null) return next.isNormal() && !next.shouldSuppressWorldRendering() && next.shouldWriteDepth();
+        return previous.mode == next.mode && Float.compare(previous.alphaMultiplier, next.alphaMultiplier) == 0
+                && previous.useOverlay == next.useOverlay && previous.shouldWriteDepth() == next.shouldWriteDepth()
+                && previous.suppressWorldRendering == next.suppressWorldRendering;
     }
 
     /**
@@ -366,7 +386,7 @@ public class BlockVisualStateManager {
         }
         for (BlockPos pos : blocks) {
             if (pos != null) {
-                visualOverrides.put(pos, state);
+                setBlockState(pos, state);
             }
         }
         overlayBlocksCacheDirty = true;  // ⭐ 标记缓存为脏
@@ -542,6 +562,7 @@ public class BlockVisualStateManager {
      * 清除所有状态
      */
     public void clearAll() {
+        ClientSectionInvalidation.getInstance().invalidateAllVisual();
         animationBaseStates.clear();
         visualOverrides.clear();
         lastFrameStates.clear();

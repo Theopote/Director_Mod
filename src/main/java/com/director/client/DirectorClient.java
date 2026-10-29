@@ -103,9 +103,13 @@ public class DirectorClient implements ClientModInitializer {
         });
 
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            com.director.core.container.visibility.ClientSectionInvalidation.getInstance().reset(null);
             com.director.actor.runtime.ActorRuntimeController.getInstance().clearWorldPreviews();
             client.execute(com.director.season.SeasonWorldEffects::clear);
         });
+
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents.CHUNK_LOAD.register(DirectorClient::invalidateContainerChunk);
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents.CHUNK_UNLOAD.register(DirectorClient::invalidateContainerChunk);
 
         // 注册客户端停止事件
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
@@ -127,6 +131,14 @@ public class DirectorClient implements ClientModInitializer {
             DirectorKeyCategories.GENERAL
         ));
         LOGGER.info("[Director] 已注册打开 Director 快捷键（默认 C）");
+    }
+
+    private static void invalidateContainerChunk(net.minecraft.client.world.ClientWorld world,
+            net.minecraft.world.chunk.WorldChunk chunk) {
+        if (chunk == null) return;
+        com.director.core.container.visibility.ClientSectionInvalidation.getInstance().invalidateChunk(
+                world, chunk.getPos().x, chunk.getPos().z, world.getBottomY() >> 4,
+                (world.getBottomY() + world.getHeight()) >> 4);
     }
     
     /**

@@ -33,8 +33,16 @@ public class BlockStore {
     }
 
     private final Map<BlockPos, Entry> data = new HashMap<>();
+    private volatile long revision;
+
+    /** Runtime snapshot-write version for client readiness proofs. */
+    public long getRevision() { return revision; }
 
     public void clear() {
+        if (!data.isEmpty()) {
+            revision++;
+            com.director.core.container.visibility.ClientSectionInvalidation.getInstance().invalidateAllVisual();
+        }
         data.clear();
     }
 
@@ -78,7 +86,7 @@ public class BlockStore {
             tag = BlockEntityNbtIO.capture(world, be);
         }
 
-        data.put(pos.toImmutable(), new Entry(state, tag));
+        add(pos, new Entry(state, tag));
     }
 
     /** 
@@ -134,7 +142,10 @@ public class BlockStore {
      * 移除某个方块快照（容器删除方块时使用）
      */
     public void remove(BlockPos pos) {
-        data.remove(pos);
+        if (data.remove(pos) != null) {
+            revision++;
+            com.director.core.container.visibility.ClientSectionInvalidation.getInstance().invalidateVisual(pos);
+        }
     }
 
     /**
@@ -178,6 +189,8 @@ public class BlockStore {
             return;
         }
         data.put(pos.toImmutable(), entry);
+        revision++;
+        com.director.core.container.visibility.ClientSectionInvalidation.getInstance().invalidateVisual(pos);
     }
 
     /**

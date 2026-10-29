@@ -20,6 +20,7 @@
     "HotbarMixin",
     "DebugHudMixin",
     "WorldRendererMixin",
+    "ClientChunkReadinessMixin",
     "PointLightWorldRendererMixin",
     "PointLightEntityRendererMixin",
     "PointLightChunkBuilderMixin",
