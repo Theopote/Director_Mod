@@ -31,6 +31,8 @@ public class Container {
     
     // ========== 方块数据 ==========
     private final Set<BlockPos> blocks = new HashSet<>();
+    // Runtime position version, independent of names, colors and millisecond timestamps.
+    private long geometryRevision;
     private BlockPos center;  // 中心点（用于变换）
     private final BlockStore blockStore = new BlockStore();  // 方块快照存储（v5.0）
     private BoundingBox cachedBounds = null;  // 缓存的边界框（v5.0）
@@ -145,6 +147,7 @@ public class Container {
             return;
         }
         if (blocks.addAll(positions)) {
+            geometryRevision++;
             cachedBounds = null;  // 清除边界框缓存
             updateCenter();
             markModified();
@@ -163,6 +166,7 @@ public class Container {
             return;
         }
         if (blocks.remove(pos)) {
+            geometryRevision++;
             cachedBounds = null;  // 清除边界框缓存
             blockStore.remove(pos);  // 同步移除快照
             updateCenter();
@@ -188,6 +192,7 @@ public class Container {
                 LOGGER.warn("[Container] 清空隐藏容器 {} 前释放方块失败: {}", name, e.getMessage());
             }
         }
+        if (!blocks.isEmpty()) geometryRevision++;
         blocks.clear();
         blockStore.clear();  // 清除快照存储
         cachedBounds = null;  // 清除边界框缓存
@@ -200,6 +205,7 @@ public class Container {
      * <p>用于复制/粘贴容器时保留结构和属性，但避免多个容器持有同一批 Minecraft 方块坐标。
      */
     public void clearBlockReferencesForClone() {
+        if (!blocks.isEmpty()) geometryRevision++;
         blocks.clear();
         blockStore.clear();
         cachedBounds = null;
@@ -329,6 +335,7 @@ public class Container {
     public Container clone() {
         Container copy = new Container(UUID.randomUUID(), name + " (副本)", type);
         copy.blocks.addAll(this.blocks);
+        copy.geometryRevision = this.geometryRevision;
         copy.center = this.center;
         copy.levelKey = this.levelKey;
         copy.state = this.state;
@@ -426,6 +433,9 @@ public class Container {
     public Set<BlockPos> getBlocks() { return new HashSet<>(blocks); }
 
     public Set<BlockPos> getBlocksView() { return Collections.unmodifiableSet(blocks); }
+
+    /** Changes only when this container's owned positions change; not a snapshot version. */
+    public long getGeometryRevision() { return geometryRevision; }
     
     public BlockPos getCenter() { return center; }
     public void setCenter(BlockPos center) { 

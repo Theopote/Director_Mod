@@ -7,6 +7,51 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SequenceVisibilityTest {
+    @Test void largeSequenceDeltaVisitsOnlyChangedEntries() {
+        class CountingEntries extends ArrayList<BlockSequenceEntry> {
+            int reads;
+            @Override public BlockSequenceEntry get(int index) { reads++; return super.get(index); }
+        }
+        var entries = new CountingEntries();
+        var all = new HashSet<BlockPos>();
+        for (int i = 0; i < 100_000; i++) {
+            var pos = new BlockPos(i, 0, 0); all.add(pos);
+            entries.add(new BlockSequenceEntry(pos, i / 99999f, 0, 0));
+        }
+        var visibility = new SequenceVisibility(entries, BlockPositionSets.immutableCopy(all));
+        var before = visibility.sample(50_000, 0, false).render();
+        var after = visibility.sample(50_005, 0, false).render();
+        entries.reads = 0;
+        var added = new HashSet<BlockPos>();
+        SequenceVisibility.forEachDifference(after, before, added::add);
+        assertEquals(5, added.size());
+        assertEquals(5, entries.reads, "Do not rescan/copy the 50,000-position prefix");
+        SequenceVisibility.forEachDifference(before, after, p -> fail("No removals expected"));
+        assertEquals(5, entries.reads);
+        assertEquals(50_000, before.size());
+    }
+
+    @Test void deltasMatchSetSubtractionForAllBoundariesDirectionsAndLegacyEntries() {
+        var a = BlockPos.ORIGIN; var b = new BlockPos(1, 0, 0); var c = new BlockPos(2, 0, 0);
+        var entries = Arrays.asList(new BlockSequenceEntry(a, 0, 0, 0), null,
+                new BlockSequenceEntry(a, 0.5f, 0, 0), new BlockSequenceEntry(b, 1, 0, 0));
+        var all = BlockPositionSets.immutableCopy(Set.of(a, b, c));
+        var visibility = new SequenceVisibility(entries, all);
+        var frames = new ArrayList<Set<BlockPos>>();
+        frames.add(all); frames.add(Set.of()); frames.add(Set.of(new BlockPos(99, 0, 0), a));
+        for (boolean exit : new boolean[] {false, true})
+            for (int i = 0; i <= entries.size(); i++) frames.add(visibility.sample(i, i, exit).render());
+        var other = new SequenceVisibility(entries, all);
+        frames.add(other.sample(1, 1, false).render());
+        for (var included : frames) for (var excluded : frames) {
+            var expected = new HashSet<>(included); expected.removeAll(excluded);
+            var actual = new ArrayList<BlockPos>();
+            SequenceVisibility.forEachDifference(included, excluded, actual::add);
+            assertEquals(expected, new HashSet<>(actual));
+            assertEquals(expected.size(), actual.size(), "Each changed position must be emitted once");
+        }
+    }
+
     @Test void denseBuildingViewsKeepMembershipAndOldFramesAcrossSeeks() {
         var entries = new ArrayList<BlockSequenceEntry>();
         var positions = new ArrayList<BlockPos>();

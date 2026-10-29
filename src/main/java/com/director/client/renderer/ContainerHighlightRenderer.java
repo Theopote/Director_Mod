@@ -2,6 +2,7 @@ package com.director.client.renderer;
 
 import com.director.core.DirectorServices;
 import com.director.client.renderer.mesh.BlockOutlineMeshCache;
+import com.director.client.renderer.mesh.ContainerOutlineMeshCache;
 import com.director.client.settings.RenderSettings;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
@@ -36,12 +37,8 @@ public final class ContainerHighlightRenderer {
     private static volatile ContainerHighlightRenderer INSTANCE;
 
     private final float[] defaultOutlineColor = {0.4f, 1.0f, 0.5f, 0.9f};
-    private final BlockOutlineMeshCache meshCache = new BlockOutlineMeshCache();
+    private final ContainerOutlineMeshCache meshCache = new ContainerOutlineMeshCache();
     private final RenderSettings settings = RenderSettings.get();
-
-    private Container cachedContainer;
-    private long cachedContainerModifiedTime = -1L;
-    private BlockOutlineMeshCache.Mesh cachedContainerMesh;
 
     private ContainerHighlightRenderer() {
     }
@@ -77,13 +74,17 @@ public final class ContainerHighlightRenderer {
             return;
         }
 
-        Collection<BlockPos> blocks = selectedContainer.getBlocks();
-        if (blocks == null || blocks.isEmpty()) {
-            clearCachedMesh();
+        if (selectedContainer.getBlockCount() == 0) {
+            meshCache.clear();
             return;
         }
 
         Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
+        Container.BoundingBox bbox = selectedContainer.getBoundingBox();
+        int maxDistSq = settings.selection_maxRenderDistance * settings.selection_maxRenderDistance;
+        if (bbox != null && getDistSqToBox(cameraPos, bbox) > (double) maxDistSq) {
+            return;
+        }
         BlockPos cameraBlock = BlockPos.ofFloored(cameraPos);
         Matrix4f matrix = matrices.peek().getPositionMatrix();
 
@@ -103,14 +104,8 @@ public final class ContainerHighlightRenderer {
             ? vertexConsumers.getBuffer(RenderLayers.getSelectionFillLayer())
             : null;
 
-        Container.BoundingBox bbox = selectedContainer.getBoundingBox();
-        int maxDistSq = settings.selection_maxRenderDistance * settings.selection_maxRenderDistance;
-        if (bbox != null && getDistSqToBox(cameraPos, bbox) > (double) maxDistSq) {
-            return;
-        }
-
         boolean useGreedy = settings.container_enableGreedy
-            && blocks.size() >= Math.max(1, settings.container_greedyThreshold);
+            && selectedContainer.getBlockCount() >= Math.max(1, settings.container_greedyThreshold);
 
         GlStateManager._enableBlend();
         GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
@@ -122,11 +117,11 @@ public final class ContainerHighlightRenderer {
 
         try {
             if (useGreedy) {
-                BlockOutlineMeshCache.Mesh mesh = getOrCreateCachedMesh(selectedContainer, blocks);
+                BlockOutlineMeshCache.Mesh mesh = meshCache.getOrCreateMesh(selectedContainer);
                 renderMergedFill(fillConsumer, matrix, mesh, cameraPos, maxDistSq, fillR, fillG, fillB, fillA);
                 renderMergedOutline(lineConsumer, matrix, mesh, cameraPos, outlineR, outlineG, outlineB, outlineA);
             } else {
-                renderPerBlock(fillConsumer, lineConsumer, matrix, blocks, cameraPos, cameraBlock, maxDistSq,
+                renderPerBlock(fillConsumer, lineConsumer, matrix, selectedContainer.getBlocksView(), cameraPos, cameraBlock, maxDistSq,
                     fillR, fillG, fillB, fillA, outlineR, outlineG, outlineB, outlineA);
             }
 
@@ -218,25 +213,6 @@ public final class ContainerHighlightRenderer {
         if (rendered > 0 && LOGGER.isDebugEnabled()) {
             LOGGER.debug("[ContainerHighlightRenderer] per-block render count={}", rendered);
         }
-    }
-
-    private BlockOutlineMeshCache.Mesh getOrCreateCachedMesh(Container container, Collection<BlockPos> blocks) {
-        long mt = container.getModifiedTime();
-        if (cachedContainer == container && cachedContainerModifiedTime == mt && cachedContainerMesh != null) {
-            return cachedContainerMesh;
-        }
-
-        BlockOutlineMeshCache.Mesh mesh = meshCache.getOrCreateMesh(blocks);
-        cachedContainer = container;
-        cachedContainerModifiedTime = mt;
-        cachedContainerMesh = mesh;
-        return mesh;
-    }
-
-    private void clearCachedMesh() {
-        cachedContainer = null;
-        cachedContainerModifiedTime = -1L;
-        cachedContainerMesh = null;
     }
 
     private static float readColor(float[] colors, int index, float fallback) {
