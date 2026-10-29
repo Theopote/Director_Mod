@@ -22,7 +22,7 @@ final class ExportIoWatchdog implements AutoCloseable {
         if (timeoutMillis <= 0) throw new IllegalArgumentException("timeoutMillis");
         this.timeoutNanos = TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
         this.terminate = terminate;
-        long interval = Math.max(1, Math.min(1000, timeoutMillis / 4));
+        long interval = Math.clamp(timeoutMillis / 4, 1, 1000);
         timer = TIMER.scheduleAtFixedRate(this::check, interval, interval, TimeUnit.MILLISECONDS);
     }
 

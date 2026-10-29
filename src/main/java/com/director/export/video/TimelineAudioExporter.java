@@ -158,7 +158,7 @@ public final class TimelineAudioExporter implements AudioExporter {
                 ResolvedSound resolved = resolver.resolveAndDecode(ev.soundId, ev.timeSec);
                 if (resolved == null || resolved.decoded == null) return null;
                 float gain = clamp01(ev.volume * ev.trackVolume * resolved.volume);
-                float pitch = Math.max(0.1f, Math.min(3.0f, ev.pitch * resolved.pitch));
+                float pitch = Math.clamp(ev.pitch * resolved.pitch, 0.1f, 3.0f);
                 return new ScheduledAudioMixer.Sound(resolved.decoded.samples, resolved.decoded.channels,
                         resolved.decoded.sampleRate, gain, pitch);
             }));
@@ -186,11 +186,11 @@ public final class TimelineAudioExporter implements AudioExporter {
     }
 
     private static float clamp01(float v) {
-        return Math.max(0f, Math.min(1f, v));
+        return Math.clamp(v, 0f, 1f);
     }
 
     private static float clamp11(float v) {
-        return Math.max(-1f, Math.min(1f, v));
+        return Math.clamp(v, -1f, 1f);
     }
 
     private static final class EventClip {

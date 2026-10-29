@@ -7,7 +7,6 @@ import com.director.export.video.VideoExportSettings;
 import com.director.ui.DirectorUIManager;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
-import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
@@ -191,7 +190,7 @@ public final class VideoExportDialog {
 
         settings.width = Math.max(16, widthInt.get());
         settings.height = Math.max(16, heightInt.get());
-        settings.fps = Math.max(1, Math.min(240, fpsInt.get()));
+        settings.fps = Math.clamp(fpsInt.get(), 1, 240);
 
         UITheme.spacingSmall();
 
@@ -228,11 +227,11 @@ public final class VideoExportDialog {
             }
             x264PresetIndexInt.set(presetIdx);
             ImGui.combo("速度/压缩效率 (preset)", x264PresetIndexInt, presetOptions, presetOptions.length);
-            settings.x264Preset = presetOptions[Math.max(0, Math.min(presetOptions.length - 1, x264PresetIndexInt.get()))];
+            settings.x264Preset = presetOptions[Math.clamp(x264PresetIndexInt.get(), 0, presetOptions.length - 1)];
 
             // CRF：质量 vs 体积（越低越清晰）
             ImGui.sliderInt("质量 (CRF, 越低越清晰)", x264CrfInt.getData(), 0, 51);
-            settings.x264Crf = Math.max(0, Math.min(51, x264CrfInt.get()));
+            settings.x264Crf = Math.clamp(x264CrfInt.get(), 0, 51);
             ImGui.textDisabled("建议：预览 fast/medium + CRF 22~28；成片 slow + CRF 16~23。");
 
             UITheme.spacingSmall();

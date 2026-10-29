@@ -2,6 +2,7 @@ package com.director.export.video;
 
 import com.director.mixin.accessor.NativeImageAccessor;
 import net.minecraft.client.texture.NativeImage;
+import org.jetbrains.annotations.NotNull;
 import org.lwjgl.system.MemoryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,7 +100,7 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
                     pipe.write(value);
                     watchdog.progress();
                 }
-                @Override public void write(byte[] bytes, int offset, int length) throws IOException {
+                @Override public void write(byte @NotNull [] bytes, int offset, int length) throws IOException {
                     pipe.write(bytes, offset, length);
                     watchdog.progress();
                 }

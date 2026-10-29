@@ -40,7 +40,7 @@ public final class VideoExportProgressOverlay {
 
     public synchronized void setProgress(float p, String msg) {
         if (status != Status.RUNNING) return;
-        progress = Math.max(0f, Math.min(1f, p));
+        progress = Math.clamp(p, 0f, 1f);
         message = (msg != null) ? msg : "";
     }
 
