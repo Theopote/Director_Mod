@@ -40,6 +40,9 @@ public final class VideoExportManager {
     private final AtomicBoolean exporting = new AtomicBoolean(false);
     private final AtomicBoolean cancelRequested = new AtomicBoolean(false);
     private volatile Thread workerThread;
+    private FFmpegVideoEncoder activeEncoder;
+
+    private record Outcome(boolean success, String error) {}
 
     private VideoExportManager() {}
 
@@ -47,8 +50,15 @@ public final class VideoExportManager {
         return exporting.get();
     }
 
-    public void requestCancel() {
+    public synchronized void requestCancel() {
+        if (!exporting.get()) return;
         cancelRequested.set(true);
+        if (activeEncoder != null) activeEncoder.requestAbort();
+    }
+
+    synchronized void registerEncoder(FFmpegVideoEncoder encoder) {
+        activeEncoder = encoder;
+        if (encoder != null && cancelRequested.get()) encoder.requestAbort();
     }
 
     public boolean isCancelRequested() {
@@ -72,36 +82,64 @@ public final class VideoExportManager {
             return;
         }
         if (!settings.validate()) {
-            listener.onCompleted(false, "导出设置不合法（validate 失败）");
+            listener.onCompleted(false, settings.validationError());
             return;
         }
 
+        final VideoExportSettings snapshot = settings.copy();
         cancelRequested.set(false);
         exporting.set(true);
 
         workerThread = new Thread(() -> {
-            com.director.timeline.playback.camera.TimelineCameraController.ExportState cameraState = null;
+            var savedState = new java.util.concurrent.atomic.AtomicReference<
+                    com.director.timeline.playback.camera.TimelineCameraController.ExportState>();
+            var outcome = new java.util.concurrent.atomic.AtomicReference<>(new Outcome(false, "导出未完成"));
             try {
                 var client = net.minecraft.client.MinecraftClient.getInstance();
-                if (client != null) cameraState = client.submit(() ->
-                        com.director.timeline.playback.camera.TimelineCameraController.getInstance()
-                                .saveStateForExport()).get(10, java.util.concurrent.TimeUnit.SECONDS);
+                if (client == null) throw new IllegalStateException("客户端不可用");
+                client.submit(() -> {
+                    checkCanceled();
+                    savedState.set(com.director.timeline.playback.camera.TimelineCameraController.getInstance()
+                            .saveStateForExport());
+                }).get(10, java.util.concurrent.TimeUnit.SECONDS);
                 LOGGER.info("[VideoExport] 开始导出任务：{}x{} @{}fps, format={}, output={}",
-                        settings.width, settings.height, settings.fps, settings.format, settings.outputPath);
-                VideoExportTask task = new VideoExportTask(settings, listener, this);
-                task.run();
+                        snapshot.width, snapshot.height, snapshot.fps, snapshot.format, snapshot.outputPath);
+                new VideoExportTask(snapshot, new ProgressListener() {
+                    @Override public void onProgress(float progress, String message) {
+                        listener.onProgress(progress, message);
+                    }
+                    @Override public void onCompleted(boolean success, String error) {
+                        outcome.set(new Outcome(success, error));
+                    }
+                }, this).run();
             } catch (Exception e) {
                 LOGGER.error("[VideoExport] 导出任务异常", e);
-                listener.onCompleted(false, "导出失败：" + e.getMessage());
+                outcome.set(new Outcome(false, isCancelRequested() ? "导出已取消。" : "导出失败：" + e.getMessage()));
             } finally {
-                exporting.set(false);
-                var state = cameraState;
+                Runnable restore = () -> {
+                    try {
+                        // Release ownership on the client thread, with admission locked until restoration ends.
+                        synchronized (VideoExportManager.this) {
+                            exporting.set(false);
+                            com.director.timeline.playback.camera.TimelineCameraController.getInstance()
+                                    .restoreStateAfterExport(savedState.get());
+                            com.director.client.RenderOverrideSnapshots.resyncAfterVideoExport();
+                        }
+                    } catch (Exception e) {
+                        LOGGER.error("[VideoExport] 恢复编辑状态失败", e);
+                        outcome.set(new Outcome(false, "导出收尾失败：" + e.getMessage()));
+                    } finally {
+                        Outcome result = outcome.get();
+                        listener.onCompleted(result.success(), result.error());
+                    }
+                };
                 var client = net.minecraft.client.MinecraftClient.getInstance();
-                if (client != null) client.execute(() -> {
-                    com.director.timeline.playback.camera.TimelineCameraController.getInstance()
-                            .restoreStateAfterExport(state);
-                    com.director.client.RenderOverrideSnapshots.resyncAfterVideoExport();
-                });
+                if (client != null) client.execute(restore);
+                else {
+                    exporting.set(false);
+                    Outcome result = outcome.get();
+                    listener.onCompleted(result.success(), result.error());
+                }
             }
         }, "Director-VideoExport");
         workerThread.setDaemon(true);

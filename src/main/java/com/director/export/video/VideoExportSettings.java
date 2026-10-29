@@ -7,10 +7,9 @@ import java.nio.file.Paths;
  * 🎥 VideoExportSettings - 视频导出设置（UI 可直接绑定）
  *
  * <p>承载导出对话框字段与基础校验。编码由 {@link FFmpegVideoEncoder}（H.264 MP4）
- * 或 {@link PngSequenceEncoder}（PNG 序列）消费；高级编码参数（bitRate、crf、preset 等）
- * 尚未暴露为 UI 字段。</p>
+ * 或 {@link PngSequenceEncoder}（PNG 序列）消费。</p>
  */
-public class VideoExportSettings {
+public class VideoExportSettings implements Cloneable {
 
     // ==================== 输出 ====================
 
@@ -99,50 +98,63 @@ public class VideoExportSettings {
         }
     }
 
+    public VideoExportSettings copy() {
+        try {
+            return (VideoExportSettings) clone();
+        } catch (CloneNotSupportedException impossible) {
+            throw new AssertionError(impossible);
+        }
+    }
+
+    public static int frameCount(float start, float end, int fps) {
+        double exactFrames = ((double) end - start) * fps;
+        // Float timeline endpoints can lie just above an exact frame boundary.
+        double nearest = Math.rint(exactFrames);
+        double frames = Math.abs(exactFrames - nearest) <= 0.00001 ? nearest : Math.ceil(exactFrames);
+        if (!Float.isFinite(start) || !Float.isFinite(end) || start < 0 || end <= start
+                || fps < 1 || fps > 240 || frames > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("导出时间范围或总帧数无效");
+        }
+        return Math.max(1, (int) frames);
+    }
+
     public boolean validate() {
-        if (width < 16 || height < 16) {
-            return false;
-        }
-        if (fps < 1 || fps > 240) {
-            return false;
-        }
-        if (audioSampleRate < 8000 || audioSampleRate > 192000) {
-            return false;
-        }
-        if (audioChannels < 1 || audioChannels > 2) {
-            return false;
-        }
+        return validationError() == null;
+    }
+
+    /** A user-facing reason, or null when the settings can be submitted. */
+    public String validationError() {
+        if (width < 16 || height < 16 || width > 8192 || height > 8192)
+            return "分辨率宽高须在 16–8192 像素之间";
+        if (fps < 1 || fps > 240) return "FPS 须在 1–240 之间";
+        if (format != FORMAT_H264_MP4 && format != FORMAT_PNG_SEQUENCE) return "不支持的导出格式";
+        if (rangeMode != RANGE_TIMELINE && rangeMode != RANGE_CUSTOM) return "不支持的时间范围模式";
+        if (cameraMode != CAMERA_PLAYER && cameraMode != CAMERA_TRACK) return "不支持的摄像机模式";
         if (rangeMode == RANGE_CUSTOM) {
-            if (customStartTime < 0f) {
-                return false;
-            }
-            if (customEndTime < customStartTime) {
-                return false;
+            try {
+                frameCount(customStartTime, customEndTime, fps);
+            } catch (IllegalArgumentException invalid) {
+                return invalid.getMessage();
             }
         }
-        // 编码参数（MP4）
         if (format == FORMAT_H264_MP4) {
-            if (x264Crf < 0 || x264Crf > 51) { // x264 CRF 合法范围
-                return false;
+            if ((width & 1) != 0 || (height & 1) != 0) return "MP4 的宽度和高度须为偶数";
+            if (x264Crf < 0 || x264Crf > 51) return "CRF 须在 0–51 之间";
+            if (x264Preset == null || !java.util.Set.of("ultrafast", "superfast", "veryfast", "faster", "fast",
+                    "medium", "slow", "slower", "veryslow", "placebo")
+                    .contains(x264Preset.trim().toLowerCase(java.util.Locale.ROOT))) return "不支持的 x264 preset";
+            if (enableAudio) {
+                if (audioSampleRate < 8000 || audioSampleRate > 192000) return "音频采样率须在 8000–192000 Hz 之间";
+                if (audioChannels < 1 || audioChannels > 2) return "音频仅支持单声道或双声道";
             }
-            if (x264Preset == null || x264Preset.isBlank()) {
-                return false;
-            }
         }
-        Path p = getOutputPathAsPath();
-        if (p == null) {
-            return false;
-        }
-        String name = p.getFileName() != null ? p.getFileName().toString().toLowerCase() : "";
-        if (format == FORMAT_H264_MP4) {
-            // MP4 输出要求 .mp4 扩展名（由 FFmpegVideoEncoder 写出）
-            return name.endsWith(".mp4");
-        } else if (format == FORMAT_PNG_SEQUENCE) {
-            // PNG 序列：允许任意输出路径（通常用户仍会填 .mp4 作为“基名”）
-            return !name.isBlank();
-        }
-        return true;
+        Path path = getOutputPathAsPath();
+        if (path == null || path.getFileName() == null) return "请指定有效的输出路径";
+        String name = path.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+        if (format == FORMAT_H264_MP4 && !name.endsWith(".mp4")) return "MP4 输出路径须以 .mp4 结尾";
+        int dot = name.lastIndexOf('.');
+        if (format == FORMAT_PNG_SEQUENCE && (name.isBlank() || dot == 0 || name.equals("..")))
+            return "请指定 PNG 序列的有效目录名称";
+        return null;
     }
 }
-
-

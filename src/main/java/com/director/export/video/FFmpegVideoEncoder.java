@@ -36,7 +36,10 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
     private static final Logger LOGGER = LoggerFactory.getLogger(FFmpegVideoEncoder.class);
     private static final long EXIT_TIMEOUT_SECONDS = 300L;
 
-    private Process ffmpegProcess;
+    private volatile Process ffmpegProcess;
+    private volatile boolean abortRequested;
+    private final StringBuilder diagnosticTail = new StringBuilder();
+    private volatile Thread drainThread;
     private OutputStream ffmpegStdin;
     private WritableByteChannel ffmpegChannel;
 
@@ -65,6 +68,9 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
             throw new IOException("outputPath 无效");
         }
 
+        Path parent = outputPath.toAbsolutePath().getParent();
+        if (parent != null) Files.createDirectories(parent);
+        if (abortRequested) throw new java.util.concurrent.CancellationException();
         String ffmpeg = detectFFmpegBinary();
 
         // ffmpeg -y -f rawvideo -vcodec rawvideo -pix_fmt rgba -s WxH -r FPS -i - (-i
@@ -100,7 +106,7 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
         cmd.add("libx264");
         // 用户可调：preset / crf（保持默认值即可获得与旧版本相近行为）
         String preset = (settings.x264Preset != null && !settings.x264Preset.isBlank())
-                ? settings.x264Preset.trim().toLowerCase()
+                ? settings.x264Preset.trim().toLowerCase(java.util.Locale.ROOT)
                 : "slow";
         int crf = Math.max(0, Math.min(51, settings.x264Crf));
 
@@ -116,7 +122,11 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
             cmd.add("aac");
             cmd.add("-b:a");
             cmd.add("192k");
-            cmd.add("-shortest");
+            // Pad fractional-frame audio tails; the video frame count defines output duration.
+            cmd.add("-af");
+            cmd.add("apad");
+            cmd.add("-t");
+            cmd.add(Double.toString(totalFrames / (double) fps));
         }
         cmd.add(outputPath.toAbsolutePath().toString());
 
@@ -125,6 +135,10 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
 
         LOGGER.info("[FFmpeg] Starting: {}", String.join(" ", cmd));
         ffmpegProcess = pb.start();
+        if (abortRequested) {
+            requestAbort();
+            throw new java.util.concurrent.CancellationException();
+        }
 
         // 防止 ffmpeg 输出填满缓冲区导致阻塞：后台吞日志
         startDrainThread(ffmpegProcess.getInputStream());
@@ -158,6 +172,7 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
         rgbaDirectBuffer.limit(size);
         MemoryUtil.memCopy(ptr, MemoryUtil.memAddress(rgbaDirectBuffer), (long) size);
         while (rgbaDirectBuffer.hasRemaining()) {
+            if (abortRequested) throw new java.util.concurrent.CancellationException();
             ffmpegChannel.write(rgbaDirectBuffer);
         }
 
@@ -171,38 +186,36 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
     @Override
     public void finish() throws IOException {
         // 正常结束：关闭 stdin，让 ffmpeg flush/finish
-        closeStdin();
-        waitForExitOrThrow();
-        freeBuffers();
-    }
-
-    /**
-     * 取消/失败时的快速中止。
-     */
-    public void abort() {
         try {
             closeStdin();
-        } catch (Exception ignore) {
-            // ignore
+            waitForExitOrThrow();
+        } finally {
+            freeBuffers();
         }
-        if (ffmpegProcess != null) {
-            ffmpegProcess.destroy();
-            try {
-                ffmpegProcess.destroyForcibly();
-            } catch (Exception ignore) {
-                // ignore
-            }
+    }
+
+    /** Safe from the UI thread: terminate first, never flush pipes or free worker-owned memory here. */
+    public void requestAbort() {
+        abortRequested = true;
+        Process process = ffmpegProcess;
+        if (process != null) process.destroyForcibly();
+    }
+
+    public void abort() {
+        requestAbort();
+        try {
+            closeStdin();
+        } catch (IOException ignored) {
+        } finally {
+            freeBuffers();
         }
-        freeBuffers();
     }
 
     private void closeStdin() throws IOException {
-        if (ffmpegStdin != null) {
-            ffmpegStdin.flush();
-            ffmpegStdin.close();
-            ffmpegStdin = null;
-        }
+        OutputStream stream = ffmpegStdin;
+        ffmpegStdin = null;
         ffmpegChannel = null;
+        if (stream != null) stream.close();
     }
 
     private void freeBuffers() {
@@ -229,7 +242,12 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
             }
             int exit = ffmpegProcess.exitValue();
             if (exit != 0) {
-                throw new IOException("FFmpeg 编码失败（退出码 " + exit + "），请检查 ffmpeg 是否安装/可用。");
+                Thread drain = drainThread;
+                if (drain != null) drain.join(500);
+                String diagnostic;
+                synchronized (diagnosticTail) { diagnostic = diagnosticTail.toString().trim(); }
+                throw new IOException("FFmpeg 编码失败（退出码 " + exit + "）"
+                        + (diagnostic.isEmpty() ? "" : ": " + diagnostic));
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -246,9 +264,14 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
                     if (n < 0) {
                         break;
                     }
-                    // 仅在 debug 时输出，避免刷屏
-                    if (LOGGER.isDebugEnabled() && n > 0) {
-                        LOGGER.debug("[FFmpeg] {}", new String(buf, 0, n, StandardCharsets.UTF_8));
+                    if (n > 0) {
+                        String message = new String(buf, 0, n, StandardCharsets.UTF_8);
+                        synchronized (diagnosticTail) {
+                            diagnosticTail.append(message);
+                            if (diagnosticTail.length() > 8192)
+                                diagnosticTail.delete(0, diagnosticTail.length() - 8192);
+                        }
+                        LOGGER.debug("[FFmpeg] {}", message);
                     }
                 }
             } catch (Exception ignore) {
@@ -256,6 +279,7 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
             }
         }, "Director-FFmpeg-LogDrain");
         t.setDaemon(true);
+        drainThread = t;
         t.start();
     }
 

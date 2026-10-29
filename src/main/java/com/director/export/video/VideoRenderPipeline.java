@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -33,11 +32,11 @@ import java.util.function.Consumer;
  * 视频导出抓帧管线（v1：基于主 Framebuffer）。
  *
  * <p>流程：后台线程请求时间点 → 客户端线程驱动 {@link TimelinePlaybackSampler}
- * 与相机 → 下一帧 UI 渲染开始时从主 Framebuffer 抓取 {@link NativeImage} →
+ * 与相机 → 当帧世界渲染完成后从主 Framebuffer 抓取 {@link NativeImage} →
  * 交给 {@link VideoEncoder}（MP4 或 PNG 序列）。</p>
  *
- * <p><b>已知限制：</b>独立 FBO 离屏渲染、自定义分辨率缩放、关闭 UI/HUD 尚未实现；
- * 当前分辨率/画面内容受主窗口 Framebuffer 约束。</p>
+ * <p>复用主窗口世界画面，在 HUD 前截图并按相机画幅缩放。输出分辨率可以调整，
+ * 原始画面细节仍受主窗口 Framebuffer 分辨率约束。</p>
  */
 public final class VideoRenderPipeline {
     private static final Logger LOGGER = LoggerFactory.getLogger(VideoRenderPipeline.class);
@@ -52,7 +51,7 @@ public final class VideoRenderPipeline {
         final float timeSeconds;
         final VideoExportSettings settings;
         final CompletableFuture<NativeImage> future = new CompletableFuture<>();
-        volatile boolean armed = false;
+
 
         CaptureRequest(float timeSeconds, VideoExportSettings settings) {
             this.timeSeconds = timeSeconds;
@@ -60,7 +59,7 @@ public final class VideoRenderPipeline {
         }
     }
 
-    private final ConcurrentLinkedQueue<CaptureRequest> queue = new ConcurrentLinkedQueue<>();
+    private final FrameCaptureQueue<CaptureRequest> queue = new FrameCaptureQueue<>();
 
     private VideoRenderPipeline() {
     }
@@ -72,7 +71,7 @@ public final class VideoRenderPipeline {
      * 调用线程：后台导出线程。
      * </p>
      * <p>
-     * 机制：在客户端线程设置时间线/相机 -> 等到下一帧 UI 渲染开始时抓取 framebuffer -> future 完成。
+     * 机制：世界渲染 HEAD 设置时间线/相机，TAIL 抓取同一帧，future 转移图像所有权。
      * </p>
      */
     public NativeImage renderFrame(float timeSeconds, VideoExportSettings settings)
@@ -82,20 +81,31 @@ public final class VideoRenderPipeline {
         CaptureRequest req = new CaptureRequest(timeSeconds, settings);
         queue.add(req);
 
-        // 由渲染线程在 GameRenderer.renderWorld 的 HEAD/Tail 钩子中执行：
-        // - HEAD: applyTimelineTime/applyCamera（影响“当帧世界渲染”）
-        // - TAIL: blit 主 framebuffer -> offscreen 并截图
-        req.armed = true;
-
+        boolean delivered = false;
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         try {
-            // 重要：不要无限等待，否则用户看到的就是“点了开始导出没反应 / 没进度条”。
-            // 如果渲染钩子（GameRendererMixin.renderWorld HEAD/TAIL）未生效，这里会永远卡住。
-            return req.future.get(10, TimeUnit.SECONDS);
+            while (true) {
+                VideoExportManager.getInstance().checkCanceled();
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0) throw new TimeoutException("渲染抓帧超时（10s）");
+                try {
+                    NativeImage image = req.future.get(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(100)),
+                            TimeUnit.NANOSECONDS);
+                    delivered = true;
+                    return image;
+                } catch (TimeoutException polling) {
+                    if (System.nanoTime() >= deadline) throw polling;
+                }
+            }
         } catch (TimeoutException te) {
-            String msg = "渲染抓帧超时（10s）。可能原因：renderWorld 钩子未触发 / 客户端线程卡住 / 导出被其他逻辑阻断。";
-            LOGGER.error("[VideoExport] {}", msg);
-            req.future.completeExceptionally(new IllegalStateException(msg, te));
-            throw new ExecutionException(msg, te);
+            throw new ExecutionException("渲染抓帧超时（10s），请检查世界渲染是否仍在运行。", te);
+        } finally {
+            queue.remove(req);
+            if (!delivered) {
+                // Covers completion racing with timeout, interruption or cancellation.
+                req.future.thenAccept(NativeImage::close);
+                req.future.completeExceptionally(new java.util.concurrent.CancellationException());
+            }
         }
     }
 
@@ -111,13 +121,14 @@ public final class VideoRenderPipeline {
      * 这里做“驱动时间线 + 应用摄像机”，让当帧世界渲染即为导出帧内容。
      */
     public void onRenderWorldHead(RenderTickCounter tickCounter) {
-        CaptureRequest head = queue.peek();
-        if (head == null || !head.armed || head.future.isDone()) {
+        CaptureRequest head = queue.beginPreparation();
+        if (head == null || head.future.isDone()) {
             return;
         }
         try {
             applyCamera(head.timeSeconds, head.settings);
             applyTimelineTime(head.timeSeconds);
+            queue.markPrepared(head);
         } catch (Exception e) {
             head.future.completeExceptionally(e);
         }
@@ -125,15 +136,15 @@ public final class VideoRenderPipeline {
 
     /**
      * Hook：在 GameRenderer.renderWorld(TAIL) 调用（此时 HUD 尚未绘制）。
-     * 这里将“主 framebuffer 的世界画面” blit/缩放到 offscreen framebuffer，再截图输出。
+     * 截取主 framebuffer 的世界画面，按相机画幅裁切缩放后输出。
      */
     public void onRenderWorldTail() {
-        CaptureRequest head = queue.peek();
-        if (head == null || !head.armed) {
+        CaptureRequest head = queue.takePrepared();
+        if (head == null) {
             return;
         }
         if (head.future.isDone()) {
-            queue.poll();
+            queue.remove(head);
             return;
         }
 
@@ -150,7 +161,7 @@ public final class VideoRenderPipeline {
                 LOGGER.debug("[VideoExport] frame captured from main framebuffer ({}x{})",
                         head.settings.width, head.settings.height);
             }
-            queue.poll();
+            queue.remove(head);
         }
     }
 
@@ -197,23 +208,6 @@ public final class VideoRenderPipeline {
         return result;
     }
 
-    // --- 🚀 性能优化：复用 NativeImage 缓冲区，避免每帧分配 33MB+ 造成的 GC 抖动 ---
-    private static NativeImage cachedResizedBuffer = null;
-
-    /**
-     * 清理缓存的缓冲区（在导出彻底结束时调用）。
-     * ⭐ 线程安全：NativeImage 的 close() 必须在渲染线程执行，
-     *   因此通过 execute() 调度到渲染线程，避免与 onRenderWorldTail 的竞态。
-     */
-    public static void clearCache() {
-        MinecraftClient.getInstance().execute(() -> {
-            if (cachedResizedBuffer != null) {
-                cachedResizedBuffer.close();
-                cachedResizedBuffer = null;
-            }
-        });
-    }
-
     private static void captureMainFramebuffer(CaptureRequest req) {
         RenderSystem.assertOnRenderThread();
 
@@ -248,70 +242,48 @@ public final class VideoRenderPipeline {
         final CameraViewportProfile cameraProfile = profile;
 
         return (NativeImage img) -> {
+            NativeImage out = null;
+            boolean sourceTransferred = false;
             try {
-                NativeImage out;
-                if (img.getWidth() == targetW && img.getHeight() == targetH) {
-                    // 尺寸正好匹配，拷贝到复用缓冲区再深拷贝给消费者
-                    ensureAndFillBufferSync(img, targetW, targetH);
-                    img.close();
-                } else {
-                    // ⭐ 使用复用缓冲区进行裁切缩放
-                    resizeToTargetOptimized(img, targetW, targetH, cameraProfile);
-                    img.close();
+                if (req.future.isDone()) return;
+                float targetAspect = (float) targetW / targetH;
+                if (img.getWidth() == targetW && img.getHeight() == targetH
+                        && (cameraProfile == null || Math.abs(cameraProfile.getAspectRatio() - targetAspect) < 0.0001f)) {
+                    // Transfer the original screenshot when no framing or scaling is needed.
+                    sourceTransferred = req.future.complete(img);
+                    return;
                 }
-                // ⭐ P0 修复：深拷贝再 complete，避免下一帧覆盖 cachedResizedBuffer 导致画面错乱
-                out = deepCopyBuffer(cachedResizedBuffer);
-                req.future.complete(out);
-            } catch (Exception t) {
-                try {
-                    img.close();
-                } catch (Exception ignored) {
-                }
-                req.future.completeExceptionally(t);
+                // Apply camera framing even when source and target sizes match.
+                out = resizeToTarget(img, targetW, targetH, cameraProfile);
+                if (!req.future.complete(out)) out.close();
+                out = null;
+            } catch (Exception error) {
+                if (out != null) out.close();
+                req.future.completeExceptionally(error);
+            } finally {
+                if (!sourceTransferred) img.close();
             }
         };
     }
 
-    /**
-     * ⭐ P0 修复：将 cachedResizedBuffer 深拷贝一份交给编码器，
-     * 避免下一帧抓取覆盖同一块内存导致画面错乱。
-     */
-    private static NativeImage deepCopyBuffer(NativeImage src) {
-        if (src == null) {
-            throw new IllegalStateException("cachedResizedBuffer is null when trying to deep copy");
-        }
-        NativeImage copy = new NativeImage(src.getWidth(), src.getHeight(), true);
-        copy.copyFrom(src);
-        return copy;
-    }
-
-    /**
-     * 确保缓存的 buffer 存在且尺寸正确，并将 src 数据拷贝进去。
-     */
-    private static void ensureAndFillBufferSync(NativeImage src, int w, int h) {
-        if (cachedResizedBuffer == null || cachedResizedBuffer.getWidth() != w
-                || cachedResizedBuffer.getHeight() != h) {
-            if (cachedResizedBuffer != null)
-                cachedResizedBuffer.close();
-            cachedResizedBuffer = new NativeImage(w, h, true);
-        }
-        // 使用高效的 copyFrom
-        cachedResizedBuffer.copyFrom(src);
-    }
-
-    private static void resizeToTargetOptimized(NativeImage src, int targetW, int targetH,
+    private static NativeImage resizeToTarget(NativeImage src, int targetW, int targetH,
             CameraViewportProfile cameraProfile) {
-        if (cachedResizedBuffer == null || cachedResizedBuffer.getWidth() != targetW
-                || cachedResizedBuffer.getHeight() != targetH) {
-            if (cachedResizedBuffer != null)
-                cachedResizedBuffer.close();
-            cachedResizedBuffer = new NativeImage(targetW, targetH, true);
+        NativeImage output = new NativeImage(targetW, targetH, false);
+        try {
+            fillTarget(src, output, targetW, targetH, cameraProfile);
+            return output;
+        } catch (RuntimeException | Error error) {
+            output.close();
+            throw error;
         }
+    }
 
+    private static void fillTarget(NativeImage src, NativeImage output, int targetW, int targetH,
+            CameraViewportProfile cameraProfile) {
         int srcW = src.getWidth();
         int srcH = src.getHeight();
 
-        cachedResizedBuffer.fillRect(0, 0, targetW, targetH, 0xFF000000);
+        output.fillRect(0, 0, targetW, targetH, 0xFF000000);
 
         float cameraAspect = (cameraProfile != null) ? cameraProfile.getAspectRatio() : 0f;
         if (cameraAspect <= 0f) {
@@ -346,22 +318,30 @@ public final class VideoRenderPipeline {
             }
         }
 
+        if (srcW == targetW && srcH == targetH && cropW == srcW && cropH == srcH
+                && innerX == 0 && innerY == 0 && innerW == targetW && innerH == targetH) {
+            output.copyFrom(src);
+            return;
+        }
+
         float scaleX = (float) cropW / (float) innerW;
         float scaleY = (float) cropH / (float) innerH;
 
-        // 🚀 优化性能：直接使用循环赋值，虽仍是 CPU 循环，但避免了 getColorArgb 这种高层封装的额外开销
+        // Precompute horizontal sampling indices once per image.
+        int firstX = Math.max(0, -innerX);
+        int endX = Math.min(innerW, targetW - innerX);
+        int[] sourceColumns = new int[Math.max(0, endX - firstX)];
+        for (int dx = firstX; dx < endX; dx++)
+            sourceColumns[dx - firstX] = cropX + Math.min(cropW - 1, Math.round(dx * scaleX));
         for (int dy = 0; dy < innerH; dy++) {
             int dstY = innerY + dy;
             if (dstY < 0 || dstY >= targetH)
                 continue;
             int srcY = cropY + Math.min(cropH - 1, Math.round(dy * scaleY));
-            for (int dx = 0; dx < innerW; dx++) {
+            for (int dx = firstX; dx < endX; dx++) {
                 int dstX = innerX + dx;
-                if (dstX < 0 || dstX >= targetW)
-                    continue;
-                int srcX = cropX + Math.min(cropW - 1, Math.round(dx * scaleX));
-                // 使用底层 set/get，避免 getColorArgb() 的逻辑检查
-                cachedResizedBuffer.setColorArgb(dstX, dstY, src.getColorArgb(srcX, srcY));
+                int srcX = sourceColumns[dx - firstX];
+                output.setColorArgb(dstX, dstY, src.getColorArgb(srcX, srcY));
             }
         }
 

@@ -314,7 +314,9 @@ public final class VideoExportDialog {
         // =============================
         UITheme.title("渲染质量");
 
-        ImGui.sliderInt("渲染距离", renderDistanceInt.getData(), 2, 32);
+        ImGui.textDisabled("画面细节取决于游戏窗口分辨率；导出使用当前游戏渲染距离。");
+        ImGui.beginDisabled();
+        ImGui.sliderInt("渲染距离（预留）", renderDistanceInt.getData(), 2, 32);
         settings.renderDistance = renderDistanceInt.get();
 
         boolean aa = settings.useAntiAliasing;
@@ -322,6 +324,7 @@ public final class VideoExportDialog {
             settings.useAntiAliasing = !aa;
         }
 
+        ImGui.endDisabled();
         UITheme.spacingSmall();
 
         // =============================
@@ -356,7 +359,7 @@ public final class VideoExportDialog {
         if (ImGui.button(Icons.EXPORT + " 开始导出", 160, UITheme.Spacing.BUTTON_HEIGHT)) {
             settings.outputPath = outputPathBuffer.get().trim();
             if (!settings.validate()) {
-                lastError = "导出设置不合法：请检查输出路径（.mp4）、分辨率、FPS、时间范围。";
+                lastError = settings.validationError();
             } else if (settings.format == VideoExportSettings.FORMAT_H264_MP4 && !ensureFFmpegReady()) {
                 lastError = "FFmpeg 未就绪： " + (ffmpegError != null ? ffmpegError : "未知错误");
             } else if (uiManager == null) {

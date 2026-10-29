@@ -13,7 +13,6 @@ import net.minecraft.resource.ResourceFactory;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.random.Random;
-import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
@@ -44,10 +43,22 @@ import java.util.Map;
 public final class TimelineAudioExporter implements AudioExporter {
 
     private static final int MAX_SOUND_EVENT_DEPTH = 6;
+    private static final int BLOCK_FRAMES = 8192;
+    private final Runnable checkCanceled;
+
+    public TimelineAudioExporter() {
+        this(() -> {});
+    }
+
+    public TimelineAudioExporter(Runnable checkCanceled) {
+        this.checkCanceled = java.util.Objects.requireNonNull(checkCanceled);
+    }
 
     @Override
     public Path exportWav(VideoExportSettings settings, float startTimeSec, float endTimeSec) throws IOException {
-        float duration = Math.max(0.001f, endTimeSec - startTimeSec);
+        checkCanceled.run();
+        double duration = (double) endTimeSec - startTimeSec;
+        if (!Double.isFinite(duration) || duration <= 0) throw new IOException("音频时间范围无效");
 
         int sampleRate = settings.audioSampleRate;
         int channels = settings.audioChannels;
@@ -56,19 +67,28 @@ public final class TimelineAudioExporter implements AudioExporter {
         long totalSamples = (long) Math.ceil(duration * sampleRate);
         long dataSize = totalSamples * channels * (bitsPerSample / 8);
 
+        if (dataSize > 0xFFFFFFFFL - 36 || dataSize < 0) {
+            throw new IOException("音频超过 RIFF WAV 的 4 GiB 限制，请缩短导出范围");
+        }
+
         Path gameDir = FabricLoader.getInstance().getGameDir();
         Path cacheDir = gameDir.resolve("director").resolve("cache");
         Files.createDirectories(cacheDir);
 
-        Path outFile = cacheDir.resolve("timeline_audio.wav");
+        Path outFile = Files.createTempFile(cacheDir, "timeline_audio_", ".wav");
+        boolean completed = false;
 
-        try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
-                Files.newOutputStream(outFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)))) {
-            writeWavHeader(out, sampleRate, channels, bitsPerSample, dataSize);
-            writePcm16leFromEvents(out, settings, sampleRate, channels, totalSamples, startTimeSec, endTimeSec);
+        try {
+            try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(
+                    Files.newOutputStream(outFile, StandardOpenOption.TRUNCATE_EXISTING)))) {
+                writeWavHeader(out, sampleRate, channels, bitsPerSample, dataSize);
+                writePcm16leFromEvents(out, sampleRate, channels, totalSamples, startTimeSec, endTimeSec);
+            }
+            completed = true;
+            return outFile;
+        } finally {
+            if (!completed) Files.deleteIfExists(outFile);
         }
-
-        return outFile;
     }
 
     private void writeWavHeader(DataOutputStream out,
@@ -106,53 +126,54 @@ public final class TimelineAudioExporter implements AudioExporter {
      * <p>当前实现：基于 AudioEvent 的真实 OGG 音效混音。</p>
      */
     private void writePcm16leFromEvents(DataOutputStream out,
-        VideoExportSettings settings,
         int sampleRate,
         int channels,
         long totalSamples,
         float startTimeSec,
         float endTimeSec) throws IOException {
 
-        // 收集音频事件（来自时间线所有 AUDIO 轨道）
-        List<EventClip> clips = collectEventClips(startTimeSec, endTimeSec);
-
-        // 生成浮点混音缓冲（交错声道）
-        float[] mix = new float[(int) totalSamples * channels];
-        SoundResolver resolver = new SoundResolver();
-
+        // Snapshot mutable editor state on its owning client thread.
+        List<EventClip> clips;
+        try {
+            clips = MinecraftClient.getInstance().submit(() -> collectEventClips(0f, endTimeSec))
+                    .get(10, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("音频采样被中断", e);
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+            throw new IOException("无法读取时间线音频", e);
+        }
+        checkCanceled.run();
+        SoundResolver resolver = new SoundResolver(checkCanceled);
+        List<MixClip> sounds = new ArrayList<>();
         for (EventClip ev : clips) {
-            if (!ev.enabled) {
-                continue;
-            }
-            if (ev.soundId == null || ev.soundId.isBlank()) {
-                continue;
-            }
-
-            float tRel = ev.timeSec - startTimeSec;
-            if (tRel < 0f) {
-                continue;
-            }
-
+            checkCanceled.run();
+            if (!ev.enabled || ev.soundId == null || ev.soundId.isBlank()) continue;
             ResolvedSound resolved = resolver.resolveAndDecode(ev.soundId, ev.timeSec);
-            if (resolved == null || resolved.decoded == null || resolved.decoded.samples.length == 0) {
-                continue;
-            }
-
+            if (resolved == null || resolved.decoded == null || resolved.decoded.samples.length == 0) continue;
             float gain = clamp01(ev.volume * ev.trackVolume * resolved.volume);
             float pitch = Math.max(0.1f, Math.min(3.0f, ev.pitch * resolved.pitch));
-            mixDecodedSound(mix, channels, sampleRate, resolved.decoded, tRel, gain, pitch);
+            long startFrame = (long) Math.floor(((double) ev.timeSec - startTimeSec) * sampleRate);
+            sounds.add(new MixClip(resolved.decoded, startFrame, gain, pitch));
         }
-
-        // 写出 PCM（clamp + 16-bit）
-        int totalFrames = (int) totalSamples;
-        for (int frame = 0; frame < totalFrames; frame++) {
-            int base = frame * channels;
-            for (int ch = 0; ch < channels; ch++) {
-                float v = clamp11(mix[base + ch]);
-                writeSample16le(out, v);
+        // Memory usage is independent of export duration. Negative starts retain sound tails.
+        float[] mix = new float[BLOCK_FRAMES * channels];
+        for (long blockStart = 0; blockStart < totalSamples; blockStart += BLOCK_FRAMES) {
+            checkCanceled.run();
+            int frames = (int) Math.min(BLOCK_FRAMES, totalSamples - blockStart);
+            java.util.Arrays.fill(mix, 0f);
+            for (MixClip clip : sounds) {
+                checkCanceled.run();
+                DecodedSound sound = clip.sound();
+                PcmAudioMixer.mix(mix, frames, channels, sampleRate, blockStart,
+                        sound.samples, sound.channels, sound.sampleRate,
+                        clip.startFrame(), clip.gain(), clip.pitch());
             }
+            for (int sample = 0; sample < frames * channels; sample++) writeSample16le(out, mix[sample]);
         }
     }
+
+    private record MixClip(DecodedSound sound, long startFrame, float gain, float pitch) {}
 
     private static void writeSample16le(DataOutputStream out, float v) throws IOException {
         short s = (short) (clamp11(v) * Short.MAX_VALUE);
@@ -248,6 +269,11 @@ public final class TimelineAudioExporter implements AudioExporter {
     }
     private static final class SoundResolver {
         private final Map<Identifier, DecodedSound> cache = new HashMap<>();
+        private final Runnable checkCanceled;
+
+        SoundResolver(Runnable checkCanceled) {
+            this.checkCanceled = checkCanceled;
+        }
 
         ResolvedSound resolveAndDecode(String soundId, float eventTimeSec) {
             MinecraftClient client = MinecraftClient.getInstance();
@@ -324,114 +350,15 @@ public final class TimelineAudioExporter implements AudioExporter {
                 FloatArrayList samples = new FloatArrayList();
                 FloatConsumer consumer = samples::add;
                 while (stream.read(consumer)) {
-                    // keep reading
+                    checkCanceled.run();
                 }
                 return new DecodedSound(samples.toFloatArray(), channels, sampleRate);
+            } catch (java.util.concurrent.CancellationException canceled) {
+                throw canceled;
             } catch (Exception ignored) {
                 return null;
             }
         }
     }
 
-    private static void mixDecodedSound(float[] mix,
-                                        int mixChannels,
-                                        int mixSampleRate,
-                                        DecodedSound sound,
-        float startTimeSec,
-                                        float gain,
-                                        float pitch) {
-        if (mixChannels <= 0 || mixSampleRate <= 0) {
-            return;
-        }
-
-        int totalFrames = mix.length / mixChannels;
-        int startFrame = (int) Math.floor(startTimeSec * mixSampleRate);
-        if (startFrame >= totalFrames) {
-            return;
-        }
-
-        float[] src = sound.samples;
-        int srcChannels = Math.max(1, sound.channels);
-        int srcFrames = src.length / srcChannels;
-        if (srcFrames == 0) {
-            return;
-        }
-
-        float srcStep = pitch * (sound.sampleRate / (float) mixSampleRate);
-        if (srcStep <= 0f) {
-            return;
-        }
-
-        for (int dstFrame = 0; startFrame + dstFrame < totalFrames; dstFrame++) {
-            float srcPos = dstFrame * srcStep;
-            int srcIndex = (int) srcPos;
-            if (srcIndex >= srcFrames) {
-                break;
-            }
-            float frac = srcPos - srcIndex;
-
-            if (mixChannels == 1) {
-                float mono = sampleInterleaved(src, srcChannels, srcFrames, srcIndex, frac, 0);
-                if (srcChannels >= 2) {
-                    float r = sampleInterleaved(src, srcChannels, srcFrames, srcIndex, frac, 1);
-                    mono = 0.5f * (mono + r);
-                }
-                int outIdx = (startFrame + dstFrame);
-                mix[outIdx] += mono * gain;
-            } else {
-                int outBase = (startFrame + dstFrame) * mixChannels;
-                float left = sampleInterleaved(src, srcChannels, srcFrames, srcIndex, frac, 0);
-                float right = (srcChannels >= 2)
-                        ? sampleInterleaved(src, srcChannels, srcFrames, srcIndex, frac, 1)
-                        : left;
-                mix[outBase] += left * gain;
-                mix[outBase + 1] += right * gain;
-            }
-        }
-    }
-
-    private static float sampleInterleaved(float[] src,
-        int channels,
-                                           int frames,
-                                           int index,
-                                           float frac,
-                                           int channel) {
-        int ch = Math.min(channel, channels - 1);
-        int base = index * channels + ch;
-        float s0 = src[base];
-        if (frac <= 0f || index + 1 >= frames) {
-            return s0;
-        }
-        float s1 = src[(index + 1) * channels + ch];
-        return s0 + (s1 - s0) * frac;
-    }}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+}

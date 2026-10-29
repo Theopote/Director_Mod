@@ -47,15 +47,14 @@ public final class VideoExportTask implements Runnable {
 
             float startTime = resolveStartTime();
             float endTime = resolveEndTime();
-            float duration = Math.max(0.001f, endTime - startTime);
-            int totalFrames = Math.max(1, Math.round(duration * Math.max(1, settings.fps)));
+            int totalFrames = VideoExportSettings.frameCount(startTime, endTime, settings.fps);
 
             notifyProgress(0f, "准备导出，总帧数：" + totalFrames);
 
             // 1) 导出音频（可选，仅 MP4 有意义）
             if (settings.format == VideoExportSettings.FORMAT_H264_MP4 && settings.enableAudio) {
                 notifyProgress(0f, "导出音频轨道...");
-                AudioExporter audioExporter = new TimelineAudioExporter();
+                AudioExporter audioExporter = new TimelineAudioExporter(manager::checkCanceled);
                 audioWav = audioExporter.exportWav(settings, startTime, endTime);
             }
 
@@ -69,6 +68,8 @@ public final class VideoExportTask implements Runnable {
             } else {
                 encoder = new PngSequenceEncoder();
             }
+            if (encoder instanceof FFmpegVideoEncoder ffmpeg) manager.registerEncoder(ffmpeg);
+            manager.checkCanceled();
             encoder.init(settings, totalFrames);
 
             VideoRenderPipeline pipeline = VideoRenderPipeline.getInstance();
@@ -78,36 +79,32 @@ public final class VideoExportTask implements Runnable {
 
                 float t = startTime + (frameIndex / (float) settings.fps);
 
-                // Note: The NativeImage returned is managed by VideoRenderPipeline (cached
-                // shared buffer).
-                // Do NOT use try-with-resources here, otherwise the buffer will be closed
-                // prematurely.
-                NativeImage image = pipeline.renderFrame(t, settings);
-                encoder.encodeFrame(image, frameIndex);
+                // Each capture transfers ownership to this worker.
+                try (NativeImage image = pipeline.renderFrame(t, settings)) {
+                    manager.checkCanceled();
+                    encoder.encodeFrame(image, frameIndex);
+                }
 
                 float progress = (frameIndex + 1) / (float) totalFrames;
                 notifyProgress(progress, "渲染帧 " + (frameIndex + 1) + " / " + totalFrames);
             }
 
+            manager.checkCanceled();
+            notifyProgress(1f, "正在完成编码...");
             encoder.finish();
+            manager.checkCanceled();
             success = true;
             notifyProgress(1f, "导出完成。");
 
         } catch (CancellationException ex) {
             error = "导出已取消。";
-            if (encoder instanceof FFmpegVideoEncoder ffmpeg) {
-                ffmpeg.abort();
-            }
         } catch (Exception ex) {
             LOGGER.error("[VideoExportTask] 导出失败", ex);
-            error = "导出失败：" + ex.getMessage();
-            if (encoder instanceof FFmpegVideoEncoder ffmpeg) {
-                ffmpeg.abort();
-            }
+            error = manager.isCancelRequested() ? "导出已取消。" : "导出失败：" + ex.getMessage();
         } finally {
-            // 不在 finally 重复 finish：避免对 FFmpeg 二次 waitFor 导致异常
-            // 🚀 清理管线缓存的 NativeImage 缓冲区
-            VideoRenderPipeline.clearCache();
+            // Abort on the worker only; this is also responsible for releasing encoder resources.
+            if (!success && encoder instanceof FFmpegVideoEncoder ffmpeg) ffmpeg.abort();
+            manager.registerEncoder(null);
 
 
             // 清理临时音频文件（可按需改为保留）
