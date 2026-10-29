@@ -406,16 +406,6 @@ public final class VideoExportDialog {
             }
 
             if (ImGui.button(Icons.EXPORT + " 覆盖并导出", 160, UITheme.Spacing.BUTTON_HEIGHT) && canStart) {
-                try {
-                    // PNG 序列：尝试清空目标目录，避免旧帧混入
-                    maybeClearPngSequenceDir(pendingStartSettings);
-                } catch (Exception e) {
-                    lastError = "清理输出目录失败：" + e.getMessage();
-                    // 保持弹窗打开，让用户看到错误
-                    ImGui.endPopup();
-                    return;
-                }
-
                 lastError = null;
                 ImGui.closeCurrentPopup(); // 关闭覆盖确认弹窗
                 ImGui.closeCurrentPopup(); // 关闭导出设置弹窗
@@ -463,7 +453,7 @@ public final class VideoExportDialog {
             Path dir = parent.resolve(baseName);
             if (Files.exists(dir)) {
                 String msg = "PNG 序列输出目录已存在：\n" + dir.toAbsolutePath()
-                        + "\n\n覆盖导出建议清空目录，避免旧帧混入。";
+                        + "\n\n新序列完成后替换旧序列；目录如含其他文件则不会覆盖。";
                 return new ExistingTarget(msg);
             }
         } catch (Exception ignore) {
@@ -471,37 +461,6 @@ public final class VideoExportDialog {
         }
 
         return null;
-    }
-
-    private static void maybeClearPngSequenceDir(VideoExportSettings s) throws Exception {
-        if (s == null || s.format != VideoExportSettings.FORMAT_PNG_SEQUENCE) {
-            return;
-        }
-        if (s.outputPath == null || s.outputPath.isBlank()) {
-            return;
-        }
-
-        Path outPath = Paths.get(s.outputPath.trim());
-        Path parent = outPath.getParent();
-        if (parent == null) {
-            parent = Paths.get(".");
-        }
-        String baseName = stripExtension(outPath.getFileName() != null ? outPath.getFileName().toString() : "export");
-        Path dir = parent.resolve(baseName);
-        if (!Files.exists(dir) || !Files.isDirectory(dir)) {
-            return;
-        }
-
-        // 只删除目录下的文件（不递归删除子目录），避免误伤太多；如果需要可再扩展递归清理
-        try (var stream = Files.list(dir)) {
-            stream.forEach(p -> {
-                try {
-                    Files.deleteIfExists(p);
-                } catch (Exception ignore) {
-                    // ignore
-                }
-            });
-        }
     }
 
     private static String stripExtension(String name) {

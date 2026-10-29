@@ -33,6 +33,9 @@ public interface VideoEncoder {
      * 收尾并释放资源。
      */
     void finish() throws IOException;
+
+    /** Release partial output after cancellation or failure, on the export worker. */
+    void abort();
 }
 
 

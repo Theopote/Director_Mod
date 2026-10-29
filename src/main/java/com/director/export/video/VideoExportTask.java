@@ -92,7 +92,7 @@ public final class VideoExportTask implements Runnable {
             manager.checkCanceled();
             notifyProgress(1f, "正在完成编码...");
             encoder.finish();
-            manager.checkCanceled();
+            // A successful publication is the completion point; a later cancel cannot undo it.
             success = true;
             notifyProgress(1f, "导出完成。");
 
@@ -103,7 +103,7 @@ public final class VideoExportTask implements Runnable {
             error = manager.isCancelRequested() ? "导出已取消。" : "导出失败：" + ex.getMessage();
         } finally {
             // Abort on the worker only; this is also responsible for releasing encoder resources.
-            if (!success && encoder instanceof FFmpegVideoEncoder ffmpeg) ffmpeg.abort();
+            if (!success && encoder != null) encoder.abort();
             manager.registerEncoder(null);
 
 

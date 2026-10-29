@@ -3,9 +3,7 @@ package com.director.export.video;
 import net.minecraft.client.texture.NativeImage;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 /**
  * PNG 序列编码器（零依赖，可直接使用）
@@ -21,7 +19,10 @@ import java.nio.file.Paths;
  */
 public final class PngSequenceEncoder implements VideoEncoder {
 
+    private StagedVideoOutput output;
     private Path outputDir;
+    private int expectedFrames;
+    private int encodedFrames;
     private int padWidth = 5;
 
     @Override
@@ -30,16 +31,11 @@ public final class PngSequenceEncoder implements VideoEncoder {
             throw new IOException("outputPath 为空");
         }
 
-        Path outPath = Paths.get(settings.outputPath.trim());
-        Path parent = outPath.getParent();
-        if (parent == null) {
-            parent = Paths.get(".");
-        }
-
-        String baseName = stripExtension(outPath.getFileName() != null ? outPath.getFileName().toString() : "export");
-        outputDir = parent.resolve(baseName);
-
-        Files.createDirectories(outputDir);
+        if (output != null) throw new IOException("编码器不能重复初始化");
+        if (settings.getOutputPathAsPath() == null || totalFrames <= 0) throw new IOException("输出路径或总帧数无效");
+        output = StagedVideoOutput.sequence(StagedVideoOutput.sequenceTarget(settings.getOutputPathAsPath()));
+        outputDir = output.path();
+        expectedFrames = totalFrames;
 
         // 根据总帧数决定补零宽度（至少 5）
         int digits = Integer.toString(Math.max(1, totalFrames)).length();
@@ -55,23 +51,26 @@ public final class PngSequenceEncoder implements VideoEncoder {
             throw new IOException("image == null");
         }
 
-        String fileName = String.format("frame_%0" + padWidth + "d.png", frameIndex + 1);
+        if (frameIndex != encodedFrames || encodedFrames >= expectedFrames) throw new IOException("PNG 帧序号不连续");
+        String fileName = String.format(java.util.Locale.ROOT, "frame_%0" + padWidth + "d.png", frameIndex + 1);
         Path outFile = outputDir.resolve(fileName);
         image.writeTo(outFile.toFile());
+        encodedFrames++;
     }
 
     @Override
-    public void finish() {
-        // PNG 序列无需额外收尾
+    public void finish() throws IOException {
+        if (output == null || encodedFrames != expectedFrames) throw new IOException("PNG 序列帧数不完整");
+        output.commit();
     }
 
-    private static String stripExtension(String name) {
-        if (name == null) {
-            return "export";
+    @Override public void abort() {
+        if (output != null) {
+            try { output.close(); }
+            catch (IOException error) {
+                org.slf4j.LoggerFactory.getLogger(PngSequenceEncoder.class)
+                        .warn("[VideoExport] 临时 PNG 序列清理失败", error);
+            }
         }
-        int idx = name.lastIndexOf('.');
-        return idx >= 0 ? name.substring(0, idx) : name;
     }
 }
-
-
