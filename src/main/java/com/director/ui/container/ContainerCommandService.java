@@ -472,6 +472,8 @@ public class ContainerCommandService {
 
 	/**
 	 * 统一的预设更新入口：基于当前默认预设复制一份，应用修改函数后下发命令。
+	 * <p>
+	 * 默认动画预设只作为新建时间线片段的种子，不改变已有片段，因此即使容器已在时间线上也允许编辑。
 	 */
 	public void updatePreset(UUID containerId, Consumer<ContainerAnimationPreset> operation) {
 		if (operation == null) {
@@ -479,9 +481,6 @@ public class ContainerCommandService {
 		}
 		Container container = containerManager.getContainer(containerId);
 		if (container == null) {
-			return;
-		}
-		if (isTimelineControlled(container, "修改动画预设")) {
 			return;
 		}
 		ContainerAnimationPreset preset = container.getDefaultAnimationPreset().copy();

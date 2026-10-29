@@ -90,7 +90,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             if (container.getType() == ContainerType.GROUP) {
                 return renderGroupProperties(container);
             }
-            return renderStandardContainerProperties(container);
+            return renderStandardContainerProperties(container, timelineControlled);
         } finally {
             if (timelineControlled) {
                 ImGui.endDisabled();
@@ -151,7 +151,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         return modified;
     }
 
-    private boolean renderStandardContainerProperties(Container container) {
+    private boolean renderStandardContainerProperties(Container container, boolean timelineControlled) {
         boolean modified = false;
         UITheme.title(Icons.CONTAINER + " " + tr(DirectorLang.Properties.AdapterContainer.CONTAINER_TITLE));
 
@@ -202,10 +202,17 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             ImGui.unindent();
         }
 
+        // 默认动画预设仅作新建片段种子，时间线占用时仍可编辑。
+        if (timelineControlled) {
+            ImGui.endDisabled();
+        }
         if (ImGui.collapsingHeader(Icons.ANIMATION + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_ANIMATION))) {
             ImGui.indent();
             modified |= renderAnimationSection(container);
             ImGui.unindent();
+        }
+        if (timelineControlled) {
+            ImGui.beginDisabled();
         }
 
         if (ImGui.collapsingHeader(Icons.RULER + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_BOUNDS))) {
