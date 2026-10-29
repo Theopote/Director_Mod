@@ -211,7 +211,9 @@ public class ContainerPropertiesPanel {
 
         float dur = preset.getSuggestedDuration();
         float[] durBuf = { dur };
-        if (ImGui.sliderFloat(tr(DirectorLang.Properties.EmbeddedContainer.SUGGESTED_DURATION), durBuf, 0.1f, 60f, "%.1fs")) {
+        if (ImGui.sliderFloat(tr(DirectorLang.Properties.EmbeddedContainer.SUGGESTED_DURATION), durBuf,
+                ContainerAnimationPreset.MIN_SUGGESTED_DURATION,
+                ContainerAnimationPreset.MAX_SUGGESTED_DURATION, "%.2fs")) {
             controller.setPresetDuration(container.getId(), durBuf[0]);
         }
         if (ImGui.isItemHovered()) {

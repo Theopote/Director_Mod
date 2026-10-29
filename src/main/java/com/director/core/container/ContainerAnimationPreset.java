@@ -24,8 +24,16 @@ public final class ContainerAnimationPreset implements Serializable, Cloneable {
     private String ordering;
     private final Map<String, Object> params = new HashMap<>();
 
+    /** 建议动画时长默认值（秒） */
+    public static final float DEFAULT_SUGGESTED_DURATION = 0.05f;
+    /** 建议动画时长最小值（秒） */
+    public static final float MIN_SUGGESTED_DURATION = 0.0f;
+    /** 建议动画时长最大值（秒） */
+    public static final float MAX_SUGGESTED_DURATION = 10.0f;
+
     public ContainerAnimationPreset() {
-        this(AnimationMode.INSTANT, 2.0f, 0.0f, com.director.core.animation.easing.EasingFunction.LINEAR.name(), "Sequential");
+        this(AnimationMode.INSTANT, DEFAULT_SUGGESTED_DURATION, 0.0f,
+                com.director.core.animation.easing.EasingFunction.LINEAR.name(), "Sequential");
     }
 
     public ContainerAnimationPreset(AnimationMode mode,
@@ -34,7 +42,7 @@ public final class ContainerAnimationPreset implements Serializable, Cloneable {
                                     String easing,
                                     String ordering) {
         this.mode = Objects.requireNonNullElse(mode, AnimationMode.INSTANT);
-        this.suggestedDuration = Math.max(0.05f, suggestedDuration);
+        this.suggestedDuration = clampSuggestedDuration(suggestedDuration);
         this.delay = Math.max(0.0f, delay);
         this.easing = easing != null ? easing : com.director.core.animation.easing.EasingFunction.LINEAR.name();
         this.ordering = ordering != null ? ordering : "Sequential";
@@ -63,7 +71,14 @@ public final class ContainerAnimationPreset implements Serializable, Cloneable {
     }
 
     public void setSuggestedDuration(float suggestedDuration) {
-        this.suggestedDuration = Math.max(0.05f, suggestedDuration);
+        this.suggestedDuration = clampSuggestedDuration(suggestedDuration);
+    }
+
+    private static float clampSuggestedDuration(float suggestedDuration) {
+        if (!Float.isFinite(suggestedDuration)) {
+            return DEFAULT_SUGGESTED_DURATION;
+        }
+        return Math.max(MIN_SUGGESTED_DURATION, Math.min(MAX_SUGGESTED_DURATION, suggestedDuration));
     }
 
     public float getDelay() {

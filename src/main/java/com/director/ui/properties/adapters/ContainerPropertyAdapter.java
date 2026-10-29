@@ -506,7 +506,9 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
 
         float[] duration;
         duration = new float[]{preset.getSuggestedDuration()};
-        if (ImGui.dragFloat(tr(DirectorLang.Properties.AdapterContainer.SUGGESTED_DURATION), duration, 0.1f, 0.05f, 120.0f, "%.2fs")) {
+        if (ImGui.dragFloat(tr(DirectorLang.Properties.AdapterContainer.SUGGESTED_DURATION), duration, 0.05f,
+                ContainerAnimationPreset.MIN_SUGGESTED_DURATION,
+                ContainerAnimationPreset.MAX_SUGGESTED_DURATION, "%.2fs")) {
             ContainerAnimationPreset updated;
             updated = preset.copy();
             updated.setSuggestedDuration(duration[0]);
