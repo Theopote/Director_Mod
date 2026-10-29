@@ -96,6 +96,7 @@ public class TimelineClipBlockController {
     private float lastHandledPreviewTime = Float.NaN;
     private boolean timelineDrivingPaused = true;
     private boolean worldHandoffPending;
+    private long frameSequenceVisits;
     private final WholeContainerEffectCursor wholeEffectCursor = new WholeContainerEffectCursor();
     private TimelineModel observedModel;
     private final TimelineModel.ModelChangeListener modelChangeListener = changeType -> timelineRevision++;
@@ -525,6 +526,7 @@ public class TimelineClipBlockController {
         TimelinePlacementBudget.beginFrame(scrubbing, wasScrubbing, !playing && previewTimeChanged);
         wasScrubbing = scrubbing;
         worldHandoffPending = false;
+        frameSequenceVisits = 0;
 
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
 
@@ -997,7 +999,7 @@ public class TimelineClipBlockController {
             double msRerender = (tAfterRerender - tAfterEntries) / 1_000_000.0;
 
             LOGGER.info(
-                    "[Perf][TimelineClipBlockController] total={}ms (clear={}ms, step1_visible={}ms, diff={}ms, occlusion={}ms, step3_apply+entries={}ms, rerender={}ms) containers={}, visibleTotal={}, seqTotal={}, renderEntries={}",
+                    "[Perf][TimelineClipBlockController] total={}ms (clear={}ms, step1_visible={}ms, diff={}ms, occlusion={}ms, step3_apply+entries={}ms, rerender={}ms) containers={}, visibleTotal={}, seqTotal={}, sequenceVisits={}, renderEntries={}",
                     String.format("%.2f", msTotal),
                     String.format("%.2f", msClear),
                     String.format("%.2f", msStep1),
@@ -1008,6 +1010,7 @@ public class TimelineClipBlockController {
                     containerCount,
                     visibleTotal,
                     seqTotal,
+                    frameSequenceVisits,
                     renderEntryCount);
         }
     }
@@ -1403,13 +1406,23 @@ public class TimelineClipBlockController {
 
         // ===== 预计算单块时间窗口参数（避免每个 entry 重复走 BlockAnimationEngine 的时间窗口逻辑） =====
         ClipAnimationConfig.AnimationPhase phase = config.getPhase();
-        float clipDuration = Math.max(0.0001f, clipLength);
         var timing = com.director.core.animation.PerBlockAnimationTiming.layout(config, clipStart, clipEnd, sequenceEntries.getFirst());
         Float previousEffectsTime = previewMode ? null : perBlockEffectSampleTime.put(clip, currentTime);
-
-
-        // 🔥 步骤 1：遍历当前片段的所有 BlockSequenceEntry
-        for (BlockSequenceEntry entry : sequenceEntries) {
+        boolean isInstant = config.getMode() == com.director.core.container.AnimationMode.INSTANT;
+        int[] visibleRange = null;
+        var cache = sequenceCacheByClip.get(clip);
+        if (cache != null && cache.entries == sequenceEntries)
+            visibleRange = cache.visibility.entryRange(visibleBlocks);
+        var ranges = PerBlockFrameRanges.select(sequenceEntries, timing, currentTime,
+                config.getEffects().isEmpty() ? null : previousEffectsTime,
+                phase == ClipAnimationConfig.AnimationPhase.EXIT, isInstant,
+                visibleRange != null ? visibleRange[0] : 0,
+                visibleRange != null ? visibleRange[1] : sequenceEntries.size());
+        int registeredEntries = 0;
+        for (var range : ranges) frameSequenceVisits += range.to() - range.from();
+        // Merge render and event ranges so each position keeps its original event/sample ordering.
+        for (var range : ranges) for (int index = range.from(); index < range.to(); index++) {
+            BlockSequenceEntry entry = sequenceEntries.get(index);
             if (entry == null) {
                 continue;
             }
@@ -1443,7 +1456,6 @@ public class TimelineClipBlockController {
             float blockEndTime = window.end();
 
             // INSTANT 模式：不需要动画窗口，直接按序列出现
-            boolean isInstant = config.getMode() == com.director.core.container.AnimationMode.INSTANT;
             boolean inAnimWindow = !isInstant && currentTime >= blockStartTime && currentTime < blockEndTime;
 
             // ENTER：未到开始时间，理论上不应在 visibleBlocks 中；保险跳过
@@ -1564,11 +1576,12 @@ public class TimelineClipBlockController {
                             entry, // 🔥 sequence entry（决定 normalizedTime）
                             snapshot // ✅ 传入使用时间线时间采样的 snapshot
                     ));
+            registeredEntries++;
         }
 
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[TimelineClipBlockController] registerRenderEntries completed: {} entries added",
-                    sequenceEntries.stream().filter(e -> e != null && visibleBlocks.contains(e.getPos())).count());
+                    registeredEntries);
         }
     }
 

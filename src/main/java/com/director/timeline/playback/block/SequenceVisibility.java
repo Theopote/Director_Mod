@@ -73,6 +73,13 @@ final class SequenceVisibility {
         return null;
     }
 
+    /** Bounds of schedule entries represented by a frame, excluding legacy positions without entries. */
+    int[] entryRange(Set<BlockPos> set) {
+        int[] range = range(set);
+        if (range != null) range[1] = Math.min(range[1], entries.size());
+        return range;
+    }
+
     private void visitRange(int from, int to, Consumer<BlockPos> action) {
         for (int i = from; i < Math.min(to, entries.size()); i++) {
             var entry = entries.get(i);
