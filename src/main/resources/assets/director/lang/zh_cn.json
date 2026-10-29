@@ -1885,7 +1885,7 @@
   "gui.director.timeline.jump_label": "跳转:",
   "gui.director.timeline.snap": "吸附",
   "gui.director.timeline.snap_tooltip": "快捷键：按住 Ctrl 临时切换",
-  "gui.director.timeline.zoom_label": "缩放: %.0f",
+  "gui.director.timeline.zoom_label": "缩放",
   "gui.director.timeline.fit_view": "适应",
   "gui.director.timeline.fit_view_tooltip": "自动缩放以查看整个时间线",
   "gui.director.timeline.scrub_label": "定位:",

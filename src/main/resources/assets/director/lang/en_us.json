@@ -1885,7 +1885,7 @@
   "gui.director.timeline.jump_label": "Jump:",
   "gui.director.timeline.snap": "Snap",
   "gui.director.timeline.snap_tooltip": "Shortcut: hold Ctrl to toggle temporarily",
-  "gui.director.timeline.zoom_label": "Zoom: %.0f",
+  "gui.director.timeline.zoom_label": "Zoom",
   "gui.director.timeline.fit_view": "Fit",
   "gui.director.timeline.fit_view_tooltip": "Auto-zoom to fit the entire timeline",
   "gui.director.timeline.scrub_label": "Seek:",

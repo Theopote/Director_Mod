@@ -289,7 +289,7 @@ public class TimelineControlBar {
         ImGui.sameLine();
         
         ImGui.alignTextToFramePadding();
-        ImGui.text(DirectorI18n.translate(DirectorLang.Timeline.ZOOM_LABEL, viewportState.getPixelsPerSecond()));
+        ImGui.text(tr(DirectorLang.Timeline.ZOOM_LABEL));
 
         ImGui.sameLine();
         // ========== 适应视图按钮 ==========
@@ -302,7 +302,7 @@ public class TimelineControlBar {
 
         ImGui.sameLine();
 
-        // ========== 缩放滑块 ==========
+        // ========== 缩放滑块（数值显示在滑条上） ==========
         tempPps[0] = viewportState.getPixelsPerSecond();
         
         // 计算剩余空间
@@ -315,7 +315,7 @@ public class TimelineControlBar {
         
         if (availWidth > MIN_AVAILABLE_WIDTH) { 
             ImGui.pushItemWidth(zoomSliderWidth);
-            if (ImGui.sliderFloat("##zoom", tempPps, viewportState.getMinPixelsPerSecond(), viewportState.getMaxPixelsPerSecond(), "")) {
+            if (ImGui.sliderFloat("##zoom", tempPps, viewportState.getMinPixelsPerSecond(), viewportState.getMaxPixelsPerSecond(), "%.1f")) {
                 viewportState.setPixelsPerSecond(tempPps[0]);
             }
             ImGui.popItemWidth();
