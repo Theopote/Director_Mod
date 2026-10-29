@@ -5,6 +5,7 @@ import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionInputHandler;
 import com.director.export.video.VideoExportManager;
 import com.director.ui.DirectorScreen;
+import com.director.ui.imgui.ImGuiRenderer;
 import com.director.ui.tools.ToolRegistry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
@@ -119,6 +120,10 @@ public abstract class MouseMixin {
             selectionInputHandler = new SelectionInputHandler();
         }
 
+        if (client.currentScreen instanceof DirectorScreen) {
+            feedImGuiMouseButton(window, button, action, mods);
+        }
+
         // 🎥 中键：切换视角拖拽模式
         if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
             director$isDragging = (action == GLFW.GLFW_PRESS);
@@ -212,9 +217,34 @@ public abstract class MouseMixin {
     @Inject(method = "onMouseScroll", at = @At("HEAD"), cancellable = true)
     private void onMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
         if (client.currentScreen instanceof DirectorScreen screen) {
+            feedImGuiScroll(window, horizontal, vertical);
             if (isHoveringDirectorUI(screen)) {
                 ci.cancel();
             }
+        }
+    }
+
+    @Unique
+    private void feedImGuiMouseButton(long window, int button, int action, int mods) {
+        try {
+            ImGuiRenderer imgui = DirectorServices.get().imgui();
+            if (imgui != null && imgui.isInitialized()) {
+                imgui.feedMouseButtonEvent(window, button, action, mods);
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[MouseMixin] 无法转发鼠标按键到 ImGui: {}", e.getMessage());
+        }
+    }
+
+    @Unique
+    private void feedImGuiScroll(long window, double horizontal, double vertical) {
+        try {
+            ImGuiRenderer imgui = DirectorServices.get().imgui();
+            if (imgui != null && imgui.isInitialized()) {
+                imgui.feedScrollEvent(window, horizontal, vertical);
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[MouseMixin] 无法转发滚轮到 ImGui: {}", e.getMessage());
         }
     }
 

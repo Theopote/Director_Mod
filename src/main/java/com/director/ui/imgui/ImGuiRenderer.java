@@ -30,6 +30,7 @@ public class ImGuiRenderer {
 
     private ImGuiImplGlfw imGuiGlfw;
     private ImGuiImplGl3 imGuiGl3;
+    private ImGuiContext directorContext;
     private final DetachedDirectorWindow detachedDirectorWindow = new DetachedDirectorWindow();
     private long windowHandle;
     private long backendWindowHandle;
@@ -37,6 +38,14 @@ public class ImGuiRenderer {
     private boolean frameInProgress;
     private boolean drawDataReady;
     private boolean externalViewportsEnabled = false;
+    /**
+     * 主窗口不安装 GLFW 回调，改为由 Keyboard/Mouse Mixin 单次投递，避免与 Minecraft
+     * 或其他 ImGui 模组的回调链叠层导致每个字符入队两次（如 123→112233）。
+     * 分离窗口是独立 GLFW 窗口，可安全安装回调。
+     */
+    private static boolean shouldInstallGlfwCallbacks(long targetWindowHandle, long primaryWindowHandle) {
+        return targetWindowHandle != 0L && targetWindowHandle != primaryWindowHandle;
+    }
 
     // perf (throttled)
     private long lastPerfLogMs = 0L;
@@ -112,11 +121,11 @@ public class ImGuiRenderer {
             }
 
             // 初始化 ImGui - 始终创建并设置上下文（无 Treefactory 时 getCurrentContext 为 null，必须创建）
-            ImGuiContext ctx = ImGui.createContext();
-            if (ctx == null) {
+            directorContext = ImGui.createContext();
+            if (directorContext == null) {
                 throw new RuntimeException("[Director] ImGui.createContext() 返回 null");
             }
-            ImGui.setCurrentContext(ctx);
+            ImGui.setCurrentContext(directorContext);
 
             // 配置 ImGui IO
             ImGuiIO io = ImGui.getIO();
@@ -144,15 +153,16 @@ public class ImGuiRenderer {
 
             // 不在此处设置样式；DirectorStyleScope 在每帧渲染时临时 push 样式，渲染后 pop，避免影响 Treefactory 等模组
 
-            // 初始化 GLFW 实现
+            // 初始化 GLFW 实现（主窗口不安装回调，输入由 Mixin 单次转发）
             LOGGER.debug("[Director] Initializing GLFW implementation...");
             imGuiGlfw = new ImGuiImplGlfw();
-            // installCallbacks = true: 让 ImGui 接收键盘和鼠标输入
-            if (!imGuiGlfw.init(windowHandle, true)) {
+            boolean installCallbacks = shouldInstallGlfwCallbacks(windowHandle, windowHandle);
+            if (!imGuiGlfw.init(windowHandle, installCallbacks)) {
                 LOGGER.error("[Director] Failed to initialize GLFW implementation");
                 throw new RuntimeException("ImGui GLFW implementation init failed");
             }
-            LOGGER.info("[Director] ImGui GLFW callbacks installed (keyboard input enabled)");
+            LOGGER.info("[Director] ImGui GLFW backend ready (installCallbacks={}, input via Mixin on primary window)",
+                    installCallbacks);
 
             // 初始化 OpenGL3 实现
             LOGGER.debug("[Director] Initializing OpenGL3 implementation...");
@@ -222,6 +232,7 @@ public class ImGuiRenderer {
 
             try {
                 LOGGER.debug("[Director] Beginning ImGui frame...");
+                activateDirectorContext();
 
                 // 检查并更新INI文件路径（如果世界已切换）
                 checkAndUpdateIniPath();
@@ -247,6 +258,51 @@ public class ImGuiRenderer {
         }
     }
 
+    /**
+     * 主窗口输入由 Mixin 单次转发；分离窗口已自带 GLFW 回调，勿再转发以免双倍字符。
+     */
+    public boolean shouldFeedMinecraftInput() {
+        return initialized && imGuiGlfw != null && !detachedDirectorWindow.isOpen();
+    }
+
+    public void feedKeyEvent(long window, int key, int scancode, int action, int mods) {
+        if (!shouldFeedMinecraftInput()) {
+            return;
+        }
+        activateDirectorContext();
+        imGuiGlfw.keyCallback(window, key, scancode, action, mods);
+    }
+
+    public void feedCharEvent(long window, int codepoint) {
+        if (!shouldFeedMinecraftInput() || codepoint <= 0) {
+            return;
+        }
+        activateDirectorContext();
+        imGuiGlfw.charCallback(window, codepoint);
+    }
+
+    public void feedMouseButtonEvent(long window, int button, int action, int mods) {
+        if (!shouldFeedMinecraftInput()) {
+            return;
+        }
+        activateDirectorContext();
+        imGuiGlfw.mouseButtonCallback(window, button, action, mods);
+    }
+
+    public void feedScrollEvent(long window, double horizontal, double vertical) {
+        if (!shouldFeedMinecraftInput()) {
+            return;
+        }
+        activateDirectorContext();
+        imGuiGlfw.scrollCallback(window, horizontal, vertical);
+    }
+
+    private void activateDirectorContext() {
+        if (directorContext != null) {
+            ImGui.setCurrentContext(directorContext);
+        }
+    }
+
     // updateInput 已废弃：输入由 ImGuiImplGlfw 维护，手动覆盖易导致 1.21.x 坐标/缩放不一致问题。
 
     /**
@@ -261,6 +317,7 @@ public class ImGuiRenderer {
 
             try {
                 LOGGER.debug("[Director] Ending ImGui frame...");
+                activateDirectorContext();
                 
                 // 合并模式：不需要弹出字体
                 
@@ -287,6 +344,7 @@ public class ImGuiRenderer {
             }
             try {
                 RenderSystem.assertOnRenderThread();
+                activateDirectorContext();
                 final long t0 = System.nanoTime();
                 
                 // 保存当前OpenGL状态（多视口会切换上下文）
@@ -404,19 +462,25 @@ public class ImGuiRenderer {
             return;
         }
 
+        activateDirectorContext();
         try {
             if (imGuiGlfw != null) {
                 imGuiGlfw.dispose();
+                imGuiGlfw = null;
             }
         } catch (Exception e) {
-            LOGGER.debug("[Director] Rebinding ImGui GLFW backend dispose failed: {}", e.getMessage());
+            LOGGER.error("[Director] Rebinding ImGui GLFW backend dispose failed; refusing to reinstall callbacks", e);
+            return;
         }
 
+        boolean installCallbacks = shouldInstallGlfwCallbacks(newWindowHandle, windowHandle);
         imGuiGlfw = new ImGuiImplGlfw();
-        if (!imGuiGlfw.init(newWindowHandle, true)) {
+        if (!imGuiGlfw.init(newWindowHandle, installCallbacks)) {
             throw new RuntimeException("ImGui GLFW backend rebind failed");
         }
         backendWindowHandle = newWindowHandle;
+        LOGGER.info("[Director] ImGui GLFW backend rebound to {} (installCallbacks={})",
+                newWindowHandle, installCallbacks);
     }
 
     public void restorePrimaryPlatformBackend() {
@@ -450,6 +514,7 @@ public class ImGuiRenderer {
                     imGuiGlfw = null;
                 }
 
+                directorContext = null;
                 initialized = false;
                 frameInProgress = false;
                 windowHandle = 0;
