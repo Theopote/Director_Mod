@@ -910,6 +910,7 @@ public class TimelineClipBlockController {
         } catch (Exception ignored) {
         }
         cleanupContainersNoLongerControlled(desiredWorldBlocks.keySet(), visibilityService, visualStateManager, rerender);
+        int visualCandidates = visualStateManager.getChangeCandidateCount();
 
         for (var pos : rerender) {
             if (visualStateManager.hasWorldSuppressionChanged(pos))
@@ -1011,7 +1012,7 @@ public class TimelineClipBlockController {
             double msRerender = (tAfterRerender - tAfterEntries) / 1_000_000.0;
 
             LOGGER.info(
-                    "[Perf][TimelineClipBlockController] total={}ms (clear={}ms, step1_visible={}ms, diff={}ms, occlusion={}ms, step3_apply+entries={}ms, rerender={}ms) containers={}, visibleTotal={}, seqTotal={}, sequenceVisits={}, settledChecks={}, settledSkipped={}, renderEntries={}",
+                    "[Perf][TimelineClipBlockController] total={}ms (clear={}ms, step1_visible={}ms, diff={}ms, occlusion={}ms, step3_apply+entries={}ms, rerender={}ms) containers={}, visibleTotal={}, seqTotal={}, sequenceVisits={}, settledChecks={}, settledSkipped={}, visualCandidates={}, renderEntries={}",
                     String.format("%.2f", msTotal),
                     String.format("%.2f", msClear),
                     String.format("%.2f", msStep1),
@@ -1025,6 +1026,7 @@ public class TimelineClipBlockController {
                     frameSequenceVisits,
                     frameSettledChecks,
                     frameSettledSkipped,
+                    visualCandidates,
                     renderEntryCount);
         }
     }

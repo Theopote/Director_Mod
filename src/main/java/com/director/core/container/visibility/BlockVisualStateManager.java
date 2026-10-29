@@ -44,6 +44,14 @@ public class BlockVisualStateManager {
         
         // 向后兼容字段
         private boolean useOverlay = false;  // 是否使用覆盖层渲染（用于半透明效果）
+        private int managedReferences;
+
+        private void beforeMutation() {
+            if (managedReferences > 0 && instance != null) {
+                instance.rememberMutation(this);
+                ClientSectionInvalidation.getInstance().invalidateAllVisual();
+            }
+        }
 
         public BlockVisualState() {
         }
@@ -101,8 +109,9 @@ public class BlockVisualStateManager {
         public void setMode(BlockRenderMode mode) {
             BlockRenderMode next = mode != null ? mode : BlockRenderMode.SOLID;
             boolean overlay = next == BlockRenderMode.GHOST_WITH_DEPTH || next == BlockRenderMode.GHOST_NO_DEPTH;
-            if (this.mode != next || this.useOverlay != overlay)
-                ClientSectionInvalidation.getInstance().invalidateAllVisual();
+            if (this.mode != next || this.useOverlay != overlay) {
+                beforeMutation();
+            }
             this.mode = next;
             this.useOverlay = overlay;
         }
@@ -140,8 +149,9 @@ public class BlockVisualStateManager {
          * @param suppressWorldRendering 是否阻止世界方块渲染
          */
         public void setSuppressWorldRendering(boolean suppressWorldRendering) {
-            if (this.suppressWorldRendering != suppressWorldRendering)
-                ClientSectionInvalidation.getInstance().invalidateAllVisual();
+            if (this.suppressWorldRendering != suppressWorldRendering) {
+                beforeMutation();
+            }
             this.suppressWorldRendering = suppressWorldRendering;
         }
 
@@ -169,7 +179,9 @@ public class BlockVisualStateManager {
         }
         
         public void setHidden(boolean hidden) {
-            if (hidden != isHidden()) ClientSectionInvalidation.getInstance().invalidateAllVisual();
+            if (hidden ? mode != BlockRenderMode.HIDDEN || alphaMultiplier != 0 : mode == BlockRenderMode.HIDDEN) {
+                beforeMutation();
+            }
             if (hidden) {
                 this.mode = BlockRenderMode.HIDDEN;
                 this.alphaMultiplier = 0.0f;
@@ -184,8 +196,9 @@ public class BlockVisualStateManager {
         }
         
         public void setAlpha(float alpha) {
-            if (Float.compare(this.alphaMultiplier, Math.clamp(alpha, 0f, 1f)) != 0)
-                ClientSectionInvalidation.getInstance().invalidateAllVisual();
+            if (Float.compare(this.alphaMultiplier, Math.clamp(alpha, 0f, 1f)) != 0) {
+                beforeMutation();
+            }
             this.alphaMultiplier = Math.clamp(alpha, 0f, 1f);
         }
         
@@ -208,7 +221,9 @@ public class BlockVisualStateManager {
         }
 
         public void setUseOverlay(boolean useOverlay) {
-            if (this.useOverlay != useOverlay) ClientSectionInvalidation.getInstance().invalidateAllVisual();
+            if (this.useOverlay != useOverlay) {
+                beforeMutation();
+            }
             this.useOverlay = useOverlay;
         }
 
@@ -283,10 +298,28 @@ public class BlockVisualStateManager {
     private final Map<BlockPos, BlockVisualState> visualOverrides = new HashMap<>();
     private final Map<BlockPos, RenderEntry> renderEntries = new HashMap<>();
     
-    /**
-     * 上一帧的状态（用于检测变化）
-     */
-    private final Map<BlockPos, BlockVisualState> lastFrameStates = new HashMap<>();
+    /** Immutable values before the first write this frame. Untouched positions need no snapshot. */
+    private record FrameState(boolean present, BlockRenderMode mode, float alpha, boolean overlay, boolean suppress) {
+        static final FrameState ABSENT = new FrameState(false, null, 1, false, false);
+        static FrameState of(BlockVisualState state) {
+            return state == null ? ABSENT : new FrameState(true, state.getMode(), state.getAlpha(),
+                    state.shouldUseOverlay(), state.shouldSuppressWorldRendering());
+        }
+    }
+    private Map<BlockPos, FrameState> frameBefore = new HashMap<>();
+
+    private void rememberBefore(BlockPos pos, BlockVisualState previous) {
+        if (!frameBefore.containsKey(pos)) frameBefore.put(pos, FrameState.of(previous));
+    }
+
+    private void rememberMutation(BlockVisualState state) {
+        // Direct mutation of an installed shared object is rare. Only that compatibility path
+        // scans ownership; ordinary replacement writes and newly constructed states do not.
+        for (var entry : visualOverrides.entrySet()) if (entry.getValue() == state) {
+            rememberBefore(entry.getKey(), state);
+            overlayRefresh.add(entry.getKey());
+        }
+    }
     
     private BlockVisualStateManager() {
     }
@@ -306,24 +339,29 @@ public class BlockVisualStateManager {
      */
     public void clearFrame() {
         ClientSectionInvalidation.getInstance().invalidateAllVisual();
+        for (var entry : visualOverrides.entrySet()) {
+            rememberBefore(entry.getKey(), entry.getValue());
+            entry.getValue().managedReferences--;
+        }
         animationBaseStates.clear();
         visualOverrides.clear();
         renderEntries.clear();
-        overlayBlocksCacheDirty = true;  // ⭐ 标记缓存为脏
+        cachedOverlayBlocks.clear();
+        overlayRefresh = new HashSet<>();
     }
 
-    private final Map<BlockPos, BlockVisualState> animationBaseStates = new HashMap<>();
+    private Map<BlockPos, BlockVisualState> animationBaseStates = new HashMap<>();
 
     /** Keep persistent visibility deltas, but remove last frame's temporary animation suppression. */
     public void beginTimelineFrame() {
         for (var entry : animationBaseStates.entrySet()) setBlockState(entry.getKey(), entry.getValue());
-        animationBaseStates.clear();
+        if (!animationBaseStates.isEmpty()) animationBaseStates = new HashMap<>();
         renderEntries.clear();
-        overlayBlocksCacheDirty = true;
     }
 
     public void setAnimatedBlockState(BlockPos pos, BlockVisualState state) {
-        animationBaseStates.putIfAbsent(pos, getBlockState(pos));
+        if (pos == null || state == null) return;
+        if (!animationBaseStates.containsKey(pos)) animationBaseStates.put(pos, getBlockState(pos));
         setBlockState(pos, state);
     }
 
@@ -343,12 +381,18 @@ public class BlockVisualStateManager {
             if (pos == null) {
                 continue;
             }
-            if (visualOverrides.remove(pos) != null) ClientSectionInvalidation.getInstance().invalidateVisual(pos);
+            var previous = visualOverrides.get(pos);
+            if (previous != null) {
+                rememberBefore(pos, previous);
+                visualOverrides.remove(pos);
+                previous.managedReferences--;
+                ClientSectionInvalidation.getInstance().invalidateVisual(pos);
+            }
             animationBaseStates.remove(pos);
             renderEntries.remove(pos);
-            lastFrameStates.remove(pos);
+            cachedOverlayBlocks.remove(pos);
+            overlayRefresh.remove(pos);
         }
-        overlayBlocksCacheDirty = true;  // ⭐ 标记缓存为脏
     }
 
     /**
@@ -361,9 +405,17 @@ public class BlockVisualStateManager {
         if (pos == null || state == null) {
             return;
         }
-        var previous = visualOverrides.put(pos, state);
-        if (!sameVisualState(previous, state)) ClientSectionInvalidation.getInstance().invalidateVisual(pos);
-        overlayBlocksCacheDirty = true;  // ⭐ 标记缓存为脏
+        var previous = visualOverrides.get(pos);
+        boolean same = sameVisualState(previous, state);
+        if (previous == null || !same) rememberBefore(pos, previous);
+        if (previous != state) {
+            if (previous != null) previous.managedReferences--;
+            state.managedReferences++;
+            visualOverrides.put(pos, state);
+        }
+        if (!same) ClientSectionInvalidation.getInstance().invalidateVisual(pos);
+        updateOverlay(pos, state);
+        overlayRefresh.remove(pos);
     }
 
     private static boolean sameVisualState(BlockVisualState previous, BlockVisualState next) {
@@ -389,7 +441,6 @@ public class BlockVisualStateManager {
                 setBlockState(pos, state);
             }
         }
-        overlayBlocksCacheDirty = true;  // ⭐ 标记缓存为脏
     }
     
     /**
@@ -402,7 +453,8 @@ public class BlockVisualStateManager {
         if (pos == null) {
             return BlockVisualState.normal();
         }
-        return visualOverrides.getOrDefault(pos, BlockVisualState.normal());
+        var state = visualOverrides.get(pos);
+        return state != null ? state : BlockVisualState.normal();
     }
 
     /**
@@ -457,10 +509,18 @@ public class BlockVisualStateManager {
     public Collection<RenderEntry> getRenderEntries() {
         return renderEntries.values();
     }
+
+    public boolean hasRenderEntry(BlockPos pos) { return renderEntries.containsKey(pos); }
     
     // ⭐ 性能关键：缓存覆盖层方块集合，避免每帧重新构建
-    private Set<BlockPos> cachedOverlayBlocks = new HashSet<>();
-    private boolean overlayBlocksCacheDirty = true;
+    private final Set<BlockPos> cachedOverlayBlocks = new HashSet<>();
+    private final Set<BlockPos> overlayView = Collections.unmodifiableSet(cachedOverlayBlocks);
+    private Set<BlockPos> overlayRefresh = new HashSet<>();
+
+    private void updateOverlay(BlockPos pos, BlockVisualState state) {
+        if (state != null && state.shouldUseOverlay() && !state.isHidden()) cachedOverlayBlocks.add(pos);
+        else cachedOverlayBlocks.remove(pos);
+    }
 
     /**
      * 获取所有需要覆盖层渲染的方块
@@ -468,17 +528,11 @@ public class BlockVisualStateManager {
      * @return 方块位置集合
      */
     public Set<BlockPos> getOverlayBlocks() {
-        // ⭐ 性能优化：只有在状态变化时才重新计算
-        if (overlayBlocksCacheDirty) {
-            cachedOverlayBlocks.clear();
-            for (Map.Entry<BlockPos, BlockVisualState> entry : visualOverrides.entrySet()) {
-                if (entry.getValue().shouldUseOverlay() && !entry.getValue().isHidden()) {
-                    cachedOverlayBlocks.add(entry.getKey());
-                }
-            }
-            overlayBlocksCacheDirty = false;
+        if (!overlayRefresh.isEmpty()) {
+            for (var pos : overlayRefresh) updateOverlay(pos, visualOverrides.get(pos));
+            overlayRefresh = new HashSet<>();
         }
-        return cachedOverlayBlocks;
+        return overlayView;
     }
 
     /**
@@ -500,8 +554,8 @@ public class BlockVisualStateManager {
      * 完成当前帧（将当前状态保存为上一帧状态）
      */
     public void finishFrame() {
-        lastFrameStates.clear();
-        lastFrameStates.putAll(visualOverrides);
+        // Replacing avoids retaining a huge initial journal's backing table for tiny later deltas.
+        if (!frameBefore.isEmpty()) frameBefore = new HashMap<>();
     }
     
     /**
@@ -509,28 +563,22 @@ public class BlockVisualStateManager {
      */
     public boolean hasWorldSuppressionChanged(BlockPos pos) {
         var current = visualOverrides.get(pos);
-        var previous = lastFrameStates.get(pos);
+        var previous = frameBefore.get(pos);
+        if (previous == null) return false;
         return (current != null && current.shouldSuppressWorldRendering())
-                != (previous != null && previous.shouldSuppressWorldRendering());
+                != previous.suppress();
     }
 
     /** 检查包含透明度、模式及世界渲染抑制在内的全部视觉状态变化。 */
     public boolean hasStateChanged(BlockPos pos) {
         BlockVisualState current = visualOverrides.get(pos);
-        BlockVisualState last = lastFrameStates.get(pos);
-        
-        if (current == null && last == null) {
-            return false;
-        }
-        if (current == null || last == null) {
-            return true;
-        }
-        
-        return current.isHidden() != last.isHidden() ||
-               Math.abs(current.getAlpha() - last.getAlpha()) > 0.01f ||
-               current.shouldUseOverlay() != last.shouldUseOverlay() ||
-               current.getMode() != last.getMode() ||
-               current.shouldSuppressWorldRendering() != last.shouldSuppressWorldRendering();
+        FrameState last = frameBefore.get(pos);
+        if (last == null) return false;
+        if (current == null) return last.present();
+        if (!last.present()) return true;
+        return Math.abs(current.getAlpha() - last.alpha()) > 0.01f
+                || current.shouldUseOverlay() != last.overlay() || current.getMode() != last.mode()
+                || current.shouldSuppressWorldRendering() != last.suppress();
     }
     
     /**
@@ -541,31 +589,29 @@ public class BlockVisualStateManager {
     public Set<BlockPos> getChangedBlocks() {
         Set<BlockPos> changed = new HashSet<>();
         
-        // 检查当前帧的所有方块
-        for (BlockPos pos : visualOverrides.keySet()) {
+        for (BlockPos pos : frameBefore.keySet()) {
             if (hasStateChanged(pos)) {
-                changed.add(pos);
-            }
-        }
-        
-        // 检查上一帧存在但当前帧不存在的方块（状态被清除）
-        for (BlockPos pos : lastFrameStates.keySet()) {
-            if (!visualOverrides.containsKey(pos)) {
                 changed.add(pos);
             }
         }
         
         return changed;
     }
+
+    /** Positions written/mutated this frame, including net-zero transitions. */
+    public int getChangeCandidateCount() { return frameBefore.size(); }
     
     /**
      * 清除所有状态
      */
     public void clearAll() {
         ClientSectionInvalidation.getInstance().invalidateAllVisual();
+        for (var state : visualOverrides.values()) state.managedReferences--;
         animationBaseStates.clear();
         visualOverrides.clear();
-        lastFrameStates.clear();
+        frameBefore = new HashMap<>();
+        cachedOverlayBlocks.clear();
+        overlayRefresh = new HashSet<>();
         renderEntries.clear();
     }
 

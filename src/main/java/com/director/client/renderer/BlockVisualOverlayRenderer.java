@@ -9,7 +9,6 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import java.util.ArrayList;
-import java.util.HashSet;
 
 /** Non-timeline ghost states share the textured renderer; timeline entries render exactly once. */
 public class BlockVisualOverlayRenderer {
@@ -21,11 +20,11 @@ public class BlockVisualOverlayRenderer {
         var manager = BlockVisualStateManager.getInstance();
         var client = MinecraftClient.getInstance();
         if (!manager.hasActiveOverrides() || client.world == null) return;
-        var registered = new HashSet<BlockPos>();
-        for (var entry : manager.getRenderEntries()) if (entry != null) registered.add(entry.pos());
+        var overlays = manager.getOverlayBlocks();
+        if (overlays.isEmpty()) return;
         var fallback = new ArrayList<BlockVisualStateManager.RenderEntry>();
-        for (var pos : manager.getOverlayBlocks()) {
-            if (registered.contains(pos)) continue;
+        for (var pos : overlays) {
+            if (manager.hasRenderEntry(pos)) continue;
             var visual = manager.getBlockState(pos);
             if (visual.isHidden() || visual.getAlphaMultiplier() <= 0 || visual.getAlphaMultiplier() >= 1) continue;
             var state = client.world.getBlockState(pos);
