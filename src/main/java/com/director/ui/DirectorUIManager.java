@@ -690,6 +690,11 @@ public class DirectorUIManager {
      * {@link com.director.export.video.VideoExportTask}（逐帧渲染 + FFmpeg/PNG 编码）。</p>
      */
     public void startVideoExport(VideoExportSettings settings) {
+        // A second request must not reset the overlay of the export already in progress.
+        if (VideoExportManager.getInstance().isExporting()) {
+            LOGGER.warn("[VideoExport] 已有导出任务，保留当前进度显示");
+            return;
+        }
         if (settings == null) {
             return;
         }
@@ -702,6 +707,12 @@ public class DirectorUIManager {
             @Override
             public void onProgress(float progress01, String message) {
                 videoExportProgressOverlay.setProgress(progress01, message);
+            }
+
+            @Override
+            public void onCanceled(String message) {
+                videoExportProgressOverlay.setCanceled(message);
+                LOGGER.info("[VideoExport] {}", message);
             }
 
             @Override

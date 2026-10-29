@@ -145,6 +145,62 @@ class FFmpegVideoEncoderTest {
         assertThrows(IOException.class, () -> missing.init(settings, 1));
     }
 
+    @Test void stalledFinalFlushIsTerminatedAutomaticallyWithoutUserCancellation() throws Exception {
+        var settings = settings();
+        Files.writeString(settings.getOutputPathAsPath(), "previous");
+        var process = new FakeProcess(); process.blockWrites = true;
+        var command = new AtomicReference<List<String>>();
+        var encoder = new FFmpegVideoEncoder(() -> "test-ffmpeg", args -> {
+            command.set(args);
+            Files.writeString(Path.of(args.getLast()), "partial");
+            return process;
+        }, 1000, 50);
+        encoder.init(settings, 1);
+        encoder.encodeRgbaFrame(ByteBuffer.allocate(1024), 0);
+        IOException failure = assertTimeoutPreemptively(Duration.ofSeconds(2),
+                () -> assertThrows(IOException.class, encoder::finish));
+        assertTrue(failure.getMessage().contains("停滞"));
+        assertTrue(process.destroyed);
+        assertEquals("previous", Files.readString(settings.getOutputPathAsPath()));
+        assertFalse(Files.exists(Path.of(command.get().getLast())));
+    }
+
+    @Test void stalledFrameWriteIsTerminatedAutomaticallyAndReportedAsFailure() throws Exception {
+        var settings = settings(); settings.width = 1024; settings.height = 512;
+        var process = new FakeProcess(); process.blockWrites = true;
+        var command = new AtomicReference<List<String>>();
+        var encoder = new FFmpegVideoEncoder(() -> "test-ffmpeg", args -> {
+            command.set(args);
+            Files.writeString(Path.of(args.getLast()), "partial");
+            return process;
+        }, 1000, 50);
+        try {
+            encoder.init(settings, 1);
+            IOException failure = assertTimeoutPreemptively(Duration.ofSeconds(2), () ->
+                    assertThrows(IOException.class, () -> encoder.encodeRgbaFrame(ByteBuffer.allocate(1024 * 512 * 4), 0)));
+            assertTrue(failure.getMessage().contains("停滞"));
+            assertTrue(process.destroyed);
+            assertFalse(Files.exists(settings.getOutputPathAsPath()));
+        } finally { encoder.abort(); }
+        assertFalse(Files.exists(Path.of(command.get().getLast())));
+    }
+
+    @Test void slowRenderingBetweenWritesDoesNotConsumeTheIoDeadline() throws Exception {
+        var process = new FakeProcess();
+        var encoder = new FFmpegVideoEncoder(() -> "test-ffmpeg", args -> {
+            Files.writeString(Path.of(args.getLast()), "complete");
+            return process;
+        }, 1000, 50);
+        try {
+            encoder.init(settings(), 1);
+            encoder.encodeRgbaFrame(ByteBuffer.allocate(1024), 0);
+            assertFalse(process.exited.await(200, TimeUnit.MILLISECONDS));
+            assertFalse(process.destroyed);
+            encoder.finish();
+            assertTrue(Files.exists(settings().getOutputPathAsPath()));
+        } finally { encoder.abort(); }
+    }
+
     private static final class FakeProcess extends Process {
         final ByteArrayOutputStream received = new ByteArrayOutputStream();
         final CountDownLatch exited = new CountDownLatch(1);

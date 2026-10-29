@@ -5,7 +5,6 @@ import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.camera.CameraViewportProfile;
-import com.director.timeline.model.camera.ViewportMath;
 import com.director.timeline.playback.camera.TimelineCameraController;
 
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -32,7 +31,7 @@ import java.util.function.Consumer;
  * 视频导出抓帧管线（v1：基于主 Framebuffer）。
  *
  * <p>流程：后台线程请求时间点 → 客户端线程驱动 {@link TimelinePlaybackSampler}
- * 与相机 → 当帧世界渲染完成后从主 Framebuffer 抓取 {@link NativeImage} →
+ * 与相机 → 当帧世界渲染完成后抓取原图 → 后台裁切缩放 →
  * 交给 {@link VideoEncoder}（MP4 或 PNG 序列）。</p>
  *
  * <p>复用主窗口世界画面，在 HUD 前截图并按相机画幅缩放。输出分辨率可以调整，
@@ -50,7 +49,7 @@ public final class VideoRenderPipeline {
     private static final class CaptureRequest {
         final float timeSeconds;
         final VideoExportSettings settings;
-        final CompletableFuture<NativeImage> future = new CompletableFuture<>();
+        final CompletableFuture<CapturedVideoFrame> future = new CompletableFuture<>();
 
 
         CaptureRequest(float timeSeconds, VideoExportSettings settings) {
@@ -89,10 +88,12 @@ public final class VideoRenderPipeline {
                 long remaining = deadline - System.nanoTime();
                 if (remaining <= 0) throw new TimeoutException("渲染抓帧超时（10s）");
                 try {
-                    NativeImage image = req.future.get(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(100)),
-                            TimeUnit.NANOSECONDS);
-                    delivered = true;
-                    return image;
+                    try (CapturedVideoFrame frame = req.future.get(
+                            Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(100)), TimeUnit.NANOSECONDS)) {
+                        delivered = true;
+                        VideoExportManager.getInstance().checkCanceled();
+                        return frame.takeImage();
+                    }
                 } catch (TimeoutException polling) {
                     if (System.nanoTime() >= deadline) throw polling;
                 }
@@ -103,7 +104,7 @@ public final class VideoRenderPipeline {
             queue.remove(req);
             if (!delivered) {
                 // Covers completion racing with timeout, interruption or cancellation.
-                req.future.thenAccept(NativeImage::close);
+                req.future.thenAccept(CapturedVideoFrame::close);
                 req.future.completeExceptionally(new java.util.concurrent.CancellationException());
             }
         }
@@ -166,7 +167,7 @@ public final class VideoRenderPipeline {
     }
 
     private void applyTimelineTime(float timeSeconds) {
-        TimelinePlaybackSampler.sampleWorldAt(timeSeconds);
+        TimelinePlaybackSampler.sampleWorldForExport(timeSeconds);
     }
 
     private void applyCamera(float timeSeconds, VideoExportSettings settings) {
@@ -239,111 +240,15 @@ public final class VideoRenderPipeline {
                 }
             }
         }
-        final CameraViewportProfile cameraProfile = profile;
+        // Freeze mutable editor framing before the asynchronous screenshot callback runs.
+        final float cameraAspect = profile == null ? 0 : profile.getAspectRatio();
+        final CameraViewportProfile.PreviewScalePolicy scalePolicy = profile == null
+                ? CameraViewportProfile.PreviewScalePolicy.FIT : profile.getPreviewScalePolicy();
 
         return (NativeImage img) -> {
-            NativeImage out = null;
-            boolean sourceTransferred = false;
-            try {
-                if (req.future.isDone()) return;
-                float targetAspect = (float) targetW / targetH;
-                if (img.getWidth() == targetW && img.getHeight() == targetH
-                        && (cameraProfile == null || Math.abs(cameraProfile.getAspectRatio() - targetAspect) < 0.0001f)) {
-                    // Transfer the original screenshot when no framing or scaling is needed.
-                    sourceTransferred = req.future.complete(img);
-                    return;
-                }
-                // Apply camera framing even when source and target sizes match.
-                out = resizeToTarget(img, targetW, targetH, cameraProfile);
-                if (!req.future.complete(out)) out.close();
-                out = null;
-            } catch (Exception error) {
-                if (out != null) out.close();
-                req.future.completeExceptionally(error);
-            } finally {
-                if (!sourceTransferred) img.close();
-            }
+            CapturedVideoFrame captured = new CapturedVideoFrame(img, targetW, targetH, cameraAspect, scalePolicy);
+            if (!req.future.complete(captured)) captured.close();
         };
     }
 
-    private static NativeImage resizeToTarget(NativeImage src, int targetW, int targetH,
-            CameraViewportProfile cameraProfile) {
-        NativeImage output = new NativeImage(targetW, targetH, false);
-        try {
-            fillTarget(src, output, targetW, targetH, cameraProfile);
-            return output;
-        } catch (RuntimeException | Error error) {
-            output.close();
-            throw error;
-        }
-    }
-
-    private static void fillTarget(NativeImage src, NativeImage output, int targetW, int targetH,
-            CameraViewportProfile cameraProfile) {
-        int srcW = src.getWidth();
-        int srcH = src.getHeight();
-
-        output.fillRect(0, 0, targetW, targetH, 0xFF000000);
-
-        float cameraAspect = (cameraProfile != null) ? cameraProfile.getAspectRatio() : 0f;
-        if (cameraAspect <= 0f) {
-            cameraAspect = (float) targetW / (float) targetH;
-        }
-
-        CameraViewportProfile.PreviewScalePolicy scalePolicy = (cameraProfile != null)
-                ? cameraProfile.getPreviewScalePolicy()
-                : CameraViewportProfile.PreviewScalePolicy.FIT;
-
-        ViewportMath.ViewportRects viewport = (scalePolicy == CameraViewportProfile.PreviewScalePolicy.FIT)
-                ? ViewportMath.computeFit(0, 0, targetW, targetH, cameraAspect)
-                : ViewportMath.computeFill(0, 0, targetW, targetH, cameraAspect);
-
-        int innerX = Math.round(viewport.innerX);
-        int innerY = Math.round(viewport.innerY);
-        int innerW = Math.round(viewport.innerW);
-        int innerH = Math.round(viewport.innerH);
-
-        if (innerW <= 0 || innerH <= 0)
-            return;
-
-        float srcAspect = (float) srcW / (float) srcH;
-        int cropX = 0, cropY = 0, cropW = srcW, cropH = srcH;
-        if (Math.abs(srcAspect - cameraAspect) > 0.0001f) {
-            if (srcAspect > cameraAspect) {
-                cropW = Math.round(srcH * cameraAspect);
-                cropX = (srcW - cropW) / 2;
-            } else {
-                cropH = Math.round(srcW / cameraAspect);
-                cropY = (srcH - cropH) / 2;
-            }
-        }
-
-        if (srcW == targetW && srcH == targetH && cropW == srcW && cropH == srcH
-                && innerX == 0 && innerY == 0 && innerW == targetW && innerH == targetH) {
-            output.copyFrom(src);
-            return;
-        }
-
-        float scaleX = (float) cropW / (float) innerW;
-        float scaleY = (float) cropH / (float) innerH;
-
-        // Precompute horizontal sampling indices once per image.
-        int firstX = Math.max(0, -innerX);
-        int endX = Math.min(innerW, targetW - innerX);
-        int[] sourceColumns = new int[Math.max(0, endX - firstX)];
-        for (int dx = firstX; dx < endX; dx++)
-            sourceColumns[dx - firstX] = cropX + Math.min(cropW - 1, Math.round(dx * scaleX));
-        for (int dy = 0; dy < innerH; dy++) {
-            int dstY = innerY + dy;
-            if (dstY < 0 || dstY >= targetH)
-                continue;
-            int srcY = cropY + Math.min(cropH - 1, Math.round(dy * scaleY));
-            for (int dx = firstX; dx < endX; dx++) {
-                int dstX = innerX + dx;
-                int srcX = sourceColumns[dx - firstX];
-                output.setColorArgb(dstX, dstY, src.getColorArgb(srcX, srcY));
-            }
-        }
-
-    }
 }

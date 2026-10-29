@@ -38,6 +38,7 @@ public final class VideoExportTask implements Runnable {
     @Override
     public void run() {
         boolean success = false;
+        boolean canceled = false;
         String error = null;
         Path audioWav = null;
 
@@ -54,7 +55,8 @@ public final class VideoExportTask implements Runnable {
             // 1) 导出音频（可选，仅 MP4 有意义）
             if (settings.format == VideoExportSettings.FORMAT_H264_MP4 && settings.enableAudio) {
                 notifyProgress(0f, "导出音频轨道...");
-                AudioExporter audioExporter = new TimelineAudioExporter(manager::checkCanceled);
+                AudioExporter audioExporter = new TimelineAudioExporter(manager::checkCanceled, progress ->
+                        notifyProgress(0f, "混音音频 " + Math.round(progress * 100) + "%"));
                 audioWav = audioExporter.exportWav(settings, startTime, endTime);
             }
 
@@ -74,6 +76,7 @@ public final class VideoExportTask implements Runnable {
 
             VideoRenderPipeline pipeline = VideoRenderPipeline.getInstance();
 
+            long renderStarted = System.nanoTime();
             for (int frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
                 manager.checkCanceled();
 
@@ -86,7 +89,11 @@ public final class VideoExportTask implements Runnable {
                 }
 
                 float progress = (frameIndex + 1) / (float) totalFrames;
-                notifyProgress(progress, "渲染帧 " + (frameIndex + 1) + " / " + totalFrames);
+                double seconds = Math.max(0.001, (System.nanoTime() - renderStarted) / 1_000_000_000.0);
+                double rate = (frameIndex + 1) / seconds;
+                notifyProgress(progress, String.format(java.util.Locale.ROOT,
+                        "渲染帧 %d / %d · %.1f 帧/秒 · 预计剩余 %.0f 秒",
+                        frameIndex + 1, totalFrames, rate, (totalFrames - frameIndex - 1) / rate));
             }
 
             manager.checkCanceled();
@@ -97,10 +104,15 @@ public final class VideoExportTask implements Runnable {
             notifyProgress(1f, "导出完成。");
 
         } catch (CancellationException ex) {
+            canceled = true;
             error = "导出已取消。";
         } catch (Exception ex) {
-            LOGGER.error("[VideoExportTask] 导出失败", ex);
-            error = manager.isCancelRequested() ? "导出已取消。" : "导出失败：" + ex.getMessage();
+            canceled = manager.isCancelRequested();
+            if (!canceled) LOGGER.error("[VideoExportTask] 导出失败", ex);
+            Throwable cause = ex;
+            while (cause instanceof java.util.concurrent.ExecutionException && cause.getCause() != null)
+                cause = cause.getCause();
+            error = canceled ? "导出已取消。" : "导出失败：" + cause.getMessage();
         } finally {
             // Abort on the worker only; this is also responsible for releasing encoder resources.
             if (!success && encoder != null) encoder.abort();
@@ -118,7 +130,8 @@ public final class VideoExportTask implements Runnable {
         }
 
         if (listener != null) {
-            listener.onCompleted(success, error);
+            if (canceled) listener.onCanceled(error);
+            else listener.onCompleted(success, error);
         }
     }
 

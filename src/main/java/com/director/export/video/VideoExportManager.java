@@ -29,6 +29,8 @@ public final class VideoExportManager {
          * @param errorMessage 错误信息（成功时为 null）
          */
         void onCompleted(boolean success, String errorMessage);
+
+        default void onCanceled(String message) { onCompleted(false, message); }
     }
 
     private static final VideoExportManager INSTANCE = new VideoExportManager();
@@ -42,7 +44,7 @@ public final class VideoExportManager {
     private volatile Thread workerThread;
     private FFmpegVideoEncoder activeEncoder;
 
-    private record Outcome(boolean success, String error) {}
+    private record Outcome(boolean success, boolean canceled, String error) {}
 
     private VideoExportManager() {}
 
@@ -93,7 +95,7 @@ public final class VideoExportManager {
         workerThread = new Thread(() -> {
             var savedState = new java.util.concurrent.atomic.AtomicReference<
                     com.director.timeline.playback.camera.TimelineCameraController.ExportState>();
-            var outcome = new java.util.concurrent.atomic.AtomicReference<>(new Outcome(false, "导出未完成"));
+            var outcome = new java.util.concurrent.atomic.AtomicReference<>(new Outcome(false, false, "导出未完成"));
             try {
                 var client = net.minecraft.client.MinecraftClient.getInstance();
                 if (client == null) throw new IllegalStateException("客户端不可用");
@@ -109,12 +111,15 @@ public final class VideoExportManager {
                         listener.onProgress(progress, message);
                     }
                     @Override public void onCompleted(boolean success, String error) {
-                        outcome.set(new Outcome(success, error));
+                        outcome.set(new Outcome(success, false, error));
+                    }
+                    @Override public void onCanceled(String message) {
+                        outcome.set(new Outcome(false, true, message));
                     }
                 }, this).run();
             } catch (Exception e) {
                 LOGGER.error("[VideoExport] 导出任务异常", e);
-                outcome.set(new Outcome(false, isCancelRequested() ? "导出已取消。" : "导出失败：" + e.getMessage()));
+                outcome.set(new Outcome(false, isCancelRequested(), isCancelRequested() ? "导出已取消。" : "导出失败：" + e.getMessage()));
             } finally {
                 Runnable restore = () -> {
                     try {
@@ -127,10 +132,11 @@ public final class VideoExportManager {
                         }
                     } catch (Exception e) {
                         LOGGER.error("[VideoExport] 恢复编辑状态失败", e);
-                        outcome.set(new Outcome(false, "导出收尾失败：" + e.getMessage()));
+                        outcome.set(new Outcome(false, false, "导出收尾失败：" + e.getMessage()));
                     } finally {
                         Outcome result = outcome.get();
-                        listener.onCompleted(result.success(), result.error());
+                        if (result.canceled()) listener.onCanceled(result.error());
+                        else listener.onCompleted(result.success(), result.error());
                     }
                 };
                 var client = net.minecraft.client.MinecraftClient.getInstance();
@@ -138,7 +144,8 @@ public final class VideoExportManager {
                 else {
                     exporting.set(false);
                     Outcome result = outcome.get();
-                    listener.onCompleted(result.success(), result.error());
+                    if (result.canceled()) listener.onCanceled(result.error());
+                    else listener.onCompleted(result.success(), result.error());
                 }
             }
         }, "Director-VideoExport");

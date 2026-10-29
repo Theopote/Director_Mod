@@ -28,9 +28,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 时间线音频导出器（WAV）
@@ -45,13 +43,19 @@ public final class TimelineAudioExporter implements AudioExporter {
     private static final int MAX_SOUND_EVENT_DEPTH = 6;
     private static final int BLOCK_FRAMES = 8192;
     private final Runnable checkCanceled;
+    private final java.util.function.DoubleConsumer progress;
 
     public TimelineAudioExporter() {
         this(() -> {});
     }
 
     public TimelineAudioExporter(Runnable checkCanceled) {
+        this(checkCanceled, ignored -> {});
+    }
+
+    public TimelineAudioExporter(Runnable checkCanceled, java.util.function.DoubleConsumer progress) {
         this.checkCanceled = java.util.Objects.requireNonNull(checkCanceled);
+        this.progress = java.util.Objects.requireNonNull(progress);
     }
 
     @Override
@@ -145,39 +149,40 @@ public final class TimelineAudioExporter implements AudioExporter {
         }
         checkCanceled.run();
         SoundResolver resolver = new SoundResolver(checkCanceled);
-        List<MixClip> sounds = new ArrayList<>();
+        List<ScheduledAudioMixer.Event> events = new ArrayList<>();
         for (EventClip ev : clips) {
             checkCanceled.run();
             if (!ev.enabled || ev.soundId == null || ev.soundId.isBlank()) continue;
-            ResolvedSound resolved = resolver.resolveAndDecode(ev.soundId, ev.timeSec);
-            if (resolved == null || resolved.decoded == null || resolved.decoded.samples.length == 0) continue;
-            float gain = clamp01(ev.volume * ev.trackVolume * resolved.volume);
-            float pitch = Math.max(0.1f, Math.min(3.0f, ev.pitch * resolved.pitch));
             long startFrame = (long) Math.floor(((double) ev.timeSec - startTimeSec) * sampleRate);
-            sounds.add(new MixClip(resolved.decoded, startFrame, gain, pitch));
+            events.add(new ScheduledAudioMixer.Event(startFrame, () -> {
+                ResolvedSound resolved = resolver.resolveAndDecode(ev.soundId, ev.timeSec);
+                if (resolved == null || resolved.decoded == null) return null;
+                float gain = clamp01(ev.volume * ev.trackVolume * resolved.volume);
+                float pitch = Math.max(0.1f, Math.min(3.0f, ev.pitch * resolved.pitch));
+                return new ScheduledAudioMixer.Sound(resolved.decoded.samples, resolved.decoded.channels,
+                        resolved.decoded.sampleRate, gain, pitch);
+            }));
         }
-        // Memory usage is independent of export duration. Negative starts retain sound tails.
+        ScheduledAudioMixer mixer = new ScheduledAudioMixer(events);
         float[] mix = new float[BLOCK_FRAMES * channels];
+        byte[] pcm = new byte[mix.length * 2];
+        int lastPercent = -1;
         for (long blockStart = 0; blockStart < totalSamples; blockStart += BLOCK_FRAMES) {
             checkCanceled.run();
             int frames = (int) Math.min(BLOCK_FRAMES, totalSamples - blockStart);
-            java.util.Arrays.fill(mix, 0f);
-            for (MixClip clip : sounds) {
-                checkCanceled.run();
-                DecodedSound sound = clip.sound();
-                PcmAudioMixer.mix(mix, frames, channels, sampleRate, blockStart,
-                        sound.samples, sound.channels, sound.sampleRate,
-                        clip.startFrame(), clip.gain(), clip.pitch());
+            mixer.mix(mix, frames, channels, sampleRate, blockStart, checkCanceled);
+            for (int sample = 0; sample < frames * channels; sample++) {
+                short value = (short) (clamp11(mix[sample]) * Short.MAX_VALUE);
+                pcm[sample * 2] = (byte) value;
+                pcm[sample * 2 + 1] = (byte) (value >>> 8);
             }
-            for (int sample = 0; sample < frames * channels; sample++) writeSample16le(out, mix[sample]);
+            out.write(pcm, 0, frames * channels * 2);
+            int percent = (int) ((blockStart + frames) * 100 / totalSamples);
+            if (percent != lastPercent) {
+                progress.accept((blockStart + frames) / (double) totalSamples);
+                lastPercent = percent;
+            }
         }
-    }
-
-    private record MixClip(DecodedSound sound, long startFrame, float gain, float pitch) {}
-
-    private static void writeSample16le(DataOutputStream out, float v) throws IOException {
-        short s = (short) (clamp11(v) * Short.MAX_VALUE);
-        out.writeShort(Short.reverseBytes(s));
     }
 
     private static float clamp01(float v) {
@@ -268,7 +273,8 @@ public final class TimelineAudioExporter implements AudioExporter {
         }
     }
     private static final class SoundResolver {
-        private final Map<Identifier, DecodedSound> cache = new HashMap<>();
+        private final AudioDecodeCache<Identifier, DecodedSound> cache =
+                new AudioDecodeCache<>(64L * 1024 * 1024, sound -> (long) sound.samples.length * Float.BYTES);
         private final Runnable checkCanceled;
 
         SoundResolver(Runnable checkCanceled) {
@@ -303,7 +309,11 @@ public final class TimelineAudioExporter implements AudioExporter {
                 return null;
             }
 
-            DecodedSound decoded = cache.computeIfAbsent(soundFile, id -> decodeSound(resourceManager, sound));
+            DecodedSound decoded = cache.get(soundFile);
+            if (decoded == null) {
+                decoded = decodeSound(resourceManager, sound);
+                if (decoded != null) cache.put(soundFile, decoded);
+            }
             if (decoded == null) {
                 return null;
             }

@@ -28,6 +28,8 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
     private final Supplier<String> binaryResolver;
     private final ProcessStarter processStarter;
     private final long exitTimeoutMillis;
+    private final long ioTimeoutMillis;
+    private ExportIoWatchdog watchdog;
     private volatile Process ffmpegProcess;
     private volatile boolean abortRequested;
     private final StringBuilder diagnosticTail = new StringBuilder();
@@ -54,10 +56,17 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
     }
 
     FFmpegVideoEncoder(Supplier<String> binaryResolver, ProcessStarter processStarter, long exitTimeoutMillis) {
+        this(binaryResolver, processStarter, exitTimeoutMillis, TimeUnit.MINUTES.toMillis(2));
+    }
+
+    FFmpegVideoEncoder(Supplier<String> binaryResolver, ProcessStarter processStarter,
+            long exitTimeoutMillis, long ioTimeoutMillis) {
         this.binaryResolver = java.util.Objects.requireNonNull(binaryResolver);
         this.processStarter = java.util.Objects.requireNonNull(processStarter);
         if (exitTimeoutMillis <= 0) throw new IllegalArgumentException("exitTimeoutMillis");
         this.exitTimeoutMillis = exitTimeoutMillis;
+        if (ioTimeoutMillis <= 0) throw new IllegalArgumentException("ioTimeoutMillis");
+        this.ioTimeoutMillis = ioTimeoutMillis;
     }
 
     public void setAudioWavPath(Path audioWavPath) {
@@ -83,7 +92,20 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
             ffmpegProcess = processStarter.start(command);
             checkCanceled();
             startDrainThread(ffmpegProcess.getInputStream());
-            ffmpegStdin = new BufferedOutputStream(ffmpegProcess.getOutputStream(), 1024 * 1024);
+            watchdog = new ExportIoWatchdog(ioTimeoutMillis, () -> ffmpegProcess.destroyForcibly());
+            OutputStream pipe = ffmpegProcess.getOutputStream();
+            OutputStream measured = new OutputStream() {
+                @Override public void write(int value) throws IOException {
+                    pipe.write(value);
+                    watchdog.progress();
+                }
+                @Override public void write(byte[] bytes, int offset, int length) throws IOException {
+                    pipe.write(bytes, offset, length);
+                    watchdog.progress();
+                }
+                @Override public void close() throws IOException { pipe.close(); }
+            };
+            ffmpegStdin = new BufferedOutputStream(measured, 1024 * 1024);
             ffmpegChannel = Channels.newChannel(ffmpegStdin);
         } catch (IOException | RuntimeException failure) {
             abort();
@@ -121,15 +143,20 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
         if (frameIndex != encodedFrames || encodedFrames >= expectedFrames) throw new IOException("视频帧序号不连续");
         if (pixels.remaining() != width * height * 4) throw new IOException("RGBA 帧字节数不匹配");
         ByteBuffer borrowed = pixels.duplicate();
+        watchdog.begin("写入视频帧");
         try {
             while (borrowed.hasRemaining()) {
                 checkCanceled();
                 ffmpegChannel.write(borrowed);
             }
+            watchdog.throwIfFailed();
             encodedFrames++;
         } catch (IOException failure) {
             checkCanceled();
+            watchdog.throwIfFailed();
             throw failure;
+        } finally {
+            watchdog.end();
         }
     }
 
@@ -138,11 +165,20 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
         if (output == null || ffmpegStdin == null || encodedFrames != expectedFrames)
             throw new IOException("视频帧数不完整或编码器已经结束");
         try {
-            closeStdin();
+            watchdog.begin("完成管道写入");
+            try { closeStdin(); }
+            finally { watchdog.end(); }
+            watchdog.throwIfFailed();
             waitForExitOrThrow();
             checkCanceled();
+            watchdog.close();
             output.commit();
-        } catch (IOException | RuntimeException failure) {
+        } catch (IOException failure) {
+            try { watchdog.throwIfFailed(); }
+            catch (IOException timeout) { failure = timeout; }
+            abort();
+            throw failure;
+        } catch (RuntimeException failure) {
             abort();
             throw failure;
         }
@@ -156,6 +192,7 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
     }
 
     @Override public void abort() {
+        if (watchdog != null) watchdog.close();
         requestAbort();
         Process process = ffmpegProcess;
         if (process != null) {

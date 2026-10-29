@@ -5,10 +5,7 @@ import com.director.timeline.model.TimelineModel;
 import com.director.timeline.playback.season.TimelineSeasonController;
 import com.director.timeline.playback.time.TimelineWorldController;
 import com.director.timeline.playback.weather.TimelineWeatherController;
-import com.director.timeline.playback.weather.WeatherParticleController;
 import com.director.timeline.playback.block.TimelineClipBlockController;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * 以 {@link TimelineModel} 为唯一时钟的时间线采样入口（导出 / 离线抓帧 / 重同步）。
@@ -17,8 +14,6 @@ import org.slf4j.LoggerFactory;
  */
 public final class TimelinePlaybackSampler {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(TimelinePlaybackSampler.class);
-
     private TimelinePlaybackSampler() {
     }
 
@@ -26,14 +21,24 @@ public final class TimelinePlaybackSampler {
      * 在指定时间点采样完整世界状态（环境/演员/方块片段，不含相机）。
      */
     public static void sampleWorldAt(float timeSeconds) {
+        sampleWorldAt(timeSeconds, TimelineSamplingPolicy.PREVIEW);
+    }
+
+    public static void sampleWorldForExport(float timeSeconds) {
+        if (!Float.isFinite(timeSeconds) || timeSeconds < 0) throw new IllegalArgumentException("导出采样时间无效");
+        sampleWorldAt(timeSeconds, TimelineSamplingPolicy.EXPORT);
+    }
+
+    private static void sampleWorldAt(float timeSeconds, TimelineSamplingPolicy policy) {
         TimelineModel model = resolveModel();
         if (model == null) {
+            if (policy == TimelineSamplingPolicy.EXPORT) throw new IllegalStateException("导出时间线已关闭或被卸载");
             return;
         }
         model.setCurrentTime(timeSeconds);
-        com.director.lighting.PointLightRuntime.update(model);
-        driveSubsystems(timeSeconds);
-        run("方块片段", () -> TimelineClipBlockController.getInstance().update());
+        policy.run("点光源", timeSeconds, () -> com.director.lighting.PointLightRuntime.update(model));
+        driveSubsystems(timeSeconds, policy);
+        policy.run("方块片段", timeSeconds, () -> TimelineClipBlockController.getInstance().update());
     }
 
     public static float resolveDuration(float fallbackSeconds) {
@@ -53,20 +58,13 @@ public final class TimelinePlaybackSampler {
         return service.getTimelineModel();
     }
 
-    private static void driveSubsystems(float timeSeconds) {
-        run("季节采样", () -> TimelineSeasonController.getInstance().onTimelineTick(timeSeconds));
-        run("天气采样", () -> TimelineWeatherController.getInstance().updateForPlayback(timeSeconds));
-        run("世界时间", () -> TimelineWorldController.getInstance().update());
-        run("演员运行时", () -> com.director.actor.runtime.ActorRuntimeController.getInstance().update());
-        run("WeatherRenderer", () -> com.director.client.renderer.weather.WeatherRenderer.get().tick());
-        run("天气事件", () -> TimelineWeatherController.getInstance().tickEvents(timeSeconds));
+    private static void driveSubsystems(float timeSeconds, TimelineSamplingPolicy policy) {
+        policy.run("季节采样", timeSeconds, () -> TimelineSeasonController.getInstance().onTimelineTick(timeSeconds));
+        policy.run("天气采样", timeSeconds, () -> TimelineWeatherController.getInstance().updateForPlayback(timeSeconds));
+        policy.run("世界时间", timeSeconds, () -> TimelineWorldController.getInstance().update());
+        policy.run("演员运行时", timeSeconds, () -> com.director.actor.runtime.ActorRuntimeController.getInstance().update());
+        policy.run("WeatherRenderer", timeSeconds, () -> com.director.client.renderer.weather.WeatherRenderer.get().tick());
+        policy.run("天气事件", timeSeconds, () -> TimelineWeatherController.getInstance().tickEvents(timeSeconds));
     }
 
-    private static void run(String name, Runnable action) {
-        try {
-            action.run();
-        } catch (RuntimeException e) {
-            LOGGER.warn("[TimelinePlaybackSampler] {} 失败", name, e);
-        }
-    }
 }
