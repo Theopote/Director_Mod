@@ -46,11 +46,26 @@ public final class SectionGpuBufferCache implements AutoCloseable {
 
     /** Oversized geometry stays on the caller's existing fallback path. */
     public GpuBuffer upload(Key key, ByteBuffer vertices) {
+        return upload(key, vertices, true);
+    }
+
+    /** Admission for continuously visible meshes: never evict another active mesh to upload. */
+    public GpuBuffer uploadIfSpace(Key key, ByteBuffer vertices) {
+        return upload(key, vertices, false);
+    }
+
+    public boolean hasCapacity(int size) {
+        threadCheck.run();
+        return size > 0 && size <= budget - bytes;
+    }
+
+    private GpuBuffer upload(Key key, ByteBuffer vertices, boolean evict) {
         threadCheck.run();
         var cached = get(key);
         if (cached != null) return cached;
         int size = vertices.remaining();
         if (size == 0 || size > budget) return null;
+        if (!evict && !hasCapacity(size)) return null;
         while (bytes + size > budget && !buffers.isEmpty()) {
             var iterator = buffers.entrySet().iterator();
             var entry = iterator.next();
@@ -62,6 +77,15 @@ public final class SectionGpuBufferCache implements AutoCloseable {
         buffers.put(key, uploaded);
         bytes += uploaded.size();
         return uploaded;
+    }
+
+    /** Removes one assembly's mesh without evicting other clips in the same section. */
+    public void invalidate(Key key) {
+        threadCheck.run();
+        var buffer = buffers.remove(key);
+        if (buffer == null) return;
+        bytes -= buffer.size();
+        buffer.close();
     }
 
     public void invalidate(long section) {

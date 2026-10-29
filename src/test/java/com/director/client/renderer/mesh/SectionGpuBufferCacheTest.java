@@ -55,6 +55,23 @@ class SectionGpuBufferCacheTest {
         assertNull(cache.get(key(2, 1))); assertEquals(0, cache.residentBytes()); cache.close();
     }
 
+    @Test void removingOneClipPreservesOtherClipsAndVersionsInTheSameSection() {
+        var cache = new SectionGpuBufferCache(32, (key, data) -> new Buffer(data.remaining()), () -> {});
+        var first = new SectionGpuBufferCache.Key(1, "clip-a", 1, 0);
+        var second = new SectionGpuBufferCache.Key(1, "clip-b", 1, 0);
+        var newer = new SectionGpuBufferCache.Key(1, "clip-a", 2, 0);
+        var a = (Buffer) cache.upload(first, ByteBuffer.allocate(4));
+        var b = cache.upload(second, ByteBuffer.allocate(4));
+        var c = cache.upload(newer, ByteBuffer.allocate(4));
+        cache.invalidate(first);
+        cache.invalidate(first);
+        assertEquals(1, a.closes);
+        assertSame(b, cache.get(second));
+        assertSame(c, cache.get(newer));
+        assertEquals(8, cache.residentBytes());
+        cache.close();
+    }
+
     @Test void closingOneFailedResourceStillClosesRemainingResourcesAndResetsAccounting() {
         var cache = new SectionGpuBufferCache(32, (key, data) -> new Buffer(data.remaining()), () -> {});
         var a = (Buffer) cache.upload(key(1, 1), ByteBuffer.allocate(4));

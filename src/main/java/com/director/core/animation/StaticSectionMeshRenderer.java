@@ -38,7 +38,8 @@ public final class StaticSectionMeshRenderer {
         Assembly(Map<BlockPos, BlockState> states, long version) { this.states = states; this.version = version; }
     }
     private record Material(TimelineClip clip, RenderLayer layer) {}
-    private record Mesh(SectionGpuBufferCache.Key key, int indices) {}
+    // Negative indices retain only the required byte count after budget rejection.
+    private record Mesh(SectionGpuBufferCache.Key key, int indices, int bytes) {}
 
     public static void invalidate() { INVALIDATION.incrementAndGet(); }
 
@@ -106,6 +107,10 @@ public final class StaticSectionMeshRenderer {
             }
             for (var section : assembly.sections.entrySet()) {
                 var mesh = assembly.meshes.get(section.getKey());
+                if (mesh != null && mesh.indices() < 0) {
+                    if (!gpu.hasCapacity(mesh.bytes())) continue;
+                    mesh = null;
+                }
                 if (mesh != null && mesh.indices() > 0 && gpu.get(mesh.key()) == null) mesh = null;
                 if (mesh == null) {
                     if (built >= 2 || built > 0 && System.nanoTime() >= deadline) continue;
@@ -121,6 +126,7 @@ public final class StaticSectionMeshRenderer {
                     if (mesh == null) continue;
                     assembly.meshes.put(section.getKey(), mesh);
                 } else hits++;
+                if (mesh.indices() < 0) continue;
                 var origin = ChunkSectionPos.from(section.getKey()).getMinPos();
                 var transform = sectionTransform(com.mojang.blaze3d.systems.RenderSystem.getModelViewMatrix(),
                         matrices.peek().getPositionMatrix(), origin);
@@ -168,10 +174,11 @@ public final class StaticSectionMeshRenderer {
             }
             var buffer = builder.endNullable();
             var key = new SectionGpuBufferCache.Key(section, new Material(clip, layer), assembly.version, epoch);
-            if (buffer == null) return new Mesh(key, 0);
+            if (buffer == null) return new Mesh(key, 0, 0);
             try (buffer) {
-                if (gpu.upload(key, buffer.getBuffer()) == null) return null;
-                return new Mesh(key, buffer.getDrawParameters().indexCount());
+                int bytes = buffer.getBuffer().remaining();
+                if (gpu.uploadIfSpace(key, buffer.getBuffer()) == null) return new Mesh(key, -1, bytes);
+                return new Mesh(key, buffer.getDrawParameters().indexCount(), bytes);
             }
         }
     }
@@ -180,6 +187,6 @@ public final class StaticSectionMeshRenderer {
         var old = assemblies.remove(clip);
         if (old == null) return;
         retainedPositions -= old.states.size();
-        for (long section : old.sections.keySet()) gpu.invalidate(section);
+        for (var mesh : old.meshes.values()) gpu.invalidate(mesh.key());
     }
 }
