@@ -65,6 +65,8 @@ public final class ActorPlacementController {
 
     /** 临时 Actor（正在放置的） */
     private Actor pendingActor = null;
+    private TimelineModel placementModel;
+    private ActorRegistry placementRegistry;
 
     /** 临时 PreviewEntity（附着到鼠标的） */
     private Entity previewEntity = null;
@@ -103,6 +105,9 @@ public final class ActorPlacementController {
         }
 
         try {
+            var model=DirectorServices.get().containerTimeline().getTimelineModel();
+            if(model==null || model.isPlaying() || model.isScrubbing()) return false;
+            placementModel=model;placementRegistry=ActorRegistryManager.getInstance();
             // 1. 创建临时 Actor（不保存到 Registry，只是预览）
             pendingActor = new Actor(actorName.trim(), actorType);
             
@@ -139,7 +144,7 @@ public final class ActorPlacementController {
             previewEntity = null;
         }
 
-        pendingActor = null;
+        pendingActor = null;placementModel=null;placementRegistry=null;
         isPlacing = false;
         lastRightMouseDown = false;
         LOGGER.debug("[ActorPlacement] 取消放置");
@@ -168,6 +173,10 @@ public final class ActorPlacementController {
             return;
         }
 
+        if(DirectorServices.get().containerTimeline().getTimelineModel()!=placementModel
+                || ActorRegistryManager.getInstance()!=placementRegistry || placementModel.isPlaying() || placementModel.isScrubbing()) {
+            cancelPlacement();return;
+        }
         // 1. Update preview position from mouse raycast.
         updatePreviewPosition(client);
 
@@ -319,58 +328,20 @@ public final class ActorPlacementController {
         }
 
         try {
-            // 0. 生成唯一的名称
-            String uniqueName = generateUniqueActorName(pendingActor.getName(), actorRegistry, timelineModel);
-
-            // 1. 正式创建 Actor（保存到 Registry）
-            Actor actor = actorRegistry.createActor(uniqueName, pendingActor.getType());
-            ActorRef ref = new ActorRef(actor.getActorId());
-
-            // 2. 创建 ActorTrack
-            ActorTrack actorTrack = new ActorTrack();
-            actorTrack.setActorRef(ref);
-            actorTrack.setDisplayName(uniqueName);
-
-            // 3. 创建 TimelineTrack
-            TimelineTrack timelineTrack = new TimelineTrack(uniqueName, TrackType.ACTOR);
-            timelineTrack.setActorTrackPayload(actorTrack);
-
-            // 4. 添加到 TimelineModel
-            timelineModel.addTrack(timelineTrack);
-
-            // 5. 创建 EntitySpawnClip（默认 5 秒，可调整）
-            float currentTime = timelineModel.getCurrentTime();
-            EntitySpawnClip spawnClip = new EntitySpawnClip(
-                    "Spawn",
-                    currentTime,
-                    currentTime + DEFAULT_CLIP_DURATION
-            );
-            spawnClip.setPosition(
-                    (float) position.x,
-                    (float) position.y,
-                    (float) position.z
-            );
-            
-            // 使用摄像机朝向
-            var cameraSample = CameraAccessor.sampleFromGameCamera(client);
-            if (cameraSample != null) {
-                spawnClip.setYawDeg(cameraSample.yaw());
-                spawnClip.setPitchDeg(cameraSample.pitch());
-            }
-
-            spawnClip.setVisibleOnSpawn(true);
-            actorTrack.addClip(spawnClip);
-            EntityTimelineClip timelineClip = new EntityTimelineClip(spawnClip, actorTrack.getColorRgba());
-            timelineModel.addClip(timelineTrack, timelineClip);
-
-            // 6. 标记为 dirty（触发保存）
-            timelineModel.markDirty();
-
+            String uniqueName=generateUniqueActorName(pendingActor.getName(),actorRegistry,timelineModel);
+            pendingActor.setName(uniqueName);
+            var cameraSample=CameraAccessor.sampleFromGameCamera(client);
+            if(cameraSample==null) {cancelPlacement();return;}
+            Actor actor=pendingActor;
+            var owner=ActorPlacementEditing.create(timelineModel,actorRegistry,actor,
+                    new org.joml.Vector3f((float)position.x,(float)position.y,(float)position.z),
+                    new org.joml.Vector3f(cameraSample.yaw(),cameraSample.pitch(),0));
+            timelineModel.selectItem(owner,false);
             // 7. 清理临时预览实体（使用 ActorPreviewManager）
             ActorPreviewManager previewManager = ActorPreviewManager.getInstance();
             previewManager.removePreview(pendingActor.getActorId());
             previewEntity = null;
-            pendingActor = null;
+            pendingActor = null;placementModel=null;placementRegistry=null;
             isPlacing = false;
 
             LOGGER.info("[ActorPlacement] 成功放置 Actor: {} 在位置 ({}, {}, {})",

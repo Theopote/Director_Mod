@@ -61,10 +61,8 @@ public final class ActorPoseGalleryEditing {
         var owner = owner(model,actorId);
         var actor = ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
         if (!ActorRootKeyframeEditing.editable(model,owner,target) || actor==null) return false;
-        var catalog = ActorAnimationCatalog.entries(AnimationAssetLibrary.getInstance(),
-                AnimationLibrary.getInstance().getAllAnimations(),actor);
-        var entry = catalog.stream().filter(e -> e.id().equals(animationId) && e.compatible()).findFirst().orElse(null);
-        if (entry==null || animationId.equals(target.getBoneAnimationId())) return false;
+        try {ActorPresetValidation.require(actor,target,AnimationAssetLibrary.getInstance(),animationId);}
+        catch(IllegalArgumentException invalid) {return false;}
         var before = target.getPreset();
         var after = ActorPresetBinding.select(animationId,before);
         if (after.equals(before)) return false;

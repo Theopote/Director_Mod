@@ -90,6 +90,7 @@ public final class ActorPickController {
 
         // 检查是否正在放置模式
         if (ActorSelectionHub.isPlacingActor()) {
+            if(ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) {ActorSelectionHub.cancelPlace();return;}
             handlePlacementMode(client);
             return;
         }
@@ -227,22 +228,18 @@ public final class ActorPickController {
                 // 解析点击位置
                 BlockHitResult blockHit = resolvePlacementHit(client);
                 if (blockHit != null) {
-                    // 使用 ActorPlacementController 处理放置逻辑
-                    ActorPlacementController placementController = ActorPlacementController.getInstance();
-                    // 先启动放置（创建临时 Actor 和 PreviewEntity）
-                    if (placementController.startPlacement(pendingActor.getName(), pendingActor.getType())) {
-                        // 通过反射调用 placeActorAt（因为它是 private）
-                        // TODO: 未来可以将 placeActorAt 改为 public，或提供一个公共方法
-                        try {
-                            java.lang.reflect.Method placeMethod = ActorPlacementController.class.getDeclaredMethod("placeActorAt", Vec3d.class);
-                            placeMethod.setAccessible(true);
-                            placeMethod.invoke(placementController, blockHit.getPos());
-                        } catch (Exception e) {
-                            org.slf4j.LoggerFactory.getLogger(ActorPickController.class)
-                                .error("[ActorPickController] 无法调用 placeActorAt", e);
-                        }
-                        // 退出放置模式
+                    try {
+                        var camera=com.director.timeline.playback.camera.CameraAccessor.sampleFromGameCamera(client);
+                        if(camera==null) return;
+                        com.director.ui.actor.placement.ActorPlacementEditing.relocate(
+                                com.director.core.DirectorServices.get().containerTimeline().getTimelineModel(),
+                                com.director.actor.ActorRegistryManager.getInstance(),pendingActor,
+                                new org.joml.Vector3f((float)blockHit.getPos().x,(float)blockHit.getPos().y,(float)blockHit.getPos().z),
+                                new org.joml.Vector3f(camera.yaw(),camera.pitch(),0));
                         ActorSelectionHub.cancelPlace();
+                    } catch(IllegalArgumentException unavailable) {
+                        com.director.ui.actor.placement.ActorPlacementEditing.reportFailure(pendingActor.getActorId(),unavailable.getMessage());
+                        org.slf4j.LoggerFactory.getLogger(ActorPickController.class).warn("重新放置失败：{}",unavailable.getMessage());
                     }
                 }
             }

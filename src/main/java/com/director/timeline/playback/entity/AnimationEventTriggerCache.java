@@ -46,7 +46,9 @@ public class AnimationEventTriggerCache {
             return false;
         }
 
-        String key = buildKey(clip.getId(), event.getNormalizedTime());
+        int index=-1;
+        for(int i=0;i<clip.getEvents().size();i++) if(clip.getEvents().get(i)==event) {index=i;break;}
+        String key = buildKey(clip.getId(), event.getNormalizedTime())+":"+(index<0?System.identityHashCode(event):index);
         boolean reached = normalizedTime >= event.getNormalizedTime();
         boolean already = triggered.contains(key);
 

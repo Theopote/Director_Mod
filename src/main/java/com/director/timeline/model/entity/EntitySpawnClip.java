@@ -26,6 +26,9 @@ public class EntitySpawnClip extends EntityClip {
     public void setPreset(ActorPresetBinding value) {
         if(!java.util.Objects.equals(preset,value)) { preset=value; presetRevision++; }
     }
+    private boolean boneAnimationMuted;
+    public boolean isBoneAnimationMuted() {return boneAnimationMuted;}
+    public void setBoneAnimationMuted(boolean value) {boneAnimationMuted=value;syncBoneAnimation();}
     private String boneAnimationId;
     private EntityAnimationClip boneAnimation;
     public String getBoneAnimationId() {return boneAnimationId;}
@@ -43,7 +46,7 @@ public class EntitySpawnClip extends EntityClip {
     void syncBoneAnimation() {
         if(boneAnimationId==null || boneAnimation==null) return;
         boneAnimation.setBlendSettings(blendSettings);
-        boneAnimation.setTimeRange(getStartTime(),getEndTime());boneAnimation.setMuted(isMuted());
+        boneAnimation.setTimeRange(getStartTime(),getEndTime());boneAnimation.setMuted(isMuted() || boneAnimationMuted);
         if(getTimelineClip()!=null && boneAnimation.getTimelineClip()!=null)
             boneAnimation.getTimelineClip().setParentTrack(getTimelineClip().getParentTrack());
     }

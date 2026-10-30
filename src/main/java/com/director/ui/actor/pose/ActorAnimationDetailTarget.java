@@ -29,16 +29,7 @@ public record ActorAnimationDetailTarget(TimelineTrack track, UUID actorId, Acto
             return new ActorAnimationDetailTarget(track,null,null,null,null,Status.UNBOUND);
         UUID id=payload.getActorRef().getActorId();
         var actor=ActorRegistryManager.getInstance().getActor(id).orElse(null);
-        EntityAnimationClip clip=null;
-        // An explicit reference stays the inspection target even outside its interval or when muted.
-        if(model.getSelectedClip() instanceof EntityTimelineClip wrapper && wrapper.getParentTrack()==track
-                && wrapper.getEntityClip() instanceof EntityAnimationClip animation
-                && payload.getClips().contains(animation) && track.getClips().contains(wrapper)) clip=animation;
-        if(clip==null) for(var candidate:payload.getClips()) {
-            if(candidate instanceof EntityAnimationClip animation && !animation.isMuted()
-                    && model.getCurrentTime()>=animation.getStartTime() && model.getCurrentTime()<=animation.getEndTime()
-                    && (clip==null || animation.getStartTime()>=clip.getStartTime())) clip=animation;
-        }
+        EntityAnimationClip clip=ActorAnimationTarget.resolve(model,track);
         var asset=clip==null ? null : AnimationAssetLibrary.getInstance().find(clip.getAnimationId()).orElse(null);
         Status status=actor==null ? Status.MISSING_ACTOR
                 : ActorRigCompatibility.resolveRig(actor).isEmpty() ? Status.UNSUPPORTED_RIG

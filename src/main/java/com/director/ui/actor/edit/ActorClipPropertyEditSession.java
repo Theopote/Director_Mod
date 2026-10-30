@@ -71,10 +71,10 @@ public final class ActorClipPropertyEditSession {
         }
         public void validate() { PropEventParameters.validate(type,params); }
     }
-    private record Spawn(Vector3f position, float yaw, float pitch, float roll, Vector3f scale, boolean visible, float start, float end, String animationId, com.director.actor.rig.skeleton.PoseBlendSettings blend, ActorPresetBinding preset) implements State {
+    private record Spawn(Vector3f position, float yaw, float pitch, float roll, Vector3f scale, boolean visible, float start, float end, String animationId, com.director.actor.rig.skeleton.PoseBlendSettings blend, ActorPresetBinding preset, boolean boneMuted) implements State {
         public void apply(EntityClip clip) {
             var c = (EntitySpawnClip) clip; c.setPosition(position.x,position.y,position.z);
-            c.setYawDeg(yaw); c.setPitchDeg(pitch); c.setRollDeg(roll); c.setScale(scale.x, scale.y, scale.z); c.setVisibleOnSpawn(visible); c.setTimeRange(start,end); c.setBoneAnimationId(animationId); c.setBlendSettings(blend); c.setPreset(preset);
+            c.setYawDeg(yaw); c.setPitchDeg(pitch); c.setRollDeg(roll); c.setScale(scale.x, scale.y, scale.z); c.setVisibleOnSpawn(visible); c.setTimeRange(start,end); c.setBoneAnimationId(animationId); c.setBlendSettings(blend); c.setPreset(preset); c.setBoneAnimationMuted(boneMuted);
         }
         public void validate() {
             if (!position.isFinite() || !Float.isFinite(yaw) || !Float.isFinite(pitch) || !Float.isFinite(roll) || !validScale(scale) || pitch < -90 || pitch > 90
@@ -238,7 +238,7 @@ public final class ActorClipPropertyEditSession {
         if (clip instanceof ActorActionClip c) return new Action(c.getActionType(), c.getIntensity(), c.isLoop(), c.getStartTime(), c.getEndTime());
         if (clip instanceof ActorRelationClip c) return new Relation(c.getTargetActorId(), c.getRelationType(), c.getDistance(), c.getAngle(), c.getHeightOffset(), c.isMaintainLookAt());
         if (clip instanceof EntityActionClip c) return new Event(c.getActionType(),c.isTriggerOnce(),PropEventParameters.copy(c.getParams(),true));
-        if (clip instanceof EntitySpawnClip c) return new Spawn(new Vector3f(c.getPosition()),c.getYawDeg(),c.getPitchDeg(),c.getRollDeg(),new Vector3f(c.getScale()),c.isVisibleOnSpawn(),c.getStartTime(),c.getEndTime(),c.getBoneAnimationId(),c.getBlendSettings(),c.getPreset());
+        if (clip instanceof EntitySpawnClip c) return new Spawn(new Vector3f(c.getPosition()),c.getYawDeg(),c.getPitchDeg(),c.getRollDeg(),new Vector3f(c.getScale()),c.isVisibleOnSpawn(),c.getStartTime(),c.getEndTime(),c.getBoneAnimationId(),c.getBlendSettings(),c.getPreset(),c.isBoneAnimationMuted());
         if (clip instanceof ActorPoseClip c) return new PoseState(List.of(c.isOverrideBody(),c.isOverrideHead(),c.isOverrideArms(),c.isOverrideLegs()),
                 List.of(c.getBodyPitch(),c.getBodyYaw(),c.getBodyRoll(),c.getHeadPitch(),c.getHeadYaw(),c.getLeftArmPitch(),c.getLeftArmYaw(),c.getLeftArmRoll(),c.getRightArmPitch(),c.getRightArmYaw(),c.getRightArmRoll(),c.getLeftLegPitch(),c.getRightLegPitch()));
         if (clip instanceof EntityStateClip c) return new Status(c.isSneaking(),c.isSprinting(),c.isGlowing(),c.isInvulnerable(),c.getVisibility());

@@ -12,33 +12,15 @@ import java.util.UUID;
 public record ActorAnimationEditContext(TimelineModel model, UUID actorId, TimelineTrack track,
         ActorTrack payload, EntityAnimationClip clip, AnimationAsset asset, float timelineTime,
         float assetTime, float start, float end, float speed, boolean loop,
-        float duration, AnimationLoopMode loopMode, long contextRevision, EntityTimelineClip wrapper, com.director.actor.rig.skeleton.PoseBlendSettings blendSettings, ActorPresetEditState presetState) {
+        float duration, AnimationLoopMode loopMode, long contextRevision, EntityTimelineClip wrapper, com.director.actor.rig.skeleton.PoseBlendSettings blendSettings, ActorPresetEditState presetState, boolean distanceDriven) {
+    private static final ActorInspectorPlayback clockPlayback=new ActorInspectorPlayback();
+
     public static ActorAnimationEditContext resolve(TimelineModel model, UUID actorId) {
         if (model == null || actorId == null) return null;
         TimelineTrack owner;
         try { owner=ActorAnimationAssetEditing.resolveActorTrack(model,actorId); }
         catch(IllegalArgumentException ambiguous) { return null; }
-        EntityAnimationClip active=null;
-        float time=model.getCurrentTime();
-        for(var candidate:ActorEmbeddedAnimation.clips(owner.getActorTrackPayload())) {
-            if(candidate instanceof EntityAnimationClip animation && !animation.isMuted()
-                    && time>=animation.getStartTime() && time<=animation.getEndTime()
-                    && (active==null || animation.getStartTime()>=active.getStartTime())) active=animation;
-        }
-        // Normal actor posing edits the spawn-owned correction layer, regardless of preset start time.
-        EntityAnimationClip embedded=null;
-        for(var candidate:owner.getActorTrackPayload().getClips()) if(candidate instanceof EntitySpawnClip spawn
-                && !spawn.isMuted() && time>=spawn.getStartTime() && time<=spawn.getEndTime()
-                && spawn.getBoneAnimation()!=null && (embedded==null || spawn.getStartTime()>=embedded.getStartTime()))
-            embedded=spawn.getBoneAnimation();
-        if(embedded!=null) active=embedded;
-        // A clicked key belongs to a specific reference, even when another clip overlaps it.
-        var selected = model.getSelectedClip();
-        if (selected instanceof EntityTimelineClip wrapper && wrapper.getParentTrack() == owner
-                && wrapper.getEntityClip() instanceof EntityAnimationClip animation
-                && ActorEmbeddedAnimation.clips(owner.getActorTrackPayload()).contains(animation) && !animation.isMuted()
-                && time >= animation.getStartTime() && time <= animation.getEndTime()) active = animation;
-        return capture(model, owner, active);
+        return capture(model, owner, ActorAnimationTarget.resolve(model,owner));
     }
 
     public static ActorAnimationEditContext capture(TimelineModel model, TimelineTrack track,
@@ -47,17 +29,26 @@ public record ActorAnimationEditContext(TimelineModel model, UUID actorId, Timel
         var payload = track.getActorTrackPayload();
         var asset = AnimationAssetLibrary.getInstance().find(clip.getAnimationId()).orElse(null);
         if (payload == null || payload.getActorRef() == null || asset == null) return null;
-        float local = asset.normalizeTime((model.getCurrentTime() - clip.getStartTime())
-                * Math.max(0.01f, clip.getSpeed()), clip.isLoop() ? asset.loopMode() : AnimationLoopMode.ONCE);
+        var actor=ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
+        var sample=com.director.actor.runtime.ActorPresetClock.purpose(clip.getAnimationId())==com.director.actor.animation.AnimationData.Purpose.LOCOMOTION
+                ?clockPlayback.sample(payload,model.getCurrentTime()):null;
+        var input=new com.director.timeline.playback.entity.ActorAnimationLayerSample(clip.getAnimationId(),
+                Math.max(0,model.getCurrentTime()-clip.getStartTime()),clip.isLoop(),clip.getSpeed(),clip.getBlendSettings(),1);
+        boolean distance=actor!=null && actor.getRigProfile()!=null
+                && com.director.actor.runtime.ActorPresetClock.followsDistance(clip.getAnimationId(),sample);
+        var clock=com.director.actor.runtime.ActorPresetClock.resolve(input,sample,actor==null?null:actor.getRigProfile());
+        float local=asset.normalizeTime(clock.localTime()*Math.max(.01f,clock.speed()),
+                clock.loop()?asset.loopMode():AnimationLoopMode.ONCE);
         return new ActorAnimationEditContext(model, payload.getActorRef().getActorId(), track, payload,
                 clip, asset, model.getCurrentTime(), local, clip.getStartTime(), clip.getEndTime(),
-                clip.getSpeed(), clip.isLoop(), asset.duration(), asset.loopMode(),model.getActorEditContextRevision(),clip.getTimelineClip(),clip.getBlendSettings(),ActorPresetEditState.capture(track));
+                clip.getSpeed(), clip.isLoop(), asset.duration(), asset.loopMode(),model.getActorEditContextRevision(),clip.getTimelineClip(),clip.getBlendSettings(),ActorPresetEditState.capture(track),distance);
     }
 
     public boolean isCurrent() {
         return isBound() && presetState.equals(ActorPresetEditState.capture(track)) && Objects.equals(blendSettings,clip.getBlendSettings()) && Float.isFinite(timelineTime) && timelineTime>=0
                 && contextRevision==model.getActorEditContextRevision()
-                && Float.compare(model.getCurrentTime(), timelineTime)==0 && timelineTime>=start && timelineTime<=end;
+                && Float.compare(model.getCurrentTime(), timelineTime)==0 && timelineTime>=start && timelineTime<=end
+                && (!distanceDriven || Float.compare(assetTime,capture(model,track,clip).assetTime())==0);
     }
     /** Command target checks deliberately ignore the gesture's playhead and selection version. */
     public boolean isBound() {

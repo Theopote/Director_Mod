@@ -60,12 +60,29 @@ public final class ActorSavedPoseLibrary {
         return loaded;
     }
     public static void add(Saved pose) throws IOException {
-        List<Saved> next = new ArrayList<>(current());
+        var before=current();
+        List<Saved> next = new ArrayList<>(before);
         if (next.stream().anyMatch(p -> p.name().equals(pose.name())))
             throw new IllegalArgumentException("姿态名称已存在，请使用其他名称");
         next.add(pose);
-        save(loadedFile,next);
+        replaceFile(loadedFile,before,next);
         loaded = List.copyOf(next);
+    }
+    public static void reload() throws IOException {
+        var world=WorldIdentifier.getWorldSavePath();
+        if(world==null) throw new IOException("当前存档目录不可用");
+        var file=world.resolve("director/actor_poses.json");var next=read(file);
+        loadedFile=file;loaded=next;
+    }
+    public static void add(com.director.timeline.model.TimelineModel model,Saved pose) throws IOException {
+        var before=current();var next=new ArrayList<>(before);
+        if(before.stream().anyMatch(p->p.name().equals(pose.name()))) throw new IllegalArgumentException("姿态名称已存在");
+        next.add(pose);var after=List.copyOf(next);var file=loadedFile;
+        com.director.ui.timeline.commands.TimelineCommandBridge.execute(new com.director.ui.timeline.commands.BaseTimelineCommand(model,"actor_pose_library") {
+            @Override protected void doExecute() {replace(file,before,after);}
+            @Override protected void doUndo() {replace(file,after,before);}
+            @Override public String getDescription() {return "Save actor pose";}
+        });
     }
     /** Prepare a checked replacement without mutating the live library. Null name deletes. */
     static List<Saved> edit(List<Saved> source, Saved target, String newName) {

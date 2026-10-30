@@ -26,6 +26,9 @@ import java.util.Objects;
  * @version 1.0
  */
 public final class AnimationEvent {
+    public enum Timing { CLIP, ANIMATION }
+    private Timing timing;
+    public Timing getTiming() { return timing==null?Timing.CLIP:timing; }
 
     /** 归一化时间（0.0 ~ 1.0） */
     private float normalizedTime;
@@ -40,8 +43,12 @@ public final class AnimationEvent {
      * @param action 触发的 Action
      */
     public AnimationEvent(float normalizedTime, EntityActionEvent action) {
+        this(normalizedTime,action,Timing.CLIP);
+    }
+    public AnimationEvent(float normalizedTime, EntityActionEvent action,Timing timing) {
         this.normalizedTime = Math.max(0.0f, Math.min(1.0f, normalizedTime));
         this.action = Objects.requireNonNull(action, "action cannot be null");
+        this.timing=Objects.requireNonNull(timing);
     }
 
     // ========== Getters and Setters ==========
@@ -68,12 +75,13 @@ public final class AnimationEvent {
         if (o == null || getClass() != o.getClass()) return false;
         AnimationEvent that = (AnimationEvent) o;
         return Float.compare(that.normalizedTime, normalizedTime) == 0
+                && getTiming()==that.getTiming()
                 && Objects.equals(action, that.action);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(normalizedTime, action);
+        return Objects.hash(normalizedTime, action,getTiming());
     }
 
     @Override

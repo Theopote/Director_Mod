@@ -65,6 +65,7 @@ public class EntityClipSampler {
 
     /** 用于 AnimationEvent 的"已触发记录"（防止重复触发） */
     private final AnimationEventTriggerCache animationEventCache = new AnimationEventTriggerCache();
+    private float eventFrom=Float.NaN, lastEventSample=Float.NaN;
 
     /**
      * 动作推断阈值（blocks/second）
@@ -107,6 +108,11 @@ public class EntityClipSampler {
     public EntitySample sampleSnapshot(float timeSeconds) { return sampleAt(timeSeconds,false); }
 
     private EntitySample sampleAt(float timeSeconds,boolean emitEvents) {
+        if(emitEvents) {
+            eventFrom=Float.isFinite(lastEventSample) && timeSeconds>=lastEventSample?lastEventSample:Math.nextDown(timeSeconds);
+            if(!Float.isFinite(lastEventSample)) eventFrom=Float.NEGATIVE_INFINITY;
+            lastEventSample=timeSeconds;
+        }
         clearScratch();
         if (track == null || !track.isEnabled()) {
             return EntitySample.disabled();
@@ -213,10 +219,8 @@ public class EntityClipSampler {
 
         // Presets and spawn-owned manual keys retain independent clocks and blend settings.
         applyAnimation(result, animationClips, timeSeconds,emitEvents);
-        EntitySpawnClip presetOwner=null;
-        for(var candidate:spawnClips) if(candidate.getPreset()!=null
-                && (presetOwner==null || candidate.getStartTime()>=presetOwner.getStartTime())) presetOwner=candidate;
-        if(presetOwner!=null) {
+        EntitySpawnClip presetOwner=spawnClips.isEmpty()?null:spawnClips.getLast();
+        if(presetOwner!=null && presetOwner.getPreset()!=null) {
             var binding=presetOwner.getPreset();
             result.animationIsPreset=true;
             result.animationId=binding.animationId();result.animationLoop=binding.loop();result.animationSpeed=binding.speed();
@@ -225,9 +229,8 @@ public class EntityClipSampler {
             result.animationBlendEnvelope=binding.blend().envelopeAt(result.animationLocalTime,presetOwner.getLength());
         }
         var preset = result.animationId == null ? null : ActorAnimationLayerSample.from(result);
-        for(var candidate:track.getClips()) if(candidate instanceof EntitySpawnClip spawn && !spawn.isMuted()
-                && timeSeconds>=spawn.getStartTime() && timeSeconds<=spawn.getEndTime() && spawn.getBoneAnimation()!=null)
-            embedded.add(spawn.getBoneAnimation());
+        var manualOwner=spawnClips.isEmpty()?null:spawnClips.getLast();
+        if(manualOwner!=null && manualOwner.getBoneAnimation()!=null && !manualOwner.getBoneAnimation().isMuted()) embedded.add(manualOwner.getBoneAnimation());
         if (!embedded.isEmpty()) {
             applyAnimation(result, embedded, timeSeconds, emitEvents);
             result.presetAnimation = preset;
@@ -456,23 +459,9 @@ public class EntityClipSampler {
         result.animationLocalTime = Math.max(0.0f, timeSeconds - active.getStartTime());
         result.animationBlendEnvelope = result.animationBlendSettings.envelopeAt(result.animationLocalTime,active.getLength());
 
-        // 处理 AnimationEvent（动画事件）
-        if (emitEvents && active.hasEvents()) {
-            // 计算归一化时间
-            float clipDuration = active.getEndTime() - active.getStartTime();
-            if (clipDuration > 0.01f) {
-                float normalizedTime = (timeSeconds - active.getStartTime()) / clipDuration;
-                normalizedTime = Math.clamp(normalizedTime, 0.0f, 1.0f);
-
-                // 检查并触发事件
-                for (com.director.timeline.model.entity.AnimationEvent event : active.getEvents()) {
-                    if (animationEventCache.shouldTrigger(active, event, normalizedTime)) {
-                        // 触发 Action 事件
-                        result.actionEvents.add(event.getAction());
-                    }
-                }
-            }
-        }
+        if(emitEvents && active.hasEvents()) for(var event:active.getEvents())
+            for(float at:AnimationEventClock.times(track,active,event,eventFrom,timeSeconds))
+                if(at>eventFrom && at<=timeSeconds) result.actionEvents.add(event.getAction());
     }
 
     /**
@@ -869,7 +858,7 @@ public class EntityClipSampler {
      * 清除 AnimationEvent 触发缓存（用于重置/跳转时间）。
      */
     public void clearAnimationEventCache() {
-        animationEventCache.clear();
+        animationEventCache.clear(); lastEventSample=Float.NaN;
     }
 
     /**
@@ -877,7 +866,7 @@ public class EntityClipSampler {
      */
     public void clearAllCaches() {
         actionCache.clear();
-        animationEventCache.clear();
+        animationEventCache.clear(); lastEventSample=Float.NaN;
     }
 
     /**

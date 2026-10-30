@@ -521,6 +521,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             openDeleteConfirm(actor.getActorId());
         }
         
+        String placementFailure=com.director.ui.actor.placement.ActorPlacementEditing.failure(actor.getActorId());
+        if(!placementFailure.isBlank()) ImGui.textWrapped(placementFailure);
         // 提示信息
         ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PLACE_TIP));
         
@@ -1179,66 +1181,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return;
         }
         
-        // 查找该 Actor 的 ActorTrack
-        var timelineTracks = ActorUsageQuery.findTimelineTracksUsingActor(timelineModel, actor.getActorId());
-        if (timelineTracks.isEmpty()) {
-            LOGGER.warn("[ActorProjectPropertyAdapter] 未找到 Actor 对应的 Track");
-            return;
-        }
-        
-        // 使用第一个 Track（通常只有一个）
-        TimelineTrack timelineTrack = timelineTracks.getFirst();
-        ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
-        if (timelineTrack.isLocked()) return;
-        if (actorTrack == null) {
-            LOGGER.warn("[ActorProjectPropertyAdapter] ActorTrack payload 为空");
-            return;
-        }
-        
-        float currentTime = timelineModel.getCurrentTime();
-        org.joml.Vector3f cameraPos = new org.joml.Vector3f(
-                (float) cameraSample.position().x,
-                (float) cameraSample.position().y,
-                (float) cameraSample.position().z
-        );
-        
-        // 查找当前时间是否有 EntitySpawnClip
-        var clipsAtTime = actorTrack.findClipsAt(currentTime);
-        EntitySpawnClip spawnClip = null;
-        for (var clip : clipsAtTime) {
-            if (clip instanceof EntitySpawnClip) {
-                spawnClip = (EntitySpawnClip) clip;
-                break;
-            }
-        }
-        
-        if (spawnClip != null) {
-            // 更新现有的 SpawnClip
-            spawnClip.setPosition(cameraPos.x, cameraPos.y, cameraPos.z);
-            spawnClip.setYawDeg(cameraSample.yaw());
-            spawnClip.setPitchDeg(cameraSample.pitch());
-            LOGGER.info("[ActorProjectPropertyAdapter] 更新 SpawnClip 位置到摄像机: ({}, {}, {})",
-                    cameraPos.x, cameraPos.y, cameraPos.z);
-        } else {
-            // 创建新的 SpawnClip
-            spawnClip = new EntitySpawnClip("Spawn", currentTime, currentTime + DEFAULT_CLIP_DURATION);
-            spawnClip.setPosition(cameraPos.x, cameraPos.y, cameraPos.z);
-            spawnClip.setYawDeg(cameraSample.yaw());
-            spawnClip.setPitchDeg(cameraSample.pitch());
-            spawnClip.setVisibleOnSpawn(true);
-            actorTrack.addClip(spawnClip);
-            LOGGER.info("[ActorProjectPropertyAdapter] 创建 SpawnClip 在摄像机位置: ({}, {}, {})",
-                    cameraPos.x, cameraPos.y, cameraPos.z);
-        }
-        
-        if (spawnClip.getTimelineClip() == null) {
-            EntityTimelineClip timelineClip = new EntityTimelineClip(spawnClip, actorTrack.getColorRgba());
-            timelineTrack.addClip(timelineClip);
-        }
-        timelineModel.markDirty();
-        
-        // 选中 Actor，激活 Gizmo
-        ActorSelectionHub.selectActor(actor.getActorId());
+        try {
+            com.director.ui.actor.placement.ActorPlacementEditing.relocate(timelineModel,ActorRegistryManager.getInstance(),actor,
+                    new org.joml.Vector3f((float)cameraSample.position().x,(float)cameraSample.position().y,(float)cameraSample.position().z),
+                    new org.joml.Vector3f(cameraSample.yaw(),cameraSample.pitch(),0));
+            ActorSelectionHub.selectActor(actor.getActorId());
+        } catch(IllegalArgumentException unavailable) {com.director.ui.actor.placement.ActorPlacementEditing.reportFailure(actor.getActorId(),unavailable.getMessage());LOGGER.warn("无法重新放置演员：{}",unavailable.getMessage());}
+
     }
     
     // =========================================================

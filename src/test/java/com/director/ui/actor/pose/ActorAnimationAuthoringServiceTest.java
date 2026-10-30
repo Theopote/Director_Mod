@@ -145,9 +145,9 @@ class ActorAnimationAuthoringServiceTest {
     @Test void mirrorUndoRemovesNewTracksAndPreservesOriginalSparseKeys() {
         asset.getOrCreateBoneTrack("left_arm").rotation().put(1, new Quaternionf().rotateZ(.3f), InterpolationMode.STEP);
         assertTrue(ActorAnimationAuthoringService.mirror(context, List.of(1f), InterpolationMode.LINEAR));
-        assertEquals(6, asset.boneTracks().size()); assertTrue(history.undo());
+        assertEquals(10, asset.boneTracks().size()); assertTrue(history.undo());
         assertEquals(1, asset.boneTracks().size()); assertFalse(history.undo());
-        assertTrue(history.redo()); assertEquals(6, asset.boneTracks().size());
+        assertTrue(history.redo()); assertEquals(10, asset.boneTracks().size());
     }
     @Test void timelineRoundTripRejectsFrozenKeyframeEditWithoutHistory() {
         model.setCurrentTime(2); model.setCurrentTime(1);
@@ -223,7 +223,8 @@ class ActorAnimationAuthoringServiceTest {
         assertFalse(selected.isCurrent());
         assertEquals(1f,ActorAnimationEditContext.resolve(model,actor.getActorId()).assetTime());
         later.setMuted(true);
-        assertSame(clip,ActorAnimationEditContext.resolve(model,actor.getActorId()).clip());
+        assertSame(later,ActorAnimationEditContext.resolve(model,actor.getActorId()).clip());
+        assertFalse(ActorAnimationEditContext.resolve(model,actor.getActorId()).isCurrent());
     }
     @Test void sharedReferenceMoveEditsAssetOnceAndUndoRestoresBothSamples() {
         seedMixed();

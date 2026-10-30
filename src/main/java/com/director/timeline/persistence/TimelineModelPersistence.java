@@ -217,6 +217,7 @@ public class TimelineModelPersistence {
         public Float spawnX, spawnY, spawnZ;
         public Float yawDeg, pitchDeg;
         public String spawnBoneAnimationId;
+        public Boolean spawnBoneAnimationMuted;
         public EntityClipDTO spawnPreset;
         // Raw optional values isolate malformed blend fields from the rest of the clip DTO.
         public com.google.gson.JsonElement poseBlendMode,poseBlendWeight,poseBlendChannels,poseBlendAllBones,
@@ -270,6 +271,7 @@ public class TimelineModelPersistence {
         public String animationId;
         public Boolean animationLoop;
         public Float animationSpeed;
+        public List<com.director.timeline.model.entity.AnimationEvent> animationEvents;
 
         // ===== EntityStateClip =====
         public Boolean sneaking, sprinting, glowing, invulnerable;
@@ -1447,6 +1449,7 @@ public class TimelineModelPersistence {
                 cdto.yawDeg = sc.getYawDeg();
                 cdto.pitchDeg = sc.getPitchDeg();
                 cdto.spawnBoneAnimationId = sc.getBoneAnimationId();
+                cdto.spawnBoneAnimationMuted=sc.isBoneAnimationMuted();
                 if(sc.getPreset()!=null) {
                     var binding=sc.getPreset();var preset=new EntityClipDTO();
                     preset.animationId=binding.animationId();preset.animationLoop=binding.loop();preset.animationSpeed=binding.speed();
@@ -1479,6 +1482,9 @@ public class TimelineModelPersistence {
                 cdto.animationId = ac.getAnimationId();
                 cdto.animationLoop = ac.isLoop();
                 cdto.animationSpeed = ac.getSpeed();
+                cdto.animationEvents=ac.getEvents().stream().map(e->new com.director.timeline.model.entity.AnimationEvent(
+                        e.getNormalizedTime(),new com.director.timeline.playback.entity.EntityActionEvent(e.getAction().type(),
+                        com.director.actor.prop.PropEventParameters.copy(e.getAction().params(),false)),e.getTiming())).toList();
                 cdto.setPoseBlend(ac.getBlendSettings());
             }
             case com.director.timeline.model.entity.EntityStateClip stc -> {
@@ -1594,6 +1600,7 @@ public class TimelineModelPersistence {
                 if (cdto.yawDeg != null) sc.setYawDeg(cdto.yawDeg);
                 if (cdto.pitchDeg != null) sc.setPitchDeg(cdto.pitchDeg);
                 sc.setBoneAnimationId(cdto.spawnBoneAnimationId);
+                sc.setBoneAnimationMuted(Boolean.TRUE.equals(cdto.spawnBoneAnimationMuted));
                 if(cdto.spawnPreset!=null) {
                     var preset=cdto.spawnPreset;
                     try {
@@ -1642,6 +1649,12 @@ public class TimelineModelPersistence {
                 if (cdto.animationId != null) ac.setAnimationId(cdto.animationId);
                 if (cdto.animationLoop != null) ac.setLoop(cdto.animationLoop);
                 if (cdto.animationSpeed != null) ac.setSpeed(cdto.animationSpeed);
+                if(cdto.animationEvents!=null) for(var event:cdto.animationEvents) {
+                    if(event==null || event.getAction()==null || event.getAction().type()==null || !Float.isFinite(event.getNormalizedTime())) continue;
+                    ac.addEvent(new com.director.timeline.model.entity.AnimationEvent(event.getNormalizedTime(),
+                            new com.director.timeline.playback.entity.EntityActionEvent(event.getAction().type(),
+                                    com.director.actor.prop.PropEventParameters.copy(event.getAction().params(),false)),event.getTiming()));
+                }
                 cdto.restorePoseBlend(ac);
             }
             case com.director.timeline.model.entity.EntityStateClip stc -> {

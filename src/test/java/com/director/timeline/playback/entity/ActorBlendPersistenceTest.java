@@ -9,6 +9,17 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorBlendPersistenceTest {
+    @Test void bypassedManualLayerRetainsWeightAcrossPersistenceAndDoesNotPlayAsPreset() {
+        var spawn=new EntitySpawnClip("Spawn",0,5);spawn.setBoneAnimationId("manual:test");
+        spawn.setPreset(ActorPresetBinding.select("wave",null));spawn.setBlendSettings(settings());spawn.setBoneAnimationMuted(true);
+        var restored=(EntitySpawnClip)roundTrip(spawn);
+        assertTrue(restored.isBoneAnimationMuted());assertTrue(restored.getBoneAnimation().isMuted());assertEquals(settings(),restored.getBlendSettings());
+        var track=new ActorTrack();track.addClip(restored);var sampler=new EntityClipSampler(track);
+        var bypassed=sampler.sampleSnapshot(1);assertEquals("wave",bypassed.animationId);assertTrue(bypassed.animationIsPreset);assertNull(bypassed.presetAnimation);
+        restored.setBoneAnimationMuted(false);
+        var normal=sampler.sampleSnapshot(1);assertEquals("manual:test",normal.animationId);assertEquals("wave",normal.presetAnimation.id());
+        assertEquals(settings(),normal.animationBlendSettings);
+    }
     private static PoseBlendSettings settings() {
         return new PoseBlendSettings(PoseLayer.BlendMode.ADDITIVE,.35f,RigPose.ROTATION,false,Set.of(HumanoidRig.HEAD));
     }

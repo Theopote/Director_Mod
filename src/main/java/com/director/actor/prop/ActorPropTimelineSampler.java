@@ -60,10 +60,9 @@ public final class ActorPropTimelineSampler {
             if (clip instanceof EntityAnimationClip c) {
                 int index=0;
                 for (var marker : c.getEvents()) {
-                    float at=c.getStartTime()+marker.getNormalizedTime()*c.getLength();
-                    if (Float.isFinite(at) && PropEventParameters.supports(marker.getAction().type())
-                            && activeAnimation(track,at)==c)
-                        events.add(new Event(c.getId()+":"+index,at,marker.getAction()));
+                    if(PropEventParameters.supports(marker.getAction().type()))
+                        for(float at:com.director.timeline.playback.entity.AnimationEventClock.times(track,c,marker,c.getStartTime(),time))
+                            if(activeAnimation(track,at)==c) events.add(new Event(c.getId()+":"+index+":"+at,at,marker.getAction()));
                     index++;
                 }
             }

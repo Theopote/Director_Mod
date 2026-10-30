@@ -20,7 +20,9 @@ public final class ActorPathMovementPropertyUI {
             actor = actorId; scope = model; path = null; error = "";
         }
         if (!ImGui.collapsingHeader(tr("header"))) return;
-        var owner = model == null ? null : com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
+        com.director.timeline.model.TimelineTrack owner;
+        try {owner=model==null?null:com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model,actorId);}
+        catch(IllegalArgumentException unavailable) {ImGui.textWrapped(unavailable.getMessage());return;}
         com.director.timeline.model.entity.ActorRouteClip existing = null;
         if (model != null && owner != null) {
             var wrapper = model.getSelectedClip();
@@ -42,10 +44,7 @@ public final class ActorPathMovementPropertyUI {
                 for (var candidate : ActorPathLibraryManager.getAllPaths())
                     if (ImGui.selectable(candidate.getName() + "##" + candidate.getId(), candidate.getId().equals(path))) {
                         path = candidate.getId(); error = "";
-                        if (existing != null) {
-                            try { ActorPathEditing.switchPath(model, owner, existing, candidate); }
-                            catch (IllegalArgumentException | IllegalStateException failure) { error = failure.getMessage(); }
-                        }
+
                     }
             } finally { ImGui.endCombo(); }
         }

@@ -96,7 +96,7 @@ public final class ActorAnimationAuthoringService {
     }
 
     public static boolean moveTime(ActorAnimationEditContext context, Collection<Key> keys, float value) {
-        if(context==null || !context.isCurrent() || keys==null || keys.isEmpty() || !Float.isFinite(value)
+        if(context==null || !context.isCurrent() || context.distanceDriven() || keys==null || keys.isEmpty() || !Float.isFinite(value)
                 || (context.loop() && context.loopMode()!=AnimationLoopMode.ONCE)) return false;
         var distinct=new LinkedHashSet<>(keys);
         if(distinct.stream().anyMatch(Objects::isNull)) return false;
@@ -138,21 +138,49 @@ public final class ActorAnimationAuthoringService {
         if (context == null || !context.isCurrent() || times == null || times.isEmpty()
                 || !HumanoidTopology.matches(context.asset().rig())) return false;
         List<Paste> keys = new ArrayList<>();
-        String[] target = {HumanoidRig.BODY, HumanoidRig.HEAD, HumanoidRig.LEFT_ARM,
-                HumanoidRig.RIGHT_ARM, HumanoidRig.LEFT_LEG, HumanoidRig.RIGHT_LEG};
-        String[] source = {HumanoidRig.BODY, HumanoidRig.HEAD, HumanoidRig.RIGHT_ARM,
-                HumanoidRig.LEFT_ARM, HumanoidRig.RIGHT_LEG, HumanoidRig.LEFT_LEG};
+        var rig=context.asset().rig();
         for (Float time : new LinkedHashSet<>(times)) {
-            if (time == null || !Float.isFinite(time) || time < 0 || time > context.asset().duration()) return false;
-            RigPose pose = context.asset().sample(time, AnimationLoopMode.ONCE);
-            for (int i = 0; i < target.length; i++) {
-                InterpolationMode interpolation = context.asset().findBoneTrack(source[i])
-                        .flatMap(track -> track.rotation().findAt(time)).map(ChannelKeyframe::interpolation).orElse(mode);
-                keys.add(new Paste(target[i], Channel.ROTATION, time,
-                        ActorAnimationKeyframeEditing.mirrorAcrossX(pose.localTransform(source[i]).rotation()), interpolation));
+            if(time==null || !Float.isFinite(time) || time<0 || time>context.asset().duration()) return false;
+            var pose=context.asset().sample(time,AnimationLoopMode.ONCE);
+            for(var bone:rig.bones()) {
+                if(!supports(context.asset(),bone.id(),Channel.ROTATION)) continue;
+                String source=opposite(rig,bone.id());
+                var interpolation=context.asset().findBoneTrack(source).flatMap(t->t.rotation().findAt(time))
+                        .map(ChannelKeyframe::interpolation).orElse(mode);
+                keys.add(new Paste(bone.id(),Channel.ROTATION,time,
+                        ActorAnimationKeyframeEditing.mirrorAcrossX(pose.localTransform(source).rotation()),interpolation));
             }
         }
         return write(context, keys, true, "Mirror actor pose");
+    }
+
+    /** Copy only selected authored channels to their symmetric counterparts. */
+    public static boolean mirrorSelection(ActorAnimationEditContext context,Collection<Key> selected) {
+        if(context==null || !context.isCurrent() || selected==null || selected.isEmpty()
+                || !HumanoidTopology.matches(context.asset().rig())) return false;
+        var rig=context.asset().rig();var keys=new ArrayList<Paste>();
+        for(var key:new LinkedHashSet<>(selected)) {
+            if(!valid(context.asset(),key)) return false;
+            var source=context.asset().findBoneTrack(key.boneId()).orElse(null);
+            var value=source==null?null:frame(source,key);if(value==null) return false;
+            String target=opposite(rig,key.boneId());
+            if(!supports(context.asset(),target,key.channel())) return false;
+            Object reflected=switch(key.channel()) {
+                case ROTATION -> ActorAnimationKeyframeEditing.mirrorAcrossX((Quaternionf)value.value());
+                case SCALE -> value.value();
+                case TRANSLATION -> {
+                    var delta=new Vector3f((Vector3f)value.value()).sub(rig.bone(rig.requireBoneIndex(key.boneId())).restLocal().translation());
+                    delta.x=-delta.x;
+                    yield rig.bone(rig.requireBoneIndex(target)).restLocal().translation().add(delta);
+                }
+            };
+            keys.add(new Paste(target,key.channel(),key.time(),reflected,value.interpolation()));
+        }
+        return write(context,keys,true,"Mirror selected actor keys");
+    }
+    private static String opposite(RigDefinition rig,String id) {
+        String result=id.startsWith("left_")?"right_"+id.substring(5):id.startsWith("right_")?"left_"+id.substring(6):id;
+        return rig.findBoneIndex(result)>=0?result:id;
     }
 
     private static boolean sameKey(Key a, Key b) {

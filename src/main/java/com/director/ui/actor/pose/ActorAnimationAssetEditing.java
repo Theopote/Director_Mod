@@ -30,6 +30,7 @@ public final class ActorAnimationAssetEditing {
         var rig = com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElseThrow();
         if (!com.director.actor.rig.skeleton.RigPoseComposer.sameLayout(rig, asset.rig()))
             throw new IllegalArgumentException("动画骨架与演员不匹配");
+        ActorPresetValidation.require(actor,spawn,library,id);
         return spawn;
     }
 
@@ -49,8 +50,11 @@ public final class ActorAnimationAssetEditing {
             if (!target.payload().getClips().contains(spawn)) throw new IllegalArgumentException("演员片段已删除");
         };
         TimelineCommandBridge.execute(new StateChangeCommand(model, "Apply actor preset",
-                () -> { validate.run(); spawn.setPreset(before); model.invalidateActorEditContext(); },
-                () -> { validate.run(); spawn.setPreset(after); model.invalidateActorEditContext(); }));
+                () -> { validate.run(); if(!Objects.equals(spawn.getPreset(),after)) throw new IllegalArgumentException("动作绑定已变化");spawn.setPreset(before); model.invalidateActorEditContext(); },
+                () -> { validate.run(); if(!Objects.equals(spawn.getPreset(),before)) throw new IllegalArgumentException("动作绑定已变化");
+                    var actor=com.director.actor.ActorRegistryManager.getInstance().getActor(target.actorId()).orElse(null);
+                    ActorPresetValidation.require(actor,spawn,library,id);
+                    spawn.setPreset(after); model.invalidateActorEditContext(); }));
     }
 
     public static void setPurpose(TimelineModel model, AnimationAssetLibrary library, String id,

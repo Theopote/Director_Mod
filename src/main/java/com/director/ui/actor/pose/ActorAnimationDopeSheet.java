@@ -128,6 +128,7 @@ public final class ActorAnimationDopeSheet {
                 model.getCurrentTime(),renderContext.assetTime(),clip.getSpeed()));
         if(clip.isLoop() && asset.loopMode()!=com.director.actor.animation.asset.AnimationLoopMode.ONCE)
             ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.loop_seek_hint"));
+        if(renderContext.distanceDriven()) ImGui.textWrapped("路径距离时钟：当前键时间跟随实际步态相位；请在独立动画预览中调整键的时间位置。");
         renderCanvas(model, clip, asset);
 
         for (Map.Entry<String, BoneTrack> entry : asset.boneTracks().entrySet()) {
@@ -207,8 +208,8 @@ public final class ActorAnimationDopeSheet {
             if (ImGui.smallButton(Icons.COPY + " 复制##dopeCopy")) copySelection(asset);
             ImGui.sameLine();
             ImGui.beginDisabled(!canWrite() || isKeyInteractionActive());
-            if (ImGui.smallButton(Icons.FLIP_HORIZONTAL + " 镜像##dopeMirrorSelected")) {
-                mirrorAt(model, clip, asset, selection.stream().map(KeyId::time).distinct().toList());
+            if (ImGui.smallButton(Icons.FLIP_HORIZONTAL + " 镜像所选键到对侧##dopeMirrorSelected")) {
+                if(ActorAnimationAuthoringService.mirrorSelection(renderContext,assetKeys())) clearSelection();
             }
             ImGui.sameLine();
             if (ImGui.smallButton(Icons.DELETE + " 删除##dopeDelete")) {
@@ -533,7 +534,7 @@ public final class ActorAnimationDopeSheet {
                 clip.getStartTime(),clip.getEndTime(),clip.getSpeed(),model.getCurrentTime()).ifPresent(model::setCurrentTime);
     }
     private static boolean canMove() {
-        return canWrite() && (!renderContext.loop() || renderContext.loopMode()==com.director.actor.animation.asset.AnimationLoopMode.ONCE);
+        return canWrite() && !renderContext.distanceDriven() && (!renderContext.loop() || renderContext.loopMode()==com.director.actor.animation.asset.AnimationLoopMode.ONCE);
     }
 
     private static void select(String assetId, KeyId key, boolean additive) {
@@ -606,14 +607,9 @@ public final class ActorAnimationDopeSheet {
                 ActorAnimationAuthoringSettings.getInstance().getInterpolation())) {
             selectedAssetId = asset.id();
             selection.clear();
-            String[] bones = {
-                    com.director.actor.rig.skeleton.HumanoidRig.BODY,
-                    com.director.actor.rig.skeleton.HumanoidRig.HEAD,
-                    com.director.actor.rig.skeleton.HumanoidRig.LEFT_ARM,
-                    com.director.actor.rig.skeleton.HumanoidRig.RIGHT_ARM,
-                    com.director.actor.rig.skeleton.HumanoidRig.LEFT_LEG,
-                    com.director.actor.rig.skeleton.HumanoidRig.RIGHT_LEG
-            };
+            String[] bones=asset.rig().bones().stream()
+                    .filter(b->ActorBoneInspector.supports(asset.rig(),b.id(),com.director.actor.rig.skeleton.RigPose.ROTATION))
+                    .map(com.director.actor.rig.skeleton.BoneDefinition::id).toArray(String[]::new);
             for (float time : times) for (String bone : bones) selection.add(new KeyId(bone, Channel.ROTATION, time));
             seekToFirst(model, clip);
         }

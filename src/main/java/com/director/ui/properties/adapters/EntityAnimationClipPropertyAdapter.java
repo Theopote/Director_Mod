@@ -21,7 +21,7 @@ public class EntityAnimationClipPropertyAdapter implements IPropertyAdapter<Enti
         var id=new ImString(clip.getAnimationId(),256);
         changed=ImGui.inputText("动画 ID",id); if(changed) clip.setAnimationId(id.get()); gesture.observe("id",changed);
         changed=ImGui.checkbox("循环播放",clip.isLoop()); if(changed) clip.setLoop(!clip.isLoop()); gesture.observe("loop",changed);
-        float[] speed={clip.getSpeed()}; changed=ImGui.sliderFloat("播放速度",speed,0,4);
+        float[] speed={clip.getSpeed()}; changed=ImGui.sliderFloat("播放速度",speed,.01f,4);
         if(changed) clip.setSpeed(speed[0]); gesture.observe("speed",changed);
         ActorAnimationBlendPropertyUI.render(source,clip.getBlendSettings(),clip::setBlendSettings,gesture);
         gesture.end(); return false;

@@ -206,7 +206,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
             settings.setEditTarget(com.director.ui.actor.pose.ActorAnimationAuthoringSettings.EditTarget.values()[editTarget.get()]);
         }
         animationAutoKeyframe.set(settings.isAutoKeyframe());
-        if (ImGui.checkbox("自动关键帧##actorAnimationAutoKey", animationAutoKeyframe)) {
+        if (ImGui.checkbox("快速姿态自动应用##actorAnimationAutoKey", animationAutoKeyframe)) {
             settings.setAutoKeyframe(animationAutoKeyframe.get());
         }
         if (ImGui.isItemHovered()) ImGui.setTooltip(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.hint"));

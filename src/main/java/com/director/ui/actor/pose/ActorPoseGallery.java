@@ -70,6 +70,20 @@ public final class ActorPoseGallery {
                 com.director.ui.tools.ToolRegistry.get().activate(com.director.ui.tools.ToolRegistry.ACTOR_POSE_TOOL_ID);
             }
             ImGui.endDisabled();
+            if(spawn!=null && spawn.getBoneAnimationId()!=null) {
+                var blend=spawn.getBlendSettings();
+                ImGui.textWrapped("手工修正优先于动作预设；已有关键帧可能覆盖新绑定的动作。可旁路手工层检查预设，已有关键帧会保留。");
+                ImGui.beginDisabled(blocked);
+                if(ImGui.button(spawn.isBoneAnimationMuted()?"恢复手工修正##bypassManual":"旁路手工修正##bypassManual")) {
+                    try {
+                        var edit=new com.director.ui.actor.edit.ActorClipPropertyEditSession(model,spawn);
+                        var draft=(EntitySpawnClip)edit.draft();
+                        draft.setBoneAnimationMuted(!spawn.isBoneAnimationMuted());
+                        edit.commit();refresh(id);
+                    } catch(RuntimeException failure) {message=failure.getMessage();}
+                }
+                ImGui.endDisabled();
+            }
             ImGui.inputTextWithHint("##search","搜索姿态或动作",query);
             ImGui.combo("显示##category",category,new String[]{"全部","内置姿态","我的姿态","内置动作","项目动画"});
             ImGui.combo("动作用途##purpose",purpose,new String[]{"全部用途","表演","循环步态","静态姿态"});
@@ -129,13 +143,19 @@ public final class ActorPoseGallery {
                 if(count==0) ImGui.textWrapped("没有匹配的兼容姿态或动作。");
             }
             ImGui.endChild();
+            ImGui.beginDisabled(blocked);
+            if(ImGui.smallButton("重新加载个人姿态库")) {
+                try {ActorSavedPoseLibrary.reload();thumbnails.clear();editing=null;message="姿态库已重新加载。";}
+                catch(java.io.IOException failure) {message=failure.getMessage();}
+            }
+            ImGui.endDisabled();
             ImGui.inputTextWithHint("##poseName","为当前旋转姿态命名",name);
             ImGui.beginDisabled(!canApply || context==null);
             if(ImGui.button("保存当前旋转姿态")) {
                 try {
-                    ActorSavedPoseLibrary.add(ActorSavedPoseLibrary.capture(name.get(),context.asset().sample(context.assetTime(),AnimationLoopMode.ONCE),bones));
+                    ActorSavedPoseLibrary.add(model,ActorSavedPoseLibrary.capture(name.get(),context.asset().sample(context.assetTime(),AnimationLoopMode.ONCE),bones));
                     message="已保存到当前存档的“我的姿态”。";
-                } catch(java.io.IOException | IllegalArgumentException failure) {message=failure.getMessage();}
+                } catch(java.io.IOException | RuntimeException failure) {message=failure.getMessage();}
             }
             ImGui.endDisabled();ImGui.textWrapped("保存动画层中的旋转，不包含路径、自动步态、脚底接触和注视结果。");
             if(editing!=null) {

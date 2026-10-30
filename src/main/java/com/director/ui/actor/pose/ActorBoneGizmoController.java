@@ -230,7 +230,7 @@ public final class ActorBoneGizmoController {
         if (pending) cancelDraft();
         if (actorId == null || boneId == null
                 || ("root".equals(boneId) && activeBoneMode == GizmoMode.ROTATE)) return;
-        if (actorTrack == null) resolveTrack();
+        resolveTrack();
         TimelineModel model = resolveModel();
         if (actorTrack == null || model == null || timelineTrack == null || timelineTrack.isLocked() || model.isPlaying()) return;
 
@@ -432,7 +432,11 @@ public final class ActorBoneGizmoController {
 
     private void beginAnimationGesture(TimelineModel model, float timelineTime) {
         AnimationAssetLibrary library = AnimationAssetLibrary.getInstance();
-        editingAnimationClip = findActiveAssetClip(actorTrack, timelineTime, library);
+        var context=ActorAnimationEditContext.resolve(model,actorId);
+        if(context!=null && (!context.isCurrent() || context.track()!=timelineTrack)) {clearDraft();return;}
+        var reference=ActorAnimationTarget.resolve(model,timelineTrack);
+        if(context==null && reference!=null && com.director.actor.animation.AnimationLibrary.getInstance().get(reference.getAnimationId()).isEmpty()) {clearDraft();return;}
+        editingAnimationClip=context==null?null:context.clip();
         editingAsset = editingAnimationClip == null ? null : library.find(editingAnimationClip.getAnimationId()).orElse(null);
 
         if (editingAsset == null) {
@@ -459,8 +463,8 @@ public final class ActorBoneGizmoController {
         var actorRig = com.director.actor.ActorRegistryManager.getInstance().getActor(actorId)
                 .flatMap(com.director.actor.rig.ActorRigCompatibility::resolveRig).orElse(null);
         if (actorRig == null || !actorRig.id().equals(editingAsset.rigId())) { clearDraft(); return; }
-        animationKeyTime = editingAsset.normalizeTime((timelineTime - editingAnimationClip.getStartTime()) * speed,
-                editingAnimationClip.isLoop() ? editingAsset.loopMode() : AnimationLoopMode.ONCE);
+        animationKeyTime=context!=null?context.assetTime():editingAsset.normalizeTime((timelineTime-editingAnimationClip.getStartTime())*speed,
+                editingAnimationClip.isLoop()?editingAsset.loopMode():AnimationLoopMode.ONCE);
         clipStart = editingAnimationClip.getStartTime();
         animationClipEnd=editingAnimationClip.getEndTime();
         animationBlend=editingAnimationClip.getBlendSettings();
@@ -668,33 +672,15 @@ public final class ActorBoneGizmoController {
         return result;
     }
 
-    private static EntityAnimationClip findActiveAssetClip(ActorTrack track, float time,
-                                                            AnimationAssetLibrary library) {
-        EntityAnimationClip result = null;
-        for (EntityClip clip : ActorEmbeddedAnimation.clips(track)) {
-            if (clip instanceof EntityAnimationClip animation && !animation.isMuted()
-                    && time >= animation.getStartTime() && time <= animation.getEndTime()
-                    && library.contains(animation.getAnimationId())
-                    && (result == null || animation.getStartTime() >= result.getStartTime())) result = animation;
-        }
-        return result;
-    }
-
     private void resolveTrack() {
         actorTrack = null;
         timelineTrack = null;
         TimelineModel model = resolveModel();
         if (model == null || actorId == null) return;
-        for (TimelineTrack track : model.getTracks()) {
-            if (track == null || track.getType() != TrackType.ACTOR) continue;
-            ActorTrack candidate = track.getActorTrackPayload();
-            ActorRef ref = candidate == null ? null : candidate.getActorRef();
-            if (ref != null && Objects.equals(actorId, ref.getActorId())) {
-                actorTrack = candidate;
-                timelineTrack = track;
-                return;
-            }
-        }
+        try {
+            timelineTrack=ActorAnimationAssetEditing.resolveActorTrack(model,actorId);
+            actorTrack=timelineTrack.getActorTrackPayload();
+        } catch(IllegalArgumentException unavailable) {timelineTrack=null;actorTrack=null;}
     }
 
     private static TimelineModel resolveModel() {

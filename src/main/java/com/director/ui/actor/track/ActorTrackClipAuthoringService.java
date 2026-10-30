@@ -43,7 +43,7 @@ public final class ActorTrackClipAuthoringService {
     /** All menu/property entry points use the same validation and one undo transaction. */
     public EntityTimelineClip createClip(TimelineModel model, TimelineTrack timelineTrack,
                                          ActorTrackClipKind kind, ActorActionType actionType) {
-        if (model == null || model.isPlaying() || timelineTrack == null || timelineTrack.isLocked()
+        if (model == null || model.isPlaying() || model.isScrubbing() || timelineTrack == null || timelineTrack.isLocked() || timelineTrack.isMuted()
                 || !model.getAllTracks().contains(timelineTrack)
                 || timelineTrack.getType() != TrackType.ACTOR || kind == null) {
             return null;
@@ -91,10 +91,10 @@ public final class ActorTrackClipAuthoringService {
         TransformSeed seed = resolveTransformSeed(actorTrack, start);
         clip.setFromPos(seed.position.x, seed.position.y, seed.position.z);
         clip.setToPos(seed.position.x, seed.position.y, seed.position.z);
-        clip.setFromRot(seed.yawDeg, seed.pitchDeg, 0.0f);
-        clip.setToRot(seed.yawDeg, seed.pitchDeg, 0.0f);
-        clip.setFromScale(1.0f, 1.0f, 1.0f);
-        clip.setToScale(1.0f, 1.0f, 1.0f);
+        clip.setFromRot(seed.yawDeg, seed.pitchDeg, seed.rollDeg);
+        clip.setToRot(seed.yawDeg, seed.pitchDeg, seed.rollDeg);
+        clip.setFromScale(seed.scale.x,seed.scale.y,seed.scale.z);
+        clip.setToScale(seed.scale.x,seed.scale.y,seed.scale.z);
         return clip;
     }
 
@@ -130,21 +130,21 @@ public final class ActorTrackClipAuthoringService {
     }
 
     private TransformSeed resolveTransformSeed(ActorTrack actorTrack, float timeSeconds) {
-        EntitySpawnClip spawn = findNearestSpawnClip(actorTrack, timeSeconds);
-        if (spawn != null) {
-            return new TransformSeed(new Vector3f(spawn.getPosition()), spawn.getYawDeg(), spawn.getPitchDeg());
-        }
+        var current=new com.director.timeline.playback.entity.EntityClipSampler(actorTrack).sampleSnapshot(timeSeconds);
+        if(current.enabled) return new TransformSeed(new Vector3f(current.position),current.rotation.x,current.rotation.y,current.rotation.z,new Vector3f(current.scale));
+        EntitySpawnClip spawn=findNearestSpawnClip(actorTrack,timeSeconds);
+        if(spawn!=null) return new TransformSeed(new Vector3f(spawn.getPosition()),spawn.getYawDeg(),spawn.getPitchDeg(),spawn.getRollDeg(),new Vector3f(spawn.getScale()));
 
         CameraSample sample = sampleCamera();
         if (sample != null) {
             return new TransformSeed(
                     new Vector3f((float) sample.position().x, (float) sample.position().y, (float) sample.position().z),
                     sample.yaw(),
-                    sample.pitch()
+                    sample.pitch(),0,new Vector3f(1)
             );
         }
 
-        return new TransformSeed(new Vector3f(), 0.0f, 0.0f);
+        return new TransformSeed(new Vector3f(), 0.0f, 0.0f,0,new Vector3f(1));
     }
 
     private EntitySpawnClip findNearestSpawnClip(ActorTrack actorTrack, float timeSeconds) {
@@ -177,6 +177,6 @@ public final class ActorTrackClipAuthoringService {
         return CameraAccessor.sampleFromGameCamera(client);
     }
 
-    private record TransformSeed(Vector3f position, float yawDeg, float pitchDeg) {
+    private record TransformSeed(Vector3f position, float yawDeg, float pitchDeg, float rollDeg,Vector3f scale) {
     }
 }
