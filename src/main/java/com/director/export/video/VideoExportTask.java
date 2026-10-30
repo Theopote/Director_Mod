@@ -46,9 +46,10 @@ public final class VideoExportTask implements Runnable {
         try {
             manager.checkCanceled();
 
-            float startTime = resolveStartTime();
-            float endTime = resolveEndTime();
-            int totalFrames = VideoExportSettings.frameCount(startTime, endTime, settings.fps);
+            boolean still = settings.format == VideoExportSettings.FORMAT_PNG_STILL;
+            float startTime = still ? settings.stillTime : resolveStartTime();
+            float endTime = still ? startTime : resolveEndTime();
+            int totalFrames = still ? 1 : VideoExportSettings.frameCount(startTime, endTime, settings.fps);
 
             notifyProgress(0f, "准备导出，总帧数：" + totalFrames);
 
@@ -67,6 +68,8 @@ public final class VideoExportTask implements Runnable {
                     ffmpeg.setAudioWavPath(audioWav);
                 }
                 encoder = ffmpeg;
+            } else if (still) {
+                encoder = new PngStillEncoder();
             } else {
                 encoder = new PngSequenceEncoder();
             }

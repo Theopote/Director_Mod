@@ -19,6 +19,10 @@ final class StagedVideoOutput implements AutoCloseable {
     private boolean committed;
 
     private StagedVideoOutput(Path target, boolean sequence) throws IOException {
+        this(target,sequence,".mp4");
+    }
+
+    private StagedVideoOutput(Path target, boolean sequence,String suffix) throws IOException {
         this.target = target.toAbsolutePath().normalize();
         this.sequence = sequence;
         if (this.target.getParent() == null) throw new IOException("输出路径不能是根目录");
@@ -26,11 +30,15 @@ final class StagedVideoOutput implements AutoCloseable {
         validateTarget();
         staging = sequence
                 ? Files.createTempDirectory(this.target.getParent(), ".director-frames-")
-                : Files.createTempFile(this.target.getParent(), ".director-video-", ".mp4");
+                : Files.createTempFile(this.target.getParent(), ".director-export-", suffix);
     }
 
     static StagedVideoOutput video(Path target) throws IOException {
         return new StagedVideoOutput(target, false);
+    }
+
+    static StagedVideoOutput still(Path target) throws IOException {
+        return new StagedVideoOutput(target,false,".png");
     }
 
     static StagedVideoOutput sequence(Path target) throws IOException {
@@ -53,7 +61,7 @@ final class StagedVideoOutput implements AutoCloseable {
         if (!Files.exists(target, LinkOption.NOFOLLOW_LINKS)) return;
         if (sequence) validateFramesDirectory(target);
         else if (!Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS))
-            throw new IOException("MP4 输出目标不是普通文件：" + target);
+            throw new IOException("输出目标不是普通文件：" + target);
     }
 
     private static void validateFramesDirectory(Path directory) throws IOException {
@@ -72,7 +80,7 @@ final class StagedVideoOutput implements AutoCloseable {
         if (committed) throw new IOException("导出结果已经提交");
         validateTarget();
         if (!sequence) {
-            if (Files.size(staging) == 0) throw new IOException("编码器未生成视频文件");
+            if (Files.size(staging) == 0) throw new IOException("编码器未生成输出文件");
             try {
                 Files.move(staging, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
                 committed = true;

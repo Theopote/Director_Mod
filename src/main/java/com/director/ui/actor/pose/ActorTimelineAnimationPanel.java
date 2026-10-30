@@ -52,6 +52,8 @@ public final class ActorTimelineAnimationPanel {
             }
             if(target.status()!=ActorAnimationDetailTarget.Status.READY)
                 ImGui.textWrapped(I18n.translate("gui.director.actor.detail."+target.status().name().toLowerCase(java.util.Locale.ROOT)));
+            if(target.status()==ActorAnimationDetailTarget.Status.NO_ANIMATION)
+                ActorBonePropertiesPanel.renderGalleryInTimeline(model,target.actorId());
             if(target.status()==ActorAnimationDetailTarget.Status.READY
                     || target.status()==ActorAnimationDetailTarget.Status.READ_ONLY) {
                 var context=ActorAnimationEditContext.resolve(model,target.actorId());

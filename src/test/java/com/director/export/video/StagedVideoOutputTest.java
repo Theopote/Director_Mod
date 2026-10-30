@@ -10,6 +10,20 @@ import static org.junit.jupiter.api.Assertions.*;
 class StagedVideoOutputTest {
     @TempDir Path directory;
 
+    @Test void stillPreservesPreviousPngOnAbortAndPublishesOnlyAtCommit() throws Exception {
+        var target=directory.resolve("frame.png");Files.writeString(target,"previous");
+        try(var output=StagedVideoOutput.still(target)) {
+            assertTrue(output.path().toString().endsWith(".png"));
+            Files.writeString(output.path(),"partial");
+        }
+        assertEquals("previous",Files.readString(target));
+        try(var output=StagedVideoOutput.still(target)) {
+            Files.writeString(output.path(),"complete");assertEquals("previous",Files.readString(target));output.commit();
+        }
+        assertEquals("complete",Files.readString(target));
+        try(var files=Files.list(directory)) {assertEquals(1,files.count());}
+    }
+
     @Test void canceledVideoPreservesExistingFileAndRemovesPartialOutput() throws Exception {
         Path target = directory.resolve("clip.mp4");
         Files.writeString(target, "previous");

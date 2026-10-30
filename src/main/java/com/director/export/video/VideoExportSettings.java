@@ -51,6 +51,10 @@ public class VideoExportSettings implements Cloneable {
 
     public static final int FORMAT_H264_MP4 = 0;
     public static final int FORMAT_PNG_SEQUENCE = 1;
+    public static final int FORMAT_PNG_STILL = 2;
+
+    /** Exact timeline time for a still; no synthetic end time or FPS rounding. */
+    public float stillTime = 0f;
 
     public int format = FORMAT_H264_MP4;
 
@@ -130,10 +134,11 @@ public class VideoExportSettings implements Cloneable {
         if (width < 16 || height < 16 || width > 8192 || height > 8192)
             return "分辨率宽高须在 16–8192 像素之间";
         if (fps < 1 || fps > 240) return "FPS 须在 1–240 之间";
-        if (format != FORMAT_H264_MP4 && format != FORMAT_PNG_SEQUENCE) return "不支持的导出格式";
+        if (format != FORMAT_H264_MP4 && format != FORMAT_PNG_SEQUENCE && format != FORMAT_PNG_STILL) return "不支持的导出格式";
+        if (format == FORMAT_PNG_STILL && (!Float.isFinite(stillTime) || stillTime < 0)) return "静帧时间须为非负有限数值";
         if (rangeMode != RANGE_TIMELINE && rangeMode != RANGE_CUSTOM) return "不支持的时间范围模式";
         if (cameraMode != CAMERA_PLAYER && cameraMode != CAMERA_TRACK) return "不支持的摄像机模式";
-        if (rangeMode == RANGE_CUSTOM) {
+        if (rangeMode == RANGE_CUSTOM && format != FORMAT_PNG_STILL) {
             try {
                 frameCount(customStartTime, customEndTime, fps);
             } catch (IllegalArgumentException invalid) {
@@ -155,6 +160,7 @@ public class VideoExportSettings implements Cloneable {
         if (path == null || path.getFileName() == null) return "请指定有效的输出路径";
         String name = path.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
         if (format == FORMAT_H264_MP4 && !name.endsWith(".mp4")) return "MP4 输出路径须以 .mp4 结尾";
+        if (format == FORMAT_PNG_STILL && !name.endsWith(".png")) return "静帧输出路径须以 .png 结尾";
         int dot = name.lastIndexOf('.');
         if (format == FORMAT_PNG_SEQUENCE && (name.isBlank() || dot == 0 || name.equals("..")))
             return "请指定 PNG 序列的有效目录名称";

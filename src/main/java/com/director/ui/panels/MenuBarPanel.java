@@ -151,6 +151,9 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
             ImGui.separator();
 
+            if (ImGui.menuItem(Icons.EXPORT + " 导出当前帧 PNG")) {
+                com.director.ui.video.StillExportDialog.open();
+            }
             if (ImGui.menuItem(menuLabel(Icons.VIDEO, DirectorLang.Menu.FILE_EXPORT_VIDEO))) {
                 commands.project().exportVideo();
             }

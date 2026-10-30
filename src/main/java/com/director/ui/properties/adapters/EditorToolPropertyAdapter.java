@@ -192,7 +192,10 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
     }
 
+    private final com.director.ui.actor.pose.ActorPoseGallery poseGallery = new com.director.ui.actor.pose.ActorPoseGallery();
+
     private void renderAnimationAuthoring() {
+        poseGallery.render(DirectorServices.get().containerTimeline().getTimelineModel(), ActorSelectionHub.getSelectedActorId());
         var draft = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance();
         com.director.ui.actor.pose.ActorBoneDraftPanel.render();
         if (!ImGui.collapsingHeader(Icons.ANIMATION + " 关键帧动画", ImGuiTreeNodeFlags.DefaultOpen)) return;

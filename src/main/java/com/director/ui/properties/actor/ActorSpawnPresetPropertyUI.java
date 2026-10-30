@@ -13,15 +13,19 @@ import java.util.*;
 /** Edits the Spawn inspector draft; the existing gesture commits one undoable change. */
 public final class ActorSpawnPresetPropertyUI {
     private ActorSpawnPresetPropertyUI() {}
+    private static final com.director.ui.actor.pose.ActorPoseGallery gallery = new com.director.ui.actor.pose.ActorPoseGallery();
     private static final ActorPresetFocusRequest<EntitySpawnClip> focusRequest=new ActorPresetFocusRequest<>();
     public static void requestFocus(EntitySpawnClip source) {focusRequest.request(source);}
     private static final com.director.ui.actor.pose.ActorAnimationCatalog.Cache catalogCache=new com.director.ui.actor.pose.ActorAnimationCatalog.Cache();
     private static final com.director.ui.actor.pose.ActorInspectorPlayback playbackQuery=new com.director.ui.actor.pose.ActorInspectorPlayback();
-    private static EntitySpawnClip browserOwner;
-    private static final imgui.type.ImString search=new imgui.type.ImString(256);
-    private static final ImInt sourceFilter=new ImInt(0),purposeFilter=new ImInt(0);
     /** Called after the inspector draft commits, so duplication never races a pending property edit. */
     public static void renderIndependentAction(EntitySpawnClip source) {
+        var galleryWrapper=source.getTimelineClip();
+        var galleryTrack=galleryWrapper==null?null:galleryWrapper.getParentTrack();
+        var galleryPayload=galleryTrack==null?null:galleryTrack.getActorTrackPayload();
+        if(galleryPayload!=null && galleryPayload.getActorRef()!=null)
+            gallery.render(com.director.core.DirectorServices.get().containerTimeline().getTimelineModel(),
+                    galleryPayload.getActorRef().getActorId(),source);
         if(source.getPreset()==null) return;
         var library=AnimationAssetLibrary.getInstance();
         var asset=library.find(source.getPreset().animationId()).orElse(null);
@@ -76,7 +80,6 @@ public final class ActorSpawnPresetPropertyUI {
             var payload=wrapper==null || wrapper.getParentTrack()==null?null:wrapper.getParentTrack().getActorTrackPayload();
             var actor=payload==null || payload.getActorRef()==null?null:
                     ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
-            if(browserOwner!=source) {browserOwner=source;search.set("");sourceFilter.set(0);purposeFilter.set(0);}
             var catalog=catalogCache.entries(AnimationAssetLibrary.getInstance(),AnimationLibrary.getInstance(),actor);
             var binding=draft.getPreset();
             String current="无预设";
@@ -86,26 +89,11 @@ public final class ActorSpawnPresetPropertyUI {
             }
             ImGui.textWrapped("当前动作："+current);
             boolean changed=false;
-            if(ImGui.treeNode("浏览与选择动作##presetBrowser")) {
-                ImGui.inputTextWithHint("##presetSearch","搜索动作名称、ID 或骨架",search);
-                ImGui.combo("来源##presetSource",sourceFilter,new String[]{"全部来源","项目动画","内置动作"});
-                ImGui.combo("用途##presetPurpose",purposeFilter,new String[]{"全部用途","表演","循环步态","静态姿态"});
-                var sources=com.director.ui.actor.pose.ActorAnimationCatalog.Source.values();
-                var purposes=com.director.actor.animation.AnimationData.Purpose.values();
-                var visible=catalogCache.filter(catalog,search.get(),
-                        sourceFilter.get()==0?null:sources[sourceFilter.get()-1],purposeFilter.get()==0?null:purposes[purposeFilter.get()-1],true,draft.getBoneAnimationId());
-                ImGui.beginChild("presetResults",0,Math.min(180,Math.max(60,(visible.size()+1)*ImGui.getTextLineHeightWithSpacing()+8)),true);
-                if(ImGui.selectable("无预设##clearPreset",binding==null)) {binding=null;draft.setPreset(null);gesture.requestCommit();}
-                for(var entry:visible) {
-                    if(ImGui.selectable(entry.name()+" · "+entry.purpose().label()+"##preset:"+entry.id(),binding!=null && entry.id().equals(binding.animationId()))) {
-                        binding=ActorPresetBinding.select(entry.id(),binding);draft.setPreset(binding);gesture.requestCommit();
-                    }
-                    if(ImGui.isItemHovered()) ImGui.setTooltip((entry.source()==com.director.ui.actor.pose.ActorAnimationCatalog.Source.PROJECT?"项目动画":"内置动作")+" · "+entry.id()+" · "+entry.rigName());
-                }
-                if(visible.isEmpty()) ImGui.textWrapped("没有匹配的兼容动作，请调整搜索或筛选。");
-                ImGui.endChild();ImGui.treePop();
+            ImGui.textDisabled("在下方“姿态与动作”中浏览和绑定动作；此处调整当前绑定。");
+            if(binding!=null && ImGui.smallButton("移除动作绑定##clearPreset")) {
+                binding=null;draft.setPreset(null);gesture.requestCommit();
             }
-            if(binding==null) { playbackQuery.clear();ImGui.textWrapped("展开“浏览与选择动作”，选择一个兼容动作即可绑定到当前演员片段。");return; }
+            if(binding==null) {playbackQuery.clear();return;}
             var model=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
             var playback=playbackQuery.sample(payload,model.getCurrentTime());
             boolean distanceClock=playback!=null && com.director.actor.runtime.ActorPresetClock.followsDistance(binding.animationId(),playback);

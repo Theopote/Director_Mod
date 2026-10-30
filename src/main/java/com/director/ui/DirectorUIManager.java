@@ -626,6 +626,7 @@ public class DirectorUIManager {
                 actors.renderDeleteConfirmPopup();
             }
             VideoExportDialog.renderIfNeeded(this);
+            com.director.ui.video.StillExportDialog.renderIfNeeded(this);
             videoExportProgressOverlay.render(this);
             
             // 4) 渲染对话框（集中管理）

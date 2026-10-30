@@ -4,6 +4,15 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VideoExportSettingsTest {
+    @Test void stillHasExactTimeAndIndependentPngValidation() {
+        var settings=settings();settings.format=VideoExportSettings.FORMAT_PNG_STILL;
+        settings.outputPath="frame.png";settings.width=1919;settings.stillTime=123.456f;
+        settings.rangeMode=VideoExportSettings.RANGE_CUSTOM;settings.customEndTime=0;
+        settings.x264Preset="unused";settings.audioChannels=0;
+        assertTrue(settings.validate());assertEquals(123.456f,settings.copy().stillTime);
+        settings.outputPath="frame.mp4";assertFalse(settings.validate());settings.outputPath="frame.png";
+        for(float time:new float[]{-1,Float.NaN,Float.POSITIVE_INFINITY}) {settings.stillTime=time;assertFalse(settings.validate());}
+    }
     private VideoExportSettings settings() {
         VideoExportSettings settings = new VideoExportSettings();
         settings.outputPath = "output.mp4";

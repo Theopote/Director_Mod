@@ -74,6 +74,7 @@ import java.nio.file.Paths;
  * @version 1.0
  */
 public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
+    private final com.director.ui.actor.pose.ActorPoseGallery poseGallery = new com.director.ui.actor.pose.ActorPoseGallery();
     private java.util.UUID incompatibleTypeActor;
     
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorProjectPropertyAdapter.class);
@@ -525,6 +526,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         ImGui.spacing();
         
+        poseGallery.render(DirectorServices.get().containerTimeline().getTimelineModel(), actor.getActorId());
+
         // ---- Action Brush (动作涂抹笔刷) ----
         renderActionBrushSelector(actor);
         
