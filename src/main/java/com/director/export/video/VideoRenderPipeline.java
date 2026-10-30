@@ -28,14 +28,14 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 /**
- * 视频导出抓帧管线（v1：基于主 Framebuffer）。
+ * 视频导出抓帧管线：窗口画面或独立分辨率渲染目标。
  *
  * <p>流程：后台线程请求时间点 → 客户端线程驱动 {@link TimelinePlaybackSampler}
  * 与相机 → 当帧世界渲染完成后抓取原图 → 后台裁切缩放 →
  * 交给 {@link VideoEncoder}（MP4 或 PNG 序列）。</p>
  *
- * <p>复用主窗口世界画面，在 HUD 前截图并按相机画幅缩放。输出分辨率可以调整，
- * 原始画面细节仍受主窗口 Framebuffer 分辨率约束。</p>
+ * <p>可复用窗口画面，或在单次世界渲染期间临时使用输出尺寸的离屏目标。
+ * HUD 前截图，在目标恢复成功后交给后台按相机画幅裁切缩放。</p>
  */
 public final class VideoRenderPipeline {
     private static final Logger LOGGER = LoggerFactory.getLogger(VideoRenderPipeline.class);
@@ -50,6 +50,7 @@ public final class VideoRenderPipeline {
         final float timeSeconds;
         final VideoExportSettings settings;
         final CompletableFuture<CapturedVideoFrame> future = new CompletableFuture<>();
+        CompletableFuture<Void> renderPass;
 
 
         CaptureRequest(float timeSeconds, VideoExportSettings settings) {
@@ -60,7 +61,54 @@ public final class VideoRenderPipeline {
 
     private final FrameCaptureQueue<CaptureRequest> queue = new FrameCaptureQueue<>();
 
+    private final OffscreenVideoRenderer offscreen = new OffscreenVideoRenderer();
+    private CaptureRequest activeWorldRequest;
+
     private VideoRenderPipeline() {
+    }
+
+    /** Wraps the complete world pass so render state is restored even when the vanilla pass throws. */
+    public void renderWorld(RenderTickCounter ticks, Runnable worldRender) {
+        CaptureRequest request = queue.peek();
+        if (request == null || request.future.isDone()) {
+            worldRender.run();
+            return;
+        }
+        if (activeWorldRequest != null) throw new IllegalStateException("不支持嵌套的导出世界渲染");
+        activeWorldRequest = request;
+        CompletableFuture<Void> pass = new CompletableFuture<>();
+        request.renderPass = pass;
+        boolean[] world = {false, false}; // entered, completed
+        Runnable render = () -> {
+            world[0] = true;
+            worldRender.run();
+            world[1] = true;
+        };
+        try {
+            if (request.settings.nativeResolution)
+                offscreen.render(request.settings.width, request.settings.height, ticks, render);
+            else render.run();
+            pass.complete(null);
+        } catch (RuntimeException failure) {
+            pass.completeExceptionally(failure);
+            request.future.completeExceptionally(new IllegalStateException("导出世界渲染失败：" + failure.getMessage(), failure));
+            queue.remove(request);
+            LOGGER.error("[VideoExport] 世界渲染失败，已恢复窗口渲染目标", failure);
+            // Do not hide vanilla world-render failures: its internal matrix/profiler stacks may be incomplete.
+            if (world[0] && !world[1]) throw failure;
+            if (!world[0]) worldRender.run();
+        } catch (Error failure) {
+            pass.completeExceptionally(failure);
+            request.future.completeExceptionally(failure);
+            queue.remove(request);
+            throw failure;
+        } finally {
+            activeWorldRequest = null;
+        }
+    }
+
+    public void releaseRenderTargets() {
+        offscreen.close();
     }
 
     /**
@@ -123,7 +171,7 @@ public final class VideoRenderPipeline {
      */
     public void onRenderWorldHead(RenderTickCounter tickCounter) {
         CaptureRequest head = queue.beginPreparation();
-        if (head == null || head.future.isDone()) {
+        if (head == null || head != activeWorldRequest || head.future.isDone()) {
             return;
         }
         try {
@@ -245,9 +293,10 @@ public final class VideoRenderPipeline {
         final CameraViewportProfile.PreviewScalePolicy scalePolicy = profile == null
                 ? CameraViewportProfile.PreviewScalePolicy.FIT : profile.getPreviewScalePolicy();
 
+        CompletableFuture<Void> renderPass = req.renderPass;
         return (NativeImage img) -> {
             CapturedVideoFrame captured = new CapturedVideoFrame(img, targetW, targetH, cameraAspect, scalePolicy);
-            if (!req.future.complete(captured)) captured.close();
+            RenderPassHandoff.completeAfter(req.future, renderPass, captured, CapturedVideoFrame::close);
         };
     }
 

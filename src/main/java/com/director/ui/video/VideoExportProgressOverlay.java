@@ -101,7 +101,7 @@ public final class VideoExportProgressOverlay {
             }
             long elapsed = finished ? elapsedAtFinish : System.nanoTime() - startedAt;
             ImGui.textDisabled("已用时：" + java.util.concurrent.TimeUnit.NANOSECONDS.toSeconds(Math.max(0, elapsed)) + " 秒");
-            ImGui.textDisabled("省资源模式：复用屏幕世界渲染（镜头会跟随导出）；已锁定玩家移动/转向/场景点击。");
+            ImGui.textDisabled("导出期间镜头跟随采样；已锁定玩家移动、转向和场景点击。");
 
             if (!finished) {
                 ImGui.beginDisabled(current == Status.CANCELING);

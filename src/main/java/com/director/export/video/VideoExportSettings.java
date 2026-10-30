@@ -22,6 +22,9 @@ public class VideoExportSettings implements Cloneable {
     public int height = 1080;
     public int fps = 30;
 
+    /** Opt-in until native-resolution rendering has been validated on the client GPU. */
+    public boolean nativeResolution = false;
+
     // ==================== 导出范围 ====================
 
     public static final int RANGE_TIMELINE = 0;

@@ -313,7 +313,11 @@ public final class VideoExportDialog {
         // =============================
         UITheme.title("渲染质量");
 
-        ImGui.textDisabled("画面细节取决于游戏窗口分辨率；导出使用当前游戏渲染距离。");
+        if (ImGui.checkbox("按输出分辨率离屏渲染（实验性）", settings.nativeResolution))
+            settings.nativeResolution = !settings.nativeResolution;
+        ImGui.textDisabled(settings.nativeResolution
+                ? "世界以输出分辨率渲染，使用当前游戏渲染距离。"
+                : "世界画面来自游戏窗口，再进行裁切缩放。");
         ImGui.beginDisabled();
         ImGui.sliderInt("渲染距离（预留）", renderDistanceInt.getData(), 2, 32);
         settings.renderDistance = renderDistanceInt.get();
@@ -471,24 +475,7 @@ public final class VideoExportDialog {
     }
 
     private static VideoExportSettings copySettings() {
-        VideoExportSettings dst = new VideoExportSettings();
-        dst.outputPath = VideoExportDialog.settings.outputPath;
-        dst.width = VideoExportDialog.settings.width;
-        dst.height = VideoExportDialog.settings.height;
-        dst.fps = VideoExportDialog.settings.fps;
-        dst.rangeMode = VideoExportDialog.settings.rangeMode;
-        dst.customStartTime = VideoExportDialog.settings.customStartTime;
-        dst.customEndTime = VideoExportDialog.settings.customEndTime;
-        dst.cameraMode = VideoExportDialog.settings.cameraMode;
-        dst.cameraTrackIndex = VideoExportDialog.settings.cameraTrackIndex;
-        dst.cameraTrackName = VideoExportDialog.settings.cameraTrackName;
-        dst.format = VideoExportDialog.settings.format;
-        dst.renderDistance = VideoExportDialog.settings.renderDistance;
-        dst.useAntiAliasing = VideoExportDialog.settings.useAntiAliasing;
-        dst.enableAudio = VideoExportDialog.settings.enableAudio;
-        dst.audioSampleRate = VideoExportDialog.settings.audioSampleRate;
-        dst.audioChannels = VideoExportDialog.settings.audioChannels;
-        return dst;
+        return settings.copy();
     }
 
     private static List<TimelineTrack> getCameraTracks() {

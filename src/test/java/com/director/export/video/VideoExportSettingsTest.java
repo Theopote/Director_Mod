@@ -56,6 +56,9 @@ class VideoExportSettingsTest {
 
     @Test void snapshotIsIndependentOfSubsequentDialogEdits() {
         var settings = settings();
+        settings.nativeResolution = true;
+        settings.x264Preset = "fast";
+        settings.x264Crf = 24;
         var snapshot = settings.copy();
         settings.width = 1280;
         settings.outputPath = "other.mp4";
@@ -63,6 +66,9 @@ class VideoExportSettingsTest {
         assertEquals(1920, snapshot.width);
         assertEquals("output.mp4", snapshot.outputPath);
         assertTrue(snapshot.enableAudio);
+        assertTrue(snapshot.nativeResolution);
+        assertEquals("fast", snapshot.x264Preset);
+        assertEquals(24, snapshot.x264Crf);
     }
 
     @Test void frameCountsCoverFractionalFramesWithoutFloatBoundaryExtras() {

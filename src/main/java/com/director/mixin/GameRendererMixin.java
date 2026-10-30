@@ -1,5 +1,7 @@
 package com.director.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.director.client.DirectorClientController;
 import com.director.client.camera.CameraRenderOverride;
 import com.director.export.video.VideoRenderPipeline;
@@ -22,6 +24,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(GameRenderer.class)
 public class GameRendererMixin {
+
+    @WrapMethod(method = "renderWorld")
+    private void director$exportRenderTarget(RenderTickCounter ticks, Operation<Void> original) {
+        VideoRenderPipeline.getInstance().renderWorld(ticks, () -> original.call(ticks));
+    }
 
     @Inject(method = "renderHand", at = @At("HEAD"), cancellable = true)
     private void director$onRenderHand(float tickDelta, boolean renderEntity, org.joml.Matrix4f matrix4f, CallbackInfo ci) {

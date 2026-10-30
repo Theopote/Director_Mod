@@ -126,6 +126,11 @@ public final class VideoExportManager {
                         // Release ownership on the client thread, with admission locked until restoration ends.
                         synchronized (VideoExportManager.this) {
                             exporting.set(false);
+                            try {
+                                VideoRenderPipeline.getInstance().releaseRenderTargets();
+                            } catch (RuntimeException cleanup) {
+                                LOGGER.warn("[VideoExport] 离屏渲染目标清理失败", cleanup);
+                            }
                             com.director.timeline.playback.camera.TimelineCameraController.getInstance()
                                     .restoreStateAfterExport(savedState.get());
                             com.director.client.RenderOverrideSnapshots.resyncAfterVideoExport();

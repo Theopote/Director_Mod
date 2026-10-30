@@ -7,6 +7,8 @@ final class FrameCaptureQueue<T> {
     private final ConcurrentLinkedQueue<T> pending = new ConcurrentLinkedQueue<>();
     private T prepared;
 
+    T peek() { return pending.peek(); }
+
     void add(T request) { pending.add(request); }
     void remove(T request) { pending.remove(request); }
 
