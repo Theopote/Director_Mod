@@ -140,7 +140,7 @@ public final class ActorAnimationAssetPanel {
             if (active != null) {
                 ImGui.textDisabled(I18n.translate("gui.director.actor.assets.current_clip", active.getName(), active.getAnimationId()));
                 TimelineTrack owner = target;
-                ImGui.beginDisabled(owner.isLocked() || owner.isMuted() || rig == null
+                ImGui.beginDisabled(owner.isLocked() || owner.isMuted() || active.isMuted() || rig == null
                         || library.find(active.getAnimationId()).filter(asset -> asset.rigId().equals(rig.id())).isEmpty());
                 if (ImGui.button(I18n.translate("gui.director.actor.assets.make_independent") + "##assetIndependent")) run(() ->
                         selectAsset(ActorAnimationAssetEditing.makeIndependent(model, library, owner, active,
@@ -204,15 +204,8 @@ public final class ActorAnimationAssetPanel {
         ActorAnimationAuthoringSettings.getInstance().setAssetId(asset.id());
     }
 
-    private static EntityAnimationClip activeClip(TimelineModel model, TimelineTrack track) {
-        if (track == null || track.getActorTrackPayload() == null) return null;
-        EntityAnimationClip active = null;
-        for (var clip : ActorEmbeddedAnimation.clips(track.getActorTrackPayload())) {
-            if (clip instanceof EntityAnimationClip animation && !animation.isMuted()
-                    && model.getCurrentTime() >= clip.getStartTime() && model.getCurrentTime() <= clip.getEndTime()
-                    && (active == null || clip.getStartTime() >= active.getStartTime())) active = animation;
-        }
-        return active;
+    static EntityAnimationClip activeClip(TimelineModel model, TimelineTrack track) {
+        return ActorAnimationTarget.resolve(model,track);
     }
 
     private static String chooseFile(boolean save) {

@@ -31,6 +31,14 @@ class ActorPathEditingTest {
         var path = new ActorPathDefinition("Path"); path.setWaypoints(points); path.setInterpolationMode(mode); library.add(path); return path;
     }
     ActorRouteClip route() { return (ActorRouteClip) ActorPathEditing.attach(model, track, points, mode, "Route").getEntityClip(); }
+    @Test void loopGeometryPreservesExplicitPlaybackIntervalAndWrapperThroughUndoRedo() {
+        var route=route();route.setTimeRange(2,22);route.setLoopMode(ActorRouteClip.LoopMode.LOOP);route.setSpeed(2);
+        var wrapper=route.getTimelineClip();
+        assertTrue(ActorPathEditing.route(model,track,route).commit(List.of(new Vector3f(),new Vector3f(12,0,0)),mode));
+        assertEquals(22,route.getEndTime());assertEquals(22,wrapper.getEndTime());assertEquals(2,route.getSpeed());
+        assertTrue(history.undo());assertEquals(points,route.getWaypoints());assertEquals(22,route.getEndTime());
+        assertTrue(history.redo());assertEquals(12,route.getWaypoints().getLast().x);assertEquals(22,route.getEndTime());
+    }
     @Test void libraryControlsExplainRejectedMutationsButAllowUnlockAndVisibility() {
         var path = path();
         assertEquals("", ActorPathEditAvailability.reason(model, path));
@@ -148,15 +156,15 @@ class ActorPathEditingTest {
         transform.setMuted(true); ActorRegistryManager.setRegistry(new ActorRegistry());
         assertThrows(IllegalArgumentException.class, this::route); assertTrue(library.isEmpty());
     }
-    @Test void routeGeometryUpdatesDurationAndUndoPreservesOtherBehavior() {
+    @Test void routeGeometryPreservesDurationAndUndoPreservesOtherBehavior() {
         var route = route(); route.setJumpHeight(.8f); route.setJumpStart(.2f); route.setLoopMode(ActorRouteClip.LoopMode.PING_PONG);
         var wrapper = route.getTimelineClip(); float originalEnd = route.getEndTime();
         var target = ActorPathEditing.route(model, track, route);
         assertTrue(target.commit(List.of(new Vector3f(), new Vector3f(8,0,0)), mode));
-        assertEquals(6, route.getEndTime()); assertEquals(6, wrapper.getEndTime()); assertEquals(.8f, route.getJumpHeight());
+        assertEquals(originalEnd, route.getEndTime()); assertEquals(originalEnd, wrapper.getEndTime()); assertEquals(.8f, route.getJumpHeight());
         assertEquals(ActorRouteClip.LoopMode.PING_PONG, route.getLoopMode()); history.undo();
         assertEquals(originalEnd, route.getEndTime()); assertEquals(points, route.getWaypoints()); assertSame(wrapper, route.getTimelineClip());
-        history.redo(); assertEquals(6, route.getEndTime());
+        history.redo(); assertEquals(originalEnd, route.getEndTime());
     }
     @Test void routeLockRebindPlaybackAndBehaviorChangesInvalidateGesture() {
         var route = route(); var target = ActorPathEditing.route(model, track, route);

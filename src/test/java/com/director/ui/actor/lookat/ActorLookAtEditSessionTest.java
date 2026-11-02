@@ -9,6 +9,25 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorLookAtEditSessionTest {
+    @Test void defaultEditingUsesPlaybackWinnerButExplicitSelectionStillWins() {
+        var payload=track.getActorTrackPayload();
+        payload.addClip(new EntitySpawnClip("Spawn",0,10));
+        var strong=new EntityLookAtClip("Strong",0,10);strong.setStrength(.9f);strong.setWorldPoint(10,0,0);
+        var weak=new EntityLookAtClip("Weak",1,10);weak.setStrength(.2f);weak.setWorldPoint(20,0,0);
+        payload.addClip(strong);track.addClip(new EntityTimelineClip(strong,0));
+        payload.addClip(weak);track.addClip(new EntityTimelineClip(weak,0));
+        var sample=new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleSnapshot(2);
+        assertEquals(strong.getWorldPoint(),sample.lookAtPoint);
+        var session=new ActorLookAtEditSession(model,track);
+        assertSame(strong,session.source());session.draft().setWorldPoint(12,0,0);session.commit();
+        assertEquals(12,strong.getWorldPoint().x);assertEquals(20,weak.getWorldPoint().x);
+        assertTrue(history.undo());assertEquals(10,strong.getWorldPoint().x);
+        model.setSelectedClip(weak.getTimelineClip());
+        assertSame(weak,new ActorLookAtEditSession(model,track).source());
+        weak.setStrength(.9f);
+        assertSame(weak,ActorLookAtEditSession.active(payload,2));
+        weak.setMuted(true);assertSame(strong,ActorLookAtEditSession.active(payload,2));
+    }
     @Test void explicitlySelectedLookReferenceWinsOverOverlapEvenOutsideItsInterval() {
         var first=create();
         var other=new EntityLookAtClip("Other",1,10);

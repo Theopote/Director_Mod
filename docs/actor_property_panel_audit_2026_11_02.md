@@ -47,3 +47,33 @@
 11. **整体点击与部位选择意图未分开，P2。** ActorSelectionHub.selectActor 保留同一演员轨道上的片段引用；骨骼选择仍 active 时继续同步骨骼并清除整体 Gizmo。世界点击也用此入口，因此重新点击演员身体并不明确返回整体编辑。建议区分检查演员资产、选择整体和选择骨骼：整体选择清除部位与键焦点，骨骼选择保留动画引用，检查资产不擅自改变引用。
 
 本轮仍是代码审查，未执行客户端交互复现。已排除一项误判：整体变换面板在无活动手势时每帧重新采样，不能声称撤销后必然显示旧值。
+
+## 第三轮：显示值、写入目标与播放时钟
+
+12. **整体数值显示当前值，却修改动画终点，P1。** ActorLiveTransformPropertyUI.syncFromSample 显示播放头采样的 TRS；ActorNumericEditSession.updateTransform 将改变后的值写到 draft.toPos/toRot/toScale，仅在片段起点同时改 from。ActorTransformEditSession.commit 对无关键帧的既有 Transform 直接提交端点。线性片段 0–10 秒、X 从 0 到 10，在第 5 秒显示 5，输入 6 后终点成为 6，当前采样成为 3。已有关键帧时则通过 commitKey 写当前时间，导致相同面板的语义随数据结构改变。建议整体面板明确编辑当前帧并写当前键；片段起止值留在 Transform 片段检查视图。SMOOTH 转键需沿用现有保护，不能静默破坏曲线。
+
+13. **距离时钟下的关键帧定位仍按普通时间换算，P1。** ActorAnimationEditContext.capture 已使用 ActorPresetClock 得到真实距离相位，但 ActorAnimationDopeSheet.seekToKey 仍调用 ActorKeyframeProjection.nearest，仅传片段时间、速度、循环及资产时长。该调用没有路径距离、步幅或停顿信息，因此不能反解真实场景时刻。禁止拖动重定时不等于点击定位已正确。应反解距离时钟；无法唯一定位时先提供资产内定位或说明，不要把普通秒数定位当作实际步态定位。同类键投影与粘贴范围也应审查，不能继续只用片段秒数乘播放速度表示距离时钟覆盖范围。
+
+14. **注视面板读到的来源与写入来源可能不同，P1。** EntityClipSampler.applyLookAt 选择重叠片段中强度最高的；ActorTransformEditService.sampleLookAt 优先显示这个采样结果。ActorLookAtEditSession.active 却选择起点最晚的片段，resolveSource 还优先明确选中的片段。例：A 较早开始、强度 1；B 较晚开始、强度 0.2。整体面板可能显示 A 的目标和强度，编辑却写入 B。若 B 在播放头外但被明确选中，同样需要标注其编辑范围。建议分别显示“正在生效的注视来源”和“当前写入片段”，默认整体编辑使用同一有效来源；显式编辑非生效片段时展示原因。
+
+本轮结论来自读写调用链及线性插值推导，尚未运行新回归或客户端复现。实现前应将上述三个场景各自固化为回归测试，特别检查输入值是否等于提交后的当前采样值。
+
+## 第四轮：副本范围与路径编辑副作用
+
+15. **制作独立副本可能操作另一段动画，P1，隔离测试已确认。** ActorAnimationAssetPanel.activeClip 自行按起点最晚选择活动动画，没有使用 ActorAnimationTarget.resolve 的显式选择与 Spawn 修正层优先规则。复现：选中 0–10 秒 Spawn 的手工动画，同时存在 2–10 秒独立动作，在第 3 秒编辑；骨骼面板目标为 Spawn 手工动画，资产库的独立副本目标却为后一个动作。makeIndependent 按传入引用重新绑定，因此可能为另一段动画制作副本。应直接复用当前编辑上下文，并在按钮旁明确显示将被复制的资产与将被重新绑定的可见片段。
+
+16. **循环路线的几何编辑会重设播放时长，P1，隔离测试已确认。** ActorPathEditing.Target.commit 对 ONCE 保留 end，对 LOOP/PING_PONG 却用 start + 路径长度/速度重算 end。复现：0–20 秒循环路线，直线长度 10、速度 2；只把终点移到 12 后，end 变成 6。属性编辑会话却把播放持续时间与速度视为独立设置。应保持用户设置的播放区间，让路径长度只改变单趟时长；重设播放区间需要显式命令。测试同时确认撤销能恢复 20 秒，因此问题是操作语义和隐含副作用，不是撤销丢失。
+
+### 本轮验证
+
+隔离探针位于忽略目录 build/property-audit-src，init 文件为 build/property-audit.init.gradle。执行三个特征测试，均通过；它们断言当前缺陷确实存在，不是修复通过的回归测试：独立副本目标与显式选择不同、注视采样赢家与默认写入目标不同、循环路线改几何导致时长变化。产品代码未修改，也没有做客户端 UI 实测。
+
+命令：`gradlew.bat test --offline -I build/property-audit.init.gradle --tests com.director.ui.actor.pose.ActorPropertyAuditProbeTest`。
+
+## 已实施修复：第一批
+
+- A15：独立副本入口使用 ActorAnimationTarget.resolve，与骨骼编辑器保持同一引用；明确选中的静音引用不再回退，也禁用副本按钮。正式测试覆盖 Spawn 修正层与后开始动作重叠时的目标选择、绑定、撤销和重做。
+- A16：路径几何修改保留用户设置的播放区间，包括 LOOP 与 PING_PONG。正式测试覆盖两种循环方式及包装片段时间、撤销和重做。
+- A14：未显式选中注视片段时，默认编辑目标采用播放中的最高强度规则；同强度时保持后者优先。整体面板显示写入目标的数据，显式选中片段仍受尊重，并提示当前未生效的原因。正式测试覆盖强度、显式选择、静音和撤销。
+
+隔离探针记录的是修复前行为，不再作为修复后的验收条件；本批使用 src/test 中的正式回归。其他审查条目仍待后续实施，不能把本批视作整个属性面板重构已完成。

@@ -50,7 +50,7 @@ public final class ActorLookAtEditSession {
         for (var c : payload.getClips()) {
             if (c instanceof EntityLookAtClip look && !look.isMuted()
                     && time >= look.getStartTime() && time <= look.getEndTime()
-                    && (best == null || look.getStartTime() >= best.getStartTime())) best = look;
+                    && (best == null || look.getStrength() >= best.getStrength())) best = look;
         }
         return best;
     }

@@ -5,7 +5,6 @@ import com.director.core.DirectorServices;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.entity.ActorTrack;
-import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
 import com.director.timeline.playback.entity.EntityClipSampler;
 import com.director.timeline.playback.entity.EntitySample;
@@ -75,16 +74,10 @@ public final class ActorTransformEditService {
     public static LookAtSnapshot sampleLookAt(UUID actorId, float time) {
         ActorTrackContext ctx = resolveTrack(actorId);
         if (ctx != null) {
-            EntitySample sample = new EntityClipSampler(ctx.actorTrack()).sampleSnapshot(time);
-            if (sample != null && sample.enabled && sample.lookAtEnabled) {
-                EntityLookAtClip.TargetMode mode = parseLookAtMode(sample.lookAtMode);
-                return new LookAtSnapshot(
-                        true,
-                        mode,
-                        new Vector3f(sample.lookAtPoint),
-                        sample.lookAtStrength);
-            }
-            EntityLookAtClip clip = findActiveLookAtClip(ctx.actorTrack(), time);
+            var model=DirectorServices.get().containerTimeline().getTimelineModel();
+            EntityLookAtClip clip = model!=null && Float.compare(time,model.getCurrentTime())==0
+                    ? com.director.ui.actor.lookat.ActorLookAtEditSession.resolveSource(model,ctx.timelineTrack())
+                    : com.director.ui.actor.lookat.ActorLookAtEditSession.active(ctx.actorTrack(),time);
             if (clip != null) {
                 return new LookAtSnapshot(
                         true,
@@ -137,32 +130,5 @@ public final class ActorTransformEditService {
                 && !model.isPlaying() && !com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
                 && !com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging() ? model : null;
     }
-
-    private static EntityLookAtClip findActiveLookAtClip(ActorTrack track, float time) {
-        EntityLookAtClip result = null;
-        for (EntityClip c : track.getClips()) {
-            if (c instanceof EntityLookAtClip lc && !lc.isMuted()) {
-                if (time >= lc.getStartTime() && time <= lc.getEndTime()) {
-                    if (result == null || lc.getStartTime() >= result.getStartTime()) {
-                        result = lc;
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    private static EntityLookAtClip.TargetMode parseLookAtMode(String mode) {
-        if (mode == null) {
-            return EntityLookAtClip.TargetMode.CAMERA;
-        }
-        try {
-            return EntityLookAtClip.TargetMode.valueOf(mode);
-        } catch (IllegalArgumentException e) {
-            return EntityLookAtClip.TargetMode.CAMERA;
-        }
-    }
-
-
 
 }

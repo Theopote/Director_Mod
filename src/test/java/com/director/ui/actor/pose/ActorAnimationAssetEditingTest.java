@@ -10,6 +10,28 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorAnimationAssetEditingTest {
+    @Test void independentCopyRebindsExplicitManualTargetInsteadOfLaterOverlappingAction() {
+        var registry=new com.director.actor.ActorRegistry();com.director.actor.ActorRegistryManager.setRegistry(registry);
+        try {
+            var actor=registry.createActor("A",com.director.actor.ActorType.PLAYER);
+            var track=new TimelineTrack("Actor",TrackType.ACTOR);var payload=track.getOrCreateActorTrackPayload();
+            payload.setActorRef(com.director.actor.ActorRef.of(actor));model.addTrack(track);model.setCurrentTime(3);
+            var manual=ActorAnimationAssetEditing.createForActor(model,library,"test:manual-target","Manual",10,actor.getActorId());
+            var later=ActorAnimationAssetEditing.createForActor(model,library,"test:later-target","Later",8,actor.getActorId());
+            var spawn=new com.director.timeline.model.entity.EntitySpawnClip("Spawn",0,10);spawn.setBoneAnimationId(manual.id());
+            payload.addClip(spawn);track.addClip(new com.director.timeline.model.entity.EntityTimelineClip(spawn,0));
+            var action=new com.director.timeline.model.entity.EntityAnimationClip("Later",2,10);action.setAnimationId(later.id());
+            payload.addClip(action);track.addClip(new com.director.timeline.model.entity.EntityTimelineClip(action,0));
+            model.setSelectedClip(spawn.getTimelineClip());
+            var target=ActorAnimationAssetPanel.activeClip(model,track);
+            assertSame(spawn.getBoneAnimation(),target);
+            var copy=ActorAnimationAssetEditing.makeIndependent(model,library,track,target,"test:manual-copy","Copy");
+            assertEquals(copy.id(),spawn.getBoneAnimationId());assertEquals(later.id(),action.getAnimationId());
+            assertTrue(history.undo());assertEquals(manual.id(),spawn.getBoneAnimationId());assertFalse(library.contains(copy.id()));
+            assertTrue(history.redo());assertEquals(copy.id(),spawn.getBoneAnimationId());
+            model.setSelectedClip(action.getTimelineClip());assertSame(action,ActorAnimationAssetPanel.activeClip(model,track));
+        } finally {com.director.actor.ActorRegistryManager.setRegistry(null);}
+    }
     private final AnimationAssetLibrary library = new AnimationAssetLibrary();
     private final TimelineModel model = new TimelineModel(new TimelineViewportState());
     private final TimelineCommandHistory history = new TimelineCommandHistory();

@@ -140,6 +140,15 @@ public final class ActorLiveTransformPropertyUI {
         if (ImGui.collapsingHeader(Icons.TARGET + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SECTION_LOOK_AT),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
+            var lookSource=target==null?null:com.director.ui.actor.lookat.ActorLookAtEditSession.resolveSource(model,target.timelineTrack());
+            if(lookSource!=null) {
+                ImGui.textWrapped("当前注视编辑片段："+lookSource.getName());
+                if(time<lookSource.getStartTime() || time>lookSource.getEndTime())
+                    ImGui.textWrapped("此片段不在播放头范围内；修改影响该片段，不代表本帧生效的注视。");
+                else if(com.director.ui.actor.lookat.ActorLookAtEditSession.active(target.actorTrack(),time)!=lookSource)
+                    ImGui.textWrapped("此片段当前被其他注视片段覆盖；修改的是所选片段。");
+            }
+            ImGui.beginDisabled(lookSource!=null && lookSource.isMuted());
             EntityLookAtClip.TargetMode[] modes = {
                     EntityLookAtClip.TargetMode.WORLD_POINT,
                     EntityLookAtClip.TargetMode.CAMERA, EntityLookAtClip.TargetMode.ENTITY_UUID
@@ -172,6 +181,7 @@ public final class ActorLiveTransformPropertyUI {
                 lookAtModeIndex.set(1);
                 applyCurrentLookAt();
             }
+            ImGui.endDisabled();
         }
 
         if (gesture != null && !widgetRendered) cancelGesture();
