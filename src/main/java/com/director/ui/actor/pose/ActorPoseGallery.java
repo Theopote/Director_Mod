@@ -152,7 +152,9 @@ public final class ActorPoseGallery {
             ImGui.beginDisabled(!canApply || context==null);
             if(ImGui.button("保存当前旋转姿态")) {
                 try {
-                    ActorSavedPoseLibrary.add(model,ActorSavedPoseLibrary.capture(name.get(),context.asset().sample(context.assetTime(),AnimationLoopMode.ONCE),bones));
+                    if (context != null) {
+                        ActorSavedPoseLibrary.add(model,ActorSavedPoseLibrary.capture(name.get(),context.asset().sample(context.assetTime(),AnimationLoopMode.ONCE),bones));
+                    }
                     message="已保存到当前存档的“我的姿态”。";
                 } catch(java.io.IOException | RuntimeException failure) {message=failure.getMessage();}
             }
