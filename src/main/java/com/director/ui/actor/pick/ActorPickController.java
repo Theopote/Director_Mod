@@ -255,18 +255,8 @@ public final class ActorPickController {
      * @return BlockHitResult，如果未点击到方块则返回 null
      */
     private BlockHitResult resolvePlacementHit(MinecraftClient client) {
-        HitResult hit = client.crosshairTarget;
-        if (hit instanceof BlockHitResult blockHit) {
-            return blockHit;
-        }
-
-        // 如果没有直接命中，尝试从摄像机射线计算
-        DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
-
-        // 简单的射线检测（可以改进为更精确的方块检测）
-        // TODO: 实现更精确的方块射线检测
-        // 目前使用简单的距离估算
-        return null;
+        BlockHitResult hit = ActorViewportRay.blockHit();
+        return hit != null && hit.getType() == HitResult.Type.BLOCK ? hit : null;
     }
 
     // =========================================================

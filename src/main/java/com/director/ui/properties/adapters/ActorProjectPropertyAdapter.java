@@ -445,6 +445,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         // ---- Type ----
+        boolean typeEditable = com.director.ui.actor.ActorAppearanceEditing.editable(DirectorServices.get().containerTimeline().getTimelineModel());
+        ImGui.beginDisabled(!typeEditable);
         String currentTypeName = ActorPropertyAdapterI18n.actorTypeLabel(actor.getType());
         if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.TYPE), currentTypeName)) {
             ActorType[] types = ActorType.values();
@@ -487,6 +489,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (actor.getActorId().equals(incompatibleTypeActor)) {
             ImGui.textWrapped("现有动画与目标类型不兼容，请先移除动画引用，再更换演员类型。");
         }
+        ImGui.endDisabled();
+        if (!typeEditable) ImGui.textWrapped("更换类型前请先暂停并完成当前草稿。");
         ImGui.textWrapped(com.director.actor.rig.ActorRigCompatibility.explanation(actor));
         var capabilities=com.director.actor.ActorCapabilities.of(actor);
         ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.capabilities.summary",

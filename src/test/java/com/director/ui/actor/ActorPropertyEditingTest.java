@@ -49,6 +49,13 @@ class ActorPropertyEditingTest {
         assertTrue(history.redo());
         assertEquals("B", payload.getDisplayName());
     }
+    @Test void typeChangeRejectedDuringPlayback() {
+        var model = new TimelineModel(new TimelineViewportState());
+        var actor = new Actor("A", ActorType.PLAYER);
+        model.setPlaying(true);
+        assertThrows(IllegalArgumentException.class, () -> ActorPropertyEditing.changeType(model, actor, ActorType.COW, () -> {}));
+        assertEquals(ActorType.PLAYER, actor.getType());
+    }
     @Test void sameTypePreservesStyle() {
         var actor = new Actor("A", ActorType.COW);
         var profile = actor.getRigProfile();

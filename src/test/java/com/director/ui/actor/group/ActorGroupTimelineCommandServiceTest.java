@@ -30,6 +30,21 @@ class ActorGroupTimelineCommandServiceTest {
     }
 
 
+    @Test void explicitTrackSelectionControlsGroupWriteTarget() {
+        var model = new TimelineModel(new TimelineViewportState());
+        var id = UUID.randomUUID();
+        var first = createActorTimelineTrack("First", createActorTrackPayload(id));
+        var second = createActorTimelineTrack("Second", createActorTrackPayload(id));
+        model.addTrack(first); model.addTrack(second);
+        var group = new ActorGroup("Group"); group.addActor(id);
+        var service = ActorGroupTimelineCommandService.getInstance();
+        assertFalse(service.previewActions(model, group, ActorActionType.IDLE, 2).canExecute());
+        model.selectItem(second, false);
+        assertEquals(1, service.createActionClips(model, group, ActorActionType.IDLE, 2, 1, false));
+        assertTrue(first.getActorTrackPayload().getActionClips().isEmpty());
+        assertEquals(1, second.getActorTrackPayload().getActionClips().size());
+    }
+
     private static final float EPS = 0.0001f;
     private static final ActorGroupController GROUP_CONTROLLER = ActorGroupController.getInstance();
 

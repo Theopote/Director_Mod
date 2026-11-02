@@ -65,7 +65,7 @@ public final class ActorGroupTimelineCommandService {
         var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, action, Math.max(0, model == null ? 0 : model.getCurrentTime()));
         for (UUID id : members.eligible()) {
             float start = resolveTriggerTime(triggers, id, model.getCurrentTime());
-            if (model.findActorTrackByActorId(id).getActorTrackPayload().getActionClips().stream()
+            if (resolveTrack(model, id).getActorTrackPayload().getActionClips().stream()
                     .anyMatch(c -> c.getStartTime() < start + Math.max(0.05f, duration) && c.getEndTime() > start)) overwritten++;
         }
         return new Preview(members.eligible(), members.skipped(), null, overwritten);
@@ -83,7 +83,7 @@ public final class ActorGroupTimelineCommandService {
         List<SkippedMember> skipped = new ArrayList<>(members.skipped());
         for (UUID id : members.eligible()) {
             float delay = Math.max(0, resolveTriggerTime(triggers, id, 0));
-            boolean conflict = model.findActorTrackByActorId(id).getActorTrackPayload().getClips().stream()
+            boolean conflict = resolveTrack(model, id).getActorTrackPayload().getClips().stream()
                     .anyMatch(c -> !c.isMuted() && (c instanceof ActorRouteClip || c instanceof EntityTransformClip)
                             && c.getStartTime() < source.getEndTime() + delay && c.getEndTime() > source.getStartTime() + delay);
             if (conflict) skipped.add(new SkippedMember(id, SkipReason.ROUTE_CONFLICT));
@@ -94,6 +94,14 @@ public final class ActorGroupTimelineCommandService {
 
     public Preview previewPlacement(TimelineModel model, ActorGroup group) {
         return previewMembers(model, group, null, null);
+    }
+
+    private static TimelineTrack resolveTrack(TimelineModel model, UUID actorId) {
+        try {
+            return com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
+        } catch (IllegalArgumentException unavailable) {
+            return null;
+        }
     }
 
     private Preview previewMembers(TimelineModel model, ActorGroup group, ActorActionType action, UUID source) {
@@ -107,7 +115,7 @@ public final class ActorGroupTimelineCommandService {
         var registry = ActorRegistryManager.getInstance();
         for (UUID id : group.getActorIds()) {
             var actor = registry.getActor(id).orElse(null);
-            var track = model.findActorTrackByActorId(id);
+            var track = resolveTrack(model, id);
             SkipReason reason = actor == null ? SkipReason.MISSING_ACTOR
                     : track == null || track.getActorTrackPayload() == null ? SkipReason.NO_TRACK
                     : track.isLocked() ? SkipReason.LOCKED
@@ -139,7 +147,7 @@ public final class ActorGroupTimelineCommandService {
         var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, actionType, baseStart);
         List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
         for (UUID actorId : preview.eligible()) {
-            var track = model.findActorTrackByActorId(actorId);
+            var track = resolveTrack(model, actorId);
             var payload = track.getActorTrackPayload();
             var before = List.copyOf(payload.getActionClips());
             var beforeWrappers = track.getClips().stream()
@@ -172,7 +180,7 @@ public final class ActorGroupTimelineCommandService {
         var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, ActorActionType.IDLE, 0);
         List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
         for (UUID id : preview.eligible()) {
-            var track = model.findActorTrackByActorId(id);
+            var track = resolveTrack(model, id);
             float delay = Math.max(0, resolveTriggerTime(triggers, id, 0));
             ActorRouteClip copy = null;
             if (source != null) {
@@ -205,7 +213,7 @@ public final class ActorGroupTimelineCommandService {
         float time = model.getCurrentTime();
         List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
         for (UUID id : preview.eligible()) {
-            var track = model.findActorTrackByActorId(id);
+            var track = resolveTrack(model, id);
             var payload = track.getActorTrackPayload();
             var position = resolveFormationPosition(positions, id, base);
             EntitySpawnClip existing = findSpawnClipAt(payload, time);
@@ -265,7 +273,7 @@ public final class ActorGroupTimelineCommandService {
     }
 
     private ActorRouteClip findLatestRouteClip(TimelineModel model, UUID actorId) {
-        TimelineTrack timelineTrack = model.findActorTrackByActorId(actorId);
+        TimelineTrack timelineTrack = resolveTrack(model, actorId);
         if (timelineTrack == null || timelineTrack.getActorTrackPayload() == null) {
             return null;
         }

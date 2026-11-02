@@ -33,6 +33,7 @@ public final class ActorPropertyEditing {
 
     public static void changeType(TimelineModel model, Actor actor, ActorType type, Runnable refresh) {
         if (model == null || type == null || type == actor.getType()) return;
+        if (!ActorAppearanceEditing.editable(model)) throw new IllegalArgumentException("请先暂停并完成当前草稿");
         var before = actor.getType();
         var profile = actor.getRigProfile();
         // Capture the new default once so redo preserves the same profile instance.
