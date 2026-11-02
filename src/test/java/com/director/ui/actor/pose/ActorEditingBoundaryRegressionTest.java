@@ -26,6 +26,44 @@ class ActorEditingBoundaryRegressionTest {
     EntityClipKeyframe scaleKey() {
         var key=new EntityClipKeyframe(0,TimelineInterpolation.LINEAR);key.setChannels(EntityClipKeyframe.SCALE);key.setScale(2,2,2);spawn.addKeyframe(key);return key;
     }
+    @Test void embeddedSelectionSupportsKeyCommandsWithoutDeletingSpawn() {
+        id="audit:embedded-commands";
+        var asset=new AnimationAsset(id,"Manual",ArticulatedPlayerRig.DEFINITION,5,AnimationLoopMode.ONCE);
+        AnimationAssetLibrary.getInstance().register(asset);spawn.setBoneAnimationId(id);
+        asset.getOrCreateBoneTrack("head").rotation().put(1,new org.joml.Quaternionf(),InterpolationMode.LINEAR);
+        var clip=spawn.getBoneAnimation();
+        model.setSelectedClip(spawn.getTimelineClip());
+        assertSame(clip,ActorEmbeddedAnimation.selectedReference(model,owner));
+        var key=new ActorAnimationAuthoringService.Key("head",ActorAnimationAuthoringService.Channel.ROTATION,1);
+        var selection=ActorKeyframeSelection.getInstance();
+        selection.replace(model,owner,clip,asset,List.of(key),true);
+        assertNotNull(selection.snapshot(model));
+        var rows=new com.director.ui.timeline.render.ActorBoneTimelineRows();
+        assertTrue(rows.handleKeyCommand(model,"delete"));
+        assertTrue(asset.findBoneTrack("head").orElseThrow().rotation().findAt(1).isEmpty());
+        assertTrue(owner.getActorTrackPayload().getClips().contains(spawn));
+        assertTrue(owner.getClips().contains(spawn.getTimelineClip()));
+        assertTrue(history.undo());
+        assertTrue(asset.findBoneTrack("head").orElseThrow().rotation().findAt(1).isPresent());
+        selection.replace(model,owner,clip,asset,List.of(key),true);
+        owner.setLocked(true);
+        assertTrue(rows.handleKeyCommand(model,"delete"));
+        assertTrue(asset.findBoneTrack("head").orElseThrow().rotation().findAt(1).isPresent());
+        owner.setLocked(false);
+        owner.getClips().remove(spawn.getTimelineClip());
+        assertNull(ActorEmbeddedAnimation.selectedReference(model,owner));
+        assertNull(selection.snapshot(model));
+    }
+    @Test void selectedReferenceDoesNotFallBackToAnUnselectedActiveAnimation() {
+        var animation=new EntityAnimationClip("Action",0,5);
+        owner.getActorTrackPayload().addClip(animation);
+        owner.addClip(new EntityTimelineClip(animation,0));
+        model.setSelectedClip(spawn.getTimelineClip());
+        assertNull(ActorEmbeddedAnimation.selectedReference(model,owner));
+        model.setSelectedClip(animation.getTimelineClip());
+        assertSame(animation,ActorEmbeddedAnimation.selectedReference(model,owner));
+        assertSame(animation.getTimelineClip(),ActorEmbeddedAnimation.visibleOwner(owner,animation));
+    }
     @Test void assetBrowserShouldRejectUsingManualAssetAsItsOwnPreset() {
         id="audit:self-preset";var a=new AnimationAsset(id,"Manual",ArticulatedPlayerRig.DEFINITION,5,AnimationLoopMode.ONCE);
         AnimationAssetLibrary.getInstance().register(a);spawn.setBoneAnimationId(id);

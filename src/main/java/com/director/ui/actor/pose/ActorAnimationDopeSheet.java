@@ -77,7 +77,7 @@ public final class ActorAnimationDopeSheet {
         try { renderInternal(model,actorId); }
         finally {
             if(renderContext!=null && !assetKeys().equals(importedKeys)
-                    && model.getSelectedClip()==renderContext.clip().getTimelineClip()) {
+                    && model.getSelectedClip()==ActorEmbeddedAnimation.visibleOwner(renderContext.track(),renderContext.clip())) {
                 ActorKeyframeSelection.getInstance().replace(model,renderContext.track(),renderContext.clip(),renderContext.asset(),assetKeys(),true);
                 observedSelectionRevision=ActorKeyframeSelection.getInstance().revision();
             }
@@ -344,7 +344,7 @@ public final class ActorAnimationDopeSheet {
                 && !ActorBoneGizmoController.getInstance().isDragging() && !ActorBonePropertiesPanel.hasNumericDraft()) {
             com.director.ui.timeline.render.ActorBoneTimelineRows.cancelAllKeyInteractions();
             ActorKeyframeTimePanel.cancelAll();
-            model.setSelectedClip(clip.getTimelineClip());
+            model.setSelectedClip(ActorEmbeddedAnimation.visibleOwner(renderContext.track(),clip));
             renderContext=ActorAnimationEditContext.capture(model,renderContext.track(),clip);
             KeyId hit = hitKey(rows, mx, my, y, timeX, timeWidth, rulerHeight, rowHeight,
                     keyRadius, pixelsPerSecond, viewStartTime);
@@ -538,7 +538,7 @@ public final class ActorAnimationDopeSheet {
     }
 
     private static void select(String assetId, KeyId key, boolean additive) {
-        renderContext.model().setSelectedClip(renderContext.clip().getTimelineClip());
+        renderContext.model().setSelectedClip(ActorEmbeddedAnimation.visibleOwner(renderContext.track(),renderContext.clip()));
         renderContext=ActorAnimationEditContext.capture(renderContext.model(),renderContext.track(),renderContext.clip());
         if (!Objects.equals(selectedAssetId, assetId) || !additive) selection.clear();
         selectedAssetId = assetId;

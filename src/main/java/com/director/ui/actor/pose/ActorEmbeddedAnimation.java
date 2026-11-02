@@ -10,6 +10,16 @@ import java.util.*;
 /** Spawn owns the animation reference; no extra visible timeline clip is authored. */
 public final class ActorEmbeddedAnimation {
     private ActorEmbeddedAnimation() {}
+    /** Only the selected visible wrapper may own key commands; never fall back to an active clip. */
+    public static EntityAnimationClip selectedReference(TimelineModel model,TimelineTrack track) {
+        if(model==null || track==null) return null;
+        var selected=model.getSelectedClip();
+        if(!(selected instanceof EntityTimelineClip wrapper) || wrapper.getParentTrack()!=track
+                || !track.getClips().contains(wrapper) || track.getActorTrackPayload()==null) return null;
+        EntityAnimationClip animation=wrapper.getEntityClip() instanceof EntityAnimationClip direct?direct
+                :wrapper.getEntityClip() instanceof EntitySpawnClip spawn?spawn.getBoneAnimation():null;
+        return animation!=null && visibleOwner(track,animation)==wrapper?animation:null;
+    }
     public static List<EntityClip> clips(ActorTrack payload) {
         var clips=new ArrayList<EntityClip>(payload.getClips());
         for(var c:payload.getClips())if(c instanceof EntitySpawnClip spawn && spawn.getBoneAnimation()!=null)clips.add(spawn.getBoneAnimation());

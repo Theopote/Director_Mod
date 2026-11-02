@@ -21,8 +21,8 @@ public final class ActorKeyframeSelection {
         if(!model.getAllTracks().contains(s.owner()) || s.owner().getType()!=TrackType.ACTOR
                 || payload==null || payload!=s.payload() || payload.getActorRef()==null
                 || !Objects.equals(payload.getActorRef().getActorId(),s.actorId()) || !ActorEmbeddedAnimation.bound(payload,s.clip())
-                || model.getSelectedClip()!=s.clip().getTimelineClip()
-                || s.clip().getTimelineClip()==null || s.clip().getTimelineClip().getParentTrack()!=s.owner()
+                || ActorEmbeddedAnimation.visibleOwner(s.owner(),s.clip())==null
+                || model.getSelectedClip()!=ActorEmbeddedAnimation.visibleOwner(s.owner(),s.clip())
                 || !Objects.equals(s.clip().getAnimationId(),s.asset().id())
                 || AnimationAssetLibrary.getInstance().find(s.asset().id()).orElse(null)!=s.asset()) {
             current=null; revision++; return null;

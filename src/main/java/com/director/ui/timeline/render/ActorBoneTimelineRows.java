@@ -63,7 +63,7 @@ public final class ActorBoneTimelineRows {
     }
     private void publishSelection(TimelineModel model) {
         if(selectedOwner!=null && selectedReference!=null && selectedAsset!=null
-                && model.getSelectedClip()==selectedReference.getTimelineClip())
+                && model.getSelectedClip()==com.director.ui.actor.pose.ActorEmbeddedAnimation.visibleOwner(selectedOwner,selectedReference))
             sharedSelection.replace(model,selectedOwner,selectedReference,selectedAsset,selectedKeys.keySet(),keyFocus);
     }
     private boolean keyFocus;
@@ -159,14 +159,14 @@ public final class ActorBoneTimelineRows {
         if (rootRows.handleKeyCommand(model, action)) return true;
         importSelection(model);
         // Once keys own focus, rejection must never fall through to deleting their clip.
-        if(!keyFocus || selectedReference==null || model.getSelectedClip()!=selectedReference.getTimelineClip()) return false;
+        if(!keyFocus || selectedReference==null || model.getSelectedClip()!=com.director.ui.actor.pose.ActorEmbeddedAnimation.visibleOwner(selectedOwner,selectedReference)) return false;
         try { executeKeyCommand(model,action); return true; } finally { publishSelection(model); }
     }
     private boolean executeKeyCommand(TimelineModel model,String action) {
         var wrapper=model.getSelectedClip();
-        var context=wrapper instanceof com.director.timeline.model.entity.EntityTimelineClip entity
-                && entity.getEntityClip() instanceof EntityAnimationClip animation
-                ? ActorAnimationEditContext.capture(model,entity.getParentTrack(),animation):null;
+        var owner=wrapper==null?null:wrapper.getParentTrack();
+        var animation=com.director.ui.actor.pose.ActorEmbeddedAnimation.selectedReference(model,owner);
+        var context=animation==null?null:ActorAnimationEditContext.capture(model,owner,animation);
         if(context==null || !context.isCurrent() || dragging!=null || marquee!=null
                 || com.director.ui.actor.pose.ActorAnimationDopeSheet.isKeyInteractionActive()
                 || ActorBonePropertiesPanel.hasNumericDraft() || ActorBoneGizmoController.getInstance().isDragging()) return false;
@@ -209,9 +209,9 @@ public final class ActorBoneTimelineRows {
     }
     private boolean renderKeyActions(TimelineModel model) {
         var wrapper=model.getSelectedClip();
-        var context=wrapper instanceof com.director.timeline.model.entity.EntityTimelineClip entity
-                && entity.getEntityClip() instanceof EntityAnimationClip animation
-                ? ActorAnimationEditContext.capture(model,entity.getParentTrack(),animation):null;
+        var owner=wrapper==null?null:wrapper.getParentTrack();
+        var animation=com.director.ui.actor.pose.ActorEmbeddedAnimation.selectedReference(model,owner);
+        var context=animation==null?null:ActorAnimationEditContext.capture(model,owner,animation);
         boolean target=context!=null && context.isCurrent() && !ActorBonePropertiesPanel.hasNumericDraft()
                 && !ActorBoneGizmoController.getInstance().isDragging();
         boolean hasSelection=target && selectedOwner==context.track() && selectedReference==context.clip()
@@ -354,7 +354,7 @@ public final class ActorBoneTimelineRows {
         importSelection(model);
         keyHits.clear();
         var tracks = model.getAllTracks();
-        if(selectedOwner!=null && (model.getSelectedClip()!=selectedReference.getTimelineClip()
+        if(selectedOwner!=null && (model.getSelectedClip()!=com.director.ui.actor.pose.ActorEmbeddedAnimation.visibleOwner(selectedOwner,selectedReference)
                 || !tracks.contains(selectedOwner) || AnimationAssetLibrary.getInstance().find(selectedAsset.id()).orElse(null)!=selectedAsset)) selectedKeys.clear();
         selectedKeys.entrySet().removeIf(e -> source(e.getValue())==null
                 || e.getValue().asset().findBoneTrack(e.getValue().bone()).orElse(null)!=e.getValue().boneTrack());
@@ -601,7 +601,7 @@ public final class ActorBoneTimelineRows {
                         points.add(new ActorKeyframeHitCandidates.Point<>(hit,hit.x(),hit.y()));
                 }
                 var candidates=ActorKeyframeHitCandidates.near(points,mx,my,6);
-                var preferred=candidates.stream().filter(hit -> hit.clip().getTimelineClip()==preferredClip).toList();
+                var preferred=candidates.stream().filter(hit -> com.director.ui.actor.pose.ActorEmbeddedAnimation.visibleOwner(track,hit.clip())==preferredClip).toList();
                 if (!rightClick && preferred.size()==1) candidates=preferred;
                 if (candidates.size()>1 || rightClick) {
                     if(rightClick && preferredClip!=null && preferredClip.getParentTrack()==track) model.setSelectedClip(preferredClip);
@@ -647,9 +647,9 @@ public final class ActorBoneTimelineRows {
                         dragSource = source(closest);
                     }
                 } else {
-                    if(preferredClip instanceof com.director.timeline.model.entity.EntityTimelineClip wrapper
-                            && wrapper.getParentTrack()==track && wrapper.getEntityClip() instanceof EntityAnimationClip animation) {
-                        model.setSelectedClip(wrapper);
+                    var animation=com.director.ui.actor.pose.ActorEmbeddedAnimation.selectedReference(model,track);
+                    if(animation!=null) {
+                        model.setSelectedClip(preferredClip);
                         var context=ActorAnimationEditContext.capture(model,track,animation);
                         if(context!=null && context.isBound() && !ActorBonePropertiesPanel.hasNumericDraft()
                                 && !ActorBoneGizmoController.getInstance().isDragging()) {
