@@ -43,14 +43,18 @@ public final class ActorTrackClipAuthoringService {
     /** All menu/property entry points use the same validation and one undo transaction. */
     public EntityTimelineClip createClip(TimelineModel model, TimelineTrack timelineTrack,
                                          ActorTrackClipKind kind, ActorActionType actionType) {
-        return createConfiguredClip(model,timelineTrack,kind,actionType,null,1,true);
+        return createConfiguredClip(model,timelineTrack,kind,actionType,null,1,true,null);
     }
     public EntityTimelineClip createAction(TimelineModel model,TimelineTrack track,ActorActionType action,float duration,float intensity,boolean loop) {
         if(!Float.isFinite(duration)||duration<.1f||!Float.isFinite(intensity)||intensity<0||intensity>1) return null;
-        return createConfiguredClip(model,track,ActorTrackClipKind.ACTION,action,duration,intensity,loop);
+        return createConfiguredClip(model,track,ActorTrackClipKind.ACTION,action,duration,intensity,loop,null);
+    }
+    public EntityTimelineClip createPose(TimelineModel model,TimelineTrack track,float duration,java.util.function.Consumer<ActorPoseClip> configure) {
+        if(!Float.isFinite(duration)||duration<.1f) return null;
+        return createConfiguredClip(model,track,ActorTrackClipKind.POSE,null,duration,1,false,c->{configure.accept((ActorPoseClip)c);c.setTimeRange(c.getStartTime(),c.getStartTime()+duration);});
     }
     private EntityTimelineClip createConfiguredClip(TimelineModel model,TimelineTrack timelineTrack,
-            ActorTrackClipKind kind,ActorActionType actionType,Float duration,float intensity,boolean loop) {
+            ActorTrackClipKind kind,ActorActionType actionType,Float duration,float intensity,boolean loop,java.util.function.Consumer<EntityClip> configure) {
         if (model == null || model.isPlaying() || model.isScrubbing() || timelineTrack == null || timelineTrack.isLocked() || timelineTrack.isMuted()
                 || !model.getAllTracks().contains(timelineTrack)
                 || timelineTrack.getType() != TrackType.ACTOR || kind == null) {
@@ -76,6 +80,8 @@ public final class ActorTrackClipAuthoringService {
             case STATE -> createStateClip(start);
         };
 
+        if(configure!=null) configure.accept(clip);
+        if(!Float.isFinite(clip.getEndTime())) return null;
         if(clip instanceof ActorActionClip configured && duration!=null) {
             configured.setTimeRange(start,start+duration);configured.setIntensity(intensity);configured.setLoop(loop);
             if(!Float.isFinite(configured.getEndTime())) return null;

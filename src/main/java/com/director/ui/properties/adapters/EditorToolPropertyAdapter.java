@@ -451,6 +451,22 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         return ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
     }
 
+    private void createActorPoseClip(Actor actor) {
+        if(actor==null) return;
+        var model=DirectorServices.get().containerTimeline().getTimelineModel();
+        try {
+            var owner=com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model,actor.getActorId());
+            var created=com.director.ui.actor.track.ActorTrackClipAuthoringService.getInstance().createPose(model,owner,poseDuration.get(),clip->{
+                clip.setOverrideBody(poseBody.get());clip.setOverrideHead(poseHead.get());clip.setOverrideArms(poseArms.get());clip.setOverrideLegs(poseLegs.get());
+                clip.setHeadPitch((float)Math.toRadians(poseHeadPitchDeg.get()));clip.setHeadYaw((float)Math.toRadians(poseHeadYawDeg.get()));
+                clip.setBodyPitch((float)Math.toRadians(poseBodyPitchDeg.get()));clip.setBodyYaw((float)Math.toRadians(poseBodyYawDeg.get()));clip.setBodyRoll((float)Math.toRadians(poseBodyRollDeg.get()));
+                clip.setLeftArmPitch((float)Math.toRadians(poseLeftArmDeg.get()));clip.setRightArmPitch((float)Math.toRadians(poseRightArmDeg.get()));
+                clip.setLeftLegPitch((float)Math.toRadians(poseLeftLegDeg.get()));clip.setRightLegPitch((float)Math.toRadians(poseRightLegDeg.get()));
+            });
+            actionCreationError=created==null?"当前不可创建局部姿态，请暂停并检查演员能力与轨道锁定。":"";
+        } catch(RuntimeException failure){actionCreationError=failure.getMessage();}
+    }
+
     private String actionCreationError="";
     private void createActorActionClip(Actor actor,ActorActionType action) {
         if(actor==null) return;
