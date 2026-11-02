@@ -14,6 +14,16 @@ class ActorGroupControllerTest {
 
     private static final float EPS = 0.0001f;
 
+    @Test void gridCentersBothCompleteAndIncompleteRows() {
+        for (int count : new int[]{1, 4, 5, 10}) {
+            var group = new ActorGroup("Grid");
+            for (int i = 0; i < count; i++) group.addActor(UUID.randomUUID());
+            group.setFormationType(ActorGroup.FormationType.GRID);
+            var points = ActorGroupController.getInstance().calculateFormation(group, new Vec3d(10, 64, 20), 37);
+            assertEquals(10, points.stream().mapToDouble(p -> p.position().x).average().orElseThrow(), .0001);
+            assertEquals(20, points.stream().mapToDouble(p -> p.position().z).average().orElseThrow(), .0001);
+        }
+    }
     @Test
     void lineFormationSpreadsAroundCenter() {
         ActorGroup group = new ActorGroup("line");

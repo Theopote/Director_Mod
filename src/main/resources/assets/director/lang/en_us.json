@@ -2539,5 +2539,9 @@
   "gui.director.actor.coordination.detail.quick_absent": "Quick pose is not enabled.",
   "gui.director.actor.coordination.detail.unsupported_contact": "Player foot contact solving is not enabled for this actor.",
   "gui.director.actor.coordination.detail.contact_unchanged": "Leg channels were unchanged this frame.",
-  "gui.director.actor.coordination.detail.contact_applied": "Foot contact corrected this frame; no single IK percentage is inferred."
+  "gui.director.actor.coordination.detail.contact_applied": "Foot contact corrected this frame; no single IK percentage is inferred.",
+  "gui.director.properties.adapter.actor.group_preview.placement_controlled": "Position is controlled by root animation, a route or a relation. Edit that animation instead.",
+  "gui.director.properties.adapter.actor.group_preview.muted": "Track is muted",
+  "gui.director.properties.adapter.actor.group_preview.pause_required": "Pause playback or scrubbing first.",
+  "gui.director.properties.adapter.actor.group_preview.placement_scope": "Group placement edits spawn positions. Members controlled by animation are skipped; existing animation is preserved."
 }

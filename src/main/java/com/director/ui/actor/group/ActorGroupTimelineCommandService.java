@@ -49,7 +49,7 @@ public final class ActorGroupTimelineCommandService {
         return INSTANCE;
     }
 
-    public enum SkipReason { MISSING_ACTOR, NO_TRACK, LOCKED, UNSUPPORTED_ACTION, SOURCE_ACTOR, ROUTE_CONFLICT }
+    public enum SkipReason { MISSING_ACTOR, NO_TRACK, LOCKED, UNSUPPORTED_ACTION, SOURCE_ACTOR, ROUTE_CONFLICT, PLACEMENT_CONTROLLED, MUTED }
     public record SkippedMember(UUID actorId, SkipReason reason) {}
     public record Preview(List<UUID> eligible, List<SkippedMember> skipped, String problem, int overwrittenMembers) {
         public Preview { eligible = List.copyOf(eligible); skipped = List.copyOf(skipped); }
@@ -93,7 +93,21 @@ public final class ActorGroupTimelineCommandService {
     }
 
     public Preview previewPlacement(TimelineModel model, ActorGroup group) {
-        return previewMembers(model, group, null, null);
+        Preview members = previewMembers(model, group, null, null);
+        if (members.problem() != null) return members;
+        List<UUID> eligible = new ArrayList<>();
+        List<SkippedMember> skipped = new ArrayList<>(members.skipped());
+        for (UUID id : members.eligible()) {
+            var payload = resolveTrack(model, id).getActorTrackPayload();
+            float time = model.getCurrentTime();
+            var sample = new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleSnapshot(time);
+            boolean controlled = sample.relationEnabled || payload.findClipsAt(time).stream()
+                    .anyMatch(c -> !c.isMuted() && (c instanceof EntityTransformClip || c instanceof ActorRouteClip
+                            || c instanceof EntitySpawnClip && !c.getKeyframes().isEmpty()));
+            if (controlled) skipped.add(new SkippedMember(id, SkipReason.PLACEMENT_CONTROLLED));
+            else eligible.add(id);
+        }
+        return new Preview(eligible, skipped, null, 0);
     }
 
     private static TimelineTrack resolveTrack(TimelineModel model, UUID actorId) {
@@ -107,7 +121,9 @@ public final class ActorGroupTimelineCommandService {
     private Preview previewMembers(TimelineModel model, ActorGroup group, ActorActionType action, UUID source) {
         if (model == null || group == null || group.size() == 0)
             return new Preview(List.of(), List.of(), "no_members", 0);
-        if (!Float.isFinite(model.getCurrentTime()) || !Float.isFinite(group.getDelayStepSeconds())
+        if (model.isPlaying() || model.isScrubbing())
+            return new Preview(List.of(), List.of(), "pause_required", 0);
+        if (model.getCurrentTime() < 0 || !Float.isFinite(model.getCurrentTime()) || !Float.isFinite(group.getDelayStepSeconds())
                 || !Float.isFinite(group.getFormationSpacing()))
             return new Preview(List.of(), List.of(), "invalid_parameters", 0);
         List<UUID> eligible = new ArrayList<>();
@@ -119,6 +135,7 @@ public final class ActorGroupTimelineCommandService {
             SkipReason reason = actor == null ? SkipReason.MISSING_ACTOR
                     : track == null || track.getActorTrackPayload() == null ? SkipReason.NO_TRACK
                     : track.isLocked() ? SkipReason.LOCKED
+                    : track.isMuted() ? SkipReason.MUTED
                     : id.equals(source) ? SkipReason.SOURCE_ACTOR
                     : action != null && !com.director.actor.ActorCapabilities.of(actor).supports(action)
                             ? SkipReason.UNSUPPORTED_ACTION : null;
@@ -215,7 +232,8 @@ public final class ActorGroupTimelineCommandService {
         for (UUID id : preview.eligible()) {
             var track = resolveTrack(model, id);
             var payload = track.getActorTrackPayload();
-            var position = resolveFormationPosition(positions, id, base);
+            var formation = positions.stream().filter(p -> p.actorId().equals(id)).findFirst().orElseThrow();
+            var position = formation.position();
             EntitySpawnClip existing = findSpawnClipAt(payload, time);
             EntitySpawnClip clip = existing == null ? new EntitySpawnClip("Spawn", time, time + DEFAULT_SPAWN_CLIP_DURATION) : existing;
             Vector3f beforePosition = new Vector3f(clip.getPosition());
@@ -231,7 +249,7 @@ public final class ActorGroupTimelineCommandService {
                 if (previousWrapper == null) clip.setTimelineClip(null);
             }, () -> {
                 clip.setPosition((float)position.x, (float)position.y, (float)position.z);
-                clip.setYawDeg(yaw); clip.setPitchDeg(pitch);
+                clip.setYawDeg(formation.yaw()); clip.setPitchDeg(pitch);
                 if (existing == null && !payload.getClips().contains(clip)) payload.addClip(clip);
                 clip.setTimelineClip(wrapper);
                 if (addedWrapper && !track.getClips().contains(wrapper)) track.addClip(wrapper);
@@ -375,7 +393,7 @@ public final class ActorGroupTimelineCommandService {
             return null;
         }
         for (EntityClip clip : actorTrack.findClipsAt(timeSeconds)) {
-            if (clip instanceof EntitySpawnClip spawnClip) {
+            if (clip instanceof EntitySpawnClip spawnClip && !clip.isMuted()) {
                 return spawnClip;
             }
         }

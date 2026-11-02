@@ -387,6 +387,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     }
 
     private void renderGroupPlacement(ActorGroup group) {
+        ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.placement_scope"));
         ImGui.spacing();
         UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_PLACEMENT), UITheme.DarkTheme.TEXT);
 

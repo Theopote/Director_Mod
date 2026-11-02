@@ -105,6 +105,38 @@ class ActorGroupTransactionsTest {
         assertTrue(history.redo()); assertSame(newSpawn,b.getActorTrackPayload().getClips().getFirst());
         assertEquals(1,b.getClips().size());
     }
+    @Test void placementSkipsAnimatedMemberWithoutChangingItsSpawn() {
+        var animated = member(ActorType.PLAYER); var plain = member(ActorType.PLAYER);
+        var spawn = new EntitySpawnClip("Spawn", 0, 10); spawn.setPosition(1, 2, 3); attach(animated, spawn);
+        var transform = new EntityTransformClip("Move", 0, 10);
+        transform.setFromPos(10, 2, 3); transform.setToPos(10, 2, 3); attach(animated, transform);
+        var preview = service.previewPlacement(model, group);
+        assertEquals(1, preview.eligible().size());
+        assertEquals(ActorGroupTimelineCommandService.SkipReason.PLACEMENT_CONTROLLED, preview.skipped().getFirst().reason());
+        assertEquals(1, service.placeGroup(model, group, new Vec3d(100, 2, 3), 0, 0));
+        assertEquals(new Vector3f(1, 2, 3), spawn.getPosition());
+        assertEquals(10, new com.director.timeline.playback.entity.EntityClipSampler(animated.getActorTrackPayload()).sampleSnapshot(2).position.x);
+        assertTrue(history.undo()); assertTrue(plain.getClips().isEmpty());
+        assertTrue(history.redo()); assertEquals(new Vector3f(1, 2, 3), spawn.getPosition());
+    }
+    @Test void placementUsesFormationYawAndUndoRestoresIt() {
+        var a = member(ActorType.PLAYER); var b = member(ActorType.PLAYER);
+        group.setFormationType(ActorGroup.FormationType.CIRCLE);
+        assertEquals(2, service.placeGroup(model, group, new Vec3d(0, 2, 0), 30, 0));
+        assertEquals(30, ((EntitySpawnClip)a.getActorTrackPayload().getClips().getFirst()).getYawDeg());
+        assertEquals(210, ((EntitySpawnClip)b.getActorTrackPayload().getClips().getFirst()).getYawDeg());
+        assertTrue(history.undo()); assertTrue(a.getClips().isEmpty()); assertTrue(b.getClips().isEmpty());
+        assertTrue(history.redo());
+        assertEquals(210, ((EntitySpawnClip)b.getActorTrackPayload().getClips().getFirst()).getYawDeg());
+    }
+    @Test void placementRejectsPlaybackAndMutedTracks() {
+        var track = member(ActorType.PLAYER); model.setPlaying(true);
+        assertFalse(service.previewPlacement(model, group).canExecute());
+        model.setPlaying(false); track.setMuted(true);
+        assertFalse(service.previewPlacement(model, group).canExecute());
+        assertEquals(0, service.placeGroup(model, group, Vec3d.ZERO, 0, 0));
+        assertFalse(history.undo());
+    }
     @Test void failedMemberRollsBackEvenItsPartialWriteAndDoesNotEnterHistory() {
         int[] values = {0,0};
         assertThrows(IllegalStateException.class, () -> ActorGroupEditCommand.execute(model, "Failure", List.of(

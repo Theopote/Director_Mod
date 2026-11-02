@@ -2539,5 +2539,9 @@
   "gui.director.actor.coordination.detail.quick_absent": "未启用快速姿态",
   "gui.director.actor.coordination.detail.unsupported_contact": "此演员未启用玩家脚底求解",
   "gui.director.actor.coordination.detail.contact_unchanged": "本帧未修改腿部通道",
-  "gui.director.actor.coordination.detail.contact_applied": "本帧已修正足接触；不推算统一 IK 百分比"
+  "gui.director.actor.coordination.detail.contact_applied": "本帧已修正足接触；不推算统一 IK 百分比",
+  "gui.director.properties.adapter.actor.group_preview.placement_controlled": "整体动画、路径或关系正在控制位置；请使用对应动画编辑器调整。",
+  "gui.director.properties.adapter.actor.group_preview.muted": "轨道已禁用",
+  "gui.director.properties.adapter.actor.group_preview.pause_required": "请先暂停播放或时间拖动。",
+  "gui.director.properties.adapter.actor.group_preview.placement_scope": "群组放置修改入场位置；动画控制中的成员会跳过，不会覆盖已有动画。"
 }

@@ -68,11 +68,14 @@ public class ActorGroupController {
             case GRID -> {
                 int count = actorIds.size();
                 int cols = (int) Math.ceil(Math.sqrt(count));
+                float meanCol = 0, meanRow = 0;
+                for (int i = 0; i < count; i++) { meanCol += i % cols; meanRow += i / cols; }
+                meanCol /= count; meanRow /= count;
                 for (int i = 0; i < count; i++) {
                     int row = i / cols;
                     int col = i % cols;
-                    float x = (col - cols / 2f) * spacing;
-                    float z = row * spacing;
+                    float x = (col - meanCol) * spacing;
+                    float z = (row - meanRow) * spacing;
                     Vec3d pos = offsetPosition(centerPosition, x, z, facingYaw);
                     positions.add(new FormationPosition(actorIds.get(i), pos, facingYaw));
                 }
