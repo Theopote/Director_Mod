@@ -34,7 +34,7 @@ public final class ActorKeyframeTimePanel {
             draft=null; rejected=false; shown=List.copyOf(keys); shownContext=context;
             value.set(keys.size()==1?keys.getFirst().time():0);
         }
-        boolean valid=enabled && context!=null && context.isCurrent() && !keys.isEmpty()
+        boolean valid=enabled && context!=null && context.isCurrent() && !context.distanceDriven() && !keys.isEmpty()
                 && (!context.loop() || context.loopMode()==AnimationLoopMode.ONCE);
         ImGui.beginDisabled(!valid);
         Float moved=null;

@@ -110,7 +110,7 @@ public final class ActorAnimationAuthoringService {
     }
 
     public static boolean move(ActorAnimationEditContext context, Collection<Key> keys, float delta) {
-        if (context == null || !context.isCurrent() || keys == null || keys.isEmpty()
+        if (context == null || !context.isCurrent() || context.distanceDriven() || keys == null || keys.isEmpty()
                 || !Float.isFinite(delta) || Math.abs(delta) <= EPSILON) return false;
         List<Key> source = new ArrayList<>(new LinkedHashSet<>(keys));
         Draft draft = new Draft(context.asset());

@@ -275,7 +275,7 @@ public final class ActorBoneTimelineRows {
                     ImGui.endDisabled();
                     if (chosen) {
                         selectKey(hit,pendingAdditive);
-                        model.setSelectedClip(hit.clip().getTimelineClip()); model.setCurrentTime(hit.time());
+                        model.setSelectedClip(com.director.ui.actor.pose.ActorEmbeddedAnimation.visibleOwner(hit.track(),hit.clip())); model.setCurrentTime(hit.time());
                         pendingKeys=List.of(); actionMenu=false; ImGui.closeCurrentPopup(); break;
                     }
                 }
@@ -320,7 +320,7 @@ public final class ActorBoneTimelineRows {
                 || hit.clip().getSpeed() != dragSpeed || !Objects.equals(source(hit), dragSource)
                 || (hit.clip().isLoop() && hit.asset().loopMode() != AnimationLoopMode.ONCE)
                 || !model.getAllTracks().contains(hit.track())
-                || !hit.track().getActorTrackPayload().getClips().contains(hit.clip())
+                || !com.director.ui.actor.pose.ActorEmbeddedAnimation.bound(hit.track().getActorTrackPayload(),hit.clip())
                 || AnimationAssetLibrary.getInstance().find(hit.asset().id()).orElse(null) != hit.asset()
                 || !hit.clip().getAnimationId().equals(hit.asset().id()) || hit.clip().isMuted()) {
             dragging = null;
@@ -621,7 +621,7 @@ public final class ActorBoneTimelineRows {
                 KeyHit closest=candidates.isEmpty()?null:candidates.getFirst();
                 if (closest != null) {
                     selectKey(closest,additive);
-                    model.setSelectedClip(closest.clip().getTimelineClip());
+                    model.setSelectedClip(com.director.ui.actor.pose.ActorEmbeddedAnimation.visibleOwner(track,closest.clip()));
                     model.setCurrentTime(closest.time());
                     if (!additive && !model.isPlaying() && !track.isLocked() && !ActorBonePropertiesPanel.hasNumericDraft()
                             && !ActorBoneGizmoController.getInstance().isDragging() && (!closest.clip().isLoop() || closest.asset().loopMode() == AnimationLoopMode.ONCE)) {
@@ -631,7 +631,7 @@ public final class ActorBoneTimelineRows {
                         publishSelection(model);
                         dragSharedRevision=sharedSelection.revision();
                         dragContext = ActorAnimationEditContext.capture(model, track, closest.clip());
-                        if (dragContext == null || !dragContext.isCurrent()) return true;
+                        if (dragContext == null || !dragContext.isCurrent() || dragContext.distanceDriven()) return true;
                         dragSelectionRevision = ActorBoneSelectionController.getInstance().getRevision();
                         dragSettingsRevision = com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getRevision();
                         var frozen=new LinkedHashMap<ActorAnimationAuthoringService.Key,PendingKey>();

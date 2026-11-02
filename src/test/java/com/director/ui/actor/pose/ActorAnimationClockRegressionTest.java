@@ -55,8 +55,14 @@ class ActorAnimationClockRegressionTest {
         var sample=new EntityClipSampler(track).sampleSnapshot(1);
         assertTrue(ActorPresetClock.followsDistance(a.id(),sample));
         var visible=ActorPresetClock.resolve(ActorAnimationLayerSample.from(sample),sample,actor.getRigProfile());
+        a.getOrCreateBoneTrack("head").rotation().put(0,new org.joml.Quaternionf(),InterpolationMode.LINEAR);
         var editing=ActorAnimationEditContext.resolve(model,actor.getActorId());assertNotNull(editing);
         assertEquals(visible.localTime()*visible.speed(),editing.assetTime(),1e-5f);
+        assertTrue(editing.distanceDriven());
+        var key=new ActorAnimationAuthoringService.Key("head",ActorAnimationAuthoringService.Channel.ROTATION,0);
+        assertFalse(ActorAnimationAuthoringService.move(editing,List.of(key),.1f));
+        assertFalse(ActorAnimationAuthoringService.moveTime(editing,List.of(key),.1f));
+        assertTrue(a.findBoneTrack("head").orElseThrow().rotation().findAt(0).isPresent());
     }
 
     @Test void gizmoAndNumericEditorShouldUseSameCorrectionLayer() throws Exception {

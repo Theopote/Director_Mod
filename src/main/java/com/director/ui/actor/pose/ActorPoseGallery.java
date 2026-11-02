@@ -71,7 +71,6 @@ public final class ActorPoseGallery {
             }
             ImGui.endDisabled();
             if(spawn!=null && spawn.getBoneAnimationId()!=null) {
-                var blend=spawn.getBlendSettings();
                 ImGui.textWrapped("手工修正优先于动作预设；已有关键帧可能覆盖新绑定的动作。可旁路手工层检查预设，已有关键帧会保留。");
                 ImGui.beginDisabled(blocked);
                 if(ImGui.button(spawn.isBoneAnimationMuted()?"恢复手工修正##bypassManual":"旁路手工修正##bypassManual")) {
