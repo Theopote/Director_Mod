@@ -43,6 +43,14 @@ public final class ActorTrackClipAuthoringService {
     /** All menu/property entry points use the same validation and one undo transaction. */
     public EntityTimelineClip createClip(TimelineModel model, TimelineTrack timelineTrack,
                                          ActorTrackClipKind kind, ActorActionType actionType) {
+        return createConfiguredClip(model,timelineTrack,kind,actionType,null,1,true);
+    }
+    public EntityTimelineClip createAction(TimelineModel model,TimelineTrack track,ActorActionType action,float duration,float intensity,boolean loop) {
+        if(!Float.isFinite(duration)||duration<.1f||!Float.isFinite(intensity)||intensity<0||intensity>1) return null;
+        return createConfiguredClip(model,track,ActorTrackClipKind.ACTION,action,duration,intensity,loop);
+    }
+    private EntityTimelineClip createConfiguredClip(TimelineModel model,TimelineTrack timelineTrack,
+            ActorTrackClipKind kind,ActorActionType actionType,Float duration,float intensity,boolean loop) {
         if (model == null || model.isPlaying() || model.isScrubbing() || timelineTrack == null || timelineTrack.isLocked() || timelineTrack.isMuted()
                 || !model.getAllTracks().contains(timelineTrack)
                 || timelineTrack.getType() != TrackType.ACTOR || kind == null) {
@@ -68,6 +76,12 @@ public final class ActorTrackClipAuthoringService {
             case STATE -> createStateClip(start);
         };
 
+        if(clip instanceof ActorActionClip configured && duration!=null) {
+            configured.setTimeRange(start,start+duration);configured.setIntensity(intensity);configured.setLoop(loop);
+            if(!Float.isFinite(configured.getEndTime())) return null;
+        }
+        if(clip instanceof ActorActionClip) for(var existing:actorTrack.getClips())
+            if(existing instanceof ActorActionClip && !existing.isMuted() && existing.getEndTime()>clip.getStartTime() && existing.getStartTime()<clip.getEndTime()) return null;
         EntityTimelineClip timelineClip = new EntityTimelineClip(clip, actorTrack.getColorRgba());
         com.director.ui.timeline.commands.TimelineCommandBridge.execute(
                 new com.director.ui.timeline.commands.StateChangeCommand(model, "Create actor " + kind,

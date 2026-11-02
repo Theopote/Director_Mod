@@ -33,6 +33,7 @@ public final class CustomModelAssetEditing {
             String textureId,
             CuboidFaceUvs faceUvs) {
         Objects.requireNonNull(model, "model");
+        if(model.isPlaying() || model.isScrubbing()) throw new IllegalArgumentException("请先暂停再编辑模型 UV");
         if (modelId == null || modelId.isBlank()) {
             throw new IllegalArgumentException("模型 ID 不能为空");
         }
@@ -42,6 +43,9 @@ public final class CustomModelAssetEditing {
         if (faceUvs == null || !faceUvs.hasAnyFace()) {
             throw new IllegalArgumentException("至少需要一个面的 UV");
         }
+        for(var face:new float[][]{faceUvs.north(),faceUvs.south(),faceUvs.east(),faceUvs.west(),faceUvs.up(),faceUvs.down()})
+            if(face!=null && (face.length!=4 || !Float.isFinite(face[0]) || !Float.isFinite(face[1]) || !Float.isFinite(face[2]) || !Float.isFinite(face[3])))
+                throw new IllegalArgumentException("每个面的 UV 必须包含四个有限数值");
 
         CustomModelLibrary library = CustomModelLibrary.getInstance();
         CustomModelDefinition before = library.find(modelId)
@@ -57,8 +61,8 @@ public final class CustomModelAssetEditing {
                 faceUvs);
 
         TimelineCommandBridge.execute(new StateChangeCommand(model, "Edit custom model cuboid UV",
-                () -> applyModel(library, before),
-                () -> applyModel(library, after)));
+                () -> applyModelChecked(library,after,before),
+                () -> applyModelChecked(library,before,after)));
     }
 
     private static CustomModelDefinition withUpdatedCuboid(
@@ -99,7 +103,8 @@ public final class CustomModelAssetEditing {
         return new CustomModelDefinition(model.id(), model.displayName(), model.rigId(), cuboids);
     }
 
-    private static void applyModel(CustomModelLibrary library, CustomModelDefinition definition) {
+    private static void applyModelChecked(CustomModelLibrary library,CustomModelDefinition expected,CustomModelDefinition definition) {
+        if(library.find(expected.id()).orElse(null)!=expected) throw new IllegalArgumentException("模型已变化，请重新编辑");
         library.register(definition);
         CustomModelPersistence.saveToWorld(library);
         rebuildClientResources(definition);

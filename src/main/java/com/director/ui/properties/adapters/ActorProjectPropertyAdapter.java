@@ -544,7 +544,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (rigProfile != null) {
             RigProfileStyle style = rigProfile.getStyle();
             if (style != null) {
-                modified |= RigProfileStylePropertyUI.render(style);
+                modified |= RigProfileStylePropertyUI.render(actor);
             }
         }
 
@@ -556,26 +556,36 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ImGui.spacing();
 
         // ---- Usage Information (只读) ----
-        com.director.ui.properties.actor.ActorPathMovementPropertyUI.render(actor.getActorId());
+        com.director.ui.properties.actor.ActorLiveTransformPropertyUI.render(actor.getActorId());
         renderActorUsage(actor);
         com.director.ui.properties.actor.ActorRuntimeDiagnosticsUI.render(actor.getActorId());
         
         return modified;
     }
 
+    private void editModelBinding(Actor actor,String rig,String model) {
+        try {
+            com.director.ui.actor.ActorAppearanceEditing.binding(DirectorServices.get().containerTimeline().getTimelineModel(),actor,
+                    new com.director.ui.actor.ActorAppearanceEditing.Binding(rig,model));
+            bbModelImportMessage="已更新绑定，可撤销；原有动画引用保留，不兼容的引用可在动画面板修复。";
+        } catch(RuntimeException error) {bbModelImportMessage=error.getMessage();}
+    }
+
     private boolean renderCustomActorAssets(Actor actor) {
         boolean modified = false;
+        var editingModel=DirectorServices.get().containerTimeline().getTimelineModel();
+        ImGui.beginDisabled(!com.director.ui.actor.ActorAppearanceEditing.editable(editingModel));
         var customRigs = com.director.actor.rig.skeleton.CustomRigLibrary.getInstance().all();
         String currentRigLabel = actor.getCustomRigId() == null ? "（未绑定）" : actor.getCustomRigId();
         if (ImGui.beginCombo("自定义骨架##customRig", currentRigLabel)) {
             if (ImGui.selectable("（未绑定）", actor.getCustomRigId() == null)) {
-                actor.setCustomRigId(null);
+                editModelBinding(actor,null,null);
                 modified = true;
             }
             for (var rig : customRigs) {
                 boolean isSelected = rig.id().equals(actor.getCustomRigId());
                 if (ImGui.selectable(rig.displayName() + "##rig:" + rig.id(), isSelected)) {
-                    actor.setCustomRigId(rig.id());
+                    editModelBinding(actor,rig.id(),null);
                     modified = true;
                 }
                 if (isSelected) {
@@ -604,13 +614,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             String currentModelLabel = actor.getCustomModelId() == null ? "（无外观，仅骨架）" : actor.getCustomModelId();
             if (ImGui.beginCombo("自定义模型外观##customModel", currentModelLabel)) {
                 if (ImGui.selectable("（无外观，仅骨架）", actor.getCustomModelId() == null)) {
-                    actor.setCustomModelId(null);
+                    editModelBinding(actor,actor.getCustomRigId(),null);
                     modified = true;
                 }
                 for (var model : models) {
                     boolean isSelected = model.id().equals(actor.getCustomModelId());
                     if (ImGui.selectable(model.displayName() + "##model:" + model.id(), isSelected)) {
-                        actor.setCustomModelId(model.id());
+                        editModelBinding(actor,actor.getCustomRigId(),model.id());
                         modified = true;
                     }
                     if (isSelected) {
@@ -634,6 +644,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 CustomModelCuboidPropertyUI.render(actor, timeline);
             }
         }
+        ImGui.endDisabled();
         return modified;
     }
 

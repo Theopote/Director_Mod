@@ -23,6 +23,15 @@ class ActorRootKeyframeEditingTest {
     <T extends EntityClip> T add(T clip) {
         owner.getActorTrackPayload().addClip(clip); owner.addClip(new EntityTimelineClip(clip, 0)); return clip;
     }
+    @Test void existingRootKeyEditsSelectedChannelWithoutMovingPlayheadOrOtherChannels() {
+        var spawn=add(new EntitySpawnClip("Spawn",0,5));model.setCurrentTime(1);
+        var key=new EntityClipKeyframe(2,TimelineInterpolation.LINEAR);key.setPosition(3,4,5);key.setScale(2,2,2);spawn.addKeyframe(key);
+        var expected=key.copy();
+        assertTrue(ActorRootKeyframeEditing.updateExisting(model,owner,spawn,key,expected,4,key.getPosition(),key.getRotation(),new Vector3f(3),TimelineInterpolation.STEP));
+        assertEquals(new Vector3f(3),key.getScale());assertEquals(new Vector3f(3,4,5),key.getPosition());assertEquals(TimelineInterpolation.LINEAR,key.getInterpolation());
+        assertEquals(1,model.getCurrentTime());assertTrue(history.undo());assertEquals(new Vector3f(2),key.getScale());
+        assertTrue(history.redo());assertFalse(ActorRootKeyframeEditing.updateExisting(model,owner,spawn,key,expected,4,key.getPosition(),key.getRotation(),new Vector3f(4),TimelineInterpolation.LINEAR));
+    }
     @Test void newChannelsSeedVisibleValuesWithoutReplacingExistingAssetChannels() {
         var rig=com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION;
         var asset=new com.director.actor.animation.asset.AnimationAsset("test:seed","Seed",rig,5,

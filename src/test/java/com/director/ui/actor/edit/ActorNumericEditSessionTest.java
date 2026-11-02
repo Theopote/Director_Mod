@@ -26,18 +26,36 @@ class ActorNumericEditSessionTest {
     @AfterEach void cleanup() { TimelineCommandBridge.bind(null); ActorRegistryManager.setRegistry(null); }
     ActorNumericEditSession session(ActorNumericEditSession.Kind kind) { return new ActorNumericEditSession(model, track, kind, sample); }
     EntityTransformClip transform() {
-        var clip = new EntityTransformClip("Transform", 1, 3);
+        var clip = new EntityTransformClip("Transform", 1, 3); clip.setInterpolation(TimelineInterpolation.LINEAR);
         clip.setFromPos(1,2,3); clip.setToPos(1,2,3); clip.setFromRot(10,20,30); clip.setToRot(10,20,30);
         attach(clip); return clip;
     }
     void attach(EntityClip clip) { track.getActorTrackPayload().addClip(clip); track.addClip(new EntityTimelineClip(clip, 0)); }
+    com.director.timeline.playback.entity.EntitySample sampled() {
+        return new com.director.timeline.playback.entity.EntityClipSampler(track.getActorTrackPayload()).sampleSnapshot(model.getCurrentTime());
+    }
+    @Test void currentValueInputMatchesCommittedSampleAndKeepsEndpoints() {
+        var source=transform();source.setFromPos(0,0,0);source.setToPos(10,0,0);
+        var at=sampled();assertEquals(5,at.position.x);
+        var edit=new ActorNumericEditSession(model,track,ActorNumericEditSession.Kind.TRANSFORM,
+                new ActorTransformEditService.TransformSnapshot(new Vector3f(at.position),new Vector3f(at.rotation),new Vector3f(at.scale)));
+        edit.updateTransform(new Vector3f(6,0,0),at.rotation,at.scale);edit.commit();
+        assertEquals(6,sampled().position.x);assertEquals(0,source.getFromPos().x);assertEquals(10,source.getToPos().x);
+        assertEquals(3,source.getKeyframes().size());assertTrue(history.undo());assertTrue(source.getKeyframes().isEmpty());
+        assertEquals(5,sampled().position.x);assertTrue(history.redo());assertEquals(6,sampled().position.x);
+    }
+    @Test void smoothEndpointMotionCannotBeSilentlyConvertedByCurrentFrameInput() {
+        var source=transform();source.setInterpolation(TimelineInterpolation.SMOOTH);
+        var edit=session(ActorNumericEditSession.Kind.TRANSFORM);edit.updateTransform(new Vector3f(8),sample.rotation(),sample.scale());
+        assertThrows(IllegalArgumentException.class,edit::commit);assertTrue(source.getKeyframes().isEmpty());assertEquals(0,history.getUndoSize());
+    }
     @Test void repeatedTransformInputCommitsOnceWithUndoAndRedo() {
         var source = transform(); var edit = session(ActorNumericEditSession.Kind.TRANSFORM);
         for (int i = 0; i < 50; i++) edit.updateTransform(new Vector3f(i,2,3), sample.rotation(), sample.scale());
         assertEquals(1, source.getToPos().x); assertEquals(0, history.getUndoSize());
-        edit.commit(); assertEquals(49, source.getToPos().x); assertEquals(1, history.getUndoSize());
+        edit.commit(); assertEquals(49, sampled().position.x); assertEquals(1,source.getToPos().x); assertEquals(1, history.getUndoSize());
         assertEquals(sample.rotation(), source.getToRot()); history.undo(); assertEquals(1, source.getToPos().x);
-        history.redo(); assertEquals(49, source.getToPos().x);
+        history.redo(); assertEquals(49, sampled().position.x);
     }
     @Test void strengthPreservesEntityTargetAndCommitsOnlyOnce() {
         var source = new EntityLookAtClip("Look", 1,3); var target = UUID.randomUUID();
@@ -84,7 +102,7 @@ class ActorNumericEditSessionTest {
         assertThrows(IllegalArgumentException.class, () -> edit.updateTransform(new Vector3f(Float.NaN), sample.rotation(), sample.scale()));
         assertEquals(1, source.getToPos().x);
         edit.updateTransform(sample.position(), sample.rotation(), new Vector3f(-1, 1000, 2)); edit.commit();
-        assertEquals(new Vector3f(.01f,100,2), source.getToScale());
+        assertEquals(new Vector3f(.01f,100,2), sampled().scale);
     }
     @Test void sourceChangeInvalidatesDraftAndMissingEntityTargetIsRejected() {
         var source = transform(); var edit = session(ActorNumericEditSession.Kind.TRANSFORM);
@@ -107,6 +125,6 @@ class ActorNumericEditSessionTest {
         var edit = session(ActorNumericEditSession.Kind.TRANSFORM);
         edit.updateTransform(new Vector3f(8), sample.rotation(), sample.scale());
         edit.updateTransform(sample.position(), new Vector3f(50), sample.scale()); edit.commit();
-        assertEquals(new Vector3f(10,20,30), source.getToPos()); assertEquals(new Vector3f(50), source.getToRot());
+        assertEquals(new Vector3f(10,20,30), source.getToPos()); assertEquals(new Vector3f(50), sampled().rotation);
     }
 }

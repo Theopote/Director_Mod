@@ -11,7 +11,7 @@ public final class ActorTimelineAnimationPanel {
     private static ActorAnimationDetailTarget previousTarget;
     private static void hideDetail() {
         previousTarget=null;
-        if(detailVisible) { detailVisible=false; ActorAnimationEditingLifecycle.cancelTransientWork(); }
+        if(detailVisible) { detailVisible=false; com.director.ui.timeline.render.ActorBoneTimelineRows.closeAllTransientEditors(); }
     }
     private ActorTimelineAnimationPanel() {}
 

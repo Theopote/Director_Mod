@@ -17,6 +17,12 @@ public final class AnimationEventClock {
             float at=start+event.getNormalizedTime()*clip.getLength();
             return at>=from && at<=end?List.of(at):List.of();
         }
+        return times(track,clip,event.getNormalizedTime(),from,to);
+    }
+    /** Invert the source clock for both UI keys and events. */
+    public static List<Float> times(ActorTrack track,EntityAnimationClip clip,float normalized,float from,float to) {
+        float start=clip.getStartTime(),end=Math.min(to,clip.getEndTime());
+        if(!Float.isFinite(start)||!Float.isFinite(end)||end<start||from>end||!Float.isFinite(normalized)||normalized<0||normalized>1) return List.of();
         var asset=AnimationAssetLibrary.getInstance().find(clip.getAnimationId()).orElse(null);
         var builtin=asset==null?AnimationLibrary.getInstance().get(clip.getAnimationId()).orElse(null):null;
         float duration=asset!=null?asset.duration():builtin!=null?builtin.getDuration():clip.getLength();
@@ -43,7 +49,7 @@ public final class AnimationEventClock {
             double lo=raw.applyAsDouble(a),hi=raw.applyAsDouble(b);
             if(!Double.isFinite(lo) || !Double.isFinite(hi) || hi<lo) continue;
             var effective=distance?AnimationLoopMode.LOOP:mode;
-            double phase=event.getNormalizedTime()*duration;
+            double phase=normalized*duration;
             add(result,raw,a,b,lo,hi,phase,effective==AnimationLoopMode.ONCE?0:effective==AnimationLoopMode.LOOP?duration:2d*duration);
             if(effective==AnimationLoopMode.PING_PONG && phase>0 && phase<duration)
                 add(result,raw,a,b,lo,hi,2d*duration-phase,2d*duration);

@@ -38,6 +38,13 @@ public final class ActorAnimationAuthoringService {
         return write(context, keys, true, "Key actor pose");
     }
 
+    public static boolean setValue(ActorAnimationEditContext context,Key key,Object value) {
+        if(context==null || key==null) return false;
+        var track=context.asset().findBoneTrack(key.boneId()).orElse(null);
+        var existing=track==null?null:frame(track,key);
+        return existing!=null && write(context,List.of(new Paste(key.boneId(),key.channel(),key.time(),value,existing.interpolation())),true,"Edit actor key value");
+    }
+
     public static boolean paste(ActorAnimationEditContext context, Collection<Paste> keys) {
         return write(context, keys, false, "Paste actor keyframes");
     }

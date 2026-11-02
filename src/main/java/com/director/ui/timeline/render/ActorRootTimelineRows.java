@@ -69,7 +69,7 @@ final class ActorRootTimelineRows {
         var times = new LinkedHashMap<EntityClipKeyframe, Float>();
         clip.getKeyframes().forEach(k -> times.put(k, k.getTime()));
         boolean keep = additive && focusModel == model && focusClip == clip;
-        focusModel = model; focusOwner = track; focusClip = clip;
+        inspectorOwner=this;focusModel = model; focusOwner = track; focusClip = clip;
         marquee = new Marquee(model, track, clip, model.getActorEditContextRevision(), mx, my, left, right,
                 Math.max(top, rowsTop), Math.min(top + height, rowsTop + COUNT * ActorBoneTimelineRows.CHILD_HEIGHT), rowsTop,
                 keep, viewport(left, right, top, height, scroll, math), Collections.unmodifiableMap(times));
@@ -107,6 +107,7 @@ final class ActorRootTimelineRows {
         return true;
     }
     private final com.director.ui.actor.pose.ActorRootKeyframeClipboard clipboard = new com.director.ui.actor.pose.ActorRootKeyframeClipboard();
+    private static ActorRootTimelineRows inspectorOwner;
     private TimelineModel focusModel;
     private TimelineTrack focusOwner;
     private EntityClip focusClip;
@@ -118,9 +119,19 @@ final class ActorRootTimelineRows {
     }
     void select(TimelineModel model, TimelineTrack owner, EntityClip clip, EntityClipKeyframe key, boolean additive) {
         if ((!additive && !selected.contains(key)) || focusModel != model || focusOwner != owner || focusClip != clip) selected.clear();
-        focusModel = model; focusOwner = owner; focusClip = clip; focusKey = key;
+        inspectorOwner=this;focusModel = model; focusOwner = owner; focusClip = clip; focusKey = key;
         if (additive && selected.contains(key)) selected.remove(key); else selected.add(key);
     }
+    static ActorRootKeyPropertyUI.Selection inspection(TimelineModel model) {
+        var rows=inspectorOwner;
+        if(rows==null || rows.focusModel!=model || rows.focusClip==null || model.getSelectedClip()!=rows.focusClip.getTimelineClip()
+                || !model.getAllTracks().contains(rows.focusOwner) || rows.focusOwner.getActorTrackPayload()==null
+                || !rows.focusOwner.getActorTrackPayload().getClips().contains(rows.focusClip) || rows.selected.isEmpty()) return null;
+        var keys=rows.selected.stream().filter(rows.focusClip.getKeyframes()::contains).toList();
+        if(keys.isEmpty()) return null;
+        return new ActorRootKeyPropertyUI.Selection(rows.focusOwner,rows.focusClip,keys,rows.channelRow>=0?1<<rows.channelRow:7);
+    }
+    static void leaveInspection() {if(inspectorOwner!=null) inspectorOwner.clearFocus();inspectorOwner=null;}
     boolean handleKeyCommand(TimelineModel model, String action) {
         if (focusModel != model || focusClip == null || model.getSelectedClip() != focusClip.getTimelineClip()
                 || !model.getAllTracks().contains(focusOwner)) { clearFocus(); return false; }

@@ -52,6 +52,14 @@ class ActorAnimationAuthoringServiceTest {
         asset.getOrCreateBoneTrack("head").scale().put(1, new Vector3f(2), InterpolationMode.LINEAR);
         return List.of(key("root", TRANSLATION, 1), key("head", ROTATION, 1), key("head", SCALE, 1));
     }
+    @Test void selectedKeyValueEditPreservesTimeInterpolationAndOtherChannels() {
+        var keys=seedMixed();var head=asset.findBoneTrack("head").orElseThrow();
+        assertTrue(ActorAnimationAuthoringService.setValue(context,keys.get(1),new Quaternionf().rotateY(.7f)));
+        assertEquals(InterpolationMode.SMOOTH,head.rotation().findAt(1).orElseThrow().interpolation());
+        assertEquals(new Vector3f(2),head.scale().findAt(1).orElseThrow().value());
+        assertTrue(history.undo());assertTrue(head.rotation().findAt(1).orElseThrow().value().equals(new Quaternionf().rotateX(.3f),1e-5f));
+        assertTrue(history.redo());assertFalse(ActorAnimationAuthoringService.setValue(context,keys.get(1),new Vector3f(2)));
+    }
     @Test void mixedMoveUsesOneUndoAndPreservesValuesAndInterpolation() {
         var keys = seedMixed(); var head = asset.findBoneTrack("head").orElseThrow();
         assertTrue(ActorAnimationAuthoringService.move(context, keys, .5f));

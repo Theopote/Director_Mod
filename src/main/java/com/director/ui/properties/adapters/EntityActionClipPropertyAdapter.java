@@ -43,7 +43,12 @@ public class EntityActionClipPropertyAdapter implements IPropertyAdapter<EntityA
         if (source == null || competing) return false;
         if (session == null) {
             try { session = new ActorClipPropertyEditSession(model,source); }
-            catch (RuntimeException unavailable) { ImGui.textDisabled(tr("unavailable")); return false; }
+            catch (RuntimeException unavailable) {
+                ImGui.textDisabled(tr("unavailable"));ImGui.text("只读事件："+source.getActionType());
+                ImGui.text(String.format("时间 %.3f – %.3f 秒",source.getStartTime(),source.getEndTime()));
+                source.getParams().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(e->ImGui.textWrapped(e.getKey()+"："+e.getValue()));
+                return false;
+            }
         }
         var clip = (EntityActionClip)session.draft();
         Actor actor = ActorRegistryManager.getInstance().getActor(source.getTimelineClip().getParentTrack()

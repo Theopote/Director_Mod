@@ -59,6 +59,12 @@ class ActorAnimationClockRegressionTest {
         var editing=ActorAnimationEditContext.resolve(model,actor.getActorId());assertNotNull(editing);
         assertEquals(visible.localTime()*visible.speed(),editing.assetTime(),1e-5f);
         assertTrue(editing.distanceDriven());
+        var times=ActorAnimationKeyClock.times(owner,clip,editing.assetTime(),0,4);
+        assertFalse(times.isEmpty());
+        float nearest=times.stream().min(java.util.Comparator.comparingDouble(t->Math.abs(t-1))).orElseThrow();
+        assertEquals(1,nearest,.001f);
+        model.setCurrentTime(.9f);ActorAnimationKeyClock.seek(model,owner,clip,editing.assetTime());assertEquals(1,model.getCurrentTime(),.001f);
+        editing=ActorAnimationEditContext.resolve(model,actor.getActorId());
         var key=new ActorAnimationAuthoringService.Key("head",ActorAnimationAuthoringService.Channel.ROTATION,0);
         assertFalse(ActorAnimationAuthoringService.move(editing,List.of(key),.1f));
         assertFalse(ActorAnimationAuthoringService.moveTime(editing,List.of(key),.1f));

@@ -147,6 +147,19 @@ public final class ActorSelectionHub {
 
         LOGGER.debug("[ActorSelectionHub] 已选中 Actor: {} (Track: {})", actorId, track==null ? "unbound or ambiguous" : track.getName());
     }
+    /** World clicks select the whole actor; bone selection deliberately uses selectActor instead. */
+    public static void selectWholeActor(UUID actorId) {
+        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
+        com.director.ui.actor.pose.ActorBoneSelectionController.getInstance().deactivate();
+        com.director.ui.actor.pose.ActorKeyframeSelection.getInstance().clear();
+        com.director.ui.timeline.render.ActorRootKeyPropertyUI.leave();
+        var model=DirectorServices.get().containerTimeline().getTimelineModel();
+        var track=ActorSelectionTarget.resolve(model,actorId);
+        if(model!=null && track!=null) model.selectItem(track,false);
+        var tools=com.director.ui.tools.ToolRegistry.get();tools.initializeIfNeeded();
+        tools.activate(com.director.ui.tools.ToolRegistry.ACTOR_SELECT_TOOL_ID);
+        selectActor(actorId);
+    }
 
     /**
      * 获取当前选中的 Actor ID（只读）

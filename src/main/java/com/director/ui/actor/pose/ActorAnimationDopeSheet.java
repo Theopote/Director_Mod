@@ -527,11 +527,7 @@ public final class ActorAnimationDopeSheet {
     }
 
     private static void seekToKey(TimelineModel model,EntityAnimationClip clip,float localTime) {
-        var asset=AnimationAssetLibrary.getInstance().find(clip.getAnimationId()).orElse(null);
-        if(asset==null) return;
-        var mode=clip.isLoop()?asset.loopMode():com.director.actor.animation.asset.AnimationLoopMode.ONCE;
-        com.director.ui.timeline.render.ActorKeyframeProjection.nearest(localTime,asset.duration(),mode,
-                clip.getStartTime(),clip.getEndTime(),clip.getSpeed(),model.getCurrentTime()).ifPresent(model::setCurrentTime);
+        if(renderContext!=null) ActorAnimationKeyClock.seek(model,renderContext.track(),clip,localTime);
     }
     private static boolean canMove() {
         return canWrite() && !renderContext.distanceDriven() && (!renderContext.loop() || renderContext.loopMode()==com.director.actor.animation.asset.AnimationLoopMode.ONCE);

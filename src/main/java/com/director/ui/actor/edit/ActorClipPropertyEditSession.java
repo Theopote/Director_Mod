@@ -173,19 +173,25 @@ public final class ActorClipPropertyEditSession {
         time = model.getCurrentTime(); before = capture(source); common = Common.capture(source);
         var definition = ActorRegistryManager.getInstance().getActor(actor).orElseThrow();
         actorType = definition.getType(); profile = definition.getRigProfile(); customRig = definition.getCustomRigId();
-        if (source instanceof EntityTransformClip) draft = new EntityTransformClip(source.getName(), common.start, common.end);
-        else if (source instanceof EntityLookAtClip) draft = new EntityLookAtClip(source.getName(), common.start, common.end);
-        else if (source instanceof ActorActionClip) draft = new ActorActionClip(source.getName(), common.start, common.end);
-        else if (source instanceof ActorRelationClip) draft = new ActorRelationClip(source.getName(), common.start, common.end);
-        else if (source instanceof EntityActionClip) draft = new EntityActionClip(source.getName(), common.start, common.end);
-        else if (source instanceof EntitySpawnClip) draft = new EntitySpawnClip(source.getName(), common.start, common.end);
-        else if (source instanceof ActorPoseClip) draft = new ActorPoseClip(source.getName(), common.start, common.end);
-        else if (source instanceof EntityStateClip) draft = new EntityStateClip(source.getName(), common.start, common.end);
-        else if (source instanceof EntityAnimationClip) draft = new EntityAnimationClip(source.getName(), common.start, common.end);
-        else if (source instanceof EntityDespawnClip) draft = new EntityDespawnClip(source.getName(), common.start, common.end);
-        else throw new IllegalArgumentException("不支持此片段类型");
-        before.apply(draft);
+        draft=detached(source);
         if (!isCurrent(model, source)) throw new IllegalArgumentException("请暂停播放并选择可编辑的演员片段");
+    }
+    /** Read-only rendering never receives the live source as its mutable draft. */
+    public static EntityClip detached(EntityClip source) {
+        EntityClip draft;
+        if (source instanceof EntityTransformClip) draft = new EntityTransformClip(source.getName(), source.getStartTime(), source.getEndTime());
+        else if (source instanceof EntityLookAtClip) draft = new EntityLookAtClip(source.getName(), source.getStartTime(), source.getEndTime());
+        else if (source instanceof ActorActionClip) draft = new ActorActionClip(source.getName(), source.getStartTime(), source.getEndTime());
+        else if (source instanceof ActorRelationClip) draft = new ActorRelationClip(source.getName(), source.getStartTime(), source.getEndTime());
+        else if (source instanceof EntityActionClip) draft = new EntityActionClip(source.getName(), source.getStartTime(), source.getEndTime());
+        else if (source instanceof EntitySpawnClip) draft = new EntitySpawnClip(source.getName(), source.getStartTime(), source.getEndTime());
+        else if (source instanceof ActorPoseClip) draft = new ActorPoseClip(source.getName(), source.getStartTime(), source.getEndTime());
+        else if (source instanceof EntityStateClip) draft = new EntityStateClip(source.getName(), source.getStartTime(), source.getEndTime());
+        else if (source instanceof EntityAnimationClip) draft = new EntityAnimationClip(source.getName(), source.getStartTime(), source.getEndTime());
+        else if (source instanceof EntityDespawnClip) draft = new EntityDespawnClip(source.getName(), source.getStartTime(), source.getEndTime());
+        else throw new IllegalArgumentException("不支持此片段类型");
+        capture(source).apply(draft);
+        return draft;
     }
     public EntityClip draft() { return draft; }
     public boolean isCurrent(TimelineModel currentModel, EntityClip currentSource) {
@@ -247,7 +253,20 @@ public final class ActorClipPropertyEditSession {
         throw new IllegalArgumentException("不支持此片段类型");
     }
     private void validateBehavior(State next, State expected, boolean forward) {
-        if (next instanceof PoseState) {
+        if (next instanceof Animation animation) {
+            var old=(Animation)expected;
+            if(forward && (!Objects.equals(animation.id,old.id) || animation.source!=old.source)) {
+                var currentActor=ActorRegistryManager.getInstance().getActor(actor).orElse(null);
+                var entry=com.director.ui.actor.pose.ActorAnimationCatalog.entries(
+                        com.director.actor.animation.asset.AnimationAssetLibrary.getInstance(),
+                        com.director.actor.animation.AnimationLibrary.getInstance().getAllAnimations(),currentActor)
+                        .stream().filter(e->e.id().equals(animation.id) && e.compatible()).findFirst().orElse(null);
+                if(entry==null) throw new IllegalArgumentException("动画不存在或与当前演员骨架不兼容");
+                boolean project=entry.source()==com.director.ui.actor.pose.ActorAnimationCatalog.Source.PROJECT;
+                if(project!=(animation.source==EntityAnimationClip.AnimationSource.CUSTOM))
+                    throw new IllegalArgumentException("动画来源与引用不一致，请从动作列表重新选择");
+            }
+        } else if (next instanceof PoseState) {
             if (forward && !ActorBehaviorCapabilities.supportsLegacyPose(ActorRegistryManager.getInstance().getActor(actor).orElse(null)))
                 throw new IllegalArgumentException("此姿态片段需要标准人形骨骼绑定");
         } else if (next instanceof Action a) {

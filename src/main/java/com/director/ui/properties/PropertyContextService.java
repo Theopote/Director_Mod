@@ -87,6 +87,10 @@ public final class PropertyContextService {
                 : actorInspection instanceof com.director.actor.ActorGroup group
                     && registry.getGroup(group.getGroupId()).orElse(null)==actorInspection;
         if(!valid) actorInspection=null;
+        if(actorInspection==null && !cleared && !ToolRegistry.get().hasNonSelectionActiveTool()) {
+            var selected=DirectorServices.get().uiSelection().getSelectedActorId();
+            if(selected!=null) return registry.getActor(selected).orElse(null);
+        }
         return actorInspection;
     }
 
@@ -156,6 +160,9 @@ public final class PropertyContextService {
                 if (payload instanceof EntityTimelineClip entityTimelineClip) {
                     yield entityTimelineClip.getEntityClip();
                 }
+                if(payload instanceof TimelineTrack track && track.getType()==TrackType.ACTOR
+                        && track.getActorTrackPayload()!=null && track.getActorTrackPayload().getActorRef()!=null)
+                    yield com.director.actor.ActorRegistryManager.getInstance().getActor(track.getActorTrackPayload().getActorRef().getActorId()).orElse(null);
                 yield payload;
             }
             default -> null;

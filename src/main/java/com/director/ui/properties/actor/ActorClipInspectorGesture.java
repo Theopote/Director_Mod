@@ -14,6 +14,7 @@ public final class ActorClipInspectorGesture {
     private int lastFrame = -1;
     private boolean rendered, released, cancelledUntilRelease, dirty;
     private String error = "";
+    private boolean readOnlyRendered;
 
     public EntityClip begin(EntityClip source) {
         ActorRuntimeDiagnosticsUI.render(source);
@@ -31,7 +32,14 @@ public final class ActorClipInspectorGesture {
         if (source == null || competing) return null;
         if (session == null) {
             try { session = new ActorClipPropertyEditSession(model, source); widget = null; dirty = false; }
-            catch (RuntimeException unavailable) { error = ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.unavailable"); return null; }
+            catch (RuntimeException unavailable) {
+                var owner=source.getTimelineClip()==null?null:source.getTimelineClip().getParentTrack();
+                String reason=model==null?"工程不可用":model.isPlaying()?"播放中":model.isScrubbing()?"正在拖动播放头":
+                        owner!=null && owner.isLocked()?"轨道已锁定":owner!=null && owner.isMuted()?"轨道已禁用":source.isMuted()?"片段已禁用":"目标当前不可编辑";
+                ImGui.textWrapped("只读："+reason+"。现有参数保留显示。");
+                readOnlyRendered=true;ImGui.beginDisabled();
+                return ActorClipPropertyEditSession.detached(source);
+            }
         }
         return session.draft();
     }
@@ -47,6 +55,7 @@ public final class ActorClipInspectorGesture {
         cancel();
     }
     public void end() {
+        if(readOnlyRendered) {ImGui.endDisabled();readOnlyRendered=false;return;}
         if (session != null && widget != null && !rendered) cancel();
         if (session != null && (released || !ImGui.isAnyItemActive())) {
             var edit = session; session = null; widget = null;

@@ -89,6 +89,32 @@ public final class ActorRootKeyframeEditing {
     public static EntityClipKeyframe writeScale(TimelineModel model, TimelineTrack owner, EntitySpawnClip clip, org.joml.Vector3f scale) {
         return writeChannel(model,owner,clip,EntityClipKeyframe.SCALE,scale);
     }
+    /** Preserve endpoint motion when the live inspector authors its first current-frame key. */
+    public static boolean writeCurrentTransform(TimelineModel model,TimelineTrack owner,EntityTransformClip clip,
+            org.joml.Vector3f position,org.joml.Vector3f rotation,org.joml.Vector3f scale) {
+        if(!editable(model,owner,clip) || !clip.getKeyframes().isEmpty() || ActorMovementSource.routeOwnsInterval(model,owner)
+                || !position.isFinite() || !rotation.isFinite() || !scale.isFinite()
+                || scale.x<=0 || scale.y<=0 || scale.z<=0) return false;
+        if(requiresLinearConversion(model,clip)) throw new IllegalArgumentException("此片段使用平滑端点曲线，请先在片段属性中选择线性插值，或编辑起止值。");
+        var added=new ArrayList<EntityClipKeyframe>();
+        added.add(sample(clip,clip.getStartTime()));
+        if(clip.getEndTime()>clip.getStartTime()) added.add(sample(clip,clip.getEndTime()));
+        float time=model.getCurrentTime();
+        var target=added.stream().filter(k->Math.abs(k.getTime()-time)<=1e-4f).findFirst().orElse(null);
+        if(target==null) {target=sample(clip,time);added.add(target);}
+        set(target,position,rotation,scale);
+        var expected=added.stream().map(EntityClipKeyframe::copy).toList();
+        TimelineCommandBridge.execute(new StateChangeCommand(model,"Key actor current transform",()->{
+            if(!clip.getKeyframes().equals(added.stream().sorted(java.util.Comparator.comparing(EntityClipKeyframe::getTime)).toList())
+                    || java.util.stream.IntStream.range(0,added.size()).anyMatch(i->!matches(added.get(i),expected.get(i))))
+                throw new IllegalArgumentException("整体关键帧已变化，无法撤销");
+            added.forEach(k->clip.removeKeyframe(k.getId()));
+        },()->{
+            if(!clip.getKeyframes().isEmpty()) throw new IllegalArgumentException("片段已新增关键帧，请重新编辑");
+            added.forEach(clip::addKeyframe);
+        }));
+        return true;
+    }
     public static EntityClipKeyframe writeChannel(TimelineModel model, TimelineTrack owner, EntityClip clip, int channel, org.joml.Vector3f value) {
         if (channel != 1 && channel != 2 && channel != 4) return null;
         return writeChannels(model,owner,clip,channel,value,value,value);
@@ -125,6 +151,27 @@ public final class ActorRootKeyframeEditing {
         var before=new java.util.LinkedHashMap<EntityClipKeyframe,Integer>();
         keys.forEach(k -> before.put(k,k.getChannels()));
         TimelineCommandBridge.execute(new StateChangeCommand(model,"Delete actor channel keys",()-> before.forEach((k, m)->{k.setChannels(m);if(!clip.getKeyframes().contains(k))clip.addKeyframe(k);}),()-> before.forEach((k, m)->{k.setChannels(m&~mask);if(k.getChannels()==0)clip.removeKeyframe(k.getId());}))); return true;
+    }
+    public static boolean updateExisting(TimelineModel model,TimelineTrack owner,EntityClip clip,EntityClipKeyframe key,
+            EntityClipKeyframe expected,int mask,org.joml.Vector3f position,org.joml.Vector3f rotation,org.joml.Vector3f scale,TimelineInterpolation interpolation) {
+        if(!editable(model,owner,clip)||!clip.getKeyframes().contains(key)||mask==0||(mask&~key.getChannels())!=0||interpolation==null
+                ||!matches(key,expected)||(mask&3)!=0&&ActorMovementSource.routeOwnsInterval(model,owner)) return false;
+        var after=key.copy();
+        if((mask&1)!=0) after.setPosition(position.x,position.y,position.z);
+        if((mask&2)!=0) after.setRotation(rotation.x,rotation.y,rotation.z);
+        if((mask&4)!=0) after.setScale(scale.x,scale.y,scale.z);
+        if(mask==key.getChannels()) after.setInterpolation(interpolation);
+        if(!valid(after)) return false;
+        TimelineCommandBridge.execute(new StateChangeCommand(model,"Edit actor root key",()->replaceExisting(clip,key,after,expected),()->replaceExisting(clip,key,expected,after)));
+        return true;
+    }
+    private static boolean matches(EntityClipKeyframe a,EntityClipKeyframe b) {
+        return a.getTime()==b.getTime()&&a.getChannels()==b.getChannels()&&a.getInterpolation()==b.getInterpolation()
+                &&a.getPosition().equals(b.getPosition())&&a.getRotation().equals(b.getRotation())&&a.getScale().equals(b.getScale());
+    }
+    private static void replaceExisting(EntityClip clip,EntityClipKeyframe key,EntityClipKeyframe expected,EntityClipKeyframe next) {
+        if(!clip.getKeyframes().contains(key)||!matches(key,expected)) throw new IllegalArgumentException("整体键已变化，请重新编辑");
+        set(key,next.getPosition(),next.getRotation(),next.getScale());key.setInterpolation(next.getInterpolation());
     }
 
     private static void channelValue(EntityClipKeyframe key,int channel,org.joml.Vector3f value) {

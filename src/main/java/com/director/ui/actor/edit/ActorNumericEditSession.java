@@ -98,12 +98,25 @@ public final class ActorNumericEditSession {
         if (mode != EntityLookAtClip.TargetMode.ENTITY_UUID) look.draft().setTargetEntityUuid(null);
         explicitTarget = true;
     }
+    public void updateEntityTarget(UUID actorId) {
+        if(finished || look==null || actorId==null || com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).isEmpty())
+            throw new IllegalArgumentException("注视演员不存在");
+        look.draft().setMode(EntityLookAtClip.TargetMode.ENTITY_UUID);look.draft().setTargetEntityUuid(actorId);explicitTarget=true;
+    }
     public void cancel() { finished = true; if (transform != null) transform.cancel(); else look.cancel(); }
     public void commit() {
         if (finished) return;
         if (transform != null) {
             if (!positionChanged && !rotationChanged && !scaleChanged) { cancel(); return; }
-            transform.commit();
+            var source=transform.source();
+            if(source!=null && source.getKeyframes().isEmpty()) {
+                if(!transform.isCurrent()) {cancel();return;}
+                var draft=transform.draft();
+                boolean changed=com.director.ui.actor.pose.ActorRootKeyframeEditing.writeCurrentTransform(transform.model(),transform.owner(),source,
+                        positionChanged?draft.getToPos():initial.position(),rotationChanged?draft.getToRot():initial.rotation(),scaleChanged?draft.getToScale():initial.scale());
+                if(!changed) throw new IllegalArgumentException("请将播放头移入所选变换片段后编辑当前帧");
+                transform.cancel();
+            } else transform.commit();
         } else {
             var draft = look.draft();
             if (!(explicitTarget && look.source() == null) && initialMode == draft.getMode() && initialPoint.equals(draft.getWorldPoint())

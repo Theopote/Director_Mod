@@ -10,6 +10,14 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorTrackClipAuthoringServiceTest {
+    @Test void configuredActionIsOneCommandAndRejectsOverlap() {
+        var wrapper=service.createAction(model,track,ActorActionType.WALK,4,.6f,true);assertNotNull(wrapper);
+        var action=(com.director.timeline.model.entity.ActorActionClip)wrapper.getEntityClip();
+        assertEquals(4,action.getLength());assertEquals(.6f,action.getIntensity());assertTrue(action.isLoop());
+        assertNull(service.createAction(model,track,ActorActionType.WALK,1,1,true));
+        assertEquals(1,history.getUndoSize());assertTrue(history.undo());assertTrue(track.getClips().isEmpty());
+        assertTrue(history.redo());assertSame(wrapper,track.getClips().getFirst());
+    }
     private TimelineModel model;
     private TimelineTrack track;
     private TimelineCommandHistory history;

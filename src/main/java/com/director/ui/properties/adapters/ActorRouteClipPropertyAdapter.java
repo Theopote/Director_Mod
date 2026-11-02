@@ -77,7 +77,12 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
                 session = new com.director.ui.actor.path.ActorRoutePropertyEditSession(model,
                         source.getTimelineClip() == null ? null : source.getTimelineClip().getParentTrack(), source);
             } catch (RuntimeException failure) {
-                ImGui.textDisabled(ActorPropertyAdapterI18n.tr("gui.director.actor.route.unavailable"));
+                ImGui.textWrapped("只读：路线当前不可编辑，现有配置如下。");
+                ImGui.text(String.format("时间 %.3f – %.3f 秒 · 速度 %.3f",source.getStartTime(),source.getEndTime(),source.getSpeed()));
+                ImGui.text("循环："+source.getLoopMode()+" · 沿路朝向："+source.isAlignRotationToRoute());
+                ImGui.text("平滑行进："+source.isSmoothTravel()+" · 端点转身："+source.getEndpointTurnDuration()+" 秒");
+                ImGui.text("跳跃："+source.getJumpStart()+" / "+source.getJumpDuration()+" 秒 · 高度 "+source.getJumpHeight());
+                int index=0;for(var point:source.getWaypoints()) ImGui.text((++index)+" · "+point);
                 return false;
             }
         }

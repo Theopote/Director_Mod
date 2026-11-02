@@ -139,7 +139,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
 
         if (actor != null && actor.getRigProfile() != null) {
-            if (RigProfileStylePropertyUI.render(actor.getRigProfile().getStyle())) {
+            if (RigProfileStylePropertyUI.render(actor)) {
                 var model = DirectorServices.get().containerTimeline().getTimelineModel();
                 if (model != null) model.markDirty();
             }
@@ -261,7 +261,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
 
         float[] duration = { poseDuration.get() };
         if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION) + "##actorLocalPoseDuration",
-                duration, 0.05f, 10.0f, "%.2fs")) {
+                duration, 0.1f, 10.0f, "%.2fs")) {
             poseDuration.set(Math.max(0.05f, duration[0]));
         }
 
@@ -357,8 +357,8 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
 
         float[] duration = { actionDuration.get() };
         if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION) + "##actorPoseDuration",
-                duration, 0.05f, 10.0f, "%.2fs")) {
-            actionDuration.set(Math.max(0.05f, duration[0]));
+                duration, 0.1f, 10.0f, "%.2fs")) {
+            actionDuration.set(Math.max(0.1f, duration[0]));
         }
 
         if (ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.LOOP) + "##actorPoseLoop", actionLoop)) {
@@ -366,10 +366,11 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
 
         if (ImGui.button(Icons.ADD + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CREATE_POSE_CLIP)
+                + "在当前时间创建语义动作片段"
                 + "##createActorPoseClip")) {
             createActorActionClip(actor, actions[Math.max(0, Math.min(actionIndex.get(), actions.length - 1))]);
         }
+        if(!actionCreationError.isEmpty()) ImGui.textWrapped(actionCreationError);
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CREATE_POSE_TOOLTIP));
         }
@@ -450,89 +451,15 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         return ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
     }
 
-    private void createActorActionClip(Actor actor, ActorActionType action) {
-        if (actor == null || action == null) {
-            return;
-        }
-
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        TrackContext trackContext = resolveActorTrack(model, actor.getActorId());
-        if (model == null || trackContext == null) {
-            return;
-        }
-
-        float start = model.getCurrentTime();
-        float end = start + Math.max(0.05f, actionDuration.get());
-        ActorActionClip clip = new ActorActionClip(action.name(), start, end);
-        clip.setActionType(action);
-        clip.setIntensity(actionIntensity.get());
-        clip.setLoop(actionLoop.get());
-
-        trackContext.actorTrack.addClip(clip);
-        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, trackContext.actorTrack.getColorRgba());
-        trackContext.timelineTrack.addClip(timelineClip);
-        model.selectItem(timelineClip, false);
-        model.markDirty();
-    }
-
-    private void createActorPoseClip(Actor actor) {
-        if (actor == null) {
-            return;
-        }
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        TrackContext trackContext = resolveActorTrack(model, actor.getActorId());
-        if (model == null || trackContext == null) {
-            return;
-        }
-
-        float start = model.getCurrentTime();
-        float end = start + Math.max(0.05f, poseDuration.get());
-        ActorPoseClip clip = new ActorPoseClip("Pose", start, end);
-        clip.setOverrideBody(poseBody.get());
-        clip.setOverrideHead(poseHead.get());
-        clip.setOverrideArms(poseArms.get());
-        clip.setOverrideLegs(poseLegs.get());
-        clip.setHeadPitch(toRadians(poseHeadPitchDeg));
-        clip.setHeadYaw(toRadians(poseHeadYawDeg));
-        clip.setBodyPitch(toRadians(poseBodyPitchDeg));
-        clip.setBodyYaw(toRadians(poseBodyYawDeg));
-        clip.setBodyRoll(toRadians(poseBodyRollDeg));
-        clip.setLeftArmPitch(toRadians(poseLeftArmDeg));
-        clip.setRightArmPitch(toRadians(poseRightArmDeg));
-        clip.setLeftLegPitch(toRadians(poseLeftLegDeg));
-        clip.setRightLegPitch(toRadians(poseRightLegDeg));
-
-        trackContext.actorTrack.addClip(clip);
-        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, trackContext.actorTrack.getColorRgba());
-        trackContext.timelineTrack.addClip(timelineClip);
-        model.selectItem(timelineClip, false);
-        model.markDirty();
-    }
-
-    private float toRadians(ImFloat degrees) {
-        return (float) Math.toRadians(degrees.get());
-    }
-
-    private TrackContext resolveActorTrack(TimelineModel model, UUID actorId) {
-        if (model == null || actorId == null) {
-            return null;
-        }
-        for (TimelineTrack track : model.getTracks()) {
-            if (track == null || track.getType() != TrackType.ACTOR) {
-                continue;
-            }
-            ActorTrack actorTrack = track.getActorTrackPayload();
-            if (actorTrack == null || actorTrack.getActorRef() == null) {
-                continue;
-            }
-            if (Objects.equals(actorTrack.getActorRef().getActorId(), actorId)) {
-                return new TrackContext(track, actorTrack);
-            }
-        }
-        return null;
-    }
-
-    private record TrackContext(TimelineTrack timelineTrack, ActorTrack actorTrack) {
+    private String actionCreationError="";
+    private void createActorActionClip(Actor actor,ActorActionType action) {
+        if(actor==null) return;
+        var model=DirectorServices.get().containerTimeline().getTimelineModel();
+        try {
+            var owner=com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model,actor.getActorId());
+            var created=com.director.ui.actor.track.ActorTrackClipAuthoringService.getInstance().createAction(model,owner,action,actionDuration.get(),actionIntensity.get(),actionLoop.get());
+            actionCreationError=created==null?"当前不可创建：请暂停、解锁轨道并检查动作重叠。":"";
+        } catch(RuntimeException failure) {actionCreationError=failure.getMessage();}
     }
 
     private static String tr(String key) {

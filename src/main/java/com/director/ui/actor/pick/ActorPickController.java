@@ -165,7 +165,7 @@ public final class ActorPickController {
         }
 
         // 🔥 统一入口：ActorSelectionHub
-        ActorSelectionHub.selectActor(actorId);
+        ActorSelectionHub.selectWholeActor(actorId);
         consumedActorClick=true;
     }
 

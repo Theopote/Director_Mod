@@ -11,6 +11,16 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorRootTimelineRowsTest {
+    @Test void rootInspectorTracksSelectedChannelAndInvalidatesRemovedOwnerClip() {
+        var registry=new ActorRegistry();ActorRegistryManager.setRegistry(registry);var actor=registry.createActor("A",ActorType.PLAYER);
+        var model=new TimelineModel(new TimelineViewportState());var owner=new TimelineTrack("A",TrackType.ACTOR);
+        owner.getOrCreateActorTrackPayload().setActorRef(ActorRef.of(actor));model.addTrack(owner);
+        var spawn=new EntitySpawnClip("Spawn",0,5);var key=new EntityClipKeyframe(2,TimelineInterpolation.LINEAR);spawn.addKeyframe(key);
+        owner.getActorTrackPayload().addClip(spawn);owner.addClip(new EntityTimelineClip(spawn,0));model.setSelectedClip(spawn.getTimelineClip());
+        var rows=new ActorRootTimelineRows();rows.focus(model,owner,spawn,key);
+        var selection=ActorRootTimelineRows.inspection(model);assertNotNull(selection);assertEquals(java.util.List.of(key),selection.keys());
+        owner.getActorTrackPayload().removeClip(spawn.getId());assertNull(ActorRootTimelineRows.inspection(model));ActorRootTimelineRows.leaveInspection();
+    }
     @AfterEach void cleanup() { ActorRegistryManager.setRegistry(null); com.director.ui.timeline.commands.TimelineCommandBridge.bind(null); }
     @Test void nonHumanoidsGetRootRowsWithoutInventedBonesOrTracks() {
         var registry = new ActorRegistry(); ActorRegistryManager.setRegistry(registry);

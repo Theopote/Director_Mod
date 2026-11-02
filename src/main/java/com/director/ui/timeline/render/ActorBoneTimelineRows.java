@@ -275,7 +275,7 @@ public final class ActorBoneTimelineRows {
                     ImGui.endDisabled();
                     if (chosen) {
                         selectKey(hit,pendingAdditive);
-                        model.setSelectedClip(com.director.ui.actor.pose.ActorEmbeddedAnimation.visibleOwner(hit.track(),hit.clip())); model.setCurrentTime(hit.time());
+                        model.setSelectedClip(com.director.ui.actor.pose.ActorEmbeddedAnimation.visibleOwner(hit.track(),hit.clip())); com.director.ui.actor.pose.ActorAnimationKeyClock.seek(model,hit.track(),hit.clip(),hit.assetTime());
                         pendingKeys=List.of(); actionMenu=false; ImGui.closeCurrentPopup(); break;
                     }
                 }
@@ -489,13 +489,10 @@ public final class ActorBoneTimelineRows {
                         if (dragging != null && dragging.asset() == asset && dragKeys.containsKey(key(bone,channel,key.time()))) {
                             // Move one asset key; project its preview through every visible reference.
                             float target = key.time()+dragDelta();
-                            for (float preview : ActorKeyframeProjection.times(target, asset.duration(), mode,
-                                    clip.getStartTime(), clip.getEndTime(), animation.getSpeed(), math.xToTime(left), math.xToTime(right)))
+                            for (float preview : com.director.ui.actor.pose.ActorAnimationKeyClock.times(track,animation,target,math.xToTime(left),math.xToTime(right)))
                                 draw.addCircle(math.timeToX(preview), cy, 5, colors[channel]);
                         }
-                        for (float time : ActorKeyframeProjection.times(key.time(), asset.duration(), mode,
-                                clip.getStartTime(), clip.getEndTime(), animation.getSpeed(),
-                                math.xToTime(left), math.xToTime(right))) {
+                        for (float time : com.director.ui.actor.pose.ActorAnimationKeyClock.times(track,animation,key.time(),math.xToTime(left),math.xToTime(right))) {
                             float px = math.timeToX(time);
                             if (pixels.add(Math.round(px))) draw.addCircleFilled(px, cy, 3, colors[channel]);
                             if(selectedAsset==asset && selectedKeys.containsKey(key(bone,channel,key.time())))
@@ -622,7 +619,7 @@ public final class ActorBoneTimelineRows {
                 if (closest != null) {
                     selectKey(closest,additive);
                     model.setSelectedClip(com.director.ui.actor.pose.ActorEmbeddedAnimation.visibleOwner(track,closest.clip()));
-                    model.setCurrentTime(closest.time());
+                    com.director.ui.actor.pose.ActorAnimationKeyClock.seek(model,track,closest.clip(),closest.assetTime());
                     if (!additive && !model.isPlaying() && !track.isLocked() && !ActorBonePropertiesPanel.hasNumericDraft()
                             && !ActorBoneGizmoController.getInstance().isDragging() && (!closest.clip().isLoop() || closest.asset().loopMode() == AnimationLoopMode.ONCE)) {
                         cancelAllKeyInteractions();

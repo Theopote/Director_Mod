@@ -11,6 +11,19 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorClipPropertyEditSessionTest {
+    @Test void changedAnimationReferenceMustExistButLegacyMissingReferenceCanBeInspectedAndRestored() {
+        var clip=new EntityAnimationClip("Animation",0,10);clip.setAnimationId("missing:old");attach(clip);
+        var edit=new ActorClipPropertyEditSession(model,clip);((EntityAnimationClip)edit.draft()).setAnimationId("missing:new");
+        assertThrows(IllegalArgumentException.class,edit::commit);assertEquals("missing:old",clip.getAnimationId());
+        var speed=new ActorClipPropertyEditSession(model,clip);((EntityAnimationClip)speed.draft()).setSpeed(2);assertTrue(speed.commit());
+        assertEquals(2,clip.getSpeed());assertTrue(history.undo());assertEquals(1,clip.getSpeed());
+    }
+    @Test void readOnlyDetachedSnapshotCannotModifySource() {
+        var source=transform();track.setLocked(true);model.setPlaying(true);
+        var copy=(EntityTransformClip)ActorClipPropertyEditSession.detached(source);
+        assertEquals(source.getFromPos(),copy.getFromPos());copy.setFromPos(99,0,0);
+        assertEquals(1,source.getFromPos().x);assertEquals(0,history.getUndoSize());
+    }
     TimelineModel model; TimelineTrack track; TimelineCommandHistory history;
     @BeforeEach void setup() {
         ActorRegistryManager.setRegistry(null); ActorRegistryManager.setRegistry(new ActorRegistry());

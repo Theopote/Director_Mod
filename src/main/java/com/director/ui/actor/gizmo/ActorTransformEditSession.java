@@ -70,6 +70,7 @@ public final class ActorTransformEditSession {
     }
 
     public EntityTransformClip draft() { return draft; }
+    public EntityTransformClip source() { return source; }
     public TimelineModel model() { return model; }
     public TimelineTrack owner() { return owner; }
     public UUID actorId() { return actorId; }

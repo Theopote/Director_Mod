@@ -45,6 +45,7 @@ public final class ActorLiveTransformPropertyUI {
     private static String gestureWidget;
     private static boolean widgetRendered, cancelledUntilRelease;
     private static int lastFrame = -1;
+    private static boolean chooseEntityTarget;
     private static String error = "";
     private static UUID cachedActorId;
     private static float cachedTime = Float.NaN;
@@ -75,6 +76,7 @@ public final class ActorLiveTransformPropertyUI {
         if (ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) cancelGesture();
         if (cancelledUntilRelease && !ImGui.isMouseDown(0) && !ImGui.isAnyItemActive()) cancelledUntilRelease = false;
         syncFromSample(actorId, time);
+        if(!Objects.equals(editingActor,actorId) || editingModel!=model) chooseEntityTarget=false;
         editingActor = actorId; editingModel = model; editingTrack = target == null ? null : target.timelineTrack();
         ImGui.beginDisabled(readOnly || cancelledUntilRelease);
 
@@ -157,7 +159,23 @@ public final class ActorLiveTransformPropertyUI {
                     lookAtModeIndex, new String[]{ActorPropertyAdapterI18n.liveLookAtModeLabels()[0],
                             ActorPropertyAdapterI18n.liveLookAtModeLabels()[1],
                             ActorPropertyAdapterI18n.lookAtModeLabel(EntityLookAtClip.TargetMode.ENTITY_UUID)})) {
-                applyCurrentLookAt();
+                chooseEntityTarget=lookAtModeIndex.get()==2;
+                if(!chooseEntityTarget) applyCurrentLookAt();
+            }
+            if(chooseEntityTarget || lookAtModeIndex.get()==2) {
+                if(ImGui.beginCombo("注视目标演员",lookSource==null || lookSource.getTargetEntityUuid()==null?"请选择目标":lookSource.getTargetEntityUuid().toString())) {
+                    for(var candidate:com.director.actor.ActorRegistryManager.getInstance().getAllActors()) {
+                        ImGui.beginDisabled(candidate.getActorId().equals(actorId));
+                        if(ImGui.selectable(candidate.getName()+"##lookActor"+candidate.getActorId())) {
+                            try {
+                                finishGesture();beginGesture("entityTarget",ActorNumericEditSession.Kind.LOOK_AT);
+                                gesture.updateEntityTarget(candidate.getActorId());finishGesture();chooseEntityTarget=false;
+                            } catch(RuntimeException failure){failGesture(failure);}
+                        }
+                        ImGui.endDisabled();
+                    }
+                    ImGui.endCombo();
+                }
             }
 
             float[] strength = {lookAtStrength.get()};

@@ -191,6 +191,8 @@ public class PropertiesPanel extends AbstractPanel {
         // PropertyContext 仲裁：只消费 getCurrentContext / getContextTarget
         // =========================
         PropertyContextService svc = PropertyContextService.get();
+        if(com.director.ui.timeline.render.ActorRootKeyPropertyUI.render(DirectorServices.get().containerTimeline().getTimelineModel())) return;
+        if(com.director.ui.actor.pose.ActorKeySelectionPropertyUI.render(DirectorServices.get().containerTimeline().getTimelineModel())) return;
         Object actorInspection=svc.getActorInspection();
         if(actorInspection!=null) {
             var adapter=PropertyAdapterRegistry.getAdapterFor(null,actorInspection);
@@ -564,13 +566,13 @@ public class PropertiesPanel extends AbstractPanel {
     @Override
     protected void onContentUnavailable() {
         com.director.ui.lighting.PointLightParameterEditing.finish();
-        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
+        // Shared actor drafts remain valid in the timeline inspector.
     }
 
     @Override
     public void dispose() {
         com.director.ui.lighting.PointLightParameterEditing.finish();
-        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
+        // Shared actor drafts remain valid in the timeline inspector.
         // 移除监听器
         DirectorServices.get().uiSelection().removeSelectionChangedListener(this::onSelectionChanged);
         super.dispose();

@@ -14,6 +14,7 @@ public final class ActorKeyframeSelection {
     private Snapshot current;
     private long revision;
     public long revision() { return revision; }
+    public void clear() {if(current!=null){current=null;revision++;}}
     public Snapshot snapshot(TimelineModel model) {
         if(current==null) return null;
         if(current.model()!=model) return null;
