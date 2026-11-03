@@ -9,12 +9,15 @@ public final class ActorAnimationReferences {
     private ActorAnimationReferences() {}
     public static Set<String> ids(ActorTrack track) {
         var result=new LinkedHashSet<String>();
-        for(var clip:track.getClips()) {
-            if(clip instanceof EntityAnimationClip animation) add(result,animation.getAnimationId());
-            if(clip instanceof EntitySpawnClip spawn) {
-                add(result,spawn.getBoneAnimationId());
-                if(spawn.getPreset()!=null) add(result,spawn.getPreset().animationId());
-            }
+        for(var clip:track.getClips()) result.addAll(ids(clip));
+        return Set.copyOf(result);
+    }
+    public static Set<String> ids(EntityClip clip) {
+        var result = new LinkedHashSet<String>();
+        if (clip instanceof EntityAnimationClip animation) add(result, animation.getAnimationId());
+        if (clip instanceof EntitySpawnClip spawn) {
+            add(result, spawn.getBoneAnimationId());
+            if (spawn.getPreset() != null) add(result, spawn.getPreset().animationId());
         }
         return Set.copyOf(result);
     }

@@ -6,6 +6,21 @@ import com.director.timeline.model.entity.EntityAnimationClip;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 class ActorProjectDiagnosticsTest {
+    @Test void embeddedAnimationIssuesNavigateToVisibleSpawnOwner() {
+        var model = new TimelineModel(new TimelineViewportState()); var registry = new ActorRegistry();
+        var actor = registry.createActor("A", ActorType.PLAYER);
+        var payload = new ActorTrack(); payload.setActorRef(new ActorRef(actor.getActorId()));
+        var spawn = new com.director.timeline.model.entity.EntitySpawnClip("Spawn", 0, 10);
+        spawn.setBoneAnimationId("audit:missing_manual");
+        spawn.setPreset(new com.director.timeline.model.entity.ActorPresetBinding("audit:missing_preset", false, 1, com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT));
+        payload.addClip(spawn);
+        var track = new TimelineTrack("A", TrackType.ACTOR); track.setActorTrackPayload(payload); model.addTrack(track);
+        var wrapper = new com.director.timeline.model.entity.EntityTimelineClip(spawn, payload.getColorRgba()); track.addClip(wrapper);
+        var issues = ActorProjectDiagnostics.scan(model, registry);
+        assertEquals(2, issues.size());
+        for (var issue : issues) { assertSame(spawn, issue.clip()); assertSame(wrapper, issue.currentWrapper(model)); }
+        assertEquals(2, ActorAnimationReferences.ids(payload).size());
+    }
     @Test void diagnosticNavigationRejectsDetachedClip() {
         var model = new TimelineModel(new TimelineViewportState());
         var track = new TimelineTrack("Actor", TrackType.ACTOR); var payload = new ActorTrack(); track.setActorTrackPayload(payload); model.addTrack(track);

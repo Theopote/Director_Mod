@@ -58,13 +58,13 @@ public final class ActorProjectDiagnostics {
                         issues.add(new Issue(track, Reason.SELF_RELATION, clip.getName(), clip));
                 }
             }
-            for (String id : ActorAnimationReferences.ids(payload)) {
+            for (var clip : payload.getClips()) for (String id : ActorAnimationReferences.ids(clip)) {
                 var asset = AnimationAssetLibrary.getInstance().find(id).orElse(null);
                 boolean builtIn = AnimationLibrary.getInstance().get(id).isPresent();
-                if (asset == null && !builtIn) issues.add(new Issue(track, Reason.MISSING_ANIMATION, id));
+                if (asset == null && !builtIn) issues.add(new Issue(track, Reason.MISSING_ANIMATION, id, clip));
                 else if (actor != null && (asset != null ? !ActorRigCompatibility.accepts(actor, asset.rigId())
                         : ActorRigCompatibility.family(actor.getType()) != ActorRigCompatibility.Family.HUMANOID))
-                    issues.add(new Issue(track, Reason.INCOMPATIBLE_RIG, id));
+                    issues.add(new Issue(track, Reason.INCOMPATIBLE_RIG, id, clip));
             }
         }
         return List.copyOf(issues);

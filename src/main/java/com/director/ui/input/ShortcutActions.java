@@ -51,6 +51,9 @@ public final class ShortcutActions {
         
         try {
             switch (action) {
+                case ACTOR_KEY_POSE -> commands.timeline().keyActorPose();
+                case ACTOR_KEY_PREVIOUS -> commands.timeline().seekActorKey(false);
+                case ACTOR_KEY_NEXT -> commands.timeline().seekActorKey(true);
                 // ==================== 项目操作 ====================
                 case PROJECT_NEW -> {
                     commands.project().newProject();

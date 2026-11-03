@@ -76,4 +76,10 @@ public interface TimelineCommands {
 
     /** 取消进行中的时间线交互 */
     void cancelInteraction();
+
+    /** Key selected body parts while the pose tool is active. */
+    void keyActorPose();
+
+    /** Seek the selected parts' nearest key occurrence in the current clip. */
+    void seekActorKey(boolean forward);
 }

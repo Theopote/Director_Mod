@@ -57,6 +57,9 @@ public final class ShortcutBindings {
         registerModifierBinding(GLFW.GLFW_KEY_N, 1, ShortcutAction.PROJECT_NEW);
         registerModifierBinding(GLFW.GLFW_KEY_O, 1, ShortcutAction.PROJECT_RELOAD);
         registerModifierBinding(GLFW.GLFW_KEY_S, 1, ShortcutAction.PROJECT_SAVE);
+        registerModifierBinding(GLFW.GLFW_KEY_Q, 1, ShortcutAction.ACTOR_KEY_POSE);
+        registerModifierBinding(GLFW.GLFW_KEY_LEFT_BRACKET, 1, ShortcutAction.ACTOR_KEY_PREVIOUS);
+        registerModifierBinding(GLFW.GLFW_KEY_RIGHT_BRACKET, 1, ShortcutAction.ACTOR_KEY_NEXT);
         KEY_BINDINGS.put(GLFW.GLFW_KEY_F1, ShortcutAction.HELP_SHORTCUTS);
 
         // ==================== 播放控制 ====================
@@ -290,6 +293,8 @@ public final class ShortcutBindings {
         categories.put(tr(DirectorLang.Shortcuts.CATEGORY_SELECTION_MODE), selection);
 
         List<String> timeline = new ArrayList<>();
+        timeline.add("Ctrl+Q               - 所选身体部位打帧（姿态工具）");
+        timeline.add("Ctrl+[ / Ctrl+]      - 上一个／下一个姿态关键帧（姿态工具）");
         timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_Z, DirectorLang.Shortcuts.DESC_TIMELINE_UNDO));
         timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_Y, DirectorLang.Shortcuts.DESC_TIMELINE_REDO));
         timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_X, DirectorLang.Shortcuts.DESC_TIMELINE_CUT));

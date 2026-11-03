@@ -38,7 +38,10 @@ public final class ActorAnimationDopeSheet {
     }
     private static boolean canWrite() {
         return renderContext != null && renderContext.isCurrent()
-                && !ActorBoneGizmoController.getInstance().isDragging() && !ActorBonePropertiesPanel.hasNumericDraft();
+                && !ActorBoneGizmoController.getInstance().isDragging() && !ActorBonePropertiesPanel.hasNumericDraft()
+                && !ActorBoneGizmoController.getInstance().hasPendingDraft()
+                && !com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
+                && !com.director.export.video.VideoExportManager.getInstance().isExporting();
     }
     private static List<ActorAnimationAuthoringService.Key> assetKeys() {
         return selection.stream().map(key -> new ActorAnimationAuthoringService.Key(key.boneId(),
@@ -73,6 +76,9 @@ public final class ActorAnimationDopeSheet {
 
     private static long observedSelectionRevision=-1;
     private static List<ActorAnimationAuthoringService.Key> importedKeys=List.of();
+    private static String seekMessage="";
+    private static final BoneTrack EMPTY_TRACK=new BoneTrack();
+    private static final imgui.type.ImInt snapMode=new imgui.type.ImInt(1);
     public static void render(TimelineModel model, UUID actorId) {
         try { renderInternal(model,actorId); }
         finally {
@@ -96,6 +102,7 @@ public final class ActorAnimationDopeSheet {
         AnimationAsset asset = renderContext == null ? null : renderContext.asset();
         SelectionContext next = new SelectionContext(model, actorId, clip, asset);
         if (!Objects.equals(selectionContext, next)) {
+            seekMessage="";
             clearSelection();
             dragCandidate = marqueeCandidate = false;
             interactionContext = null;
@@ -121,7 +128,7 @@ public final class ActorAnimationDopeSheet {
         ImGui.sameLine();
         ImGui.textDisabled(String.format("%.2fs", asset.duration()));
         if (asset.boneTracks().isEmpty()) {
-            ImGui.textDisabled("旋转骨骼后将在这里显示关键帧");
+            ImGui.textDisabled("尚无关键帧：双击下方通道空白处，或在姿态工具中选择部位后按 Ctrl+Q。");
         }
 
         ImGui.textDisabled(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.time_mapping",
@@ -129,7 +136,11 @@ public final class ActorAnimationDopeSheet {
         if(clip.isLoop() && asset.loopMode()!=com.director.actor.animation.asset.AnimationLoopMode.ONCE)
             ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.loop_seek_hint"));
         if(renderContext.distanceDriven()) ImGui.textWrapped("路径距离时钟：当前键时间跟随实际步态相位；请在独立动画预览中调整键的时间位置。");
-        renderCanvas(model, clip, asset);
+        ImGui.textWrapped("双击通道空白处按动画层求值插键；Ctrl+Q 为所选部位打帧；Ctrl+[ / Ctrl+] 跳转关键帧。");
+        ActorAnimationEventTimeline.render(model,renderContext.track(),clip);
+        if(ImGui.beginChild("actorDopeSheetScroll",0,320,true)) renderCanvas(model, clip, asset);
+        ImGui.endChild();
+        if(!seekMessage.isEmpty()) ImGui.textWrapped(seekMessage);
 
         for (Map.Entry<String, BoneTrack> entry : asset.boneTracks().entrySet()) {
             if (entry.getValue().translation().isEmpty()) continue;
@@ -246,13 +257,13 @@ public final class ActorAnimationDopeSheet {
     }
 
     private static void renderCanvas(TimelineModel model, EntityAnimationClip clip, AnimationAsset asset) {
-        List<Row> rows = new ArrayList<>();
-        for (Map.Entry<String, BoneTrack> entry : asset.boneTracks().entrySet()) {
-            if (!entry.getValue().translation().isEmpty()) rows.add(new Row(entry.getKey(), entry.getValue(), Channel.TRANSLATION));
-            if (!entry.getValue().scale().isEmpty()) rows.add(new Row(entry.getKey(), entry.getValue(), Channel.SCALE));
-            if (!entry.getValue().rotation().isEmpty()) rows.add(new Row(entry.getKey(), entry.getValue(), Channel.ROTATION));
-        }
-        if (rows.isEmpty()) return;
+        List<Row> rows = rows(asset);
+        if (rows.isEmpty()) { ImGui.textDisabled("该骨架没有可编辑的通道"); return; }
+
+        ImGui.beginDisabled(isKeyInteractionActive());
+        ImGui.setNextItemWidth(200);
+        ImGui.combo("吸附##dopeSnap",snapMode,new String[]{"关闭","帧","帧、播放头与标记"});
+        ImGui.endDisabled();
 
         ViewState view = views.computeIfAbsent(asset.id(), ignored -> new ViewState());
         clampView(view, asset.duration());
@@ -268,11 +279,11 @@ public final class ActorAnimationDopeSheet {
         ImGui.textDisabled(String.format("%.1fx  %.2f–%.2fs", view.zoom, view.startTime,
                 view.startTime + visibleDuration(asset.duration(), view.zoom)));
 
-        final float labelWidth = 72f;
+        final float labelWidth = 140f;
         final float rulerHeight = 18f;
         final float rowHeight = 22f;
         final float keyRadius = 5f;
-        float width = Math.max(140f, ImGui.getContentRegionAvailX());
+        float width = Math.max(220f, ImGui.getContentRegionAvailX());
         float height = rulerHeight + rows.size() * rowHeight;
         float x = ImGui.getCursorScreenPosX();
         float y = ImGui.getCursorScreenPosY();
@@ -299,12 +310,21 @@ public final class ActorAnimationDopeSheet {
             draw.addLine(x, y + rulerHeight + (rowIndex + 1) * rowHeight,
                     x + width, y + rulerHeight + (rowIndex + 1) * rowHeight,
                     TimelineColors.rgba(55, 60, 68, 180), 1f);
+            draw.pushClipRect(x,y,timeX,y+height,true);
             draw.addText(x + 4f, cy - 7f, TimelineColors.rgba(200, 205, 215, 255),
                     row.boneId() + switch (row.channel()) {
                         case TRANSLATION -> " · T";
                         case SCALE -> " · S";
                         case ROTATION -> " · R";
                     });
+            draw.popClipRect();
+            if(hovered && ImGui.getMousePosX()<timeX && Math.abs(ImGui.getMousePosY()-cy)<rowHeight/2)
+                ImGui.setTooltip(row.boneId()+" · "+row.channel());
+            if(frameTimes(row).isEmpty()) {
+                draw.addText(timeX+4,cy-7,TimelineColors.rgba(115,120,130,255),"空通道 · 双击打帧");
+                for(float dash=timeX;dash<timeX+timeWidth;dash+=10)
+                    draw.addLine(dash,cy+8,Math.min(dash+5,timeX+timeWidth),cy+8,TimelineColors.rgba(80,85,95,150));
+            }
             draw.pushClipRect(timeX,y,timeX+timeWidth,y+height,true);
             try {
             for (float frameTime : frameTimes(row)) {
@@ -348,6 +368,26 @@ public final class ActorAnimationDopeSheet {
             renderContext=ActorAnimationEditContext.capture(model,renderContext.track(),clip);
             KeyId hit = hitKey(rows, mx, my, y, timeX, timeWidth, rulerHeight, rowHeight,
                     keyRadius, pixelsPerSecond, viewStartTime);
+            int rowIndex=(int)Math.floor((my-y-rulerHeight)/rowHeight);
+            if(hit==null && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left) && canWrite()
+                    && mx>=timeX && mx<=timeX+timeWidth && rowIndex>=0 && rowIndex<rows.size()) {
+                var row=rows.get(rowIndex);
+                float time=Math.clamp(viewStartTime+(mx-timeX)/pixelsPerSecond,0,asset.duration());
+                float step=frameStep(clip.getSpeed(),model.getFrameRate());
+                if(snapMode.get()!=0 && !renderContext.distanceDriven() && step>0) time=Math.clamp(Math.round(time/step)*step,0,asset.duration());
+                seekToKey(model,clip,time);
+                if(seekMessage.isEmpty()) {
+                    renderContext=ActorAnimationEditContext.capture(model,renderContext.track(),clip);
+                    // Seeking does not refresh the world synchronously. Sample the source layer at
+                    // the destination, rather than seeding it from the previous frame's preview.
+                    if(ActorAnimationAuthoringService.keyPose(renderContext,
+                            asset.sample(renderContext.assetTime(),com.director.actor.animation.asset.AnimationLoopMode.ONCE),List.of(row.boneId()),
+                            ActorAnimationAuthoringSettings.getInstance().getInterpolation(),channelMask(row.channel())))
+                        select(asset.id(),new KeyId(row.boneId(),row.channel(),renderContext.assetTime()),false);
+                }
+                cancelKeyInteraction();
+                return;
+            }
             interactionStartX = interactionCurrentX = mx;
             interactionStartY = interactionCurrentY = my;
             interactionAdditive = ImGui.getIO().getKeyCtrl();
@@ -390,7 +430,7 @@ public final class ActorAnimationDopeSheet {
         try {
         if (dragCandidate && activated) {
             float localFrame = frameStep(clip.getSpeed(),model.getFrameRate());
-            float delta = snapDragDelta(dx, pixelsPerSecond, localFrame);
+            float delta = dragDelta(model,clip,dx,pixelsPerSecond,localFrame);
             for (KeyId key : selection) {
                 float ghostX = timeX + (key.time() + delta - viewStartTime) * pixelsPerSecond;
                 int row = rowIndex(rows, key.boneId(), key.channel());
@@ -424,7 +464,7 @@ public final class ActorAnimationDopeSheet {
     private static void finishDrag(TimelineModel model, EntityAnimationClip clip, AnimationAsset asset,
                                    float pixelsPerSecond, float dx) {
         float localFrame = frameStep(clip.getSpeed(),model.getFrameRate());
-        float delta = snapDragDelta(dx, pixelsPerSecond, localFrame);
+        float delta = dragDelta(model,clip,dx,pixelsPerSecond,localFrame);
         if (withinDuration(delta, asset.duration())
                 && moveSelection(delta)) {
             shiftSelection(delta);
@@ -487,6 +527,17 @@ public final class ActorAnimationDopeSheet {
         return Float.isFinite(delta)?delta:0;
     }
 
+    private static float dragDelta(TimelineModel model,EntityAnimationClip clip,float pixels,float pixelsPerSecond,float frame) {
+        var targets=new ArrayList<Float>();
+        if(snapMode.get()==2) {
+            targets.add(renderContext.assetTime());
+            for(var marker:model.getMarkers()) if(marker.getStartTime()>=clip.getStartTime() && marker.getStartTime()<=clip.getEndTime())
+                targets.add((marker.getStartTime()-clip.getStartTime())*Math.max(.01f,clip.getSpeed()));
+        }
+        return ActorKeyframeSnapping.delta(pixels,pixelsPerSecond,snapMode.get()==0?0:frame,
+                selection.stream().map(KeyId::time).toList(),targets);
+    }
+
     private static void handleNavigation(ViewState view, float duration, boolean hovered,
                                          float timeX, float timeWidth) {
         if (!hovered || dragCandidate || marqueeCandidate) return;
@@ -527,7 +578,8 @@ public final class ActorAnimationDopeSheet {
     }
 
     private static void seekToKey(TimelineModel model,EntityAnimationClip clip,float localTime) {
-        if(renderContext!=null) ActorAnimationKeyClock.seek(model,renderContext.track(),clip,localTime);
+        seekMessage=renderContext!=null && ActorAnimationKeyClock.seek(model,renderContext.track(),clip,localTime)?"":
+                "该关键帧在当前片段内没有对应时刻；请检查片段长度、速度或路径距离。";
     }
     private static boolean canMove() {
         return canWrite() && !renderContext.distanceDriven() && (!renderContext.loop() || renderContext.loopMode()==com.director.actor.animation.asset.AnimationLoopMode.ONCE);
@@ -619,9 +671,23 @@ public final class ActorAnimationDopeSheet {
         };
     }
 
-    private enum Channel { ROTATION, TRANSLATION, SCALE }
+    static List<Row> rows(AnimationAsset asset) {
+        List<Row> rows=new ArrayList<>();
+        for(var bone:asset.rig().bones()) for(var channel:Channel.values())
+            if(ActorBoneInspector.supports(asset.rig(),bone.id(),channelMask(channel)))
+                rows.add(new Row(bone.id(),asset.findBoneTrack(bone.id()).orElse(EMPTY_TRACK),channel));
+        return rows;
+    }
+    private static int channelMask(Channel channel) {
+        return switch(channel) {
+            case TRANSLATION -> com.director.actor.rig.skeleton.RigPose.TRANSLATION;
+            case ROTATION -> com.director.actor.rig.skeleton.RigPose.ROTATION;
+            case SCALE -> com.director.actor.rig.skeleton.RigPose.SCALE;
+        };
+    }
+    enum Channel { ROTATION, TRANSLATION, SCALE }
     private record KeyId(String boneId, Channel channel, float time) {}
-    private record Row(String boneId, BoneTrack track, Channel channel) {}
+    record Row(String boneId, BoneTrack track, Channel channel) {}
     private static final class ViewState {
         private float zoom = 1f;
         private float startTime;

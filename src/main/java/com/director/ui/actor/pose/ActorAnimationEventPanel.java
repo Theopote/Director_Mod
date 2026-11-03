@@ -26,11 +26,17 @@ public final class ActorAnimationEventPanel {
         if(!ImGui.collapsingHeader(tr("title"))) return;
         if(source!=clip || !before.equals(clip.getEvents())) {source=clip;before=ActorAnimationEventEditing.copy(clip.getEvents());index=-1;message="";}
         var owner=clip.getTimelineClip()==null?null:clip.getTimelineClip().getParentTrack();
+        ImGui.pushID("eventEditorTimeline");
+        try { ActorAnimationEventTimeline.render(model,owner,clip); }
+        finally { ImGui.popID(); }
         boolean writable=ActorAnimationEventEditing.editable(model,owner,clip)&&!ActorBoneGizmoController.getInstance().isDragging();
         ImGui.textWrapped("片段进度只按片段触发；动画源进度跟随速度、循环与路径距离时钟，每次经过该相位都会触发。");
         for(int i=0;i<before.size();i++) {
             var event=before.get(i);
-            if(ImGui.selectable(String.format("%.3f · %s · %s##event%d",event.getNormalizedTime(),tr(event.getTiming()==AnimationEvent.Timing.CLIP?"clip_clock":"asset_clock"),event.getAction().type().getDisplayName(),i),index==i)) {index=i;load(event);}
+            if(ImGui.selectable(String.format("%.3f · %s · %s##event%d",event.getNormalizedTime(),tr(event.getTiming()==AnimationEvent.Timing.CLIP?"clip_clock":"asset_clock"),event.getAction().type().getDisplayName(),i),index==i)) {
+                index=i;load(event);
+                message=ActorAnimationEventTimeline.seek(model,owner,clip,event)?"":"当前无法定位此事件；请先暂停、结束草稿编辑，并检查片段中的事件时刻。";
+            }
         }
         ImGui.beginDisabled(!writable);
         if(ImGui.button(tr("add"))) {index=before.size();time.set(.5f);timing=AnimationEvent.Timing.CLIP;type=EntityActionClip.ActionType.DETACH_PROP;params=new LinkedHashMap<>(Map.of("slot","MAIN_HAND"));}

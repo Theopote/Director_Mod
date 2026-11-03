@@ -81,26 +81,35 @@ public final class ActorEmbeddedAnimation {
     }
     public static boolean firstKey(TimelineModel model,TimelineTrack owner,String bone,int channel,InterpolationMode interpolation,
             com.director.actor.rig.skeleton.RigPose visible) {
-        if(channel!=1 && channel!=2 && channel!=4)return false;
+        if(bone==null || channel!=1 && channel!=2 && channel!=4)return false;
+        return firstKeys(model,owner,List.of(bone),channel,interpolation,visible);
+    }
+    /** Create the selected channels and their binding as one undoable edit. */
+    public static boolean firstKeys(TimelineModel model,TimelineTrack owner,Collection<String> bones,int channels,InterpolationMode interpolation,
+            com.director.actor.rig.skeleton.RigPose visible) {
+        if(bones==null || bones.isEmpty() || channels<=0 || (channels & ~7)!=0)return false;
         var spawn=target(model,owner);if(spawn==null || spawn.getBoneAnimationId()!=null)return false;
         var actor=ActorRegistryManager.getInstance().getActor(owner.getActorTrackPayload().getActorRef().getActorId()).orElse(null);
         var rig=actor==null?null:ActorRigCompatibility.resolveRig(actor).orElse(null);
-        if(rig==null || rig.findBoneIndex(bone)<0)return false;
-        var definition=rig.bone(rig.requireBoneIndex(bone));var caps=definition.capabilities();
-        if(channel==2 && com.director.actor.rig.skeleton.HumanoidTopology.matches(rig) && com.director.actor.rig.skeleton.HumanoidRig.ROOT.equals(bone))return false;
-        if(channel==1&&!caps.translation() || channel==2&&!caps.rotation() || channel==4&&!caps.scale())return false;
+        if(rig==null || bones.stream().anyMatch(bone->bone==null || rig.findBoneIndex(bone)<0))return false;
         String id="project:actor_"+UUID.randomUUID();
         var asset=new AnimationAsset(id,spawn.getName()+" 骨骼动作",rig,Math.max(.1f,spawn.getLength()),AnimationLoopMode.ONCE);
-        var value=asset.sample(0,AnimationLoopMode.ONCE).localTransform(bone);
+        var pose=asset.sample(0,AnimationLoopMode.ONCE);
         // Additive keys store offsets relative to rest; seeding a visible absolute pose would double it.
         if(spawn.getBlendSettings().mode()==com.director.actor.rig.skeleton.PoseLayer.BlendMode.OVERRIDE
                 && visible!=null && com.director.actor.rig.skeleton.RigPoseComposer.sameLayout(rig,visible.rig()))
-            value=visible.localTransform(bone);
-        var track=asset.getOrCreateBoneTrack(bone);
+            pose=visible;
         float time=model.getCurrentTime()-spawn.getStartTime();
-        if(channel==1)track.translation().put(time,value.translation(),interpolation);
-        else if(channel==2)track.rotation().put(time,value.rotation(),interpolation);
-        else track.scale().put(time,value.scale(),interpolation);
+        for(String bone:new LinkedHashSet<>(bones)) {
+            var value=pose.localTransform(bone);
+            for(int channel:new int[]{1,2,4}) if((channels & channel)!=0 && ActorBoneInspector.supports(rig,bone,channel)) {
+                var track=asset.getOrCreateBoneTrack(bone);
+                if(channel==1)track.translation().put(time,value.translation(),interpolation);
+                else if(channel==2)track.rotation().put(time,value.rotation(),interpolation);
+                else track.scale().put(time,value.scale(),interpolation);
+            }
+        }
+        if(asset.boneTracks().isEmpty())return false;
         var library=AnimationAssetLibrary.getInstance();
         TimelineCommandBridge.execute(new ActorAnimationAssetCommand(model,"First actor bone keyframe",
                 ()->{if(!model.getAllTracks().contains(owner) || owner.isLocked() || owner.isMuted() || model.isPlaying() || model.isScrubbing() || !owner.getActorTrackPayload().getClips().contains(spawn) || spawn.getBoneAnimationId()!=null)throw new IllegalArgumentException("演员动画目标已变化");},

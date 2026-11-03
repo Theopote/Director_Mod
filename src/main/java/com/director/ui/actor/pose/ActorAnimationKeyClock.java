@@ -17,8 +17,10 @@ public final class ActorAnimationKeyClock {
                     clip.getStartTime(),clip.getEndTime(),clip.getSpeed(),from,to);
         return AnimationEventClock.times(owner.getActorTrackPayload(),clip,assetTime/asset.duration(),from,to);
     }
-    public static void seek(TimelineModel model,TimelineTrack owner,EntityAnimationClip clip,float assetTime) {
-        times(owner,clip,assetTime,clip.getStartTime(),clip.getEndTime()).stream()
-                .min(Comparator.comparingDouble(t->Math.abs(t-model.getCurrentTime()))).ifPresent(model::setCurrentTime);
+    public static boolean seek(TimelineModel model,TimelineTrack owner,EntityAnimationClip clip,float assetTime) {
+        var target=times(owner,clip,assetTime,clip.getStartTime(),clip.getEndTime()).stream()
+                .min(Comparator.comparingDouble(t->Math.abs(t-model.getCurrentTime())));
+        target.ifPresent(model::setCurrentTime);
+        return target.isPresent();
     }
 }

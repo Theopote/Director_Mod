@@ -35,7 +35,8 @@ public final class ActorPoseGallery {
         var nextRig=actor==null?null:ActorRigCompatibility.resolveRig(actor).orElse(null);
         if(nextRig==null) return;
         if(!id.equals(actorId) || nextRig!=rig || actor!=actorIdentity || model!=currentModel) {
-            actorId=id;rig=nextRig;thumbnails.clear();query.set("");name.set("");editing=null;message="";selectedOnly=false;category.set(0);purpose.set(0);
+            // Search/category are browsing preferences; selection and drafts belong to the actor.
+            actorId=id;rig=nextRig;thumbnails.clear();name.set("");editing=null;message="";selectedOnly=false;
             actorIdentity=actor;currentModel=model;
         }
         if(appearance!=actor.getLimbBendMode()) {appearance=actor.getLimbBendMode();thumbnails.clear();}
@@ -148,9 +149,9 @@ public final class ActorPoseGallery {
                 catch(java.io.IOException failure) {message=failure.getMessage();}
             }
             ImGui.endDisabled();
-            ImGui.inputTextWithHint("##poseName","为当前旋转姿态命名",name);
+            ImGui.inputTextWithHint("##poseName","为动画层旋转姿态命名",name);
             ImGui.beginDisabled(!canApply || context==null);
-            if(ImGui.button("保存当前旋转姿态")) {
+            if(ImGui.button("保存动画层旋转姿态")) {
                 try {
                     if (context != null) {
                         ActorSavedPoseLibrary.add(model,ActorSavedPoseLibrary.capture(name.get(),context.asset().sample(context.assetTime(),AnimationLoopMode.ONCE),bones));

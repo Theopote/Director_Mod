@@ -148,5 +148,10 @@ public enum ShortcutAction {
     GIZMO_SCALE,
 
     /** Gizmo 朝向（LookAt）模式 */
-    GIZMO_LOOK_AT
+    GIZMO_LOOK_AT,
+
+    /** Key the selected actor bones without deleting existing keys. */
+    ACTOR_KEY_POSE,
+    ACTOR_KEY_PREVIOUS,
+    ACTOR_KEY_NEXT
 }

@@ -82,8 +82,8 @@ public final class ActorsPanel extends AbstractPanel {
         if (projectScanned) {
             ImGui.textWrapped(diagnosticText("scan_scope"));
             for (var issue : projectIssues) {
-                ImGui.pushID("audit:" + System.identityHashCode(issue.track()) + ":" + issue.reason() + ":" + issue.reference());
-                ImGui.textWrapped(issue.track().getName() + " · " + diagnosticText(issue.reason().name().toLowerCase(java.util.Locale.ROOT)) + " · " + issue.reference());
+                ImGui.pushID("audit:" + System.identityHashCode(issue.track()) + ":" + issue.reason() + ":" + issue.reference() + ":" + (issue.clip() == null ? "track" : issue.clip().getId()));
+                ImGui.textWrapped(issue.track().getName() + (issue.clip() == null ? "" : " · " + issue.clip().getName()) + " · " + diagnosticText(issue.reason().name().toLowerCase(java.util.Locale.ROOT)) + " · " + issue.reference());
                 if (model.getAllTracks().contains(issue.track()) && ImGui.smallButton(diagnosticText("inspect_track"))) {
                     model.selectItem(issue.track(), false);
                     DirectorServices.get().uiSelection().setCurrentSelection(issue.track());

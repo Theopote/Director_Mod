@@ -32,6 +32,16 @@ public final class TimelineCommandsImpl implements TimelineCommands {
     }
 
     @Override
+    public void keyActorPose() {
+        com.director.ui.actor.pose.ActorPoseKeyActions.keySelected(timelineModel);
+    }
+
+    @Override
+    public void seekActorKey(boolean forward) {
+        com.director.ui.actor.pose.ActorPoseKeyActions.seekSelected(timelineModel, forward);
+    }
+
+    @Override
     public void zoomToFit() {
         if (timelinePanel != null) {
             timelinePanel.zoomToFit();
