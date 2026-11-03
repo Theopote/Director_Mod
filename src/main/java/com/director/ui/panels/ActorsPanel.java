@@ -24,6 +24,9 @@ public final class ActorsPanel extends AbstractPanel {
 
     private final imgui.type.ImString diagnosticSearch = new imgui.type.ImString(128);
     private final imgui.type.ImBoolean hiddenOnly = new imgui.type.ImBoolean(false);
+    private java.util.List<com.director.actor.query.ActorProjectDiagnostics.Issue> projectIssues = java.util.List.of();
+    private TimelineModel diagnosticModel;
+    private boolean projectScanned;
     private ActorSelectorPanel actorSelectorPanel;
     private final ActorPathLibraryPanel actorPathLibraryPanel = new ActorPathLibraryPanel();
 
@@ -72,6 +75,25 @@ public final class ActorsPanel extends AbstractPanel {
         var model = DirectorServices.get().containerTimeline().getTimelineModel();
         ImGui.textWrapped(diagnosticText("scope"));
         if (model == null) { ImGui.textDisabled(diagnosticText("no_model")); return; }
+        if (diagnosticModel != model) { diagnosticModel = model; projectIssues = java.util.List.of(); projectScanned = false; }
+        if (ImGui.button(diagnosticText("scan"))) {
+            projectIssues = com.director.actor.query.ActorProjectDiagnostics.scan(model, ActorRegistryManager.getInstance()); projectScanned = true;
+        }
+        if (projectScanned) {
+            ImGui.textWrapped(diagnosticText("scan_scope"));
+            for (var issue : projectIssues) {
+                ImGui.pushID("audit:" + System.identityHashCode(issue.track()) + ":" + issue.reason() + ":" + issue.reference());
+                ImGui.textWrapped(issue.track().getName() + " · " + diagnosticText(issue.reason().name().toLowerCase(java.util.Locale.ROOT)) + " · " + issue.reference());
+                if (model.getAllTracks().contains(issue.track()) && ImGui.smallButton(diagnosticText("inspect_track"))) {
+                    model.selectItem(issue.track(), false);
+                    DirectorServices.get().uiSelection().setCurrentSelection(issue.track());
+                    com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(issue.track());
+                }
+                ImGui.popID();
+            }
+            if (projectIssues.isEmpty()) ImGui.textWrapped(diagnosticText("scan_clear"));
+            ImGui.separator();
+        }
         ImGui.inputText(diagnosticText("search"), diagnosticSearch);
         ImGui.checkbox(diagnosticText("hidden_only"), hiddenOnly);
         String query = diagnosticSearch.get().strip().toLowerCase(java.util.Locale.ROOT);

@@ -2624,5 +2624,12 @@
   "gui.director.actor.scene_diagnostics.inspect": "Inspect actor",
   "gui.director.actor.scene_diagnostics.empty": "No current sampled issues match. Assets and other time ranges have not necessarily been validated.",
   "gui.director.actor.group_members.apply_seed": "Apply seed",
-  "gui.director.actor.group_members.invalid_seed": "Enter a valid signed 64-bit integer."
+  "gui.director.actor.group_members.invalid_seed": "Enter a valid signed 64-bit integer.",
+  "gui.director.actor.scene_diagnostics.scan": "Check project references",
+  "gui.director.actor.scene_diagnostics.scan_scope": "Last manual scan, including muted and future clips. Rescan after edits. Terrain and rendering are not validated.",
+  "gui.director.actor.scene_diagnostics.missing_actor": "Missing actor binding",
+  "gui.director.actor.scene_diagnostics.missing_animation": "Missing animation asset",
+  "gui.director.actor.scene_diagnostics.incompatible_rig": "Incompatible animation rig",
+  "gui.director.actor.scene_diagnostics.inspect_track": "Inspect track",
+  "gui.director.actor.scene_diagnostics.scan_clear": "No actor binding or animation reference issues found in this scan."
 }

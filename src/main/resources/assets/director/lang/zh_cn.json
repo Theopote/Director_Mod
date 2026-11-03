@@ -2624,5 +2624,12 @@
   "gui.director.actor.scene_diagnostics.inspect": "检查演员",
   "gui.director.actor.scene_diagnostics.empty": "当前筛选下没有最新采样问题；这不代表所有资产和时间范围均已通过检查。",
   "gui.director.actor.group_members.apply_seed": "应用种子",
-  "gui.director.actor.group_members.invalid_seed": "请输入范围内的有符号 64 位整数。"
+  "gui.director.actor.group_members.invalid_seed": "请输入范围内的有符号 64 位整数。",
+  "gui.director.actor.scene_diagnostics.scan": "检查工程引用",
+  "gui.director.actor.scene_diagnostics.scan_scope": "以下为最近一次手动检查结果，包含禁用及未来片段。修改工程后请重新检查；此检查不验证地形或渲染。",
+  "gui.director.actor.scene_diagnostics.missing_actor": "缺失演员绑定",
+  "gui.director.actor.scene_diagnostics.missing_animation": "缺失动画资产",
+  "gui.director.actor.scene_diagnostics.incompatible_rig": "动画骨架不兼容",
+  "gui.director.actor.scene_diagnostics.inspect_track": "检查轨道",
+  "gui.director.actor.scene_diagnostics.scan_clear": "本次未发现演员绑定或动画引用问题。"
 }
