@@ -11,50 +11,114 @@ import java.util.*;
 public final class AnimationEventClock {
     private AnimationEventClock() {}
     public static List<Float> times(ActorTrack track,EntityAnimationClip clip,AnimationEvent event,float from,float to) {
-        float start=clip.getStartTime(),end=Math.min(to,clip.getEndTime());
-        if(!Float.isFinite(start) || !Float.isFinite(end) || end<start || from>end || !Float.isFinite(event.getNormalizedTime())) return List.of();
-        if(event.getTiming()==AnimationEvent.Timing.CLIP) {
-            float at=start+event.getNormalizedTime()*clip.getLength();
-            return at>=from && at<=end?List.of(at):List.of();
-        }
-        return times(track,clip,event.getNormalizedTime(),from,to);
+        return projection(track,clip,from,to).times(event);
     }
     /** Invert the source clock for both UI keys and events. */
     public static List<Float> times(ActorTrack track,EntityAnimationClip clip,float normalized,float from,float to) {
-        float start=clip.getStartTime(),end=Math.min(to,clip.getEndTime());
-        if(!Float.isFinite(start)||!Float.isFinite(end)||end<start||from>end||!Float.isFinite(normalized)||normalized<0||normalized>1) return List.of();
-        var asset=AnimationAssetLibrary.getInstance().find(clip.getAnimationId()).orElse(null);
-        var builtin=asset==null?AnimationLibrary.getInstance().get(clip.getAnimationId()).orElse(null):null;
-        float duration=asset!=null?asset.duration():builtin!=null?builtin.getDuration():clip.getLength();
-        if(!Float.isFinite(duration) || duration<=0) return List.of();
-        var mode=!clip.isLoop()?AnimationLoopMode.ONCE:asset!=null?asset.loopMode():AnimationLoopMode.LOOP;
-        var actor=track.getActorRef()==null?null:ActorRegistryManager.getInstance().getActor(track.getActorRef().getActorId()).orElse(null);
-        var profile=actor==null?null:actor.getRigProfile();
-        var sampler=profile!=null && ActorPresetClock.purpose(clip.getAnimationId())==AnimationData.Purpose.LOCOMOTION?new EntityClipSampler(track):null;
-        var boundaries=new TreeSet<Float>();boundaries.add(Math.max(start,from));boundaries.add(end);
-        if(boundaries.first()>end) return List.of();
-        if(sampler!=null) for(var c:track.getClips()) {
-            if(c.getStartTime()>boundaries.first() && c.getStartTime()<end) boundaries.add(c.getStartTime());
-            if(c.getEndTime()>boundaries.first() && c.getEndTime()<end) boundaries.add(c.getEndTime());
+        return projection(track,clip,from,to).times(normalized);
+    }
+
+    /** A thread-confined batch for one render/dispatch pass. Never retain across edits. */
+    public static Projection projection(ActorTrack track,EntityAnimationClip clip,float from,float to) {
+        return new Projection(track,clip,from,to,EntityClipSampler::new);
+    }
+
+    public static final class Projection {
+        private static final int MAX_PHASE_SAMPLES=4096,MAX_RESULTS=1024;
+        private final ActorTrack track;
+        private final String animationId;
+        private final float start,end,from,length,speed;
+        private final boolean loop;
+        private final java.util.function.Function<ActorTrack,EntityClipSampler> samplerFactory;
+        private final Map<Float,Double> phases=new LinkedHashMap<>();
+        private final Map<Float,List<Float>> results=new LinkedHashMap<>();
+        private List<Segment> segments;
+        private float duration;
+        private record Segment(float start,float end,double lo,double hi,
+                               java.util.function.DoubleUnaryOperator raw,AnimationLoopMode mode) {}
+
+        Projection(ActorTrack track,EntityAnimationClip clip,float from,float to,
+                   java.util.function.Function<ActorTrack,EntityClipSampler> samplerFactory) {
+            this.track=track;this.from=from;this.start=clip.getStartTime();this.end=Math.min(to,clip.getEndTime());
+            this.length=clip.getLength();this.speed=clip.getSpeed();this.loop=clip.isLoop();
+            this.animationId=clip.getAnimationId();this.samplerFactory=samplerFactory;
         }
-        var points=new ArrayList<>(boundaries);if(points.size()==1) points.add(end);
-        var result=new TreeSet<Float>();
-        for(int i=1;i<points.size();i++) {
-            float a=points.get(i-1),b=points.get(i);
-            var middle=sampler==null?null:sampler.sampleSnapshot(a+(b-a)*.5f);
-            boolean distance=middle!=null && ActorPresetClock.followsDistance(clip.getAnimationId(),middle);
-            java.util.function.DoubleUnaryOperator raw=t->distance
-                    ?ActorRouteGait.phaseCycles(sampler.sampleSnapshot((float)t),profile)*duration
-                    :Math.max(0,t-start)*Math.max(.01f,clip.getSpeed());
-            double lo=raw.applyAsDouble(a),hi=raw.applyAsDouble(b);
-            if(!Double.isFinite(lo) || !Double.isFinite(hi) || hi<lo) continue;
-            var effective=distance?AnimationLoopMode.LOOP:mode;
-            double phase=normalized*duration;
-            add(result,raw,a,b,lo,hi,phase,effective==AnimationLoopMode.ONCE?0:effective==AnimationLoopMode.LOOP?duration:2d*duration);
-            if(effective==AnimationLoopMode.PING_PONG && phase>0 && phase<duration)
-                add(result,raw,a,b,lo,hi,2d*duration-phase,2d*duration);
+
+        public List<Float> times(AnimationEvent event) {
+            if(!valid() || !Float.isFinite(event.getNormalizedTime()))return List.of();
+            if(event.getTiming()==AnimationEvent.Timing.CLIP) {
+                float at=start+event.getNormalizedTime()*length;
+                return at>=from && at<=end?List.of(at):List.of();
+            }
+            return times(event.getNormalizedTime());
         }
-        return List.copyOf(result);
+
+        private boolean valid() {
+            // Playback's initial event window deliberately starts at -infinity.
+            return Float.isFinite(start) && Float.isFinite(end) && !Float.isNaN(from) && end>=start && from<=end;
+        }
+
+        public List<Float> times(float normalized) {
+            if(!valid() || !Float.isFinite(normalized) || normalized<0 || normalized>1)return List.of();
+            var cached=results.get(normalized);if(cached!=null)return cached;
+            if(segments==null)prepare();
+            var result=new TreeSet<Float>();
+            for(var segment:segments) {
+                double phase=normalized*duration;
+                var mode=segment.mode();
+                add(result,segment.raw(),segment.start(),segment.end(),segment.lo(),segment.hi(),phase,
+                        mode==AnimationLoopMode.ONCE?0:mode==AnimationLoopMode.LOOP?duration:2d*duration);
+                if(mode==AnimationLoopMode.PING_PONG && phase>0 && phase<duration)
+                    add(result,segment.raw(),segment.start(),segment.end(),segment.lo(),segment.hi(),2d*duration-phase,2d*duration);
+            }
+            var answer=List.copyOf(result);
+            if(results.size()>=MAX_RESULTS)results.remove(results.keySet().iterator().next());
+            results.put(normalized,answer);
+            return answer;
+        }
+
+        private void prepare() {
+            segments=new ArrayList<>();
+            var asset=AnimationAssetLibrary.getInstance().find(animationId).orElse(null);
+            var builtin=asset==null?AnimationLibrary.getInstance().get(animationId).orElse(null):null;
+            duration=asset!=null?asset.duration():builtin!=null?builtin.getDuration():length;
+            if(!Float.isFinite(duration) || duration<=0)return;
+            var mode=!loop?AnimationLoopMode.ONCE:asset!=null?asset.loopMode():AnimationLoopMode.LOOP;
+            var actor=track==null || track.getActorRef()==null?null:ActorRegistryManager.getInstance().getActor(track.getActorRef().getActorId()).orElse(null);
+            var profile=actor==null?null:actor.getRigProfile();
+            var sampler=profile!=null && ActorPresetClock.purpose(animationId)==AnimationData.Purpose.LOCOMOTION?samplerFactory.apply(track):null;
+            var boundaries=new TreeSet<Float>();boundaries.add(Math.max(start,from));boundaries.add(end);
+            if(sampler!=null)for(var clip:track.getClips()) {
+                if(clip.getStartTime()>boundaries.first() && clip.getStartTime()<end)boundaries.add(clip.getStartTime());
+                if(clip.getEndTime()>boundaries.first() && clip.getEndTime()<end)boundaries.add(clip.getEndTime());
+            }
+            var points=new ArrayList<>(boundaries);if(points.size()==1)points.add(end);
+            for(int i=1;i<points.size();i++) {
+                float a=points.get(i-1),b=points.get(i);
+                float midpoint=a+(b-a)*.5f;
+                var middle=sampler==null?null:sampler.sampleSnapshot(midpoint);
+                boolean distance=middle!=null && ActorPresetClock.followsDistance(animationId,middle);
+                if(distance)rememberPhase(midpoint,(double)(ActorRouteGait.phaseCycles(middle,profile)*duration));
+                java.util.function.DoubleUnaryOperator raw=t->{
+                    if(!distance)return Math.max(0,t-start)*Math.max(.01f,speed);
+                    float time=(float)t;
+                    var value=phases.get(time);
+                    if(value==null) {
+                        value=(double)(ActorRouteGait.phaseCycles(sampler.sampleSnapshot(time),profile)*duration);
+                        rememberPhase(time,value);
+                    }
+                    return value;
+                };
+                double lo=raw.applyAsDouble(a),hi=raw.applyAsDouble(b);
+                if(Double.isFinite(lo) && Double.isFinite(hi) && hi>=lo)
+                    segments.add(new Segment(a,b,lo,hi,raw,distance?AnimationLoopMode.LOOP:mode));
+            }
+        }
+
+        private void rememberPhase(float time,double phase) {
+            if(phases.size()>=MAX_PHASE_SAMPLES)phases.remove(phases.keySet().iterator().next());
+            phases.put(time,phase);
+        }
     }
     private static void add(Set<Float> result,java.util.function.DoubleUnaryOperator raw,float a,float b,
                             double lo,double hi,double phase,double period) {

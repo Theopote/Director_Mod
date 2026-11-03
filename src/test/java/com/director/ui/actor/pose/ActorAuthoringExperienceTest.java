@@ -117,4 +117,42 @@ class ActorAuthoringExperienceTest {
         assertEquals(.25f,ActorKeyframeSnapping.delta(24,100,.25f,keys,List.of(5f)),1e-6f);
         assertEquals(-.3f,ActorKeyframeSnapping.delta(-28,100,.25f,keys,List.of(.7f)),1e-6f);
     }
+
+    @Test void keyProjectionBatchRefreshesAfterSpeedLoopAndViewportChanges() {
+        var asset=asset();var clip=add(new EntityAnimationClip("Animation",0,4));
+        clip.setAnimationId(asset.id());clip.setLoop(true);
+        var clock=ActorAnimationKeyClock.projection(owner,clip,0,2);
+        var first=clock.times(.25f);assertEquals(List.of(.25f,1.25f),first);
+        assertSame(first,clock.times(.25f));
+        assertThrows(UnsupportedOperationException.class,()->first.add(9f));
+        assertEquals(List.of(2.25f,3.25f),ActorAnimationKeyClock.projection(owner,clip,2,4).times(.25f));
+        clip.setSpeed(2);
+        assertEquals(List.of(.125f,.625f,1.125f,1.625f),ActorAnimationKeyClock.projection(owner,clip,0,2).times(.25f));
+        clip.setLoop(false);
+        assertEquals(List.of(.125f),ActorAnimationKeyClock.projection(owner,clip,0,2).times(.25f));
+    }
+
+    @Test void freshKeyBatchUsesReplacedAssetRatherThanOldDuration() {
+        var asset=asset();var clip=add(new EntityAnimationClip("Animation",0,4));
+        clip.setAnimationId(asset.id());clip.setLoop(true);
+        assertEquals(List.of(.25f,1.25f),ActorAnimationKeyClock.projection(owner,clip,0,2).times(.25f));
+        AnimationAssetLibrary.getInstance().remove(asset.id());
+        var replacement=new AnimationAsset(asset.id(),"Replaced",asset.rig(),2,AnimationLoopMode.LOOP);
+        AnimationAssetLibrary.getInstance().register(replacement);
+        assertEquals(List.of(.25f),ActorAnimationKeyClock.projection(owner,clip,0,2).times(.25f));
+    }
+
+    @Test void sourceKeyBatchRecomputesDistanceAfterRouteEdits() {
+        var asset=asset();asset.setPurpose(com.director.actor.animation.AnimationData.Purpose.LOCOMOTION);
+        var clip=add(new EntityAnimationClip("Animation",0,4));clip.setAnimationId(asset.id());clip.setLoop(true);
+        var actor=ActorRegistryManager.getInstance().resolve(owner.getActorTrackPayload().getActorRef()).orElseThrow();
+        var route=add(new ActorRouteClip("Route",0,4));route.setLoopMode(ActorRouteClip.LoopMode.LOOP);
+        route.setWaypoints(List.of(new org.joml.Vector3f(),new org.joml.Vector3f(16,0,0)));
+        route.setSpeed(actor.getRigProfile().locomotionStride()*.5f);
+        var clock=ActorAnimationKeyClock.projection(owner,clip,0,3);
+        assertEquals(List.of(.5f,2.5f),clock.times(.25f));
+        assertEquals(List.of(1f,3f),clock.times(.5f));
+        route.setSpeed(route.getSpeed()*2);
+        assertEquals(List.of(.25f,1.25f,2.25f),ActorAnimationKeyClock.projection(owner,clip,0,3).times(.25f));
+    }
 }

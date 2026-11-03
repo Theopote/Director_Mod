@@ -404,6 +404,7 @@ public final class ActorBoneTimelineRows {
         rootRows.render(draw, renderModel, track, x, contentX, right, y + height + gap, math);
         var rig = trackRigs.get(track);
         if (rig == null) return;
+        var projections=new IdentityHashMap<EntityAnimationClip,com.director.ui.actor.pose.ActorAnimationKeyClock.Projection>();
         var rows=boneRows(track,rig);
         for (int i = 0; i < rows.size(); i++) {
             var row=rows.get(i);
@@ -458,7 +459,7 @@ public final class ActorBoneTimelineRows {
             // Keep the stroke inside this row so the following background cannot cover it.
             float separatorY=(float)Math.floor(top+CHILD_HEIGHT)-.5f;
             draw.addLine(x,separatorY,right,separatorY,TimelineColors.COLOR_ACTOR_CHILD_SEPARATOR);
-            renderKeys(draw, track, bone.id(), contentX, right, top, math, row.channel());
+            renderKeys(draw, track, bone.id(), contentX, right, top, math, row.channel(),projections);
         }
         float childrenTop=y+height+gap;
         float childrenBottom=childrenTop+(ActorRootTimelineRows.COUNT+rows.size())*CHILD_HEIGHT;
@@ -468,7 +469,8 @@ public final class ActorBoneTimelineRows {
     }
 
     private void renderKeys(ImDrawList draw, TimelineTrack track, String bone, float left, float right,
-                            float top, TimelineRenderMath math, int rowChannel) {
+                            float top, TimelineRenderMath math, int rowChannel,
+                            Map<EntityAnimationClip,com.director.ui.actor.pose.ActorAnimationKeyClock.Projection> projections) {
         draw.pushClipRect(left, top, right, top + CHILD_HEIGHT, true);
         try {
             for (var clip : com.director.ui.actor.pose.ActorEmbeddedAnimation.clips(track.getActorTrackPayload())) {
@@ -477,6 +479,8 @@ public final class ActorBoneTimelineRows {
                 if (asset == null || !asset.rigId().equals(rigFor(track).id())) continue;
                 var boneTrack = asset.findBoneTrack(bone).orElse(null);
                 if (boneTrack == null) continue;
+                var clock=projections.computeIfAbsent(animation,a->com.director.ui.actor.pose.ActorAnimationKeyClock.projection(
+                        track,a,math.xToTime(left),math.xToTime(right)));
                 var channels = List.of(boneTrack.translation(), boneTrack.rotation(), boneTrack.scale());
                 int[] colors = {TimelineColors.rgba(100, 190, 255, 255),
                         TimelineColors.rgba(255, 190, 90, 255), TimelineColors.rgba(140, 220, 130, 255)};
@@ -485,14 +489,13 @@ public final class ActorBoneTimelineRows {
                     float cy = rowChannel>=0 ? top+CHILD_HEIGHT/2 : top + 5 + channel * 7;
                     Set<Integer> pixels = new HashSet<>();
                     for (var key : channels.get(channel).keyframes()) {
-                        var mode = animation.isLoop() ? asset.loopMode() : AnimationLoopMode.ONCE;
                         if (dragging != null && dragging.asset() == asset && dragKeys.containsKey(key(bone,channel,key.time()))) {
                             // Move one asset key; project its preview through every visible reference.
                             float target = key.time()+dragDelta();
-                            for (float preview : com.director.ui.actor.pose.ActorAnimationKeyClock.times(track,animation,target,math.xToTime(left),math.xToTime(right)))
+                            for (float preview : clock.times(target))
                                 draw.addCircle(math.timeToX(preview), cy, 5, colors[channel]);
                         }
-                        for (float time : com.director.ui.actor.pose.ActorAnimationKeyClock.times(track,animation,key.time(),math.xToTime(left),math.xToTime(right))) {
+                        for (float time : clock.times(key.time())) {
                             float px = math.timeToX(time);
                             if (pixels.add(Math.round(px))) draw.addCircleFilled(px, cy, 3, colors[channel]);
                             if(selectedAsset==asset && selectedKeys.containsKey(key(bone,channel,key.time())))

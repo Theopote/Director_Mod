@@ -459,9 +459,11 @@ public class EntityClipSampler {
         result.animationLocalTime = Math.max(0.0f, timeSeconds - active.getStartTime());
         result.animationBlendEnvelope = result.animationBlendSettings.envelopeAt(result.animationLocalTime,active.getLength());
 
-        if(emitEvents && active.hasEvents()) for(var event:active.getEvents())
-            for(float at:AnimationEventClock.times(track,active,event,eventFrom,timeSeconds))
+        if(emitEvents && active.hasEvents()) {
+            var clock=AnimationEventClock.projection(track,active,eventFrom,timeSeconds);
+            for(var event:active.getEvents()) for(float at:clock.times(event))
                 if(at>eventFrom && at<=timeSeconds) result.actionEvents.add(event.getAction());
+        }
     }
 
     /**

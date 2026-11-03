@@ -1,5 +1,6 @@
 package com.director.ui.actor.pose;
 
+import com.director.actor.animation.AnimationData;
 import com.director.actor.animation.asset.AnimationAsset;
 import com.director.actor.animation.asset.AnimationAssetLibrary;
 import com.director.timeline.model.TimelineModel;
@@ -86,7 +87,7 @@ public final class ActorAnimationAssetPanel {
         if(selected!=null) {
             var purposes=com.director.actor.animation.AnimationData.Purpose.values();
             var purpose=new imgui.type.ImInt(selected.purpose().ordinal());
-            if(ImGui.combo("动作用途##assetPurpose",purpose,java.util.Arrays.stream(purposes).map(p->p.label()).toArray(String[]::new)))
+            if(ImGui.combo("动作用途##assetPurpose",purpose,java.util.Arrays.stream(purposes).map(AnimationData.Purpose::label).toArray(String[]::new)))
                 run(()->ActorAnimationAssetEditing.setPurpose(model,library,selected.id(),purposes[purpose.get()]));
             ImGui.textWrapped("循环步态沿路径时按行进距离播放；表演和静态姿态保留片段时钟。");
         }

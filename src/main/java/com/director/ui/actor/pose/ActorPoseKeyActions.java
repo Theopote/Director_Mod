@@ -43,9 +43,10 @@ public final class ActorPoseKeyActions {
         var context=ActorAnimationEditContext.resolve(model,selection.getActorId());
         if(context==null || !context.isCurrent())return false;
         var times=new ArrayList<Float>();
+        var clock=ActorAnimationKeyClock.projection(context.track(),context.clip(),context.start(),context.end());
         for(String bone:selection.getSelectedBoneIds()) context.asset().findBoneTrack(bone).ifPresent(track->{
             for(var channel:java.util.List.of(track.translation(),track.rotation(),track.scale()))
-                for(var key:channel.keyframes()) times.addAll(ActorAnimationKeyClock.times(context.track(),context.clip(),key.time(),context.start(),context.end()));
+                for(var key:channel.keyframes()) times.addAll(clock.times(key.time()));
         });
         return seek(model,times,forward);
     }

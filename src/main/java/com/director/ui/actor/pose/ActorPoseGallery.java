@@ -18,6 +18,7 @@ public final class ActorPoseGallery {
     private final ImInt category=new ImInt(),purpose=new ImInt();
     private final ActorAnimationCatalog.Cache catalog=new ActorAnimationCatalog.Cache();
     private final Map<Object,List<ActorPoseThumbnail.Segment>> thumbnails=new LinkedHashMap<>();
+    private List<ActorSavedPoseLibrary.Saved> observedSavedPoses;
     private UUID actorId;
     private Actor actorIdentity;
     private TimelineModel currentModel;
@@ -106,7 +107,11 @@ public final class ActorPoseGallery {
                 try {
                     var savedPoses=ActorSavedPoseLibrary.current();
                     // Keep the cache bounded and remove obsolete saved poses after edits/world switches.
-                    thumbnails.keySet().removeIf(k->k instanceof ActorSavedPoseLibrary.Saved && !savedPoses.contains(k));
+                    if(observedSavedPoses!=savedPoses) {
+                        var currentPoses=new HashSet<>(savedPoses);
+                        thumbnails.keySet().removeIf(k->k instanceof ActorSavedPoseLibrary.Saved && !currentPoses.contains(k));
+                        observedSavedPoses=savedPoses;
+                    }
                     if(category.get()==0 || category.get()==2) for(var saved:savedPoses) {
                         if(!saved.rigId().equals(rig.id()) || !matches(saved.name())) continue;
                         count++;ImGui.pushID("saved:"+saved.name());

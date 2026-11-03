@@ -1,7 +1,6 @@
 package com.director.ui.actor.pose;
 
 import com.director.actor.animation.asset.AnimationAsset;
-import com.director.actor.animation.asset.AnimationAssetLibrary;
 import com.director.actor.animation.asset.BoneTrack;
 import com.director.actor.animation.asset.ChannelKeyframe;
 import com.director.timeline.model.TimelineModel;
@@ -656,8 +655,8 @@ public final class ActorAnimationDopeSheet {
             selectedAssetId = asset.id();
             selection.clear();
             String[] bones=asset.rig().bones().stream()
-                    .filter(b->ActorBoneInspector.supports(asset.rig(),b.id(),com.director.actor.rig.skeleton.RigPose.ROTATION))
-                    .map(com.director.actor.rig.skeleton.BoneDefinition::id).toArray(String[]::new);
+                    .map(com.director.actor.rig.skeleton.BoneDefinition::id)
+                    .filter(id ->ActorBoneInspector.supports(asset.rig(), id,com.director.actor.rig.skeleton.RigPose.ROTATION)).toArray(String[]::new);
             for (float time : times) for (String bone : bones) selection.add(new KeyId(bone, Channel.ROTATION, time));
             seekToFirst(model, clip);
         }

@@ -20,7 +20,8 @@ public final class ActorAnimationEventTimeline {
     static List<Occurrence> occurrences(TimelineTrack owner,EntityAnimationClip clip,float from,float to) {
         if(owner==null || owner.getActorTrackPayload()==null || clip==null)return List.of();
         var result=new ArrayList<Occurrence>();
-        for(var event:clip.getEvents()) for(float time:AnimationEventClock.times(owner.getActorTrackPayload(),clip,event,from,to))
+        var clock=AnimationEventClock.projection(owner.getActorTrackPayload(),clip,from,to);
+        for(var event:clip.getEvents()) for(float time:clock.times(event))
             result.add(new Occurrence(event,time));
         result.sort(Comparator.comparingDouble(Occurrence::time));
         return List.copyOf(result);
