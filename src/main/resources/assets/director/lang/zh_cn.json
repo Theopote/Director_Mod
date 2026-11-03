@@ -1481,7 +1481,7 @@
   "gui.director.properties.adapter.actor.formation.line": "直线",
   "gui.director.properties.adapter.actor.formation.circle": "圆形",
   "gui.director.properties.adapter.actor.formation.grid": "网格",
-  "gui.director.properties.adapter.actor.formation.follow_leader": "纵队（路线平移）",
+  "gui.director.properties.adapter.actor.formation.follow_leader": "沿路线跟随",
 
   "gui.director.properties.adapter.actor.delay.none": "无",
   "gui.director.properties.adapter.actor.delay.sequential": "顺序",
@@ -1644,7 +1644,7 @@
   "gui.director.properties.adapter.actor.project.group_route": "组路线",
   "gui.director.properties.adapter.actor.project.group_placement": "组放置",
   "gui.director.properties.adapter.actor.project.group_action_tooltip": "从当前播放头时间开始，为组内每个 Actor 创建 ActorActionClip，并应用 Delay 策略。",
-  "gui.director.properties.adapter.actor.project.group_route_tooltip": "复制指定源路线为独立片段，并应用成员延迟。纵队使用平移路线，不沿领队转弯轨迹跟随。",
+  "gui.director.properties.adapter.actor.project.group_route_tooltip": "跟随队形沿同一路线延迟出发，间隔由间距和平均速度换算，并叠加成员延迟；变速和转身阶段不保证固定距离。",
   "gui.director.properties.adapter.actor.project.group_placement_tooltip": "在当前播放头时间创建或更新组成员的 SpawnClip，并按 Formation/Spacing 排布。",
   "gui.director.properties.adapter.actor.project.source_fmt": "来源: %s",
   "gui.director.properties.adapter.actor.project.source_none": "未选中演员",

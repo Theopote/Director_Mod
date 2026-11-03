@@ -1481,7 +1481,7 @@
   "gui.director.properties.adapter.actor.formation.line": "Line",
   "gui.director.properties.adapter.actor.formation.circle": "Circle",
   "gui.director.properties.adapter.actor.formation.grid": "Grid",
-  "gui.director.properties.adapter.actor.formation.follow_leader": "Column (translated routes)",
+  "gui.director.properties.adapter.actor.formation.follow_leader": "Follow route",
 
   "gui.director.properties.adapter.actor.delay.none": "None",
   "gui.director.properties.adapter.actor.delay.sequential": "Sequential",
@@ -1644,7 +1644,7 @@
   "gui.director.properties.adapter.actor.project.group_route": "Group Route",
   "gui.director.properties.adapter.actor.project.group_placement": "Group Placement",
   "gui.director.properties.adapter.actor.project.group_action_tooltip": "From the current playhead, create ActorActionClips for each group member with the delay policy applied.",
-  "gui.director.properties.adapter.actor.project.group_route_tooltip": "Copy the specified source route as independent clips with member delays. Column formation translates routes; it does not follow the leader around corners.",
+  "gui.director.properties.adapter.actor.project.group_route_tooltip": "Follow formation uses the same route with spacing converted to a time lag at nominal speed, plus member delays. Distance may vary during easing and turns.",
   "gui.director.properties.adapter.actor.project.group_placement_tooltip": "At the current playhead, create or update SpawnClips for group members arranged by formation/spacing.",
   "gui.director.properties.adapter.actor.project.source_fmt": "Source: %s",
   "gui.director.properties.adapter.actor.project.source_none": "no selected actor",

@@ -92,7 +92,7 @@ public final class ActorGroupTimelineCommandService {
         List<UUID> eligible = new ArrayList<>();
         List<SkippedMember> skipped = new ArrayList<>(members.skipped());
         for (UUID id : members.eligible()) {
-            float delay = Math.max(0, resolveTriggerTime(triggers, id, 0));
+            float delay = Math.max(0, resolveTriggerTime(triggers, id, 0)) + followDelay(group, source, sourceActorId, id);
             boolean conflict = Objects.requireNonNull(resolveTrack(model, id)).getActorTrackPayload().getClips().stream()
                     .anyMatch(c -> !c.isMuted() && (c instanceof ActorRouteClip || c instanceof EntityTransformClip)
                             && c.getStartTime() < source.getEndTime() + shift + delay && c.getEndTime() > source.getStartTime() + shift + delay);
@@ -220,7 +220,7 @@ public final class ActorGroupTimelineCommandService {
         List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
         for (UUID id : preview.eligible()) {
             var track = resolveTrack(model, id);
-            float delay = Math.max(0, resolveTriggerTime(triggers, id, 0));
+            float delay = Math.max(0, resolveTriggerTime(triggers, id, 0)) + followDelay(group, source, sourceActorId, id);
             ActorRouteClip copy = null;
             if (source != null) {
                 Vector3f offset = computeFormationOffset(group, source, ids.indexOf(id), ids.size());
@@ -233,6 +233,7 @@ public final class ActorGroupTimelineCommandService {
                     if (sourceSpawn != null && memberSpawn != null)
                         offset = new Vector3f(memberSpawn.getPosition()).sub(sourceSpawn.getPosition());
                 }
+                if (group.getFormationType() == ActorGroup.FormationType.FOLLOW_LEADER) offset = new Vector3f();
                 copy = copyRouteClip(source, delay, offset);
                 if (atPlayhead) copy.setTimeRange(model.getCurrentTime() + delay,
                         model.getCurrentTime() + delay + source.getEndTime() - source.getStartTime());
@@ -393,6 +394,22 @@ public final class ActorGroupTimelineCommandService {
             }
         }
         return latestBeforeOrAtPlayhead != null ? latestBeforeOrAtPlayhead : earliestFuture;
+    }
+
+    private static float followDelay(ActorGroup group, ActorRouteClip source, UUID sourceActorId, UUID memberId) {
+        if (group.getFormationType() != ActorGroup.FormationType.FOLLOW_LEADER) return 0;
+        int rank = group.getActorIds().indexOf(memberId);
+        int sourceRank = group.getActorIds().indexOf(sourceActorId);
+        // When the source is a member, reserve the first interval behind that leader.
+        if (sourceRank < 0) rank = Math.max(0, rank);
+        else rank = (int) group.getActorIds().stream().filter(id -> !id.equals(sourceActorId))
+                .takeWhile(id -> !id.equals(memberId)).count() + 1;
+        float speed = source.getSpeed();
+        if (source.getLoopMode() == ActorRouteClip.LoopMode.ONCE) {
+            float length = com.director.timeline.playback.entity.ActorRouteSampler.computeCurveLength(source.getWaypoints(), source.getInterpolationMode());
+            speed = length / Math.max(.0001f, source.getLength());
+        }
+        return rank * group.getFormationSpacing() / Math.max(.05f, speed);
     }
 
     private ActorRouteClip copyRouteClip(ActorRouteClip source, float startDelaySeconds, Vector3f offset) {

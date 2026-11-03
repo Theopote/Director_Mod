@@ -235,6 +235,21 @@ class ActorGroupTransactionsTest {
         assertEquals(99, spawn.getPosition().x);
         spawn.getPosition().x = 10; assertTrue(history.undo()); assertEquals(0, spawn.getPosition().x);
     }
+    @Test void followRouteUsesLeaderHistoryAroundCorner() {
+        var leader = member(ActorType.PLAYER); var follower = member(ActorType.PLAYER);
+        group.setFormationType(ActorGroup.FormationType.FOLLOW_LEADER); group.setFormationSpacing(2);
+        var route = new ActorRouteClip("Corner", 0, 10);
+        route.setWaypoints(List.of(new Vector3f(0,64,0),new Vector3f(0,64,10),new Vector3f(10,64,10)));
+        attach(leader, route);
+        var id = leader.getActorTrackPayload().getActorRef().getActorId();
+        assertEquals(1, service.copyRouteFromActor(model, group, id, route.getId()));
+        var copy = (ActorRouteClip) follower.getActorTrackPayload().getClips().getFirst();
+        assertEquals(1, copy.getStartTime()); assertEquals(11, copy.getEndTime());
+        var expected = new com.director.timeline.playback.entity.EntityClipSampler(leader.getActorTrackPayload()).sampleSnapshot(6).position;
+        var actual = new com.director.timeline.playback.entity.EntityClipSampler(follower.getActorTrackPayload()).sampleSnapshot(7).position;
+        assertEquals(expected, actual);
+        assertTrue(history.undo()); assertTrue(follower.getClips().isEmpty()); assertTrue(history.redo());
+    }
     @Test void failedMemberRollsBackEvenItsPartialWriteAndDoesNotEnterHistory() {
         int[] values = {0,0};
         assertThrows(IllegalStateException.class, () -> ActorGroupEditCommand.execute(model, "Failure", List.of(

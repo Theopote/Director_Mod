@@ -318,9 +318,13 @@ class ActorGroupTimelineCommandServiceTest {
         int created = svc.copyLatestRouteFromActor(model, group, sourceId);
         assertEquals(3, created);
 
-        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt1.getActorTrackPayload(), t1);
-        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt2.getActorTrackPayload(), t2);
-        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt3.getActorTrackPayload(), t3);
+        var copies = java.util.List.of(tt1, tt2, tt3);
+        for (int i = 0; i < copies.size(); i++) {
+            var copy = (ActorRouteClip) copies.get(i).getActorTrackPayload().getClips().getFirst();
+            assertEquals(srcRoute.getWaypoints(), copy.getWaypoints());
+            assertEquals(i * .75f, copy.getStartTime(), EPS);
+            assertEquals(5 + i * .75f, copy.getEndTime(), EPS);
+        }
     }
 
     @Test
