@@ -23,6 +23,7 @@ public final class ActorPathMovementPropertyUI {
         com.director.timeline.model.TimelineTrack owner;
         try {owner=model==null?null:com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model,actorId);}
         catch(IllegalArgumentException unavailable) {ImGui.textWrapped(unavailable.getMessage());return;}
+        if (model != null && owner != null) renderMovementSummary(model, owner);
         com.director.timeline.model.entity.ActorRouteClip existing = null;
         if (model != null && owner != null) {
             var wrapper = model.getSelectedClip();
@@ -32,6 +33,8 @@ public final class ActorPathMovementPropertyUI {
             else existing = com.director.ui.actor.pose.ActorMovementSource.activeRoute(owner, model.getCurrentTime());
         }
         if (existing != null) {
+            if (existing.isMuted() || model.getCurrentTime() < existing.getStartTime() || model.getCurrentTime() > existing.getEndTime())
+                ImGui.textWrapped(tr("inspected_inactive"));
             float length = com.director.timeline.playback.entity.ActorRouteSampler.computeCurveLength(existing.getWaypoints(), existing.getInterpolationMode());
             boolean once = existing.getLoopMode() == com.director.timeline.model.entity.ActorRouteClip.LoopMode.ONCE;
             ImGui.textWrapped(tr("summary") + String.format("%s · %.2f–%.2f s · %s", existing.getName(), existing.getStartTime(), existing.getEndTime(), existing.getLoopMode()));
@@ -74,4 +77,30 @@ public final class ActorPathMovementPropertyUI {
         if (owner == null) ImGui.textWrapped(tr("place_first"));
         if (!error.isEmpty()) ImGui.textWrapped(error);
     }
+    private static void renderMovementSummary(com.director.timeline.model.TimelineModel model,
+            com.director.timeline.model.TimelineTrack owner) {
+        ImGui.textWrapped(tr("context") + owner.getName() + String.format(" · %.2f s", model.getCurrentTime()));
+        if (owner.isMuted()) { ImGui.textWrapped(tr("track_muted")); return; }
+        var sample = new com.director.timeline.playback.entity.EntityClipSampler(owner.getActorTrackPayload()).sampleSnapshot(model.getCurrentTime());
+        if (!sample.active) ImGui.textWrapped(tr("not_present"));
+        if (sample.relationEnabled) ImGui.textWrapped(tr("relation_constraint"));
+        var route = sample.routeClip;
+        if (route != null) {
+            ImGui.textWrapped(tr("effective_route") + route.getName());
+            var wrapper = route.getTimelineClip();
+            if (wrapper != null && wrapper.getParentTrack() == owner && owner.getClips().contains(wrapper)
+                    && ImGui.smallButton(tr("inspect_route") + "##inspectEffectiveRoute")) {
+                model.selectItem(wrapper, false);
+                DirectorServices.get().uiSelection().selectClip(route);
+                com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(wrapper);
+            }
+        } else {
+            boolean transform = owner.getActorTrackPayload().findClipsAt(model.getCurrentTime()).stream()
+                    .anyMatch(c -> c instanceof com.director.timeline.model.entity.EntityTransformClip && !c.isMuted());
+            ImGui.textWrapped(tr(transform ? "effective_transform" : "no_effective_route"));
+        }
+        ImGui.textWrapped(tr("sample_position") + String.format("%.2f, %.2f, %.2f", sample.position.x, sample.position.y, sample.position.z));
+        ImGui.textWrapped(tr("sample_note"));
+    }
+
 }

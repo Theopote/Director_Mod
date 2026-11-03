@@ -2564,5 +2564,18 @@
   "gui.director.actor.group_route.at_playhead": "从当前播放头开始（关闭则保留源时间）",
   "gui.director.actor.path_movement.summary": "路线：",
   "gui.director.actor.path_movement.duration_driven": "由片段时长决定速度：",
-  "gui.director.actor.path_movement.speed_driven": "由速度决定单趟时长："
+  "gui.director.actor.path_movement.speed_driven": "由速度决定单趟时长：",
+  "gui.director.actor.path_movement.context": "当前轨道与场景时间：",
+  "gui.director.actor.path_movement.track_muted": "轨道已禁用，当前不参与播放。",
+  "gui.director.actor.path_movement.not_present": "演员当前未入场或已经离场。",
+  "gui.director.actor.path_movement.relation_constraint": "当前有演员关系约束；最终位置还需经过关系和地形求解。",
+  "gui.director.actor.path_movement.effective_route": "当前采样使用路线：",
+  "gui.director.actor.path_movement.inspect_route": "检查当前生效路线",
+  "gui.director.actor.path_movement.effective_transform": "当前采样使用整体变换，路径不控制基础位置。",
+  "gui.director.actor.path_movement.no_effective_route": "当前没有生效路线，基础位置来自其他整体数据。",
+  "gui.director.actor.path_movement.sample_position": "基础采样位置：",
+  "gui.director.actor.path_movement.sample_note": "此处为轨道基础采样，最终世界位置请结合关系与地形诊断查看。",
+  "gui.director.actor.path_movement.inspected_inactive": "正在检查非生效路线：该片段已禁用，或播放头不在其时间范围内。",
+  "gui.director.actor.group_members.match_count": "将添加 %s 个匹配演员，已有成员保持原顺序。",
+  "gui.director.actor.group_members.add_matches": "添加全部匹配演员（一次撤销）"
 }

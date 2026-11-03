@@ -2564,5 +2564,18 @@
   "gui.director.actor.group_route.at_playhead": "Start at playhead (otherwise keep source time)",
   "gui.director.actor.path_movement.summary": "Route: ",
   "gui.director.actor.path_movement.duration_driven": "Duration-driven speed: ",
-  "gui.director.actor.path_movement.speed_driven": "Speed-driven traversal: "
+  "gui.director.actor.path_movement.speed_driven": "Speed-driven traversal: ",
+  "gui.director.actor.path_movement.context": "Track and scene time: ",
+  "gui.director.actor.path_movement.track_muted": "Track is muted and does not participate in playback.",
+  "gui.director.actor.path_movement.not_present": "Actor has not entered or has already left.",
+  "gui.director.actor.path_movement.relation_constraint": "An actor relation is enabled; final placement also depends on relation and terrain evaluation.",
+  "gui.director.actor.path_movement.effective_route": "Sampled route: ",
+  "gui.director.actor.path_movement.inspect_route": "Inspect effective route",
+  "gui.director.actor.path_movement.effective_transform": "Root transform controls the sampled base position, overriding routes.",
+  "gui.director.actor.path_movement.no_effective_route": "No effective route; base position comes from other root data.",
+  "gui.director.actor.path_movement.sample_position": "Base sampled position: ",
+  "gui.director.actor.path_movement.sample_note": "This is the base track sample. Check relation and terrain diagnostics for final world placement.",
+  "gui.director.actor.path_movement.inspected_inactive": "Inspecting an inactive route: muted or outside the playhead interval.",
+  "gui.director.actor.group_members.match_count": "Add %s matching actors; existing member order is preserved.",
+  "gui.director.actor.group_members.add_matches": "Add all matches (one undo)"
 }
