@@ -1,5 +1,7 @@
 package com.director.ui.properties.adapters;
 
+import com.director.timeline.model.TimelineClip;
+
 import com.director.core.DirectorServices;
 import com.director.actor.Actor;
 import com.director.actor.ActorGroup;
@@ -102,6 +104,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     private final ImFloat groupActionDuration = new ImFloat(2.0f);
     private final imgui.type.ImBoolean groupActionLoop = new imgui.type.ImBoolean(false);
     private final ImFloat groupActionIntensity = new ImFloat(1.0f);
+    private final java.util.Map<ActorGroup, UUID> routeClips = new java.util.WeakHashMap<>();
     private final java.util.Map<ActorGroup, UUID> routeSources = new java.util.WeakHashMap<>();
     
     // Delete confirm state
@@ -262,7 +265,41 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         return false;
     }
 
+    private record GroupResult(TimelineModel model, ActorGroup group, int count, java.util.List<TimelineClip> clips) {}
+    private final java.util.Map<String, GroupResult> groupResults = new java.util.HashMap<>();
+
+    private static java.util.Set<TimelineClip> clipSnapshot(TimelineModel model) {
+        var result = new java.util.HashSet<TimelineClip>();
+        if (model != null) for (var track : model.getAllTracks()) result.addAll(track.getClips());
+        return result;
+    }
+
+    private void rememberGroupResult(String operation, ActorGroup group, int count, TimelineModel model,
+            java.util.Set<TimelineClip> before) {
+        var generated = clipSnapshot(model); generated.removeAll(before);
+        groupResults.put(operation, new GroupResult(model, group, count, java.util.List.copyOf(generated)));
+    }
+
+    private void renderGroupResult(String operation, ActorGroup group) {
+        var result = groupResults.get(operation);
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (result == null || result.model() != model || result.group() != group) return;
+        ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.group_result.completed", result.count()));
+        var attached = result.clips().stream().filter(c -> c.getParentTrack() != null
+                && model.getAllTracks().contains(c.getParentTrack()) && c.getParentTrack().getClips().contains(c)).toList();
+        if (!attached.isEmpty()) {
+            ImGui.pushID("result:" + operation);
+            if (ImGui.smallButton(ActorPropertyAdapterI18n.tr("gui.director.actor.group_result.select"))) {
+                model.clearSelection();
+                attached.forEach(c -> model.selectItem(c, true));
+            }
+            ImGui.popID();
+        }
+    }
+
     public void renderGroupCommands(ActorGroup group) {
+        var currentModel = DirectorServices.get().containerTimeline().getTimelineModel();
+        groupResults.values().removeIf(r -> r.model() != currentModel || r.group() != group);
         renderGroupActionAuthoring(group);
         renderGroupRouteAuthoring(group);
         renderGroupPlacement(group);
@@ -306,6 +343,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.beginDisabled();
         }
         if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CREATE_ACTION_CLIPS) + "##groupCreateAction" + group.getGroupId())) {
+            var resultModel = DirectorServices.get().containerTimeline().getTimelineModel();
+            var beforeClips = clipSnapshot(resultModel);
             int created = ActorGroupTimelineCommandService.getInstance().createActionClips(
                     group,
                     currentBrush,
@@ -313,6 +352,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     groupActionIntensity.get(),
                     groupActionLoop.get()
             );
+            rememberGroupResult("actions", group, created, resultModel, beforeClips);
             LOGGER.info("[ActorProjectPropertyAdapter] Created {} group action clips for {}", created, group.getName());
         }
         if (!canCreate) {
@@ -321,6 +361,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ACTION_TOOLTIP));
         }
+        renderGroupResult("actions", group);
     }
 
     private void renderGroupRouteAuthoring(ActorGroup group) {
@@ -339,6 +380,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 if (ImGui.selectable(candidate.getName() + "##" + candidate.getActorId(), candidate.getActorId().equals(sourceActorId))) {
                     sourceActorId = candidate.getActorId();
                     routeSources.put(group, sourceActorId);
+                    routeClips.remove(group);
                 }
             }
             ImGui.endCombo();
@@ -346,10 +388,26 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
 
         var sourceRoute = sourceActorId == null ? null : ActorGroupTimelineCommandService.getInstance().findLatestRouteClip(
                 DirectorServices.get().containerTimeline().getTimelineModel(), sourceActorId);
+        var routeModel = DirectorServices.get().containerTimeline().getTimelineModel();
+        var routeService = ActorGroupTimelineCommandService.getInstance();
+        UUID routeId = routeClips.get(group);
+        if (routeId != null) sourceRoute = routeService.availableRoutes(routeModel, sourceActorId).stream()
+                .filter(c -> c.getId().equals(routeClips.get(group))).findFirst().orElse(null);
+        String routeLabel = sourceRoute == null ? ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.choose")
+                : String.format("%s (%.2f–%.2f)", sourceRoute.getName(), sourceRoute.getStartTime(), sourceRoute.getEndTime());
+        if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.clip"), routeLabel)) {
+            for (var candidate : routeService.availableRoutes(routeModel, sourceActorId)) {
+                if (ImGui.selectable(String.format("%s (%.2f–%.2f)##%s", candidate.getName(), candidate.getStartTime(), candidate.getEndTime(), candidate.getId()), candidate == sourceRoute)) {
+                    routeClips.put(group, candidate.getId()); sourceRoute = candidate;
+                }
+            }
+            ImGui.endCombo();
+        }
+        routeId = routeClips.get(group);
         if (sourceRoute != null) ImGui.textWrapped(ActorPropertyAdapterI18n.tr(
                 "gui.director.properties.adapter.actor.group_preview.route_source", sourceRoute.getName(), sourceRoute.getStartTime(), sourceRoute.getEndTime()));
         var preview = ActorGroupTimelineCommandService.getInstance().previewRoutes(
-                DirectorServices.get().containerTimeline().getTimelineModel(), group, sourceActorId);
+                DirectorServices.get().containerTimeline().getTimelineModel(), group, sourceActorId, routeId);
         ImGui.pushID("routePreview:" + group.getGroupId());
         renderGroupPreview(preview);
         ImGui.popID();
@@ -358,8 +416,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.beginDisabled();
         }
         if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.COPY_SELECTED_ROUTE) + "##groupCopyRoute" + group.getGroupId())) {
+            var beforeClips = clipSnapshot(routeModel);
             int created = ActorGroupTimelineCommandService.getInstance()
-                    .copyLatestRouteFromActor(group, sourceActorId);
+                    .copyRouteFromActor(routeModel, group, sourceActorId, routeId);
+            rememberGroupResult("routes", group, created, routeModel, beforeClips);
             LOGGER.info("[ActorProjectPropertyAdapter] Copied selected actor route to {} group members", created);
         }
         if (!canCreate) {
@@ -368,6 +428,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ROUTE_TOOLTIP));
         }
+        renderGroupResult("routes", group);
     }
 
     private static void renderGroupPreview(ActorGroupTimelineCommandService.Preview preview) {
@@ -408,7 +469,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.beginDisabled();
         }
         if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PLACE_GROUP_AT_CAMERA) + "##groupPlaceCamera" + group.getGroupId())) {
+            var resultModel = DirectorServices.get().containerTimeline().getTimelineModel();
+            var beforeClips = clipSnapshot(resultModel);
             int placed = ActorGroupTimelineCommandService.getInstance().placeGroupAtCamera(group);
+            rememberGroupResult("placement", group, placed, resultModel, beforeClips);
             LOGGER.info("[ActorProjectPropertyAdapter] Placed {} group actors at camera", placed);
         }
         if (!canPlace) {
@@ -417,6 +481,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_PLACEMENT_TOOLTIP));
         }
+        renderGroupResult("placement", group);
     }
     
     // =========================================================

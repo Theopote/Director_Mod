@@ -170,6 +170,19 @@ class ActorGroupTransactionsTest {
             assertTrue(history.undo());
         }
     }
+    @Test void explicitRouteWinsAndRemovedRouteDoesNotFallBack() {
+        var source = member(ActorType.PLAYER); var target = member(ActorType.PLAYER);
+        var first = new ActorRouteClip("First", 0, 5); first.setWaypoints(List.of(new Vector3f(), new Vector3f(2,0,0))); attach(source, first);
+        var chosen = new ActorRouteClip("Chosen", 10, 15); chosen.setWaypoints(List.of(new Vector3f(), new Vector3f(3,0,0))); attach(source, chosen);
+        var id = source.getActorTrackPayload().getActorRef().getActorId();
+        assertEquals(1, service.copyRouteFromActor(model, group, id, chosen.getId()));
+        assertEquals("Chosen", target.getActorTrackPayload().getClips().getFirst().getName());
+        assertTrue(history.undo()); assertTrue(target.getClips().isEmpty());
+        source.getActorTrackPayload().removeClip(chosen.getId());
+        assertFalse(service.previewRoutes(model, group, id, chosen.getId()).canExecute());
+        assertEquals(0, service.copyRouteFromActor(model, group, id, chosen.getId()));
+        assertTrue(target.getClips().isEmpty());
+    }
     @Test void failedMemberRollsBackEvenItsPartialWriteAndDoesNotEnterHistory() {
         int[] values = {0,0};
         assertThrows(IllegalStateException.class, () -> ActorGroupEditCommand.execute(model, "Failure", List.of(

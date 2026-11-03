@@ -139,16 +139,22 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
 
         if (actor != null && actor.getRigProfile() != null) {
+            if (ImGui.treeNode(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.authoring.style"))) {
             if (RigProfileStylePropertyUI.render(actor)) {
                 var model = DirectorServices.get().containerTimeline().getTimelineModel();
                 if (model != null) model.markDirty();
+            }
+            ImGui.treePop();
             }
         }
 
         if (Objects.equals(tool.id(), ToolRegistry.ACTOR_POSE_TOOL_ID)) {
             renderAnimationAuthoring();
-            renderPoseAuthoring(actor);
-            renderLocalPoseAuthoring(actor);
+            if (ImGui.treeNode(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.authoring.more"))) {
+                renderPoseAuthoring(actor);
+                renderLocalPoseAuthoring(actor);
+                ImGui.treePop();
+            }
         } else if (Objects.equals(tool.id(), ToolRegistry.ACTOR_PATH_TOOL_ID)) {
             renderActorPathToolProperties(actor);
         } else if (ToolRegistry.isActorTransformGizmoToolId(tool.id())) {

@@ -49,7 +49,7 @@ public final class ActorGroupTimelineCommandService {
         return INSTANCE;
     }
 
-    public enum SkipReason { MISSING_ACTOR, NO_TRACK, LOCKED, UNSUPPORTED_ACTION, SOURCE_ACTOR, ROUTE_CONFLICT, PLACEMENT_CONTROLLED, MUTED }
+    public enum SkipReason { MISSING_ACTOR, NO_TRACK, LOCKED, UNSUPPORTED_ACTION, SOURCE_ACTOR, ROUTE_CONFLICT, PLACEMENT_CONTROLLED, MUTED, AMBIGUOUS_TRACK }
     public record SkippedMember(UUID actorId, SkipReason reason) {}
     public record Preview(List<UUID> eligible, List<SkippedMember> skipped, String problem, int overwrittenMembers) {
         public Preview { eligible = List.copyOf(eligible); skipped = List.copyOf(skipped); }
@@ -72,9 +72,13 @@ public final class ActorGroupTimelineCommandService {
     }
 
     public Preview previewRoutes(TimelineModel model, ActorGroup group, UUID sourceActorId) {
+        return previewRoutes(model, group, sourceActorId, null);
+    }
+
+    public Preview previewRoutes(TimelineModel model, ActorGroup group, UUID sourceActorId, UUID routeId) {
         Preview members = previewMembers(model, group, null, sourceActorId);
         if (members.problem() != null) return members;
-        ActorRouteClip source = model == null || sourceActorId == null ? null : findLatestRouteClip(model, sourceActorId);
+        ActorRouteClip source = resolveRoute(model, sourceActorId, routeId);
         if (source == null || source.getWaypoints().size() < 2 || source.isMuted()
                 || ActorRegistryManager.getInstance().getActor(sourceActorId).isEmpty())
             return new Preview(List.of(), members.skipped(), "no_route", 0);
@@ -133,7 +137,11 @@ public final class ActorGroupTimelineCommandService {
             var actor = registry.getActor(id).orElse(null);
             var track = resolveTrack(model, id);
             SkipReason reason = actor == null ? SkipReason.MISSING_ACTOR
-                    : track == null || track.getActorTrackPayload() == null ? SkipReason.NO_TRACK
+                    : track == null ? (model.getAllTracks().stream().filter(t -> t.getActorTrackPayload() != null
+                            && t.getActorTrackPayload().getActorRef() != null
+                            && id.equals(t.getActorTrackPayload().getActorRef().getActorId())).count() > 1
+                            ? SkipReason.AMBIGUOUS_TRACK : SkipReason.NO_TRACK)
+                    : track.getActorTrackPayload() == null ? SkipReason.NO_TRACK
                     : track.isLocked() ? SkipReason.LOCKED
                     : track.isMuted() ? SkipReason.MUTED
                     : id.equals(source) ? SkipReason.SOURCE_ACTOR
@@ -190,9 +198,13 @@ public final class ActorGroupTimelineCommandService {
     }
 
     int copyLatestRouteFromActor(TimelineModel model, ActorGroup group, UUID sourceActorId) {
-        Preview preview = previewRoutes(model, group, sourceActorId);
+        return copyRouteFromActor(model, group, sourceActorId, null);
+    }
+
+    public int copyRouteFromActor(TimelineModel model, ActorGroup group, UUID sourceActorId, UUID routeId) {
+        Preview preview = previewRoutes(model, group, sourceActorId, routeId);
         if (!preview.canExecute()) return 0;
-        var source = findLatestRouteClip(model, sourceActorId);
+        var source = resolveRoute(model, sourceActorId, routeId);
         var ids = group.getActorIds();
         var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, ActorActionType.IDLE, 0);
         List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
@@ -317,6 +329,20 @@ public final class ActorGroupTimelineCommandService {
             ((EntityTimelineClip)wrapper).getEntityClip().setTimelineClip((EntityTimelineClip)wrapper);
             track.addClip(wrapper);
         }
+    }
+
+    public List<ActorRouteClip> availableRoutes(TimelineModel model, UUID actorId) {
+        if (model == null || actorId == null) return List.of();
+        var track = resolveTrack(model, actorId);
+        if (track == null || track.isMuted()) return List.of();
+        return track.getActorTrackPayload().getClips().stream()
+                .filter(c -> c instanceof ActorRouteClip && !c.isMuted()).map(c -> (ActorRouteClip)c)
+                .sorted(java.util.Comparator.comparing(ActorRouteClip::getStartTime)).toList();
+    }
+
+    private ActorRouteClip resolveRoute(TimelineModel model, UUID actorId, UUID routeId) {
+        if (routeId == null) return findLatestRouteClip(model, actorId);
+        return availableRoutes(model, actorId).stream().filter(c -> c.getId().equals(routeId)).findFirst().orElse(null);
     }
 
     public ActorRouteClip findLatestRouteClip(TimelineModel model, UUID actorId) {
