@@ -407,6 +407,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (sourceRoute != null && !groupRouteAtPlayhead.get()) ImGui.textWrapped(ActorPropertyAdapterI18n.tr(
                 "gui.director.properties.adapter.actor.group_preview.route_source", sourceRoute.getName(), sourceRoute.getStartTime(), sourceRoute.getEndTime()));
         ImGui.checkbox(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.at_playhead"), groupRouteAtPlayhead);
+        if (sourceRoute != null && groupRouteAtPlayhead.get() && routeModel != null)
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.output_range",
+                    routeModel.getCurrentTime(), routeModel.getCurrentTime() + sourceRoute.getLength()));
         var preview = ActorGroupTimelineCommandService.getInstance().previewRoutes(
                 DirectorServices.get().containerTimeline().getTimelineModel(), group, sourceActorId, routeId, groupRouteAtPlayhead.get());
         ImGui.pushID("routePreview:" + group.getGroupId());

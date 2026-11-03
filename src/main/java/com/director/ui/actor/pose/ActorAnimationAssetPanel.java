@@ -171,6 +171,7 @@ public final class ActorAnimationAssetPanel {
             }
         }
         ImGui.endDisabled();
+        if (selected != null) ImGui.textWrapped(I18n.translate("gui.director.actor.assets.export_scope"));
         if (selected != null && ImGui.button("导出所选动画##assetExport")) {
             try {
                 String file = chooseFile(true);

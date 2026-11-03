@@ -144,6 +144,23 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
                 if (count == 0) ImGui.textDisabled(memberText("empty"));
                 ImGui.endCombo();
             }
+            if (ImGui.treeNode(memberText("preview"))) {
+                ImGui.textWrapped(memberText("preview_hint"));
+                var triggers = com.director.actor.group.ActorGroupController.getInstance().applyDelayPolicy(
+                        group, com.director.actor.action.ActorActionType.IDLE, 0);
+                for (int i = 0; i < triggers.size(); i++) {
+                    var trigger = triggers.get(i);
+                    String name = registry.getActor(trigger.actorId()).map(Actor::getName).orElse(trigger.actorId().toString());
+                    String trackName;
+                    try {
+                        trackName = model == null ? memberText("no_track") :
+                                com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model, trigger.actorId()).getName();
+                    } catch (IllegalArgumentException unavailable) { trackName = unavailable.getMessage(); }
+                    ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.group_members.preview_row",
+                            i + 1, name, trigger.triggerTime(), trackName));
+                }
+                ImGui.treePop();
+            }
             var members = group.getActorIds();
             for (UUID actorId : members) {
                 String label = registry.getActor(actorId)

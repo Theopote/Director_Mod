@@ -217,6 +217,24 @@ class ActorGroupTransactionsTest {
         assertArrayEquals(new int[]{1,1}, values);
         fail[0]=false; assertTrue(history.undo()); assertArrayEquals(new int[]{0,0}, values);
     }
+    @Test void groupUndoRejectsModifiedActionValuesWithoutOverwritingThem() {
+        var track = member(ActorType.PLAYER);
+        assertEquals(1, service.createActionClips(model, group, ActorActionType.WALK, 2, 1, true));
+        var action = track.getActorTrackPayload().getActionClips().getFirst();
+        action.setIntensity(.25f);
+        assertThrows(IllegalArgumentException.class, history::undo);
+        assertEquals(.25f, action.getIntensity());
+        action.setIntensity(1); assertTrue(history.undo()); assertTrue(track.getClips().isEmpty());
+    }
+    @Test void placementUndoRejectsInPlacePositionModification() {
+        var track = member(ActorType.PLAYER);
+        var spawn = new EntitySpawnClip("Spawn", 0, 10); attach(track, spawn);
+        assertEquals(1, service.placeGroup(model, group, new Vec3d(10,20,30), 0, 0));
+        spawn.getPosition().x = 99;
+        assertThrows(IllegalArgumentException.class, history::undo);
+        assertEquals(99, spawn.getPosition().x);
+        spawn.getPosition().x = 10; assertTrue(history.undo()); assertEquals(0, spawn.getPosition().x);
+    }
     @Test void failedMemberRollsBackEvenItsPartialWriteAndDoesNotEnterHistory() {
         int[] values = {0,0};
         assertThrows(IllegalStateException.class, () -> ActorGroupEditCommand.execute(model, "Failure", List.of(

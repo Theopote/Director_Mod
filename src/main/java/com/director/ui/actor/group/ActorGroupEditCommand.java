@@ -8,19 +8,23 @@ import java.util.List;
 /** One group operation; a failed member restores every member already attempted. */
 final class ActorGroupEditCommand extends BaseTimelineCommand {
     record Change(Runnable before, Runnable after) {}
+    private static final com.google.gson.Gson SNAPSHOT_JSON = new com.google.gson.Gson();
     private final List<Change> changes;
     private final String description;
     private final com.director.actor.ActorRegistry registry = com.director.actor.ActorRegistryManager.getInstance();
     private record TrackState(com.director.timeline.model.TimelineTrack track,
             com.director.timeline.model.entity.ActorTrack payload, com.director.actor.ActorRef actorRef, com.director.actor.Actor actor,
             List<com.director.timeline.model.TimelineClip> wrappers,
-            List<com.director.timeline.model.entity.EntityClip> clips) {}
+            List<com.director.timeline.model.entity.EntityClip> clips,
+            List<com.google.gson.JsonElement> values) {}
     private List<TrackState> expected;
     private List<TrackState> snapshot() {
         return model.getAllTracks().stream().filter(t -> t.getActorTrackPayload() != null)
                 .map(t -> new TrackState(t, t.getActorTrackPayload(), t.getActorTrackPayload().getActorRef(),
                         t.getActorTrackPayload().getActorRef() == null ? null : registry.getActor(t.getActorTrackPayload().getActorRef().getActorId()).orElse(null),
-                        List.copyOf(t.getClips()), List.copyOf(t.getActorTrackPayload().getClips()))).toList();
+                        List.copyOf(t.getClips()), List.copyOf(t.getActorTrackPayload().getClips()),
+                        t.getActorTrackPayload().getClips().stream().map(c -> SNAPSHOT_JSON.toJsonTree(
+                                com.director.timeline.persistence.TimelineModelPersistence.entityClipToDTO(c))).toList())).toList();
     }
     private void validate() {
         if (model.isPlaying() || model.isScrubbing()) throw new IllegalArgumentException("请先暂停播放或时间拖动");
