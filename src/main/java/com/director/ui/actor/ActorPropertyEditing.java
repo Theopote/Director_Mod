@@ -3,6 +3,7 @@ package com.director.ui.actor;
 import com.director.actor.*;
 import com.director.actor.query.ActorUsageQuery;
 import com.director.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.commands.*;
 
 /** Undoable project actor edits; UI supplies preview refresh after a type change. */
@@ -14,7 +15,7 @@ public final class ActorPropertyEditing {
         String before = actor.getName(), after = name.strip();
         if (before.equals(after)) return;
         var tracks = ActorUsageQuery.findTimelineTracksUsingActor(model, actor.getActorId());
-        var names = tracks.stream().map(t -> t.getName()).toList();
+        var names = tracks.stream().map(TimelineTrack::getName).toList();
         var displayNames = tracks.stream().map(t -> t.getActorTrackPayload().getDisplayName()).toList();
         TimelineCommandBridge.execute(new StateChangeCommand(model, "Rename actor", () -> {
             actor.setName(before);

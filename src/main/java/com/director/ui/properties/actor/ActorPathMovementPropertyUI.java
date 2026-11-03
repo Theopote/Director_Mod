@@ -67,7 +67,9 @@ public final class ActorPathMovementPropertyUI {
                 com.director.timeline.model.entity.EntityTimelineClip wrapper;
                 if (existing != null) { ActorPathEditing.switchPath(model, owner, existing, current); wrapper = existing.getTimelineClip(); }
                 else wrapper = ActorPathEditing.attach(model, owner, current.getWaypoints(), current.getInterpolationMode(), current.getName(), current.getId());
-                model.selectItem(wrapper, false);
+                if (model != null) {
+                    model.selectItem(wrapper, false);
+                }
                 DirectorServices.get().uiSelection().setCurrentSelection(wrapper);
                 error = "";
             } catch (IllegalArgumentException | IllegalStateException failure) { error = failure.getMessage(); }

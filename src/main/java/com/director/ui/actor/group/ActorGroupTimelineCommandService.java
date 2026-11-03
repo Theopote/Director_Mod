@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -65,7 +66,7 @@ public final class ActorGroupTimelineCommandService {
         var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, action, Math.max(0, model == null ? 0 : model.getCurrentTime()));
         for (UUID id : members.eligible()) {
             float start = resolveTriggerTime(triggers, id, model.getCurrentTime());
-            if (resolveTrack(model, id).getActorTrackPayload().getActionClips().stream()
+            if (Objects.requireNonNull(resolveTrack(model, id)).getActorTrackPayload().getActionClips().stream()
                     .anyMatch(c -> c.getStartTime() < start + Math.max(0.05f, duration) && c.getEndTime() > start)) overwritten++;
         }
         return new Preview(members.eligible(), members.skipped(), null, overwritten);
@@ -92,7 +93,7 @@ public final class ActorGroupTimelineCommandService {
         List<SkippedMember> skipped = new ArrayList<>(members.skipped());
         for (UUID id : members.eligible()) {
             float delay = Math.max(0, resolveTriggerTime(triggers, id, 0));
-            boolean conflict = resolveTrack(model, id).getActorTrackPayload().getClips().stream()
+            boolean conflict = Objects.requireNonNull(resolveTrack(model, id)).getActorTrackPayload().getClips().stream()
                     .anyMatch(c -> !c.isMuted() && (c instanceof ActorRouteClip || c instanceof EntityTransformClip)
                             && c.getStartTime() < source.getEndTime() + shift + delay && c.getEndTime() > source.getStartTime() + shift + delay);
             if (conflict) skipped.add(new SkippedMember(id, SkipReason.ROUTE_CONFLICT));
@@ -107,7 +108,7 @@ public final class ActorGroupTimelineCommandService {
         List<UUID> eligible = new ArrayList<>();
         List<SkippedMember> skipped = new ArrayList<>(members.skipped());
         for (UUID id : members.eligible()) {
-            var payload = resolveTrack(model, id).getActorTrackPayload();
+            var payload = Objects.requireNonNull(resolveTrack(model, id)).getActorTrackPayload();
             float time = model.getCurrentTime();
             var sample = new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleSnapshot(time);
             boolean controlled = sample.relationEnabled || payload.findClipsAt(time).stream()
@@ -224,8 +225,11 @@ public final class ActorGroupTimelineCommandService {
             if (source != null) {
                 Vector3f offset = computeFormationOffset(group, source, ids.indexOf(id), ids.size());
                 if (group.getFormationType() == ActorGroup.FormationType.FREE) {
-                    var sourceSpawn = findSpawnClipAt(resolveTrack(model, sourceActorId).getActorTrackPayload(), model.getCurrentTime());
-                    var memberSpawn = findSpawnClipAt(track.getActorTrackPayload(), model.getCurrentTime());
+                    var sourceSpawn = findSpawnClipAt(Objects.requireNonNull(resolveTrack(model, sourceActorId)).getActorTrackPayload(), model.getCurrentTime());
+                    EntitySpawnClip memberSpawn = null;
+                    if (track != null) {
+                        memberSpawn = findSpawnClipAt(track.getActorTrackPayload(), model.getCurrentTime());
+                    }
                     if (sourceSpawn != null && memberSpawn != null)
                         offset = new Vector3f(memberSpawn.getPosition()).sub(sourceSpawn.getPosition());
                 }
@@ -235,7 +239,9 @@ public final class ActorGroupTimelineCommandService {
             }
             EntityTimelineClip wrapper = null;
             if (copy != null) {
-                wrapper = prepareWrapper(copy, track.getActorTrackPayload().getColorRgba());
+                if (track != null) {
+                    wrapper = prepareWrapper(copy, track.getActorTrackPayload().getColorRgba());
+                }
             }
             changes.add(addClipChange(track, copy, wrapper));
         }
@@ -296,7 +302,7 @@ public final class ActorGroupTimelineCommandService {
         // Keep existing offsets relative to the first placed, eligible member.
         var spawns = new java.util.LinkedHashMap<UUID, EntitySpawnClip>();
         for (UUID id : members) {
-            var spawn = findSpawnClipAt(resolveTrack(model, id).getActorTrackPayload(), model.getCurrentTime());
+            var spawn = findSpawnClipAt(Objects.requireNonNull(resolveTrack(model, id)).getActorTrackPayload(), model.getCurrentTime());
             if (spawn != null) spawns.put(id, spawn);
         }
         Vector3f anchor = spawns.isEmpty() ? new Vector3f() : new Vector3f(spawns.values().iterator().next().getPosition());

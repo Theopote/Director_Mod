@@ -35,7 +35,6 @@ import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.entity.ActorTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
-import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import imgui.type.ImString;
