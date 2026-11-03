@@ -43,6 +43,7 @@ public final class ActorPathMovementPropertyUI {
             if (com.director.ui.actor.pose.ActorMovementSource.transformOverridesRoute(owner, model.getCurrentTime()))
                 ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.movement.route_conflict"));
             var bound = existing.getSourcePathId() == null ? null : ActorPathLibraryManager.getPath(existing.getSourcePathId());
+            if (existing.getSourcePathId() != null && bound == null) ImGui.textWrapped(tr("missing_source"));
             ImGui.textWrapped(tr(bound == null ? "unlinked" : "linked") + (bound == null ? "" : bound.getName()));
         }
         var selected = path == null ? null : ActorPathLibraryManager.getPath(path);

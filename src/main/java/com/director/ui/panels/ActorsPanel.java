@@ -89,6 +89,12 @@ public final class ActorsPanel extends AbstractPanel {
                     DirectorServices.get().uiSelection().setCurrentSelection(issue.track());
                     com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(issue.track());
                 }
+                var wrapper = issue.currentWrapper(model);
+                if (wrapper != null && ImGui.smallButton(diagnosticText("inspect_clip"))) {
+                    model.selectItem(wrapper, false);
+                    DirectorServices.get().uiSelection().selectClip(issue.clip());
+                    com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(wrapper);
+                }
                 ImGui.popID();
             }
             if (projectIssues.isEmpty()) ImGui.textWrapped(diagnosticText("scan_clear"));

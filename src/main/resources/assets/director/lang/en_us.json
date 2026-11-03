@@ -2631,5 +2631,15 @@
   "gui.director.actor.scene_diagnostics.missing_animation": "Missing animation asset",
   "gui.director.actor.scene_diagnostics.incompatible_rig": "Incompatible animation rig",
   "gui.director.actor.scene_diagnostics.inspect_track": "Inspect track",
-  "gui.director.actor.scene_diagnostics.scan_clear": "No actor binding or animation reference issues found in this scan."
+  "gui.director.actor.scene_diagnostics.scan_clear": "No actor binding or animation reference issues found in this scan.",
+  "gui.director.actor.scene_diagnostics.missing_custom_rig": "Missing custom rig",
+  "gui.director.actor.scene_diagnostics.missing_custom_model": "Missing custom model",
+  "gui.director.actor.scene_diagnostics.model_rig_mismatch": "Model does not match the bound rig",
+  "gui.director.actor.scene_diagnostics.missing_relation_target": "Relation target actor is missing or unset",
+  "gui.director.actor.scene_diagnostics.self_relation": "Relation targets the actor itself",
+  "gui.director.actor.scene_diagnostics.missing_path": "Bound path library source is missing",
+  "gui.director.actor.scene_diagnostics.unsupported_action": "Actor does not support this semantic action",
+  "gui.director.actor.scene_diagnostics.unsupported_relation": "Relation type is not implemented by the runtime",
+  "gui.director.actor.path_movement.missing_source": "The bound library path is missing. The clip may use fallback geometry; select a valid path to repair it.",
+  "gui.director.actor.scene_diagnostics.inspect_clip": "Inspect affected clip"
 }

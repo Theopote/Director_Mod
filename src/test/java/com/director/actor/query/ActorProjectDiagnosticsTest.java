@@ -6,6 +6,48 @@ import com.director.timeline.model.entity.EntityAnimationClip;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 class ActorProjectDiagnosticsTest {
+    @Test void diagnosticNavigationRejectsDetachedClip() {
+        var model = new TimelineModel(new TimelineViewportState());
+        var track = new TimelineTrack("Actor", TrackType.ACTOR); var payload = new ActorTrack(); track.setActorTrackPayload(payload); model.addTrack(track);
+        var clip = new com.director.timeline.model.entity.ActorRelationClip("Follow", 0, 10); payload.addClip(clip);
+        var wrapper = new com.director.timeline.model.entity.EntityTimelineClip(clip, payload.getColorRgba()); track.addClip(wrapper);
+        var issue = new ActorProjectDiagnostics.Issue(track, ActorProjectDiagnostics.Reason.MISSING_RELATION_TARGET, "Follow", clip);
+        assertSame(wrapper, issue.currentWrapper(model));
+        payload.removeClip(clip.getId()); assertNull(issue.currentWrapper(model));
+        payload.addClip(clip); track.removeClip(wrapper); assertNull(issue.currentWrapper(model));
+    }
+    @Test void reportsMissingPathAndUnsupportedStoredBehaviors() {
+        var model = new TimelineModel(new TimelineViewportState()); var registry = new ActorRegistry();
+        var actor = registry.createActor("Cow", ActorType.COW);
+        var payload = new ActorTrack(); payload.setActorRef(new ActorRef(actor.getActorId()));
+        var route = new com.director.timeline.model.entity.ActorRouteClip("Route", 0, 10);
+        route.setSourcePathId(java.util.UUID.randomUUID()); payload.addClip(route);
+        var action = new com.director.timeline.model.entity.ActorActionClip("Dance", 0, 10);
+        action.setActionType(com.director.actor.action.ActorActionType.DANCE); payload.addClip(action);
+        var relation = new com.director.timeline.model.entity.ActorRelationClip("Mirror", 0, 10);
+        relation.setRelationType(com.director.timeline.model.entity.ActorRelationClip.RelationType.MIRROR); payload.addClip(relation);
+        var track = new TimelineTrack("Cow", TrackType.ACTOR); track.setActorTrackPayload(payload); model.addTrack(track);
+        var reasons = ActorProjectDiagnostics.scan(model, registry).stream().map(ActorProjectDiagnostics.Issue::reason).toList();
+        assertTrue(reasons.contains(ActorProjectDiagnostics.Reason.MISSING_PATH));
+        assertTrue(reasons.contains(ActorProjectDiagnostics.Reason.UNSUPPORTED_ACTION));
+        assertTrue(reasons.contains(ActorProjectDiagnostics.Reason.UNSUPPORTED_RELATION));
+        assertNotNull(route.getSourcePathId());
+    }
+    @Test void checksCustomDependenciesAndMissingRelationTargets() {
+        var model = new TimelineModel(new TimelineViewportState()); var registry = new ActorRegistry();
+        var actor = registry.createActor("Custom", ActorType.CUSTOM);
+        actor.setCustomRigId("audit:missing_rig"); actor.setCustomModelId("audit:missing_model");
+        var payload = new ActorTrack(); payload.setActorRef(new ActorRef(actor.getActorId()));
+        var relation = new com.director.timeline.model.entity.ActorRelationClip("Follow", 50, 60);
+        relation.setTargetActorId(java.util.UUID.randomUUID()); payload.addClip(relation);
+        var track = new TimelineTrack("Custom", TrackType.ACTOR); track.setActorTrackPayload(payload); model.addTrack(track);
+        var reasons = ActorProjectDiagnostics.scan(model, registry).stream().map(ActorProjectDiagnostics.Issue::reason).toList();
+        assertTrue(reasons.contains(ActorProjectDiagnostics.Reason.MISSING_CUSTOM_RIG));
+        assertTrue(reasons.contains(ActorProjectDiagnostics.Reason.MISSING_CUSTOM_MODEL));
+        assertTrue(reasons.contains(ActorProjectDiagnostics.Reason.MISSING_RELATION_TARGET));
+        relation.setTargetActorId(actor.getActorId());
+        assertTrue(ActorProjectDiagnostics.scan(model, registry).stream().anyMatch(i -> i.reason() == ActorProjectDiagnostics.Reason.SELF_RELATION));
+    }
     @Test void scansMutedFutureClipsWithoutModifyingThem() {
         var model = new TimelineModel(new TimelineViewportState()); var registry = new ActorRegistry();
         var actor = registry.createActor("A", ActorType.PLAYER);
