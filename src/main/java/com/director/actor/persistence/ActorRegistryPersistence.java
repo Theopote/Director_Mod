@@ -144,6 +144,7 @@ public class ActorRegistryPersistence {
             groupObj.addProperty("formationSpacing", group.getFormationSpacing());
             groupObj.addProperty("delayPolicy", group.getDelayPolicy().name());
             groupObj.addProperty("delayStepSeconds", group.getDelayStepSeconds());
+            groupObj.addProperty("randomSeed", group.getRandomSeed());
 
             JsonArray memberArray = new JsonArray();
             for (UUID actorId : group.getActorIds()) {
@@ -258,6 +259,7 @@ public class ActorRegistryPersistence {
                     UUID groupId = UUID.fromString(groupObj.get("groupId").getAsString());
                     String name = groupObj.has("name") ? groupObj.get("name").getAsString() : "Actor Group";
                     ActorGroup group = new ActorGroup(groupId, name);
+                    if (groupObj.has("randomSeed")) group.setRandomSeed(groupObj.get("randomSeed").getAsLong());
 
                     if (groupObj.has("formationType")) {
                         try {

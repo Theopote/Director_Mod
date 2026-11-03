@@ -28,6 +28,9 @@ public final class ActorGroup {
         RANDOM
     }
 
+    private Long randomSeed;
+    public long getRandomSeed() { return randomSeed == null ? groupId.getMostSignificantBits() ^ groupId.getLeastSignificantBits() : randomSeed; }
+    public void setRandomSeed(long value) { randomSeed = value; }
     private final UUID groupId;
     private String name;
     private final Set<UUID> actorIds = new LinkedHashSet<>();

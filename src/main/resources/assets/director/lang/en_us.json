@@ -2612,5 +2612,17 @@
   "gui.director.actor.group_members.preview_hint": "Delays are relative to group start. Generation may skip locked, unsupported or conflicting members; also review the operation preview.",
   "gui.director.actor.group_members.preview_row": "Slot %s · %s · delay %.2f s · track: %s",
   "gui.director.actor.group_members.no_track": "No available track",
-  "gui.director.actor.group_route.output_range": "Base output interval: %.2f–%.2f s, plus each member delay."
+  "gui.director.actor.group_route.output_range": "Base output interval: %.2f–%.2f s, plus each member delay.",
+  "gui.director.actor.group_members.seed": "Random seed: ",
+  "gui.director.actor.group_members.reroll": "Reroll (undoable)",
+  "gui.director.actor.group_members.seed_hint": "Seed is saved with the group. Changes future generated delays only.",
+  "gui.director.actor.scene_diagnostics.tab": "Scene diagnostics",
+  "gui.director.actor.scene_diagnostics.scope": "Actor issues from the latest runtime sample at the current playhead, not a full project audit. Seek or preview to refresh. Muted tracks are excluded.",
+  "gui.director.actor.scene_diagnostics.no_model": "No timeline available.",
+  "gui.director.actor.scene_diagnostics.search": "Search actors or issues",
+  "gui.director.actor.scene_diagnostics.hidden_only": "Only issues hiding actors",
+  "gui.director.actor.scene_diagnostics.inspect": "Inspect actor",
+  "gui.director.actor.scene_diagnostics.empty": "No current sampled issues match. Assets and other time ranges have not necessarily been validated.",
+  "gui.director.actor.group_members.apply_seed": "Apply seed",
+  "gui.director.actor.group_members.invalid_seed": "Enter a valid signed 64-bit integer."
 }

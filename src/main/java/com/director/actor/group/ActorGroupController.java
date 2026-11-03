@@ -122,7 +122,7 @@ public class ActorGroupController {
                 }
             }
             case RANDOM -> {
-                long seed = group.getGroupId().getMostSignificantBits() ^ group.getGroupId().getLeastSignificantBits();
+                long seed = group.getRandomSeed();
                 java.util.Random random = new java.util.Random(seed);
                 for (UUID actorId : actorIds) {
                     float randomDelay = random.nextFloat() * delayStep * actorIds.size();

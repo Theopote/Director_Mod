@@ -213,12 +213,16 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.endCombo();
         }
         String query = actorSearch.get().strip().toLowerCase(java.util.Locale.ROOT);
-        int visible = 0;
-        for (Actor actor : actors) {
-            if (actorTypeFilter != null && actor.getType() != actorTypeFilter) continue;
-            String label = actor.getName() + " (" + ActorPropertyAdapterI18n.actorTypeLabel(actor.getType()) + ")";
-            if (!label.toLowerCase(java.util.Locale.ROOT).contains(query)) continue;
-            visible++;
+        var filtered = actors.stream().filter(actor -> actorTypeFilter == null || actor.getType() == actorTypeFilter)
+                .filter(actor -> (actor.getName() + " (" + ActorPropertyAdapterI18n.actorTypeLabel(actor.getType()) + ")")
+                        .toLowerCase(java.util.Locale.ROOT).contains(query)).toList();
+        if (filtered.isEmpty()) { ImGui.textDisabled("没有匹配的演员"); return false; }
+        ImGui.beginChild("##actorBrowserRows", 0, Math.min(320f, Math.max(100f, ImGui.getContentRegionAvailY() * .6f)), true);
+        try {
+            imgui.ImGuiListClipper.forEach(filtered.size(), new imgui.callback.ImListClipperCallback() {
+                @Override public void accept(int index) {
+                    Actor actor = filtered.get(index);
+                    String label = actor.getName() + " (" + ActorPropertyAdapterI18n.actorTypeLabel(actor.getType()) + ")";
             ImGui.pushID(actor.getActorId().toString());
             String placeLabel = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.PLACE);
             float buttonWidth = ImGui.calcTextSize(placeLabel).x + ImGui.getStyle().getFramePaddingX() * 2;
@@ -236,8 +240,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.sameLine();
             if (ImGui.smallButton(placeLabel)) ActorSelectionHub.beginPlace(actor);
             ImGui.popID();
-        }
-        if (visible == 0) ImGui.textDisabled("没有匹配的演员");
+                }
+            });
+        } finally { ImGui.endChild(); }
         return false;
     }
 

@@ -2612,5 +2612,17 @@
   "gui.director.actor.group_members.preview_hint": "以下延迟相对整组起始时间。实际生成还会跳过锁定、不支持或冲突成员；请同时查看操作预览。",
   "gui.director.actor.group_members.preview_row": "槽位 %s · %s · 延迟 %.2f 秒 · 轨道：%s",
   "gui.director.actor.group_members.no_track": "无可用轨道",
-  "gui.director.actor.group_route.output_range": "生成基础区间：%.2f–%.2f 秒，各成员再叠加群组延迟。"
+  "gui.director.actor.group_route.output_range": "生成基础区间：%.2f–%.2f 秒，各成员再叠加群组延迟。",
+  "gui.director.actor.group_members.seed": "随机种子：",
+  "gui.director.actor.group_members.reroll": "重新随机（可撤销）",
+  "gui.director.actor.group_members.seed_hint": "种子随群组保存。仅改变之后生成的延迟，已有片段不变。",
+  "gui.director.actor.scene_diagnostics.tab": "场景诊断",
+  "gui.director.actor.scene_diagnostics.scope": "显示当前播放头最新运行采样的演员问题，并非完整工程扫描。移动播放头或预览场景以刷新；禁用轨道不参与此列表。",
+  "gui.director.actor.scene_diagnostics.no_model": "当前没有可用时间线。",
+  "gui.director.actor.scene_diagnostics.search": "搜索演员或问题",
+  "gui.director.actor.scene_diagnostics.hidden_only": "仅显示隐藏演员的问题",
+  "gui.director.actor.scene_diagnostics.inspect": "检查演员",
+  "gui.director.actor.scene_diagnostics.empty": "当前筛选下没有最新采样问题；这不代表所有资产和时间范围均已通过检查。",
+  "gui.director.actor.group_members.apply_seed": "应用种子",
+  "gui.director.actor.group_members.invalid_seed": "请输入范围内的有符号 64 位整数。"
 }

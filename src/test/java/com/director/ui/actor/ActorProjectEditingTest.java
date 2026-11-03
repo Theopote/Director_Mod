@@ -66,6 +66,22 @@ class ActorProjectEditingTest {
         assertThrows(IllegalArgumentException.class, () -> ActorProjectEditing.addMembers(model, registry, group, java.util.List.of(a, java.util.UUID.randomUUID())));
         assertTrue(group.getActorIds().isEmpty()); assertFalse(history.undo());
     }
+    @Test void randomSeedChangesDelayAndUndoRestoresExactSchedule() {
+        var group = registry.createGroup("Cast");
+        group.addActor(registry.createActor("A", ActorType.PLAYER).getActorId());
+        group.addActor(registry.createActor("B", ActorType.PLAYER).getActorId());
+        group.setDelayPolicy(ActorGroup.DelayPolicy.RANDOM); group.setDelayStepSeconds(1);
+        var controller = com.director.actor.group.ActorGroupController.getInstance();
+        var action = com.director.actor.action.ActorActionType.IDLE;
+        var before = ActorProjectEditing.GroupState.capture(group);
+        var schedule = controller.applyDelayPolicy(group, action, 0);
+        ActorProjectEditing.updateGroup(model, registry, group, before, before.withSeed(before.seed() + 1));
+        var changed = controller.applyDelayPolicy(group, action, 0);
+        assertNotEquals(schedule, changed);
+        assertEquals(changed, controller.applyDelayPolicy(group, action, 0));
+        assertTrue(history.undo()); assertEquals(schedule, controller.applyDelayPolicy(group, action, 0));
+        assertTrue(history.redo()); assertEquals(changed, controller.applyDelayPolicy(group, action, 0));
+    }
     @Test void appearanceUndoRetainsPreviousSkinBinding() {
         var actor = registry.createActor("P", ActorType.PLAYER); actor.setSkinFileName("old.png");
         var before = ActorProjectEditing.Appearance.capture(actor);

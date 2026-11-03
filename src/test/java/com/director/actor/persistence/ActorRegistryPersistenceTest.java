@@ -7,6 +7,25 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorRegistryPersistenceTest {
+    @Test void groupRandomSeedAndDelayScheduleSurviveRoundTrip() {
+        var registry = new ActorRegistry(); var group = registry.createGroup("Cast");
+        group.addActor(registry.createActor("A", ActorType.PLAYER).getActorId());
+        group.addActor(registry.createActor("B", ActorType.PLAYER).getActorId());
+        group.setDelayPolicy(com.director.actor.ActorGroup.DelayPolicy.RANDOM); group.setDelayStepSeconds(.7f);
+        group.setRandomSeed(Long.MIN_VALUE + 123);
+        var restored = new ActorRegistry();
+        ActorRegistryPersistence.loadFromJson(restored, ActorRegistryPersistence.getJsonObject(registry));
+        var loaded = restored.getGroup(group.getGroupId()).orElseThrow();
+        assertEquals(group.getRandomSeed(), loaded.getRandomSeed());
+        var controller = com.director.actor.group.ActorGroupController.getInstance();
+        assertEquals(controller.applyDelayPolicy(group, com.director.actor.action.ActorActionType.IDLE, 2),
+                controller.applyDelayPolicy(loaded, com.director.actor.action.ActorActionType.IDLE, 2));
+        var legacy = ActorRegistryPersistence.getJsonObject(registry);
+        legacy.getAsJsonArray("groups").get(0).getAsJsonObject().remove("randomSeed");
+        ActorRegistryPersistence.loadFromJson(restored, legacy);
+        assertEquals(group.getGroupId().getMostSignificantBits() ^ group.getGroupId().getLeastSignificantBits(),
+                restored.getGroup(group.getGroupId()).orElseThrow().getRandomSeed());
+    }
     @Test
     void skinAndAllPlayerModelsSurviveRoundTrip() {
         ActorRegistry registry = new ActorRegistry();

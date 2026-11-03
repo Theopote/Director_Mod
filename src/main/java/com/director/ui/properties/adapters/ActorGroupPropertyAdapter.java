@@ -16,6 +16,9 @@ import imgui.type.ImString;
 import java.util.UUID;
 
 public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGroup> {
+    private final ImString seedDraft = new ImString(32);
+    private ActorGroup seedOwner;
+    private long seedSource;
     private ActorGroup draftOwner;
     private final ImString memberSearch = new ImString(128);
     private static String memberText(String key) { return ActorPropertyAdapterI18n.tr("gui.director.actor.group_members." + key); }
@@ -104,6 +107,24 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
                 changed = true;
             }
 
+            if (group.getDelayPolicy() == ActorGroup.DelayPolicy.RANDOM) {
+                if (seedOwner != group || seedSource != group.getRandomSeed()) {
+                    seedOwner = group; seedSource = group.getRandomSeed(); seedDraft.set(Long.toString(seedSource));
+                }
+                ImGui.inputText(memberText("seed") + "##groupSeed", seedDraft);
+                if (ImGui.button(memberText("apply_seed"))) {
+                    try {
+                        long value = Long.parseLong(seedDraft.get().strip());
+                        commit(group, com.director.ui.actor.ActorProjectEditing.GroupState.capture(group).withSeed(value));
+                        changed = true;
+                    } catch (NumberFormatException invalid) { error = memberText("invalid_seed"); }
+                }
+                if (ImGui.button(memberText("reroll"))) {
+                    commit(group, com.director.ui.actor.ActorProjectEditing.GroupState.capture(group)
+                            .withSeed(group.getRandomSeed() + 1)); changed = true;
+                }
+                ImGui.textWrapped(memberText("seed_hint"));
+            }
             ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.DELAY_STEP) + "##groupDelayStep", stepDraft, 0.0f, 5.0f, "%.2fs");
             editingDraft |= ImGui.isItemActive();
             if (ImGui.isItemDeactivatedAfterEdit()) { commit(group, com.director.ui.actor.ActorProjectEditing.GroupState.capture(group).withStep(stepDraft[0])); changed = true; }

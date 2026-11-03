@@ -10,20 +10,22 @@ import java.util.*;
 public final class ActorProjectEditing {
     private ActorProjectEditing() {}
     public record GroupState(String name,ActorGroup.FormationType formation,float spacing,
-                             ActorGroup.DelayPolicy delay,float step,List<UUID> members) {
+                             ActorGroup.DelayPolicy delay,float step,List<UUID> members,long seed) {
         public GroupState {
             if(name==null || name.isBlank() || !Float.isFinite(spacing) || spacing<.1f || !Float.isFinite(step) || step<0)
                 throw new IllegalArgumentException("分组参数无效");
             name=name.strip();Objects.requireNonNull(formation);Objects.requireNonNull(delay);members=List.copyOf(members);
         }
-        public static GroupState capture(ActorGroup g) {return new GroupState(g.getName(),g.getFormationType(),g.getFormationSpacing(),g.getDelayPolicy(),g.getDelayStepSeconds(),g.getActorIds());}
-        public GroupState withName(String v){return new GroupState(v,formation,spacing,delay,step,members);}
-        public GroupState withFormation(ActorGroup.FormationType v){return new GroupState(name,v,spacing,delay,step,members);}
-        public GroupState withSpacing(float v){return new GroupState(name,formation,v,delay,step,members);}
-        public GroupState withDelay(ActorGroup.DelayPolicy v){return new GroupState(name,formation,spacing,v,step,members);}
-        public GroupState withStep(float v){return new GroupState(name,formation,spacing,delay,v,members);}
-        public GroupState withMembers(List<UUID> v){return new GroupState(name,formation,spacing,delay,step,v);}
+        public static GroupState capture(ActorGroup g) {return new GroupState(g.getName(),g.getFormationType(),g.getFormationSpacing(),g.getDelayPolicy(),g.getDelayStepSeconds(),g.getActorIds(),g.getRandomSeed());}
+        public GroupState withName(String v){return new GroupState(v,formation,spacing,delay,step,members,seed);}
+        public GroupState withFormation(ActorGroup.FormationType v){return new GroupState(name,v,spacing,delay,step,members,seed);}
+        public GroupState withSpacing(float v){return new GroupState(name,formation,v,delay,step,members,seed);}
+        public GroupState withDelay(ActorGroup.DelayPolicy v){return new GroupState(name,formation,spacing,v,step,members,seed);}
+        public GroupState withStep(float v){return new GroupState(name,formation,spacing,delay,v,members,seed);}
+        public GroupState withMembers(List<UUID> v){return new GroupState(name,formation,spacing,delay,step,v,seed);}
+        public GroupState withSeed(long value){return new GroupState(name,formation,spacing,delay,step,members,value);}
         private void apply(ActorGroup g) {
+            g.setRandomSeed(seed);
             g.setName(name);g.setFormationType(formation);g.setFormationSpacing(spacing);g.setDelayPolicy(delay);g.setDelayStepSeconds(step);
             g.clearActors();members.forEach(g::addActor);
         }

@@ -22,6 +22,8 @@ public final class ActorsPanel extends AbstractPanel {
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorsPanel.class);
     private static final String ACTOR_PROJECT_MARKER = "ACTOR_PROJECT";
 
+    private final imgui.type.ImString diagnosticSearch = new imgui.type.ImString(128);
+    private final imgui.type.ImBoolean hiddenOnly = new imgui.type.ImBoolean(false);
     private ActorSelectorPanel actorSelectorPanel;
     private final ActorPathLibraryPanel actorPathLibraryPanel = new ActorPathLibraryPanel();
 
@@ -55,8 +57,48 @@ public final class ActorsPanel extends AbstractPanel {
                 actorPathLibraryPanel.render();
                 ImGui.endTabItem();
             }
+            if (ImGui.beginTabItem(diagnosticText("tab"))) {
+                renderSceneDiagnostics();
+                ImGui.endTabItem();
+            }
             ImGui.endTabBar();
         }
+    }
+
+    private static String diagnosticText(String key) {
+        return ActorPropertyAdapterI18n.tr("gui.director.actor.scene_diagnostics." + key);
+    }
+    private void renderSceneDiagnostics() {
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        ImGui.textWrapped(diagnosticText("scope"));
+        if (model == null) { ImGui.textDisabled(diagnosticText("no_model")); return; }
+        ImGui.inputText(diagnosticText("search"), diagnosticSearch);
+        ImGui.checkbox(diagnosticText("hidden_only"), hiddenOnly);
+        String query = diagnosticSearch.get().strip().toLowerCase(java.util.Locale.ROOT);
+        var tracks = model.getAllTracks().stream().filter(t -> t.getActorTrackPayload() != null
+                && t.getActorTrackPayload().getActorRef() != null && !t.isMuted()).toList();
+        int count = 0;
+        for (var actor : ActorRegistryManager.getInstance().getAllActors()) {
+            var issues = com.director.actor.runtime.ActorRuntimeController.getInstance().diagnostics()
+                    .current(actor.getActorId(), model.getCurrentTime(), tracks);
+            for (var issue : issues) {
+                String reason = issue.reason() == null ? issue.message() : ActorPropertyAdapterI18n.tr(issue.reason().translationKey());
+                if (hiddenOnly.get() && !issue.hidden()) continue;
+                if (!(actor.getName() + " " + reason).toLowerCase(java.util.Locale.ROOT).contains(query)) continue;
+                ImGui.pushID(actor.getActorId() + ":" + count++);
+                ImGui.separator();
+                ImGui.textWrapped(actor.getName() + " · " + ActorPropertyAdapterI18n.tr("gui.director.actor.diagnostics." + (issue.hidden() ? "hidden" : "limited")));
+                ImGui.textWrapped(reason);
+                if (issue.track() instanceof com.director.timeline.model.TimelineTrack track)
+                    ImGui.textWrapped(track.getName() + String.format(" · %.2f s", issue.sampleTime()));
+                if (ImGui.smallButton(diagnosticText("inspect"))) {
+                    com.director.ui.actor.selection.ActorSelectionHub.selectActor(actor.getActorId());
+                    com.director.ui.properties.PropertyContextService.get().inspectActorObject(actor);
+                }
+                ImGui.popID();
+            }
+        }
+        if (count == 0) ImGui.textWrapped(diagnosticText("empty"));
     }
 
     private void renderActorProjectSection() {
