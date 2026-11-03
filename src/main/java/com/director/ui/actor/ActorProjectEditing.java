@@ -54,6 +54,16 @@ public final class ActorProjectEditing {
         else members.remove(actorId);
         updateGroup(model,registry,group,before,before.withMembers(members));
     }
+    public static void addMembers(TimelineModel model, ActorRegistry registry, ActorGroup group, List<UUID> actorIds) {
+        editing(model, registry); requireGroup(registry, group);
+        var before = GroupState.capture(group);
+        var members = new LinkedHashSet<>(before.members());
+        for (UUID id : List.copyOf(actorIds)) {
+            if (!registry.contains(id)) throw new IllegalArgumentException("演员不存在，请刷新成员列表");
+            members.add(id);
+        }
+        updateGroup(model, registry, group, before, before.withMembers(List.copyOf(members)));
+    }
     public static void moveMember(TimelineModel model, ActorRegistry registry, ActorGroup group, UUID actorId, int offset) {
         editing(model, registry); requireGroup(registry, group);
         if (offset != -1 && offset != 1) throw new IllegalArgumentException("成员只能向前或向后移动一位");

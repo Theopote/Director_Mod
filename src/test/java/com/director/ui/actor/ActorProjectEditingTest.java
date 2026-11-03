@@ -49,6 +49,23 @@ class ActorProjectEditingTest {
         assertThrows(IllegalArgumentException.class, () -> ActorProjectEditing.moveMember(model, registry, group, a, 1));
         assertEquals(java.util.List.of(a), group.getActorIds()); assertFalse(history.undo());
     }
+    @Test void batchAddPreservesOrderDeduplicatesAndUndoesTogether() {
+        var group = registry.createGroup("Cast");
+        var a = registry.createActor("A", ActorType.PLAYER).getActorId();
+        var b = registry.createActor("B", ActorType.PLAYER).getActorId();
+        var c = registry.createActor("C", ActorType.PLAYER).getActorId();
+        group.addActor(a);
+        ActorProjectEditing.addMembers(model, registry, group, java.util.List.of(b, a, b, c));
+        assertEquals(java.util.List.of(a, b, c), group.getActorIds());
+        assertTrue(history.undo()); assertEquals(java.util.List.of(a), group.getActorIds()); assertFalse(history.undo());
+        assertTrue(history.redo()); assertEquals(java.util.List.of(a, b, c), group.getActorIds());
+    }
+    @Test void batchAddRejectsMissingActorWithoutPartialMutation() {
+        var group = registry.createGroup("Cast");
+        var a = registry.createActor("A", ActorType.PLAYER).getActorId();
+        assertThrows(IllegalArgumentException.class, () -> ActorProjectEditing.addMembers(model, registry, group, java.util.List.of(a, java.util.UUID.randomUUID())));
+        assertTrue(group.getActorIds().isEmpty()); assertFalse(history.undo());
+    }
     @Test void appearanceUndoRetainsPreviousSkinBinding() {
         var actor = registry.createActor("P", ActorType.PLAYER); actor.setSkinFileName("old.png");
         var before = ActorProjectEditing.Appearance.capture(actor);

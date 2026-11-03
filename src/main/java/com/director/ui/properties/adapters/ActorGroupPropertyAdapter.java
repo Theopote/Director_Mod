@@ -117,6 +117,18 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
             ImGui.textWrapped(memberText("order_hint"));
             ImGui.inputText(memberText("search") + "##memberSearch", memberSearch);
             String query = memberSearch.get().strip().toLowerCase(java.util.Locale.ROOT);
+            var matches = registry.getAllActors().stream()
+                    .filter(a -> !group.containsActor(a.getActorId()) && a.getName().toLowerCase(java.util.Locale.ROOT).contains(query))
+                    .map(Actor::getActorId).toList();
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.group_members.match_count", matches.size()));
+            ImGui.beginDisabled(matches.isEmpty());
+            if (ImGui.button(memberText("add_matches"))) {
+                try {
+                    com.director.ui.actor.ActorProjectEditing.addMembers(model, registry, group, matches);
+                    error = ""; changed = true;
+                } catch (IllegalArgumentException failure) { error = failure.getMessage(); }
+            }
+            ImGui.endDisabled();
             if (ImGui.beginCombo(memberText("add"), memberText("choose"))) {
                 int count = 0;
                 for (Actor candidate : registry.getAllActors()) {
