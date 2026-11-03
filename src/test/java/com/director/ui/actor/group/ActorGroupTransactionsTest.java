@@ -199,6 +199,24 @@ class ActorGroupTransactionsTest {
         assertTrue(history.undo()); assertFalse(target.getActorTrackPayload().getClips().contains(copy));
         assertTrue(history.redo()); assertTrue(target.getActorTrackPayload().getClips().contains(copy));
     }
+    @Test void groupUndoRejectsReplacedTrackPayloadWithoutChangingData() {
+        var track = member(ActorType.PLAYER);
+        assertEquals(1, service.createActionClips(model, group, ActorActionType.WALK, 2, 1, true));
+        var original = track.getActorTrackPayload(); var replacement = new ActorTrack();
+        track.setActorTrackPayload(replacement);
+        assertThrows(IllegalArgumentException.class, history::undo);
+        assertEquals(1, original.getActionClips().size()); assertTrue(replacement.getClips().isEmpty());
+        track.setActorTrackPayload(original); assertTrue(history.undo()); assertTrue(original.getClips().isEmpty());
+    }
+    @Test void failedGroupUndoRestoresAlreadyUndoneMembers() {
+        int[] values = {0,0}; boolean[] fail = {false};
+        ActorGroupEditCommand.execute(model, "Undo failure", List.of(
+                new ActorGroupEditCommand.Change(() -> {values[0]=0; if(fail[0]) throw new IllegalStateException();}, () -> values[0]=1),
+                new ActorGroupEditCommand.Change(() -> values[1]=0, () -> values[1]=1)));
+        fail[0]=true; assertThrows(IllegalStateException.class, history::undo);
+        assertArrayEquals(new int[]{1,1}, values);
+        fail[0]=false; assertTrue(history.undo()); assertArrayEquals(new int[]{0,0}, values);
+    }
     @Test void failedMemberRollsBackEvenItsPartialWriteAndDoesNotEnterHistory() {
         int[] values = {0,0};
         assertThrows(IllegalStateException.class, () -> ActorGroupEditCommand.execute(model, "Failure", List.of(
