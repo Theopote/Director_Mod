@@ -54,6 +54,18 @@ public final class ActorProjectEditing {
         else members.remove(actorId);
         updateGroup(model,registry,group,before,before.withMembers(members));
     }
+    public static void moveMember(TimelineModel model, ActorRegistry registry, ActorGroup group, UUID actorId, int offset) {
+        editing(model, registry); requireGroup(registry, group);
+        if (offset != -1 && offset != 1) throw new IllegalArgumentException("成员只能向前或向后移动一位");
+        var before = GroupState.capture(group);
+        var members = new ArrayList<>(before.members());
+        int index = members.indexOf(actorId);
+        if (index < 0) throw new IllegalArgumentException("成员已不在分组中");
+        int next = index + offset;
+        if (next < 0 || next >= members.size()) return;
+        Collections.swap(members, index, next);
+        updateGroup(model, registry, group, before, before.withMembers(members));
+    }
     public static ActorGroup createGroup(TimelineModel model,ActorRegistry registry,String name) {
         editing(model,registry);var group=new ActorGroup(name);
         TimelineCommandBridge.execute(new StateChangeCommand(model,"Create actor group",()->{

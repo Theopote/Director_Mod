@@ -2546,5 +2546,12 @@
   "gui.director.properties.adapter.actor.group_preview.placement_scope": "Group placement edits spawn positions and skips animation-controlled members. Free formation preserves offsets from the first placed editable member, appends new members along world X, and uses the camera facing.",
   "gui.director.properties.adapter.actor.group_preview.route_source": "Source route: %s (%.2f–%.2f s). Creates independent copies at the original times plus member delays.",
   "gui.director.properties.adapter.actor.group_preview.loop": "Loop action",
-  "gui.director.properties.adapter.actor.group_preview.loop_hint": "Loop within each generated clip duration. Group member delays still apply."
+  "gui.director.properties.adapter.actor.group_preview.loop_hint": "Loop within each generated clip duration. Group member delays still apply.",
+  "gui.director.actor.group_members.order_hint": "Order controls formation slots and delays; the first member leads a follow formation. Changes affect future generation only, not existing animation.",
+  "gui.director.actor.group_members.search": "Search actors to add",
+  "gui.director.actor.group_members.add": "Add member",
+  "gui.director.actor.group_members.choose": "Choose actor",
+  "gui.director.actor.group_members.empty": "No matching actors available",
+  "gui.director.actor.group_members.up": "Move up",
+  "gui.director.actor.group_members.down": "Move down"
 }

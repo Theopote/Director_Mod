@@ -2546,5 +2546,12 @@
   "gui.director.properties.adapter.actor.group_preview.placement_scope": "群组放置修改入场位置；动画控制中的成员会跳过。自由队形以首个已有站位的可编辑成员为锚点，保留相对位置；新成员按间距排在世界 X 方向外侧。朝向统一采用相机朝向。",
   "gui.director.properties.adapter.actor.group_preview.route_source": "源路线：%s（%.2f–%.2f 秒）。将生成独立副本，保留原时间并叠加成员延迟。",
   "gui.director.properties.adapter.actor.group_preview.loop": "循环动作",
-  "gui.director.properties.adapter.actor.group_preview.loop_hint": "循环仅在生成片段的持续时间内生效；成员延迟仍按群组设置应用。"
+  "gui.director.properties.adapter.actor.group_preview.loop_hint": "循环仅在生成片段的持续时间内生效；成员延迟仍按群组设置应用。",
+  "gui.director.actor.group_members.order_hint": "成员顺序决定队形槽位和延迟顺序；跟随队形的第一位为领队。调整仅影响之后生成的片段，已有动画不会自动更新。",
+  "gui.director.actor.group_members.search": "搜索待添加演员",
+  "gui.director.actor.group_members.add": "添加成员",
+  "gui.director.actor.group_members.choose": "选择演员",
+  "gui.director.actor.group_members.empty": "没有可添加的匹配演员",
+  "gui.director.actor.group_members.up": "上移",
+  "gui.director.actor.group_members.down": "下移"
 }

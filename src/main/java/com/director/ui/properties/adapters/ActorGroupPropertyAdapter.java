@@ -17,6 +17,8 @@ import java.util.UUID;
 
 public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGroup> {
     private ActorGroup draftOwner;
+    private final ImString memberSearch = new ImString(128);
+    private static String memberText(String key) { return ActorPropertyAdapterI18n.tr("gui.director.actor.group_members." + key); }
     private final ImString nameDraft = new ImString(128);
     private final float[] spacingDraft = {1};
     private final float[] stepDraft = {0};
@@ -51,6 +53,7 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
 
         var model = com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
         boolean readOnly = model == null || model.isPlaying() || model.isScrubbing();
+        if (draftOwner != group) { memberSearch.set(""); error = ""; }
         if (draftOwner != group || !editingDraft || readOnly) {
             draftOwner = group;
             nameDraft.set(group.getName()); spacingDraft[0] = group.getFormationSpacing(); stepDraft[0] = group.getDelayStepSeconds();
@@ -111,11 +114,44 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_MEMBERS),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
             var registry = ActorRegistryManager.getInstance();
-            for (UUID actorId : group.getActorIds()) {
+            ImGui.textWrapped(memberText("order_hint"));
+            ImGui.inputText(memberText("search") + "##memberSearch", memberSearch);
+            String query = memberSearch.get().strip().toLowerCase(java.util.Locale.ROOT);
+            if (ImGui.beginCombo(memberText("add"), memberText("choose"))) {
+                int count = 0;
+                for (Actor candidate : registry.getAllActors()) {
+                    if (group.containsActor(candidate.getActorId()) || !candidate.getName().toLowerCase(java.util.Locale.ROOT).contains(query)) continue;
+                    count++;
+                    if (ImGui.selectable(candidate.getName() + "##addMember" + candidate.getActorId())) {
+                        try {
+                            com.director.ui.actor.ActorProjectEditing.setMembership(model, registry, group, candidate.getActorId(), true);
+                            error = ""; changed = true;
+                        } catch (IllegalArgumentException failure) { error = failure.getMessage(); }
+                    }
+                }
+                if (count == 0) ImGui.textDisabled(memberText("empty"));
+                ImGui.endCombo();
+            }
+            var members = group.getActorIds();
+            for (UUID actorId : members) {
                 String label = registry.getActor(actorId)
                         .map(Actor::getName)
                         .orElse(actorId.toString());
-                ImGui.bulletText(label);
+                int index = members.indexOf(actorId);
+                ImGui.textWrapped((index + 1) + ". " + label);
+                ImGui.beginDisabled(index == 0);
+                boolean up = ImGui.smallButton(memberText("up") + "##memberUp" + actorId);
+                ImGui.endDisabled(); ImGui.sameLine();
+                ImGui.beginDisabled(index == members.size() - 1);
+                boolean down = ImGui.smallButton(memberText("down") + "##memberDown" + actorId);
+                ImGui.endDisabled();
+                if (up || down) {
+                    try {
+                        com.director.ui.actor.ActorProjectEditing.moveMember(model, registry, group, actorId, up ? -1 : 1);
+                        error = ""; changed = true;
+                    } catch (IllegalArgumentException failure) { error = failure.getMessage(); }
+                    break;
+                }
                 ImGui.sameLine();
                 if (ImGui.button(Icons.DELETE + "##removeGroupActor" + actorId)) {
                     com.director.ui.actor.ActorProjectEditing.setMembership(model, registry, group, actorId, false);

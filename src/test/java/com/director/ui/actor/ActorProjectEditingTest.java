@@ -27,6 +27,28 @@ class ActorProjectEditingTest {
         assertEquals("New", group.getName()); assertEquals(3, group.getFormationSpacing());
         assertTrue(group.containsActor(actor.getActorId()));
     }
+    @Test void memberOrderIsUndoableAndControlsSequentialDelay() {
+        var group = registry.createGroup("Cast");
+        var a = registry.createActor("A", ActorType.PLAYER).getActorId();
+        var b = registry.createActor("B", ActorType.PLAYER).getActorId();
+        group.addActor(a); group.addActor(b);
+        group.setDelayPolicy(ActorGroup.DelayPolicy.SEQUENTIAL); group.setDelayStepSeconds(.5f);
+        ActorProjectEditing.moveMember(model, registry, group, b, -1);
+        assertEquals(java.util.List.of(b, a), group.getActorIds());
+        var triggers = com.director.actor.group.ActorGroupController.getInstance().applyDelayPolicy(group, com.director.actor.action.ActorActionType.IDLE, 2);
+        assertEquals(b, triggers.getFirst().actorId()); assertEquals(2, triggers.getFirst().triggerTime());
+        assertTrue(history.undo()); assertEquals(java.util.List.of(a, b), group.getActorIds());
+        assertTrue(history.redo()); assertEquals(java.util.List.of(b, a), group.getActorIds());
+    }
+    @Test void memberOrderBoundaryAndPlaybackDoNotCreateCommands() {
+        var group = registry.createGroup("Cast");
+        var a = registry.createActor("A", ActorType.PLAYER).getActorId(); group.addActor(a);
+        ActorProjectEditing.moveMember(model, registry, group, a, -1);
+        assertFalse(history.undo());
+        model.setPlaying(true);
+        assertThrows(IllegalArgumentException.class, () -> ActorProjectEditing.moveMember(model, registry, group, a, 1));
+        assertEquals(java.util.List.of(a), group.getActorIds()); assertFalse(history.undo());
+    }
     @Test void appearanceUndoRetainsPreviousSkinBinding() {
         var actor = registry.createActor("P", ActorType.PLAYER); actor.setSkinFileName("old.png");
         var before = ActorProjectEditing.Appearance.capture(actor);
