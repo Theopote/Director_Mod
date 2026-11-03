@@ -24,9 +24,10 @@ public final class ActorPropertyEditing {
             }
         }, () -> {
             actor.setName(after);
-            for (var track : tracks) {
-                track.setName(after);
-                track.getActorTrackPayload().setDisplayName(after);
+            for (int i = 0; i < tracks.size(); i++) {
+                // Only names still following the actor name are synchronized.
+                if (before.equals(names.get(i))) tracks.get(i).setName(after);
+                if (before.equals(displayNames.get(i))) tracks.get(i).getActorTrackPayload().setDisplayName(after);
             }
         }));
     }

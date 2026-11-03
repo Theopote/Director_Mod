@@ -2543,5 +2543,8 @@
   "gui.director.properties.adapter.actor.group_preview.placement_controlled": "整体动画、路径或关系正在控制位置；请使用对应动画编辑器调整。",
   "gui.director.properties.adapter.actor.group_preview.muted": "轨道已禁用",
   "gui.director.properties.adapter.actor.group_preview.pause_required": "请先暂停播放或时间拖动。",
-  "gui.director.properties.adapter.actor.group_preview.placement_scope": "群组放置修改入场位置；动画控制中的成员会跳过，不会覆盖已有动画。"
+  "gui.director.properties.adapter.actor.group_preview.placement_scope": "群组放置修改入场位置；动画控制中的成员会跳过。自由队形以首个已有站位的可编辑成员为锚点，保留相对位置；新成员按间距排在世界 X 方向外侧。朝向统一采用相机朝向。",
+  "gui.director.properties.adapter.actor.group_preview.route_source": "源路线：%s（%.2f–%.2f 秒）。将生成独立副本，保留原时间并叠加成员延迟。",
+  "gui.director.properties.adapter.actor.group_preview.loop": "循环动作",
+  "gui.director.properties.adapter.actor.group_preview.loop_hint": "循环仅在生成片段的持续时间内生效；成员延迟仍按群组设置应用。"
 }

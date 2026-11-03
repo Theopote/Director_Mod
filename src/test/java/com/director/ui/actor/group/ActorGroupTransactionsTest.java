@@ -137,6 +137,39 @@ class ActorGroupTransactionsTest {
         assertEquals(0, service.placeGroup(model, group, Vec3d.ZERO, 0, 0));
         assertFalse(history.undo());
     }
+    @Test void freePlacementPreservesOffsetsAndSeparatesNewMembers() {
+        var a = member(ActorType.PLAYER); var b = member(ActorType.PLAYER); var c = member(ActorType.PLAYER);
+        var first = new EntitySpawnClip("First", 0, 10); first.setPosition(1, 2, 3); attach(a, first);
+        var second = new EntitySpawnClip("Second", 0, 10); second.setPosition(5, 3, 8); attach(b, second);
+        assertEquals(3, service.placeGroup(model, group, new Vec3d(10, 20, 30), 0, 0));
+        assertEquals(new Vector3f(10, 20, 30), first.getPosition());
+        assertEquals(new Vector3f(14, 21, 35), second.getPosition());
+        assertTrue(((EntitySpawnClip)c.getActorTrackPayload().getClips().getFirst()).getPosition().x > 14);
+        assertTrue(history.undo()); assertEquals(new Vector3f(5, 3, 8), second.getPosition());
+        assertTrue(c.getClips().isEmpty()); assertTrue(history.redo());
+        assertEquals(new Vector3f(14, 21, 35), second.getPosition());
+    }
+    @Test void routeBeforeAllClipsUsesNearestFutureRoute() {
+        var source = member(ActorType.PLAYER); var target = member(ActorType.PLAYER);
+        var first = new ActorRouteClip("First", 5, 10); first.setWaypoints(List.of(new Vector3f(), new Vector3f(2,0,0))); attach(source, first);
+        var last = new ActorRouteClip("Last", 20, 25); last.setWaypoints(List.of(new Vector3f(), new Vector3f(3,0,0))); attach(source, last);
+        var id = source.getActorTrackPayload().getActorRef().getActorId();
+        assertSame(first, service.findLatestRouteClip(model, id));
+        assertEquals(1, service.copyLatestRouteFromActor(model, group, id));
+        assertEquals("First", target.getActorTrackPayload().getClips().getFirst().getName());
+        assertTrue(history.undo()); assertTrue(target.getClips().isEmpty());
+    }
+    @Test void actionLoopChoiceSurvivesUndoRedo() {
+        var track = member(ActorType.PLAYER);
+        for (boolean loop : new boolean[]{false, true}) {
+            assertEquals(1, service.createActionClips(model, group, ActorActionType.WALK, 2, 1, loop));
+            assertEquals(loop, track.getActorTrackPayload().getActionClips().getFirst().isLoop());
+            assertTrue(history.undo()); assertTrue(track.getClips().isEmpty());
+            assertTrue(history.redo());
+            assertEquals(loop, track.getActorTrackPayload().getActionClips().getFirst().isLoop());
+            assertTrue(history.undo());
+        }
+    }
     @Test void failedMemberRollsBackEvenItsPartialWriteAndDoesNotEnterHistory() {
         int[] values = {0,0};
         assertThrows(IllegalStateException.class, () -> ActorGroupEditCommand.execute(model, "Failure", List.of(

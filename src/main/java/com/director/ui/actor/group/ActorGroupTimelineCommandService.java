@@ -226,7 +226,7 @@ public final class ActorGroupTimelineCommandService {
         Preview preview = previewPlacement(model, group);
         if (!preview.canExecute() || base == null || !Double.isFinite(base.x) || !Double.isFinite(base.y)
                 || !Double.isFinite(base.z) || !Float.isFinite(yaw) || !Float.isFinite(pitch)) return 0;
-        var positions = GROUP_CONTROLLER.calculateFormation(group, base, yaw);
+        var positions = placementPositions(model, group, preview.eligible(), base, yaw);
         float time = model.getCurrentTime();
         List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
         for (UUID id : preview.eligible()) {
@@ -257,6 +257,35 @@ public final class ActorGroupTimelineCommandService {
         }
         ActorGroupEditCommand.execute(model, "Place actor group", changes);
         return changes.size();
+    }
+
+    private List<ActorGroupController.FormationPosition> placementPositions(TimelineModel model, ActorGroup group,
+            List<UUID> members, Vec3d base, float yaw) {
+        if (group.getFormationType() != ActorGroup.FormationType.FREE)
+            return GROUP_CONTROLLER.calculateFormation(group, base, yaw);
+        // Keep existing offsets relative to the first placed, eligible member.
+        var spawns = new java.util.LinkedHashMap<UUID, EntitySpawnClip>();
+        for (UUID id : members) {
+            var spawn = findSpawnClipAt(resolveTrack(model, id).getActorTrackPayload(), model.getCurrentTime());
+            if (spawn != null) spawns.put(id, spawn);
+        }
+        Vector3f anchor = spawns.isEmpty() ? new Vector3f() : new Vector3f(spawns.values().iterator().next().getPosition());
+        List<ActorGroupController.FormationPosition> result = new ArrayList<>();
+        int unplaced = 0;
+        for (UUID id : members) {
+            var spawn = spawns.get(id);
+            Vec3d position;
+            if (spawn != null) {
+                var offset = new Vector3f(spawn.getPosition()).sub(anchor);
+                position = base.add(offset.x, offset.y, offset.z);
+            } else {
+                // Append new members beyond the existing formation's world-X extent.
+                double edge = spawns.values().stream().mapToDouble(p -> p.getPosition().x - anchor.x).max().orElse(-group.getFormationSpacing());
+                position = base.add(edge + (++unplaced) * group.getFormationSpacing(), 0, 0);
+            }
+            result.add(new ActorGroupController.FormationPosition(id, position, yaw));
+        }
+        return result;
     }
 
     private static EntityTimelineClip prepareWrapper(EntityClip clip, int color) {
@@ -290,7 +319,8 @@ public final class ActorGroupTimelineCommandService {
         }
     }
 
-    private ActorRouteClip findLatestRouteClip(TimelineModel model, UUID actorId) {
+    public ActorRouteClip findLatestRouteClip(TimelineModel model, UUID actorId) {
+        if (model == null || actorId == null) return null;
         TimelineTrack timelineTrack = resolveTrack(model, actorId);
         if (timelineTrack == null || timelineTrack.getActorTrackPayload() == null) {
             return null;
@@ -298,13 +328,13 @@ public final class ActorGroupTimelineCommandService {
 
         float currentTime = model.getCurrentTime();
         ActorRouteClip latestBeforeOrAtPlayhead = null;
-        ActorRouteClip latestOverall = null;
+        ActorRouteClip earliestFuture = null;
         for (EntityClip clip : timelineTrack.getActorTrackPayload().getClips()) {
             if (!(clip instanceof ActorRouteClip routeClip) || routeClip.isMuted()) {
                 continue;
             }
-            if (latestOverall == null || routeClip.getStartTime() > latestOverall.getStartTime()) {
-                latestOverall = routeClip;
+            if (routeClip.getStartTime() > currentTime && (earliestFuture == null || routeClip.getStartTime() < earliestFuture.getStartTime())) {
+                earliestFuture = routeClip;
             }
             if (routeClip.getStartTime() <= currentTime
                     && (latestBeforeOrAtPlayhead == null
@@ -312,7 +342,7 @@ public final class ActorGroupTimelineCommandService {
                 latestBeforeOrAtPlayhead = routeClip;
             }
         }
-        return latestBeforeOrAtPlayhead != null ? latestBeforeOrAtPlayhead : latestOverall;
+        return latestBeforeOrAtPlayhead != null ? latestBeforeOrAtPlayhead : earliestFuture;
     }
 
     private ActorRouteClip copyRouteClip(ActorRouteClip source, float startDelaySeconds, Vector3f offset) {

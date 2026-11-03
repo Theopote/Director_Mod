@@ -2543,5 +2543,8 @@
   "gui.director.properties.adapter.actor.group_preview.placement_controlled": "Position is controlled by root animation, a route or a relation. Edit that animation instead.",
   "gui.director.properties.adapter.actor.group_preview.muted": "Track is muted",
   "gui.director.properties.adapter.actor.group_preview.pause_required": "Pause playback or scrubbing first.",
-  "gui.director.properties.adapter.actor.group_preview.placement_scope": "Group placement edits spawn positions. Members controlled by animation are skipped; existing animation is preserved."
+  "gui.director.properties.adapter.actor.group_preview.placement_scope": "Group placement edits spawn positions and skips animation-controlled members. Free formation preserves offsets from the first placed editable member, appends new members along world X, and uses the camera facing.",
+  "gui.director.properties.adapter.actor.group_preview.route_source": "Source route: %s (%.2f–%.2f s). Creates independent copies at the original times plus member delays.",
+  "gui.director.properties.adapter.actor.group_preview.loop": "Loop action",
+  "gui.director.properties.adapter.actor.group_preview.loop_hint": "Loop within each generated clip duration. Group member delays still apply."
 }

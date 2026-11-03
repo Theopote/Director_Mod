@@ -41,13 +41,24 @@ class ActorPropertyEditingTest {
         model.addTrack(track);
         ActorPropertyEditing.rename(model, actor, "  B  ");
         assertEquals("B", actor.getName());
-        assertEquals("B", track.getName());
+        assertEquals("Track", track.getName());
         assertTrue(history.undo());
         assertEquals("A", actor.getName());
         assertEquals("Track", track.getName());
         assertEquals("Performance", payload.getDisplayName());
         assertTrue(history.redo());
-        assertEquals("B", payload.getDisplayName());
+        assertEquals("Performance", payload.getDisplayName());
+    }
+    @Test void renameKeepsDefaultTrackNamesInSyncAcrossUndoRedo() {
+        var model = new TimelineModel(new TimelineViewportState());
+        var history = new TimelineCommandHistory(); TimelineCommandBridge.bind(history);
+        var actor = new Actor("A", ActorType.PLAYER);
+        var payload = new ActorTrack(); payload.setActorRef(new ActorRef(actor.getActorId())); payload.setDisplayName("A");
+        var track = new TimelineTrack("A", TrackType.ACTOR); track.setActorTrackPayload(payload); model.addTrack(track);
+        ActorPropertyEditing.rename(model, actor, "B");
+        assertEquals("B", track.getName()); assertEquals("B", payload.getDisplayName());
+        assertTrue(history.undo()); assertEquals("A", track.getName()); assertEquals("A", payload.getDisplayName());
+        assertTrue(history.redo()); assertEquals("B", track.getName()); assertEquals("B", payload.getDisplayName());
     }
     @Test void typeChangeRejectedDuringPlayback() {
         var model = new TimelineModel(new TimelineViewportState());

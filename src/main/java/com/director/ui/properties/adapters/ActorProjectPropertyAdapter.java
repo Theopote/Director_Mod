@@ -100,6 +100,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     private final ImString bbModelModelId = new ImString("", 256);
     private String bbModelImportMessage = "";
     private final ImFloat groupActionDuration = new ImFloat(2.0f);
+    private final imgui.type.ImBoolean groupActionLoop = new imgui.type.ImBoolean(false);
     private final ImFloat groupActionIntensity = new ImFloat(1.0f);
     private final java.util.Map<ActorGroup, UUID> routeSources = new java.util.WeakHashMap<>();
     
@@ -293,6 +294,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY) + "##groupActionIntensity" + group.getGroupId(),
                 groupActionIntensity.getData(), 0.0f, 1.0f, "%.2f");
 
+        ImGui.checkbox(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.loop") + "##groupLoop", groupActionLoop);
+        ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.loop_hint"));
         var preview = ActorGroupTimelineCommandService.getInstance().previewActions(
                 DirectorServices.get().containerTimeline().getTimelineModel(), group, currentBrush, groupActionDuration.get());
         ImGui.pushID("actionPreview:" + group.getGroupId());
@@ -308,7 +311,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     currentBrush,
                     groupActionDuration.get(),
                     groupActionIntensity.get(),
-                    false
+                    groupActionLoop.get()
             );
             LOGGER.info("[ActorProjectPropertyAdapter] Created {} group action clips for {}", created, group.getName());
         }
@@ -341,6 +344,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.endCombo();
         }
 
+        var sourceRoute = sourceActorId == null ? null : ActorGroupTimelineCommandService.getInstance().findLatestRouteClip(
+                DirectorServices.get().containerTimeline().getTimelineModel(), sourceActorId);
+        if (sourceRoute != null) ImGui.textWrapped(ActorPropertyAdapterI18n.tr(
+                "gui.director.properties.adapter.actor.group_preview.route_source", sourceRoute.getName(), sourceRoute.getStartTime(), sourceRoute.getEndTime()));
         var preview = ActorGroupTimelineCommandService.getInstance().previewRoutes(
                 DirectorServices.get().containerTimeline().getTimelineModel(), group, sourceActorId);
         ImGui.pushID("routePreview:" + group.getGroupId());
