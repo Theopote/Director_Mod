@@ -102,6 +102,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     private final ImString bbModelModelId = new ImString("", 256);
     private String bbModelImportMessage = "";
     private final ImFloat groupActionDuration = new ImFloat(2.0f);
+    private final imgui.type.ImBoolean groupRouteAtPlayhead = new imgui.type.ImBoolean(false);
     private final imgui.type.ImBoolean groupActionLoop = new imgui.type.ImBoolean(false);
     private final ImFloat groupActionIntensity = new ImFloat(1.0f);
     private final java.util.Map<ActorGroup, UUID> routeClips = new java.util.WeakHashMap<>();
@@ -404,10 +405,11 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.endCombo();
         }
         routeId = routeClips.get(group);
-        if (sourceRoute != null) ImGui.textWrapped(ActorPropertyAdapterI18n.tr(
+        if (sourceRoute != null && !groupRouteAtPlayhead.get()) ImGui.textWrapped(ActorPropertyAdapterI18n.tr(
                 "gui.director.properties.adapter.actor.group_preview.route_source", sourceRoute.getName(), sourceRoute.getStartTime(), sourceRoute.getEndTime()));
+        ImGui.checkbox(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.at_playhead"), groupRouteAtPlayhead);
         var preview = ActorGroupTimelineCommandService.getInstance().previewRoutes(
-                DirectorServices.get().containerTimeline().getTimelineModel(), group, sourceActorId, routeId);
+                DirectorServices.get().containerTimeline().getTimelineModel(), group, sourceActorId, routeId, groupRouteAtPlayhead.get());
         ImGui.pushID("routePreview:" + group.getGroupId());
         renderGroupPreview(preview);
         ImGui.popID();
@@ -418,7 +420,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.COPY_SELECTED_ROUTE) + "##groupCopyRoute" + group.getGroupId())) {
             var beforeClips = clipSnapshot(routeModel);
             int created = ActorGroupTimelineCommandService.getInstance()
-                    .copyRouteFromActor(routeModel, group, sourceActorId, routeId);
+                    .copyRouteFromActor(routeModel, group, sourceActorId, routeId, groupRouteAtPlayhead.get());
             rememberGroupResult("routes", group, created, routeModel, beforeClips);
             LOGGER.info("[ActorProjectPropertyAdapter] Copied selected actor route to {} group members", created);
         }

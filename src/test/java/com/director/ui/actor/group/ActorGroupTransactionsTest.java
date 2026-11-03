@@ -183,6 +183,22 @@ class ActorGroupTransactionsTest {
         assertEquals(0, service.copyRouteFromActor(model, group, id, chosen.getId()));
         assertTrue(target.getClips().isEmpty());
     }
+    @Test void playheadRouteCopyKeepsDurationAndFreeOffsetsAndChecksShiftedConflicts() {
+        var source = member(ActorType.PLAYER); var target = member(ActorType.PLAYER);
+        var a = new EntitySpawnClip("A", 0, 30); a.setPosition(1, 2, 3); attach(source, a);
+        var b = new EntitySpawnClip("B", 0, 30); b.setPosition(5, 3, 8); attach(target, b);
+        var route = new ActorRouteClip("Route", 10, 15); route.setWaypoints(List.of(new Vector3f(1,2,3), new Vector3f(1,2,10))); attach(source, route);
+        var id = source.getActorTrackPayload().getActorRef().getActorId();
+        var conflict = new EntityTransformClip("Conflict", 3, 4); attach(target, conflict);
+        assertFalse(service.previewRoutes(model, group, id, route.getId(), true).canExecute());
+        conflict.setMuted(true);
+        assertEquals(1, service.copyRouteFromActor(model, group, id, route.getId(), true));
+        var copy = target.getActorTrackPayload().getClips().stream().filter(c -> c instanceof ActorRouteClip).map(c -> (ActorRouteClip)c).findFirst().orElseThrow();
+        assertEquals(2, copy.getStartTime()); assertEquals(7, copy.getEndTime());
+        assertEquals(new Vector3f(5,3,8), copy.getWaypoints().getFirst());
+        assertTrue(history.undo()); assertFalse(target.getActorTrackPayload().getClips().contains(copy));
+        assertTrue(history.redo()); assertTrue(target.getActorTrackPayload().getClips().contains(copy));
+    }
     @Test void failedMemberRollsBackEvenItsPartialWriteAndDoesNotEnterHistory() {
         int[] values = {0,0};
         assertThrows(IllegalStateException.class, () -> ActorGroupEditCommand.execute(model, "Failure", List.of(

@@ -76,12 +76,17 @@ public final class ActorGroupTimelineCommandService {
     }
 
     public Preview previewRoutes(TimelineModel model, ActorGroup group, UUID sourceActorId, UUID routeId) {
+        return previewRoutes(model, group, sourceActorId, routeId, false);
+    }
+
+    public Preview previewRoutes(TimelineModel model, ActorGroup group, UUID sourceActorId, UUID routeId, boolean atPlayhead) {
         Preview members = previewMembers(model, group, null, sourceActorId);
         if (members.problem() != null) return members;
         ActorRouteClip source = resolveRoute(model, sourceActorId, routeId);
         if (source == null || source.getWaypoints().size() < 2 || source.isMuted()
                 || ActorRegistryManager.getInstance().getActor(sourceActorId).isEmpty())
             return new Preview(List.of(), members.skipped(), "no_route", 0);
+        float shift = atPlayhead ? model.getCurrentTime() - source.getStartTime() : 0;
         var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, ActorActionType.IDLE, 0);
         List<UUID> eligible = new ArrayList<>();
         List<SkippedMember> skipped = new ArrayList<>(members.skipped());
@@ -89,7 +94,7 @@ public final class ActorGroupTimelineCommandService {
             float delay = Math.max(0, resolveTriggerTime(triggers, id, 0));
             boolean conflict = resolveTrack(model, id).getActorTrackPayload().getClips().stream()
                     .anyMatch(c -> !c.isMuted() && (c instanceof ActorRouteClip || c instanceof EntityTransformClip)
-                            && c.getStartTime() < source.getEndTime() + delay && c.getEndTime() > source.getStartTime() + delay);
+                            && c.getStartTime() < source.getEndTime() + shift + delay && c.getEndTime() > source.getStartTime() + shift + delay);
             if (conflict) skipped.add(new SkippedMember(id, SkipReason.ROUTE_CONFLICT));
             else eligible.add(id);
         }
@@ -202,7 +207,11 @@ public final class ActorGroupTimelineCommandService {
     }
 
     public int copyRouteFromActor(TimelineModel model, ActorGroup group, UUID sourceActorId, UUID routeId) {
-        Preview preview = previewRoutes(model, group, sourceActorId, routeId);
+        return copyRouteFromActor(model, group, sourceActorId, routeId, false);
+    }
+
+    public int copyRouteFromActor(TimelineModel model, ActorGroup group, UUID sourceActorId, UUID routeId, boolean atPlayhead) {
+        Preview preview = previewRoutes(model, group, sourceActorId, routeId, atPlayhead);
         if (!preview.canExecute()) return 0;
         var source = resolveRoute(model, sourceActorId, routeId);
         var ids = group.getActorIds();
@@ -213,7 +222,16 @@ public final class ActorGroupTimelineCommandService {
             float delay = Math.max(0, resolveTriggerTime(triggers, id, 0));
             ActorRouteClip copy = null;
             if (source != null) {
-                copy = copyRouteClip(source, delay, computeFormationOffset(group, source, ids.indexOf(id), ids.size()));
+                Vector3f offset = computeFormationOffset(group, source, ids.indexOf(id), ids.size());
+                if (group.getFormationType() == ActorGroup.FormationType.FREE) {
+                    var sourceSpawn = findSpawnClipAt(resolveTrack(model, sourceActorId).getActorTrackPayload(), model.getCurrentTime());
+                    var memberSpawn = findSpawnClipAt(track.getActorTrackPayload(), model.getCurrentTime());
+                    if (sourceSpawn != null && memberSpawn != null)
+                        offset = new Vector3f(memberSpawn.getPosition()).sub(sourceSpawn.getPosition());
+                }
+                copy = copyRouteClip(source, delay, offset);
+                if (atPlayhead) copy.setTimeRange(model.getCurrentTime() + delay,
+                        model.getCurrentTime() + delay + source.getEndTime() - source.getStartTime());
             }
             EntityTimelineClip wrapper = null;
             if (copy != null) {

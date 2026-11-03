@@ -2560,5 +2560,9 @@
   "gui.director.actor.group_result.select": "Select clips created by this operation",
   "gui.director.properties.adapter.actor.group_preview.ambiguous_track": "Multiple actor tracks: explicitly select the target track or clip first",
   "gui.director.actor.authoring.more": "More performance settings",
-  "gui.director.actor.authoring.style": "Motion style"
+  "gui.director.actor.authoring.style": "Motion style",
+  "gui.director.actor.group_route.at_playhead": "Start at playhead (otherwise keep source time)",
+  "gui.director.actor.path_movement.summary": "Route: ",
+  "gui.director.actor.path_movement.duration_driven": "Duration-driven speed: ",
+  "gui.director.actor.path_movement.speed_driven": "Speed-driven traversal: "
 }

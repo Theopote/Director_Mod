@@ -2560,5 +2560,9 @@
   "gui.director.actor.group_result.select": "选中本次生成的片段",
   "gui.director.properties.adapter.actor.group_preview.ambiguous_track": "演员关联多条轨道；请先明确选择目标轨道或片段",
   "gui.director.actor.authoring.more": "更多表演设置",
-  "gui.director.actor.authoring.style": "动作风格"
+  "gui.director.actor.authoring.style": "动作风格",
+  "gui.director.actor.group_route.at_playhead": "从当前播放头开始（关闭则保留源时间）",
+  "gui.director.actor.path_movement.summary": "路线：",
+  "gui.director.actor.path_movement.duration_driven": "由片段时长决定速度：",
+  "gui.director.actor.path_movement.speed_driven": "由速度决定单趟时长："
 }

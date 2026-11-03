@@ -32,6 +32,11 @@ public final class ActorPathMovementPropertyUI {
             else existing = com.director.ui.actor.pose.ActorMovementSource.activeRoute(owner, model.getCurrentTime());
         }
         if (existing != null) {
+            float length = com.director.timeline.playback.entity.ActorRouteSampler.computeCurveLength(existing.getWaypoints(), existing.getInterpolationMode());
+            boolean once = existing.getLoopMode() == com.director.timeline.model.entity.ActorRouteClip.LoopMode.ONCE;
+            ImGui.textWrapped(tr("summary") + String.format("%s · %.2f–%.2f s · %s", existing.getName(), existing.getStartTime(), existing.getEndTime(), existing.getLoopMode()));
+            ImGui.textWrapped(tr(once ? "duration_driven" : "speed_driven") + String.format("%.2f blocks/s", once ? length / Math.max(.0001f, existing.getLength()) : existing.getSpeed()));
+
             if (com.director.ui.actor.pose.ActorMovementSource.transformOverridesRoute(owner, model.getCurrentTime()))
                 ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.movement.route_conflict"));
             var bound = existing.getSourcePathId() == null ? null : ActorPathLibraryManager.getPath(existing.getSourcePathId());
