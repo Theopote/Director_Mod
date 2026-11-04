@@ -320,7 +320,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         try {
             var assets = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance();
             var builtins = com.director.actor.animation.AnimationLibrary.getInstance();
-            var entries = com.director.ui.actor.pose.ActorAnimationCatalog.entries(assets, builtins.getAllAnimations(), null);
+            var entries = com.director.ui.actor.pose.ActorAnimationCatalog.entries(assets, builtins.getAllAnimations(), null)
+                    .stream().filter(entry -> !entry.isPose()).toList();
             var selected = entries.stream().filter(entry -> entry.id().equals(groupPresetId)).findFirst().orElse(null);
             String selectedName = selected == null ? ActorPropertyAdapterI18n.tr(prefix + "choose") : selected.name();
             if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(prefix + "preset"), selectedName)) {

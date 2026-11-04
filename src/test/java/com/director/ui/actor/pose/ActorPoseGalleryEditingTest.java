@@ -95,4 +95,34 @@ class ActorPoseGalleryEditingTest {
         var asset=AnimationAssetLibrary.getInstance().find(spawn.getBoneAnimationId()).orElseThrow();
         assertEquals(Set.of(HumanoidRig.HEAD),asset.boneTracks().keySet());
     }
+
+    @Test void projectPoseWritesOnlyAuthoredRotationsAtThePlayheadAndCannotBindAsAnAction() {
+        var template = new AnimationAsset("test:pose-template", "Look", ArticulatedPlayerRig.DEFINITION,
+                2f, AnimationLoopMode.ONCE);
+        template.setPurpose(com.director.actor.animation.AnimationData.Purpose.STATIC_POSE);
+        var head = template.getOrCreateBoneTrack(HumanoidRig.HEAD);
+        var start = new Quaternionf().rotateY(.3f);
+        head.rotation().put(0, start, InterpolationMode.LINEAR);
+        head.rotation().put(2, new Quaternionf().rotateY(.9f), InterpolationMode.LINEAR);
+        head.scale().put(0, new Vector3f(2), InterpolationMode.LINEAR);
+        var library = AnimationAssetLibrary.getInstance();
+        library.register(template);
+        assets.add(template.id());
+
+        assertFalse(ActorPoseGalleryEditing.bind(model, actor.getActorId(), spawn, template.id()));
+        assertFalse(ActorPoseGalleryEditing.applyAssetPose(model, actor.getActorId(), List.of(HumanoidRig.HEAD), "wave"));
+        assertFalse(ActorPoseGalleryEditing.applyAssetPose(model, actor.getActorId(), List.of(HumanoidRig.LEFT_ARM), template.id()));
+        assertEquals(0, history.getUndoSize());
+        assertTrue(ActorPoseGalleryEditing.applyAssetPose(model, actor.getActorId(),
+                List.of(HumanoidRig.HEAD, HumanoidRig.LEFT_ARM), template.id()));
+        var written = library.find(spawn.getBoneAnimationId()).orElseThrow();
+        assertEquals(Set.of(HumanoidRig.HEAD), written.boneTracks().keySet());
+        var key = written.findBoneTrack(HumanoidRig.HEAD).orElseThrow();
+        assertTrue(start.equals(key.rotation().findAt(1).orElseThrow().value(), 1e-5f));
+        assertTrue(key.scale().isEmpty());
+        assertNull(spawn.getPreset());
+        assertTrue(history.undo());
+        assertNull(spawn.getBoneAnimationId());
+        assertEquals(2, head.rotation().size());
+    }
 }

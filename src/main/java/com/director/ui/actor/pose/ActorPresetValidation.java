@@ -10,7 +10,15 @@ public final class ActorPresetValidation {
     private ActorPresetValidation() {}
     public static void require(Actor actor,EntitySpawnClip spawn,AnimationAssetLibrary library,String id) {
         if(spawn==null || id==null) throw new IllegalArgumentException("请选择演员片段和动作");
+        requireAction(library, id);
         requireReference(actor, library, id, spawn.getBoneAnimationId());
+    }
+
+    public static void requireAction(AnimationAssetLibrary library, String id) {
+        var purpose = library.find(id).map(AnimationAsset::purpose)
+                .orElseGet(() -> AnimationLibrary.getInstance().get(id).map(AnimationData::purpose).orElse(null));
+        if (purpose == AnimationData.Purpose.STATIC_POSE)
+            throw new IllegalArgumentException("静态姿态请在「姿态」中应用到当前帧。");
     }
 
     public static void requireReference(Actor actor, AnimationAssetLibrary library, String id, String manualId) {

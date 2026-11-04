@@ -87,9 +87,9 @@ public final class ActorAnimationAssetPanel {
         if(selected!=null) {
             var purposes=com.director.actor.animation.AnimationData.Purpose.values();
             var purpose=new imgui.type.ImInt(selected.purpose().ordinal());
-            if(ImGui.combo("动作用途##assetPurpose",purpose,java.util.Arrays.stream(purposes).map(AnimationData.Purpose::label).toArray(String[]::new)))
+            if(ImGui.combo("资产用途##assetPurpose",purpose,java.util.Arrays.stream(purposes).map(AnimationData.Purpose::label).toArray(String[]::new)))
                 run(()->ActorAnimationAssetEditing.setPurpose(model,library,selected.id(),purposes[purpose.get()]));
-            ImGui.textWrapped("循环步态沿路径时按行进距离播放；表演和静态姿态保留片段时钟。");
+            ImGui.textWrapped("静态姿态取资产起点的旋转，应用到当前帧。表演按片段时间播放，循环步态沿路径时按行进距离推进。");
         }
         ImGui.inputText("名称##assetName", name);
         if(ImGui.treeNode("高级：资产标识##assetIdentity")) {
@@ -121,9 +121,10 @@ public final class ActorAnimationAssetPanel {
             TimelineTrack target = null;
             com.director.timeline.model.entity.EntitySpawnClip preview = null;
             String reason = "";
+            boolean staticPose = selected.purpose() == AnimationData.Purpose.STATIC_POSE;
             try {
                 target = ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
-                preview = ActorAnimationAssetEditing.previewPresetAttachment(model, library, selected.id(), target);
+                if (!staticPose) preview = ActorAnimationAssetEditing.previewPresetAttachment(model, library, selected.id(), target);
             } catch (IllegalArgumentException e) { reason = e.getMessage(); }
             if (preview != null) {
                 ImGui.textWrapped("应用到片段：" + preview.getName() + "。保留手动骨骼关键帧。");
@@ -131,12 +132,23 @@ public final class ActorAnimationAssetPanel {
                     ImGui.textWrapped("将替换此片段当前的动作预设，可撤销。");
             }
             if (!reason.isEmpty()) ImGui.textWrapped(reason);
-            ImGui.beginDisabled(preview == null);
-            if (ImGui.button("作为当前演员片段的动作预设##assetAttach")) run(() -> {
-                var track = ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
-                ActorAnimationAssetEditing.applyPreset(model, library, selected.id(), track);
-            });
-            ImGui.endDisabled();
+            if (staticPose) {
+                ImGui.beginDisabled(target == null || rig == null);
+                if (ImGui.button("应用姿态到当前帧##assetApplyPose")) run(() -> {
+                    var bones = rig.bones().stream().map(bone -> bone.id()).toList();
+                    if (!ActorPoseGalleryEditing.applyAssetPose(model, actorId, bones, selected.id()))
+                        throw new IllegalArgumentException("姿态没有可应用的旋转，或目标当前不可编辑。");
+                    com.director.actor.runtime.ActorRuntimeController.getInstance().refreshPosePreview(actorId);
+                });
+                ImGui.endDisabled();
+            } else {
+                ImGui.beginDisabled(preview == null);
+                if (ImGui.button("作为当前演员片段的动作预设##assetAttach")) run(() -> {
+                    var track = ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
+                    ActorAnimationAssetEditing.applyPreset(model, library, selected.id(), track);
+                });
+                ImGui.endDisabled();
+            }
             EntityAnimationClip active = activeClip(model, target);
             if (active != null) {
                 ImGui.textDisabled(I18n.translate("gui.director.actor.assets.current_clip", active.getName(), active.getAnimationId()));

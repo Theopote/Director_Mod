@@ -11,6 +11,7 @@ import java.util.*;
 public final class ActorAnimationCatalog {
     public enum Source { PROJECT, BUILTIN }
     public record Entry(String id,String name,String rigName,AnimationData.Purpose purpose,Source source,boolean compatible) {
+        public boolean isPose() { return purpose == AnimationData.Purpose.STATIC_POSE; }
         public boolean matches(String query) {
             String text=query==null?"":query.strip().toLowerCase(Locale.ROOT);
             return text.isEmpty() || (name+" "+id+" "+rigName+" "+purpose.label()).toLowerCase(Locale.ROOT).contains(text);

@@ -150,6 +150,15 @@ public final class ActorRuntimeController {
         return result;
     }
 
+    /** Read the final visible pose only when it belongs to the current timeline sample. */
+    public com.director.actor.rig.skeleton.RigPose visiblePose(ActorTimelineSource source, UUID actorId) {
+        if (poseFeedback(source, actorId) == null) return null;
+        var entity = ActorPreviewManager.getInstance().getPreview(actorId);
+        if (!(entity instanceof com.director.actor.preview.ActorPosePreview preview)
+                || entity.isRemoved() || entity.isInvisible()) return null;
+        return preview.getFinalRigPose();
+    }
+
     /** Re-evaluate pose/constraints with a pure animation snapshot; never consume or dispatch events. */
     public boolean refreshPosePreview(UUID actorId) {
         synchronizePreviewWorld();

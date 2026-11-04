@@ -15,7 +15,7 @@ import java.util.*;
 /** One discovery surface, with distinct static-pose and time-based action commands. */
 public final class ActorPoseGallery {
     private final ImString query=new ImString(256),name=new ImString(128),rename=new ImString(128);
-    private final ImInt category=new ImInt(),purpose=new ImInt();
+    private final ImInt category=new ImInt(),poseSource=new ImInt(),actionSource=new ImInt(),purpose=new ImInt();
     private final ActorAnimationCatalog.Cache catalog=new ActorAnimationCatalog.Cache();
     private final Map<Object,List<ActorPoseThumbnail.Segment>> thumbnails=new LinkedHashMap<>();
     private List<ActorSavedPoseLibrary.Saved> observedSavedPoses;
@@ -86,17 +86,23 @@ public final class ActorPoseGallery {
                 ImGui.endDisabled();
             }
             ImGui.inputTextWithHint("##search","搜索姿态或动作",query);
-            ImGui.combo("显示##category",category,new String[]{"全部","内置姿态","我的姿态","内置动作","项目动画"});
-            ImGui.combo("动作用途##purpose",purpose,new String[]{"全部用途","表演","循环步态","静态姿态"});
-            if(ImGui.checkbox("姿态仅作用于所选部位##selectedOnly",selectedOnly)) selectedOnly=!selectedOnly;
+            ImGui.combo("预设类型##category",category,new String[]{"姿态","动作"});
+            boolean poses = category.get() == 0;
+            if (poses) {
+                ImGui.combo("来源##poseSource", poseSource, new String[]{"全部来源","内置姿态","我的姿态","项目姿态"});
+                if(ImGui.checkbox("姿态仅作用于所选部位##selectedOnly",selectedOnly)) selectedOnly=!selectedOnly;
+            } else {
+                ImGui.combo("来源##actionSource", actionSource, new String[]{"全部来源","内置动作","项目动作"});
+                ImGui.combo("动作用途##purpose",purpose,new String[]{"全部动作","表演","循环步态"});
+            }
             var selection=ActorBoneSelectionController.getInstance();
             var bones=selectedOnly?(id.equals(selection.getActorId())?selection.getSelectedBoneIds():List.<String>of()):
                     rig.bones().stream().map(BoneDefinition::id).toList();
-            if(selectedOnly && bones.isEmpty()) ImGui.textWrapped("尚未选择部位；请在姿态工具中选择，或关闭此选项以应用全身姿态。");
+            if(poses && selectedOnly && bones.isEmpty()) ImGui.textWrapped("尚未选择部位；请在姿态工具中选择，或关闭此选项以应用全身姿态。");
             boolean canApply=poseReady && !bones.isEmpty();
             if(ImGui.beginChild("galleryResults",0,240,true)) {
                 int count=0;
-                if((category.get()==0 || category.get()==1) && HumanoidTopology.matches(rig))
+                if(poses && (poseSource.get()==0 || poseSource.get()==1) && HumanoidTopology.matches(rig))
                     for(var preset:ActorPosePresets.Preset.values()) if(matches(preset.label())) {
                         count++;
                         thumbnail(()->cached(preset,()->ActorPosePresets.apply(new RigPose(rig),preset,rig.bones().stream().map(BoneDefinition::id).toList())));ImGui.sameLine();
@@ -104,7 +110,7 @@ public final class ActorPoseGallery {
                         if(ImGui.button("应用姿态 · "+preset.label()+"##"+preset.name())) apply(model,id,bones,p->ActorPosePresets.apply(p,preset,bones));
                         ImGui.endDisabled();ImGui.textDisabled("内置姿态 · 当前时间");
                     }
-                try {
+                if (poses && (poseSource.get()==0 || poseSource.get()==2)) try {
                     var savedPoses=ActorSavedPoseLibrary.current();
                     // Keep the cache bounded and remove obsolete saved poses after edits/world switches.
                     if(observedSavedPoses!=savedPoses) {
@@ -112,7 +118,7 @@ public final class ActorPoseGallery {
                         thumbnails.keySet().removeIf(k->k instanceof ActorSavedPoseLibrary.Saved && !currentPoses.contains(k));
                         observedSavedPoses=savedPoses;
                     }
-                    if(category.get()==0 || category.get()==2) for(var saved:savedPoses) {
+                    for(var saved:savedPoses) {
                         if(!saved.rigId().equals(rig.id()) || !matches(saved.name())) continue;
                         count++;ImGui.pushID("saved:"+saved.name());
                         thumbnail(()->cached(saved,()->saved.apply(new RigPose(rig),saved.rotations().keySet())));ImGui.sameLine();
@@ -128,9 +134,31 @@ public final class ActorPoseGallery {
                     }
                 } catch(java.io.IOException failure) {ImGui.textWrapped(failure.getMessage());}
                 var entries=catalog.entries(AnimationAssetLibrary.getInstance(),AnimationLibrary.getInstance(),actor);
-                for(var entry:catalog.filter(entries,query.get(),null,purpose.get()==0?null:AnimationData.Purpose.values()[purpose.get()-1],true,spawn==null?null:spawn.getBoneAnimationId())) {
-                    if(category.get()!=0 && !(category.get()==3 && entry.source()==ActorAnimationCatalog.Source.BUILTIN)
-                            && !(category.get()==4 && entry.source()==ActorAnimationCatalog.Source.PROJECT)) continue;
+                var usage = poses ? AnimationData.Purpose.STATIC_POSE : switch (purpose.get()) {
+                    case 1 -> AnimationData.Purpose.PERFORMANCE;
+                    case 2 -> AnimationData.Purpose.LOCOMOTION;
+                    default -> null;
+                };
+                int sourceFilter = poses ? poseSource.get() : actionSource.get();
+                var source = sourceFilter == 1 ? ActorAnimationCatalog.Source.BUILTIN
+                        : sourceFilter == (poses ? 3 : 2) ? ActorAnimationCatalog.Source.PROJECT : null;
+                for(var entry:catalog.filter(entries,query.get(),source,usage,true,spawn==null?null:spawn.getBoneAnimationId())) {
+                    if (entry.isPose() != poses || poses && poseSource.get() == 2) continue;
+                    if (poses) {
+                        count++;
+                        ImGui.beginDisabled(!canApply);
+                        if (ImGui.button("应用姿态 · " + entry.name() + "##assetPose:" + entry.id())) {
+                            try {
+                                boolean applied = ActorPoseGalleryEditing.applyAssetPose(model, id, bones, entry.id());
+                                if (applied) ActorAnimationAuthoringSettings.getInstance().setEditTarget(ActorAnimationAuthoringSettings.EditTarget.ANIMATION);
+                                message = applied ? "姿态已写入当前帧，可撤销。" : "姿态没有可应用的所选旋转，或目标当前不可编辑。";
+                                if (applied) refresh(id);
+                            } catch (IllegalArgumentException failure) { message = failure.getMessage(); }
+                        }
+                        ImGui.endDisabled();
+                        ImGui.textDisabled(entry.source() == ActorAnimationCatalog.Source.BUILTIN ? "内置姿态 · 当前帧" : "项目姿态 · 当前帧");
+                        continue;
+                    }
                     count++;ImGui.pushID("action:"+entry.id());
                     ImGui.beginDisabled(blocked || spawn==null);
                     if(ImGui.button("绑定动作 · "+entry.name())) {
@@ -145,40 +173,66 @@ public final class ActorPoseGallery {
                     if(entry.purpose()==AnimationData.Purpose.LOCOMOTION) ImGui.textWrapped("行走动作本身不建立路径；沿路径行进可使用自动步态。");
                     ImGui.popID();
                 }
-                if(count==0) ImGui.textWrapped("没有匹配的兼容姿态或动作。");
+                if(count==0) ImGui.textWrapped(poses ? "没有匹配的兼容姿态。" : "没有匹配的兼容动作。");
             }
             ImGui.endChild();
-            ImGui.beginDisabled(blocked);
-            if(ImGui.smallButton("重新加载个人姿态库")) {
-                try {ActorSavedPoseLibrary.reload();thumbnails.clear();editing=null;message="姿态库已重新加载。";}
-                catch(java.io.IOException failure) {message=failure.getMessage();}
-            }
-            ImGui.endDisabled();
-            ImGui.inputTextWithHint("##poseName","为动画层旋转姿态命名",name);
-            ImGui.beginDisabled(!canApply || context==null);
-            if(ImGui.button("保存动画层旋转姿态")) {
-                try {
-                    if (context != null) {
-                        ActorSavedPoseLibrary.add(model,ActorSavedPoseLibrary.capture(name.get(),context.asset().sample(context.assetTime(),AnimationLoopMode.ONCE),bones));
-                    }
-                    message="已保存到当前存档的“我的姿态”。";
-                } catch(java.io.IOException | RuntimeException failure) {message=failure.getMessage();}
-            }
-            ImGui.endDisabled();ImGui.textWrapped("保存动画层中的旋转，不包含路径、自动步态、脚底接触和注视结果。");
-            if(editing!=null) {
-                try {
-                    if(!ActorSavedPoseLibrary.current().contains(editing)) editing=null;
-                    else {
-                        if(deleting) ImGui.textWrapped("删除姿态“"+editing.name()+"”？已写入的关键帧保留；删除可撤销。");
-                        else ImGui.inputText("新名称",rename);
-                        ImGui.beginDisabled(blocked);
-                        if(ImGui.button(deleting?"确认删除":"保存名称")) {ActorSavedPoseLibrary.edit(model,editing,deleting?null:rename.get());editing=null;}
-                        ImGui.endDisabled();ImGui.sameLine();if(ImGui.button("取消")) editing=null;
-                    }
-                } catch(java.io.IOException | RuntimeException failure) {message=failure.getMessage();}
-            }
+            if (poses) renderSavedPoseControls(model, id, context, bones, blocked, canApply);
             if(!message.isEmpty()) ImGui.textWrapped(message);
         } finally {ImGui.popID();}
+    }
+
+    private void renderSavedPoseControls(TimelineModel model, UUID id, ActorAnimationEditContext context,
+                                         Collection<String> bones, boolean blocked, boolean canApply) {
+        ImGui.beginDisabled(blocked);
+        if(ImGui.smallButton("重新加载个人姿态库")) {
+            try {ActorSavedPoseLibrary.reload();thumbnails.clear();editing=null;message="姿态库已重新加载。";}
+            catch(java.io.IOException failure) {message=failure.getMessage();}
+        }
+        ImGui.endDisabled();
+        ImGui.inputTextWithHint("##poseName",poseText("name"),name);
+        ImGui.beginDisabled(!canApply || context==null);
+        if(ImGui.button("保存动画层旋转姿态")) {
+            try {
+                if (context != null) {
+                    ActorSavedPoseLibrary.add(model,ActorSavedPoseLibrary.capture(name.get(),context.asset().sample(context.assetTime(),AnimationLoopMode.ONCE),bones));
+                }
+                message="已保存到当前存档的“我的姿态”。";
+            } catch(java.io.IOException | RuntimeException failure) {message=failure.getMessage();}
+        }
+        ImGui.endDisabled();ImGui.textWrapped("保存动画层中的旋转，不包含路径、自动步态、脚底接触和注视结果。");
+        var runtime = com.director.actor.runtime.ActorRuntimeController.getInstance();
+        boolean canSaveVisible = !blocked && !bones.isEmpty() && runtime.poseFeedback(model, id) != null;
+        ImGui.beginDisabled(!canSaveVisible);
+        if (ImGui.button(poseText("save_visible"))) {
+            try {
+                var visible = runtime.visiblePose(model, id);
+                if (visible == null || !RigPoseComposer.sameLayout(rig, visible.rig())) {
+                    message = poseText("visible_unavailable");
+                } else {
+                    ActorSavedPoseLibrary.add(model, ActorSavedPoseLibrary.capture(name.get(), visible, bones));
+                    message = "已保存到当前存档的“我的姿态”。";
+                }
+            } catch (java.io.IOException | RuntimeException failure) { message = failure.getMessage(); }
+        }
+        ImGui.endDisabled();
+        ImGui.textWrapped(poseText("visible_hint"));
+        if (!blocked && !canSaveVisible && !bones.isEmpty()) ImGui.textDisabled(poseText("visible_unavailable"));
+        if(editing!=null) {
+            try {
+                if(!ActorSavedPoseLibrary.current().contains(editing)) editing=null;
+                else {
+                    if(deleting) ImGui.textWrapped("删除姿态“"+editing.name()+"”？已写入的关键帧保留；删除可撤销。");
+                    else ImGui.inputText("新名称",rename);
+                    ImGui.beginDisabled(blocked);
+                    if(ImGui.button(deleting?"确认删除":"保存名称")) {ActorSavedPoseLibrary.edit(model,editing,deleting?null:rename.get());editing=null;}
+                    ImGui.endDisabled();ImGui.sameLine();if(ImGui.button("取消")) editing=null;
+                }
+            } catch(java.io.IOException | RuntimeException failure) {message=failure.getMessage();}
+        }
+    }
+
+    private static String poseText(String key) {
+        return net.minecraft.client.resource.language.I18n.translate("gui.director.actor.saved_pose." + key);
     }
 
     private boolean matches(String text) {return text.toLowerCase(Locale.ROOT).contains(query.get().strip().toLowerCase(Locale.ROOT));}

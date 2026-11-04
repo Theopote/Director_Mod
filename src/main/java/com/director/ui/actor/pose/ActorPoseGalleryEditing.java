@@ -19,6 +19,36 @@ public final class ActorPoseGalleryEditing {
         return ActorAnimationAssetEditing.resolveActorTrack(model, actorId);
     }
 
+    /** A static asset contributes its start pose and only the rotations it actually authors. */
+    public static boolean applyAssetPose(TimelineModel model, UUID actorId, Collection<String> selected, String id) {
+        var actor = ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
+        var rig = ActorRigCompatibility.resolveRig(actor).orElse(null);
+        if (rig == null) return false;
+        var asset = AnimationAssetLibrary.getInstance().find(id).orElse(null);
+        RigPose sampled;
+        if (asset != null) {
+            if (asset.purpose() != AnimationData.Purpose.STATIC_POSE || !ActorRigCompatibility.accepts(actor, asset.rigId())
+                    || !RigPoseComposer.sameLayout(rig, asset.rig())) return false;
+            sampled = asset.sample(0f, AnimationLoopMode.ONCE);
+        } else {
+            var data = AnimationLibrary.getInstance().get(id).orElse(null);
+            if (data == null || data.purpose() != AnimationData.Purpose.STATIC_POSE) return false;
+            sampled = AnimationDataSampler.sampleRig(id, rig, 0f, false, 1f);
+            if (sampled == null) return false;
+        }
+        var bones = selected.stream().filter(bone -> ActorBoneInspector.supports(rig, bone, RigPose.ROTATION))
+                .filter(bone -> (sampled.authoredChannels(rig.requireBoneIndex(bone)) & RigPose.ROTATION) != 0)
+                .distinct().toList();
+        return apply(model, actorId, bones, pose -> {
+            for (String bone : bones) {
+                int index = pose.rig().requireBoneIndex(bone);
+                pose.setLocalTransform(index, pose.localTransform(index).withRotation(sampled.localTransform(bone).rotation()),
+                        RigPose.ROTATION);
+            }
+            return pose;
+        });
+    }
+
     public static boolean apply(TimelineModel model, UUID actorId, Collection<String> selected,
                                 UnaryOperator<RigPose> operation) {
         var actor = ActorRegistryManager.getInstance().getActor(actorId).orElseThrow();

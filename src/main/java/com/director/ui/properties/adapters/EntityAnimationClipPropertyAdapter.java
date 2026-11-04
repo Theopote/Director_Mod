@@ -24,6 +24,7 @@ public class EntityAnimationClipPropertyAdapter implements IPropertyAdapter<Enti
         boolean changed=false;
         if(ImGui.beginCombo("动画",current==null?clip.getAnimationId():current.name())) {
             for(var entry:entries) {
+                if (entry.isPose() && !entry.id().equals(clip.getAnimationId())) continue;
                 ImGui.beginDisabled(!entry.compatible());
                 if(ImGui.selectable(entry.name()+" · "+entry.rigName()+"##"+entry.id(),entry.id().equals(clip.getAnimationId()))) {
                     clip.setAnimationId(entry.id());

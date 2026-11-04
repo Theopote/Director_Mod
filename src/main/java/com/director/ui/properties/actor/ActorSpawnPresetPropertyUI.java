@@ -208,7 +208,7 @@ public final class ActorSpawnPresetPropertyUI {
                         gesture.requestCommit();
                     }
                     for (var entry : catalog) {
-                        if (!entry.compatible() || entry.id().equals(draft.getBoneAnimationId())) continue;
+                        if (entry.isPose() || !entry.compatible() || entry.id().equals(draft.getBoneAnimationId())) continue;
                         if (ImGui.selectable(entry.name() + "##" + entry.id(), entry.id().equals(id))
                                 && !entry.id().equals(id)) {
                             boolean first = binding == null;
