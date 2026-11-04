@@ -8,6 +8,7 @@ public final class ActorAnimationEditingLifecycle {
         com.director.ui.timeline.render.ActorBoneTimelineRows.closeAllTransientEditors();
         ActorAnimationDopeSheet.cancelKeyInteraction();
         ActorKeyframeTimePanel.cancelAll();
+        ActorKeyframeInterpolationPanel.cancelAll();
         ActorBonePropertiesPanel.cancelNumericDraft();
         var gizmo=ActorBoneGizmoController.getInstance();
         if(gizmo.isDragging()) gizmo.cancelDraft();

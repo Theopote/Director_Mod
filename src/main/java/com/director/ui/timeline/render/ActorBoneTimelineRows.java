@@ -11,6 +11,7 @@ import com.director.ui.actor.pose.ActorAnimationEditContext;
 import com.director.ui.actor.pose.ActorAnimationAuthoringService;
 import com.director.ui.actor.pose.ActorBonePropertiesPanel;
 import com.director.ui.actor.pose.ActorBoneGizmoController;
+import com.director.ui.actor.pose.ActorKeyframeInterpolationPanel;
 import imgui.flag.ImGuiKey;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import imgui.ImDrawList;
@@ -32,6 +33,7 @@ public final class ActorBoneTimelineRows {
     }
     public static final float CHILD_HEIGHT = 24f;
     private final ActorRootTimelineRows rootRows = new ActorRootTimelineRows();
+    private final ActorKeyframeInterpolationPanel interpolationPanel = new ActorKeyframeInterpolationPanel();
     private TimelineModel renderModel;
     private final Set<TimelineTrack> expanded = Collections.newSetFromMap(new IdentityHashMap<>());
     private final Set<TimelineTrack> supported = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -242,7 +244,7 @@ public final class ActorBoneTimelineRows {
             }
             timePanel.cancel(); actionMenu=false; pendingKeys=List.of(); ImGui.closeCurrentPopup(); return true;
         }
-        boolean interpolationChanged=com.director.ui.actor.pose.ActorKeyframeInterpolationPanel.render(context,selectedKeys.keySet(),hasSelection);
+        boolean interpolationChanged=interpolationPanel.render(context,selectedKeys.keySet(),hasSelection);
         boolean changed=interpolationChanged || (copy?executeKeyCommand(model,"copy"):delete?executeKeyCommand(model,"delete"):
                 paste && executeKeyCommand(model, "paste"));
         if(changed) { actionMenu=false; pendingKeys=List.of(); ImGui.closeCurrentPopup(); }

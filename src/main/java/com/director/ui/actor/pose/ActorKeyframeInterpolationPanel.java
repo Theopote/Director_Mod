@@ -6,32 +6,46 @@ import java.util.*;
 
 /** Shared existing-key editor used by the timeline menu and actor dope sheet. */
 public final class ActorKeyframeInterpolationPanel {
-    private ActorKeyframeInterpolationPanel() {}
+    private static final Set<ActorKeyframeInterpolationPanel> instances = Collections.newSetFromMap(new WeakHashMap<>());
+    private final ActorBezierHandleEditor handles = new ActorBezierHandleEditor();
+
+    public ActorKeyframeInterpolationPanel() { instances.add(this); }
+
+    static void cancelAll() {
+        for (var panel : new ArrayList<>(instances)) panel.handles.cancel();
+    }
+
     private static String tr(String key) {
         return net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys."+key);
     }
-    public static boolean render(ActorAnimationEditContext context, Collection<ActorAnimationAuthoringService.Key> selection, boolean enabled) {
+    public boolean render(ActorAnimationEditContext context, Collection<ActorAnimationAuthoringService.Key> selection, boolean enabled) {
         var keys=selection==null?List.<ActorAnimationAuthoringService.Key>of():new ArrayList<>(new LinkedHashSet<>(selection));
         var modes=new LinkedHashSet<InterpolationMode>();
-        BezierEase ease = null;
+        ChannelKeyframe<?> bezier = null;
+        ChannelKeyframe<?> successor = null;
         boolean valid=context!=null && context.isCurrent() && !keys.isEmpty();
         for(var key:keys) {
             var track=context==null || key==null?null:context.asset().findBoneTrack(key.boneId()).orElse(null);
             if(track==null || key.channel()==null) { valid=false; continue; }
-            ChannelKeyframe<?> frame=switch(key.channel()) {
-                case TRANSLATION -> track.translation().findAt(key.time()).orElse(null);
-                case ROTATION -> track.rotation().findAt(key.time()).orElse(null);
-                case SCALE -> track.scale().findAt(key.time()).orElse(null);
+            KeyframeTrack<?> channel = switch (key.channel()) {
+                case TRANSLATION -> track.translation();
+                case ROTATION -> track.rotation();
+                case SCALE -> track.scale();
             };
+            ChannelKeyframe<?> frame = channel.findAt(key.time()).orElse(null);
             if(frame==null) valid=false;
             else {
                 modes.add(frame.interpolation());
-                if (keys.size() == 1) ease = frame.ease();
+                if (keys.size() == 1 && frame.ease() != null) {
+                    bezier = frame;
+                    successor = channel.keyframes().stream().filter(next -> next.time() > frame.time()).findFirst().orElse(null);
+                }
             }
         }
-        String preview=modes.size()==1?tr("mode."+modes.iterator().next().name().toLowerCase(Locale.ROOT)):tr("mixed");
+        String preview=modes.size()==1?tr("mode."+ modes.getFirst().name().toLowerCase(Locale.ROOT)):tr("mixed");
         boolean changed=false;
-        ImGui.beginDisabled(!enabled || !valid);
+        boolean writable = enabled && valid;
+        ImGui.beginDisabled(!writable);
         try {
             if(ImGui.beginCombo(tr("edit_interpolation"),preview)) {
                 try {
@@ -42,8 +56,17 @@ public final class ActorKeyframeInterpolationPanel {
                     }
                 } finally { ImGui.endCombo(); }
             }
-            if (!changed && ease != null)
-                changed = renderEase(context, keys.getFirst(), ease);
+            if (!changed && bezier != null) {
+                if (successor != null) {
+                    ImGui.textWrapped(tr("bezier_drag"));
+                    changed = handles.render(context, keys.getFirst(), bezier, successor, writable);
+                } else handles.cancel();
+                if (!changed) {
+                    ImGui.beginDisabled(handles.active());
+                    try { changed = renderEase(context, keys.getFirst(), bezier.ease()); }
+                    finally { ImGui.endDisabled(); }
+                }
+            } else handles.cancel();
         } finally { ImGui.endDisabled(); }
         ImGui.textWrapped(tr("interpolation_hint"));
         return changed;

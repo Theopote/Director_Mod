@@ -13,7 +13,7 @@ public record BezierEase(float x1, float y1, float x2, float y2) {
         return Float.isFinite(value) && value >= 0f && value <= 1f;
     }
 
-    float map(float time) {
+    public float map(float time) {
         if (time <= 0f || time >= 1f) return time;
         double low = 0, high = 1;
         for (int i = 0; i < 20; i++) {

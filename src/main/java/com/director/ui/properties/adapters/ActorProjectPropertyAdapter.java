@@ -101,6 +101,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     private final ImString bbModelModelId = new ImString("", 256);
     private String bbModelImportMessage = "";
     private final ImFloat groupActionDuration = new ImFloat(2.0f);
+    private final ImFloat groupPresetDuration = new ImFloat(2.0f);
+    private final imgui.type.ImBoolean groupPresetLoop = new imgui.type.ImBoolean(false);
+    private String groupPresetId;
     private final imgui.type.ImBoolean groupRouteAtPlayhead = new imgui.type.ImBoolean(false);
     private final imgui.type.ImBoolean groupActionLoop = new imgui.type.ImBoolean(false);
     private final ImFloat groupActionIntensity = new ImFloat(1.0f);
@@ -306,8 +309,50 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         var currentModel = DirectorServices.get().containerTimeline().getTimelineModel();
         groupResults.values().removeIf(r -> r.model() != currentModel || r.group() != group);
         renderGroupActionAuthoring(group);
+        renderGroupPresetAuthoring(currentModel, group);
         renderGroupRouteAuthoring(group);
         renderGroupPlacement(group);
+    }
+
+    private void renderGroupPresetAuthoring(TimelineModel model, ActorGroup group) {
+        String prefix = "gui.director.properties.adapter.actor.group_preset.";
+        if (!ImGui.treeNode(ActorPropertyAdapterI18n.tr(prefix + "title") + "##" + group.getGroupId())) return;
+        try {
+            var assets = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance();
+            var builtins = com.director.actor.animation.AnimationLibrary.getInstance();
+            var entries = com.director.ui.actor.pose.ActorAnimationCatalog.entries(assets, builtins.getAllAnimations(), null);
+            var selected = entries.stream().filter(entry -> entry.id().equals(groupPresetId)).findFirst().orElse(null);
+            String selectedName = selected == null ? ActorPropertyAdapterI18n.tr(prefix + "choose") : selected.name();
+            if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(prefix + "preset"), selectedName)) {
+                try {
+                    for (var entry : entries) {
+                        if (ImGui.selectable(entry.name() + " · " + entry.rigName() + "##" + entry.id(), entry.equals(selected))) {
+                            groupPresetId = entry.id();
+                            groupPresetLoop.set(false);
+                            float duration = assets.find(entry.id()).map(a -> a.duration())
+                                    .orElseGet(() -> builtins.get(entry.id()).map(a -> a.getDuration()).orElse(2f));
+                            groupPresetDuration.set(Math.clamp(duration, .05f, 60f));
+                        }
+                    }
+                } finally { ImGui.endCombo(); }
+            }
+            ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION),
+                    groupPresetDuration.getData(), .05f, 60f, "%.2fs");
+            ImGui.checkbox(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.loop"), groupPresetLoop);
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr(prefix + "hint"));
+            var service = ActorGroupTimelineCommandService.getInstance();
+            var preview = service.previewPresets(model, group, groupPresetId, groupPresetDuration.get());
+            renderGroupPreview(preview);
+            ImGui.beginDisabled(!preview.canExecute());
+            try {
+                if (ImGui.button(ActorPropertyAdapterI18n.tr(prefix + "create"))) {
+                    var beforeClips = clipSnapshot(model);
+                    int count = service.createPresetClips(model, group, groupPresetId, groupPresetDuration.get(), groupPresetLoop.get());
+                    rememberGroupResult("presets", group, count, model, beforeClips);
+                }
+            } finally { ImGui.endDisabled(); }
+            renderGroupResult("presets", group);
+        } finally { ImGui.treePop(); }
     }
 
     private void renderGroupActionAuthoring(ActorGroup group) {

@@ -10,6 +10,7 @@ import java.util.*;
 /** Inspects authored keys, separately from the evaluated pose at the playhead. */
 public final class ActorKeySelectionPropertyUI {
     private static final ActorKeyframeTimePanel timePanel=new ActorKeyframeTimePanel();
+    private static final ActorKeyframeInterpolationPanel interpolationPanel = new ActorKeyframeInterpolationPanel();
     private static ActorAnimationEditContext editing;
     private static ActorAnimationAuthoringService.Key editingKey;
     private static Object original;
@@ -37,7 +38,7 @@ public final class ActorKeySelectionPropertyUI {
             ActorKeyframeSelection.getInstance().replace(model,state.owner(),state.clip(),state.asset(),moved,true);
             return true;
         }
-        ActorKeyframeInterpolationPanel.render(context,state.keys(),writable);
+        interpolationPanel.render(context,state.keys(),writable);
         if(state.keys().size()==1) {
             var key=state.keys().getFirst();var track=state.asset().findBoneTrack(key.boneId()).orElseThrow();
             ChannelKeyframe<?> frame=switch(key.channel()) {

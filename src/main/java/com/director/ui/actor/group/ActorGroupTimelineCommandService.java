@@ -16,6 +16,10 @@ import com.director.timeline.model.entity.EntitySpawnClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.entity.EntityTransformClip;
 import com.director.timeline.model.entity.ActorTrack;
+import com.director.timeline.model.entity.EntityAnimationClip;
+import com.director.timeline.model.entity.EntityDespawnClip;
+import com.director.actor.animation.asset.AnimationAssetLibrary;
+import com.director.ui.actor.pose.ActorPresetValidation;
 import com.director.timeline.playback.camera.CameraAccessor;
 import com.director.timeline.playback.camera.CameraSample;
 import net.minecraft.client.MinecraftClient;
@@ -50,11 +54,87 @@ public final class ActorGroupTimelineCommandService {
         return INSTANCE;
     }
 
-    public enum SkipReason { MISSING_ACTOR, NO_TRACK, LOCKED, UNSUPPORTED_ACTION, SOURCE_ACTOR, ROUTE_CONFLICT, PLACEMENT_CONTROLLED, MUTED, AMBIGUOUS_TRACK }
+    public enum SkipReason { MISSING_ACTOR, NO_TRACK, LOCKED, UNSUPPORTED_ACTION, SOURCE_ACTOR, ROUTE_CONFLICT,
+        PLACEMENT_CONTROLLED, MUTED, AMBIGUOUS_TRACK, NO_PRESET_SPAWN, PRESET_CONFLICT, INCOMPATIBLE_PRESET }
     public record SkippedMember(UUID actorId, SkipReason reason) {}
     public record Preview(List<UUID> eligible, List<SkippedMember> skipped, String problem, int overwrittenMembers) {
         public Preview { eligible = List.copyOf(eligible); skipped = List.copyOf(skipped); }
         public boolean canExecute() { return problem == null && !eligible.isEmpty(); }
+    }
+
+    private record PresetPlacement(TimelineTrack track, float start, float end) {}
+    private record PresetPlan(Preview preview, List<PresetPlacement> placements) {}
+
+    public Preview previewPresets(TimelineModel model, ActorGroup group, String animationId, float duration) {
+        return planPresets(model, group, animationId, duration).preview();
+    }
+
+    public int createPresetClips(TimelineModel model, ActorGroup group, String animationId, float duration, boolean loop) {
+        var plan = planPresets(model, group, animationId, duration);
+        if (!plan.preview().canExecute()) return 0;
+        var asset = AnimationAssetLibrary.getInstance().find(animationId);
+        String name = asset.map(a -> a.name()).orElseGet(() -> com.director.actor.animation.AnimationLibrary.getInstance()
+                .get(animationId).map(a -> a.getName()).orElse(animationId));
+        List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
+        for (var placement : plan.placements()) {
+            var clip = new EntityAnimationClip(name, placement.start(), placement.end());
+            clip.setAnimationId(animationId);
+            clip.setSource(asset.isPresent() ? EntityAnimationClip.AnimationSource.CUSTOM : EntityAnimationClip.AnimationSource.BUILT_IN);
+            clip.setLoop(loop);
+            var track = placement.track();
+            var wrapper = prepareWrapper(clip, track.getActorTrackPayload().getColorRgba());
+            changes.add(addClipChange(track, clip, wrapper));
+        }
+        ActorGroupEditCommand.execute(model, "Schedule group animation presets", changes);
+        return changes.size();
+    }
+
+    private PresetPlan planPresets(TimelineModel model, ActorGroup group, String animationId, float duration) {
+        Preview members = previewMembers(model, group, null, null);
+        if (members.problem() != null) return new PresetPlan(members, List.of());
+        if (animationId == null || animationId.isBlank() || !Float.isFinite(duration) || duration < .05f)
+            return new PresetPlan(new Preview(List.of(), members.skipped(), "invalid_preset", 0), List.of());
+
+        List<UUID> eligible = new ArrayList<>();
+        List<SkippedMember> skipped = new ArrayList<>(members.skipped());
+        List<PresetPlacement> placements = new ArrayList<>();
+        var library = AnimationAssetLibrary.getInstance();
+        var registry = ActorRegistryManager.getInstance();
+        var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, ActorActionType.IDLE, model.getCurrentTime());
+        for (var trigger : triggers) {
+            UUID id = trigger.actorId();
+            if (!members.eligible().contains(id)) continue;
+            var track = resolveTrack(model, id);
+            float start = trigger.triggerTime();
+            float end = start + duration;
+            if (!Float.isFinite(end) || start < 0 || end <= start)
+                return new PresetPlan(new Preview(List.of(), skipped, "invalid_parameters", 0), List.of());
+            var clips = track.getActorTrackPayload().getClips().stream()
+                    .filter(clip -> !clip.isMuted() && clip.getStartTime() < end && clip.getEndTime() > start).toList();
+            var spawns = clips.stream().filter(EntitySpawnClip.class::isInstance).map(EntitySpawnClip.class::cast).toList();
+            // A separate animation clip plays under manual bone corrections. Existing spawn presets
+            // have higher priority, so overlapping preset or animation clips are reported as conflicts.
+            if (clips.stream().anyMatch(EntityAnimationClip.class::isInstance)
+                    || spawns.stream().anyMatch(spawn -> spawn.getPreset() != null)) {
+                skipped.add(new SkippedMember(id, SkipReason.PRESET_CONFLICT));
+                continue;
+            }
+            if (spawns.size() != 1 || !spawns.getFirst().isVisibleOnSpawn()
+                    || spawns.getFirst().getStartTime() > start || spawns.getFirst().getEndTime() < end
+                    || clips.stream().anyMatch(EntityDespawnClip.class::isInstance)) {
+                skipped.add(new SkippedMember(id, SkipReason.NO_PRESET_SPAWN));
+                continue;
+            }
+            try {
+                ActorPresetValidation.require(registry.getActor(id).orElse(null), spawns.getFirst(), library, animationId);
+            } catch (IllegalArgumentException incompatible) {
+                skipped.add(new SkippedMember(id, SkipReason.INCOMPATIBLE_PRESET));
+                continue;
+            }
+            eligible.add(id);
+            placements.add(new PresetPlacement(track, start, end));
+        }
+        return new PresetPlan(new Preview(eligible, skipped, null, 0), List.copyOf(placements));
     }
 
     public Preview previewActions(TimelineModel model, ActorGroup group, ActorActionType action, float duration) {

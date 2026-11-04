@@ -32,6 +32,15 @@ class ActorAnimationAuthoringServiceTest {
         assertTrue(ActorAnimationAuthoringService.paste(context, clipboard.at(asset, 2f, 5f)));
         assertEquals(ease, channel.findAt(2f).orElseThrow().ease());
     }
+
+    @Test void handleDragKeepsTheOtherHandleAndClampsBeyondThePlot() {
+        var ease = new BezierEase(.25f, .25f, .75f, .75f);
+        assertEquals(ease, ActorBezierHandleEditor.offsetHandle(ease, true, 0f, 0f));
+        var first = ActorBezierHandleEditor.offsetHandle(ease, true, -.5f, 1f);
+        assertEquals(new BezierEase(0f, 1f, .75f, .75f), first);
+        var second = ActorBezierHandleEditor.offsetHandle(ease, false, .5f, -.5f);
+        assertEquals(new BezierEase(.25f, .25f, 1f, .25f), second);
+    }
     private TimelineTrack track;
     private Actor actor;
     private EntityAnimationClip clip;

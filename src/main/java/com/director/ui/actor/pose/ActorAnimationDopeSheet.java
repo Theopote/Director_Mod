@@ -26,6 +26,7 @@ public final class ActorAnimationDopeSheet {
     private static String selectedAssetId;
     private static final ActorKeyframeClipboard keyClipboard=ActorKeyframeClipboard.getInstance();
     private static final ActorKeyframeTimePanel timePanel=new ActorKeyframeTimePanel();
+    private static final ActorKeyframeInterpolationPanel interpolationPanel = new ActorKeyframeInterpolationPanel();
     private static final ActorAnimationEventPanel eventPanel = new ActorAnimationEventPanel();
     private static ActorAnimationEditContext renderContext;
     private static ActorAnimationEditContext interactionContext;
@@ -236,7 +237,7 @@ public final class ActorAnimationDopeSheet {
                 for(var key:old) selection.add(new KeyId(key.boneId(),key.channel(),key.time()+delta));
                 timePanel.cancel();
             }
-            ActorKeyframeInterpolationPanel.render(renderContext,assetKeys(),canWrite() && !isKeyInteractionActive());
+            interpolationPanel.render(renderContext,assetKeys(),canWrite() && !isKeyInteractionActive());
         } else timePanel.cancel();
         if (keyClipboard.size()>0) {
             ImGui.beginDisabled(!canWrite() || isKeyInteractionActive() || !keyClipboard.compatible(asset));

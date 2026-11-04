@@ -1,6 +1,5 @@
 package com.director.ui.actor.pose;
 
-import com.director.actor.ActorRef;
 import com.director.actor.animation.asset.AnimationAsset;
 import com.director.actor.animation.asset.AnimationAssetLibrary;
 import com.director.actor.animation.asset.AnimationLoopMode;

@@ -20,6 +20,84 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorGroupTimelineCommandServiceTest {
+    @Test void groupPresetsPlayAtStaggeredTimesAndUndoTogether() {
+        var library = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance();
+        var asset = new com.director.actor.animation.asset.AnimationAsset("test:group-wave", "Wave",
+                com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION, 2f,
+                com.director.actor.animation.asset.AnimationLoopMode.ONCE);
+        library.register(asset);
+        try {
+            var model = new TimelineModel(new TimelineViewportState());
+            model.setSuppressPersistenceWrites(true);
+            model.setCurrentTime(1f);
+            var group = new ActorGroup("Wave");
+            group.setDelayPolicy(ActorGroup.DelayPolicy.SEQUENTIAL);
+            group.setDelayStepSeconds(.25f);
+            var tracks = new java.util.ArrayList<TimelineTrack>();
+            var spawns = new java.util.ArrayList<com.director.timeline.model.entity.EntitySpawnClip>();
+            for (int i = 0; i < 2; i++) {
+                UUID id = UUID.randomUUID();
+                group.addActor(id);
+                var payload = createActorTrackPayload(id);
+                var track = createActorTimelineTrack("Actor " + i, payload);
+                var spawn = new com.director.timeline.model.entity.EntitySpawnClip("Spawn", 0, 5);
+                payload.addClip(spawn);
+                track.addClip(new com.director.timeline.model.entity.EntityTimelineClip(spawn, 0));
+                model.addTrack(track);
+                tracks.add(track);
+                spawns.add(spawn);
+            }
+            var history = new com.director.ui.timeline.commands.TimelineCommandHistory();
+            com.director.ui.timeline.commands.TimelineCommandBridge.bind(history);
+            var service = ActorGroupTimelineCommandService.getInstance();
+            assertEquals(group.getActorIds(), service.previewPresets(model, group, asset.id(), 2f).eligible());
+            assertEquals(2, service.createPresetClips(model, group, asset.id(), 2f, false));
+            for (int i = 0; i < tracks.size(); i++) {
+                var payload = tracks.get(i).getActorTrackPayload();
+                float expected = 1f + i * .25f;
+                var sampler = new com.director.timeline.playback.entity.EntityClipSampler(payload);
+                assertNull(sampler.sampleSnapshot(expected - .01f).animationId);
+                assertEquals(asset.id(), sampler.sampleSnapshot(expected + .01f).animationId);
+                assertEquals(expected, payload.getClips().getLast().getStartTime());
+                assertEquals(0f, spawns.get(i).getStartTime());
+                assertNull(spawns.get(i).getPreset());
+            }
+            assertEquals(1, history.getUndoSize());
+            assertTrue(history.undo());
+            for (var track : tracks) {
+                assertEquals(1, track.getClips().size());
+                assertEquals(1, track.getActorTrackPayload().getClips().size());
+            }
+            assertTrue(history.redo());
+            assertEquals(2, tracks.getLast().getClips().size());
+        } finally {
+            library.remove(asset.id());
+        }
+    }
+
+    @Test void presetPreviewReportsAnOccupiedWindowAndMissingSpawn() {
+        var model = new TimelineModel(new TimelineViewportState());
+        model.setCurrentTime(1f);
+        var group = new ActorGroup("Wave");
+        UUID occupied = UUID.randomUUID(), absent = UUID.randomUUID();
+        group.addActor(occupied);
+        group.addActor(absent);
+        var occupiedTrack = createActorTimelineTrack("Occupied", createActorTrackPayload(occupied));
+        var spawn = new com.director.timeline.model.entity.EntitySpawnClip("Spawn", 0, 5);
+        spawn.setPreset(com.director.timeline.model.entity.ActorPresetBinding.select("wave", null));
+        occupiedTrack.getActorTrackPayload().addClip(spawn);
+        model.addTrack(occupiedTrack);
+        model.addTrack(createActorTimelineTrack("Absent", createActorTrackPayload(absent)));
+        var service = ActorGroupTimelineCommandService.getInstance();
+        var preview = service.previewPresets(model, group, "wave", 2f);
+        assertEquals(List.of(
+                new ActorGroupTimelineCommandService.SkippedMember(occupied, ActorGroupTimelineCommandService.SkipReason.PRESET_CONFLICT),
+                new ActorGroupTimelineCommandService.SkippedMember(absent, ActorGroupTimelineCommandService.SkipReason.NO_PRESET_SPAWN)),
+                preview.skipped());
+        assertEquals(0, service.createPresetClips(model, group, "wave", 2f, false));
+        assertEquals(List.of(spawn), occupiedTrack.getActorTrackPayload().getClips());
+    }
+
     @org.junit.jupiter.api.BeforeEach void registry() {
         com.director.actor.ActorRegistryManager.setRegistry(null);
         com.director.actor.ActorRegistryManager.setRegistry(new com.director.actor.ActorRegistry());
