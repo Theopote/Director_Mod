@@ -26,6 +26,7 @@ public final class ActorAnimationDopeSheet {
     private static String selectedAssetId;
     private static final ActorKeyframeClipboard keyClipboard=ActorKeyframeClipboard.getInstance();
     private static final ActorKeyframeTimePanel timePanel=new ActorKeyframeTimePanel();
+    private static final ActorAnimationEventPanel eventPanel = new ActorAnimationEventPanel();
     private static ActorAnimationEditContext renderContext;
     private static ActorAnimationEditContext interactionContext;
     private static SelectionContext selectionContext;
@@ -136,7 +137,7 @@ public final class ActorAnimationDopeSheet {
             ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.loop_seek_hint"));
         if(renderContext.distanceDriven()) ImGui.textWrapped("路径距离时钟：当前键时间跟随实际步态相位；请在独立动画预览中调整键的时间位置。");
         ImGui.textWrapped("双击通道空白处按动画层求值插键；Ctrl+Q 为所选部位打帧；Ctrl+[ / Ctrl+] 跳转关键帧。");
-        ActorAnimationEventTimeline.render(model,renderContext.track(),clip);
+        eventPanel.renderTimeline(model,renderContext.track(),clip);
         if(ImGui.beginChild("actorDopeSheetScroll",0,320,true)) renderCanvas(model, clip, asset);
         ImGui.endChild();
         if(!seekMessage.isEmpty()) ImGui.textWrapped(seekMessage);

@@ -53,6 +53,34 @@ public final class AnimationEventClock {
             return times(event.getNormalizedTime());
         }
 
+        /** Map a scene time back to the event phase using the same clock as occurrence lookup. */
+        public Optional<Float> phaseAt(AnimationEvent.Timing timing, float time) {
+            if (!valid() || !Float.isFinite(time) || time < Math.max(from, start) || time > end || length <= 0)
+                return Optional.empty();
+            if (timing == AnimationEvent.Timing.CLIP)
+                return Optional.of(Math.clamp((time - start) / length, 0f, 1f));
+            if (segments == null) prepare();
+            for (var segment : segments) {
+                if (time < segment.start() || time > segment.end()) continue;
+                double cycles = segment.raw().applyAsDouble(time) / duration;
+                if (!Double.isFinite(cycles) || cycles < 0) continue;
+                switch (segment.mode()) {
+                    case ONCE -> {
+                        if (cycles <= 1) return Optional.of((float) cycles);
+                    }
+                    case LOOP -> {
+                        float phase = (float) (cycles - Math.floor(cycles));
+                        return Optional.of(phase == 1f ? 0f : phase);
+                    }
+                    case PING_PONG -> {
+                        double phase = cycles % 2;
+                        return Optional.of((float) Math.min(phase, 2 - phase));
+                    }
+                }
+            }
+            return Optional.empty();
+        }
+
         private boolean valid() {
             // Playback's initial event window deliberately starts at -infinity.
             return Float.isFinite(start) && Float.isFinite(end) && !Float.isNaN(from) && end>=start && from<=end;

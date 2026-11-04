@@ -122,6 +122,29 @@ class AnimationEventClockTest {
         assertEquals(2,sampler.sampleAt(2.6f).actionEvents.size());
         assertTrue(sampler.sampleAt(2.6f).actionEvents.isEmpty());
     }
+
+    @Test void sceneTimeMapsBackThroughReverseLoopAndDistanceClocks() {
+        asset.setLoopMode(AnimationLoopMode.PING_PONG);
+        var clock = AnimationEventClock.projection(track, clip, 0, 4);
+        float reverse = clock.phaseAt(AnimationEvent.Timing.ANIMATION, 1.75f).orElseThrow();
+        assertEquals(.25f, reverse);
+        assertTrue(clock.times(reverse).contains(1.75f));
+        assertEquals(.4375f, clock.phaseAt(AnimationEvent.Timing.CLIP, 1.75f).orElseThrow());
+
+        distanceRoute();
+        var distance = AnimationEventClock.projection(track, clip, 0, 4);
+        float phase = distance.phaseAt(AnimationEvent.Timing.ANIMATION, 2.5f).orElseThrow();
+        assertEquals(.25f, phase);
+        assertEquals(List.of(.5f, 2.5f), distance.times(phase));
+    }
+
+    @Test void oneShotSourceCannotBeMovedIntoItsHoldTail() {
+        clip.setLoop(false);
+        var clock = AnimationEventClock.projection(track, clip, 0, 4);
+        assertEquals(1f, clock.phaseAt(AnimationEvent.Timing.ANIMATION, 1f).orElseThrow());
+        assertTrue(clock.phaseAt(AnimationEvent.Timing.ANIMATION, 1.5f).isEmpty());
+        assertTrue(clock.phaseAt(AnimationEvent.Timing.CLIP, 1.5f).isPresent());
+    }
     @Test void bothTimingModesSurviveTimelinePersistence() {
         clip.addEvent(new AnimationEvent(.5f,event.getAction(),AnimationEvent.Timing.CLIP));
         var gson=new Gson();var dto=gson.fromJson(gson.toJson(TimelineModelPersistence.entityClipToDTO(clip)),TimelineModelPersistence.EntityClipDTO.class);

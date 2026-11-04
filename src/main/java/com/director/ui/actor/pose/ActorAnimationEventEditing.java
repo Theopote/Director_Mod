@@ -16,8 +16,20 @@ public final class ActorAnimationEventEditing {
     }
     public static boolean editable(TimelineModel model,TimelineTrack owner,EntityAnimationClip clip) {
         return model!=null&&!model.isPlaying()&&!model.isScrubbing()&&owner!=null&&model.getAllTracks().contains(owner)
-                &&!owner.isLocked()&&!owner.isMuted()&&!clip.isMuted()&&owner.getActorTrackPayload()!=null
+                &&!owner.isLocked()&&!owner.isMuted()&&clip!=null&&!clip.isMuted()&&owner.getActorTrackPayload()!=null
+                &&owner.getActorTrackPayload().getActorRef()!=null
                 &&ActorEmbeddedAnimation.bound(owner.getActorTrackPayload(),clip);
+    }
+    static boolean move(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip,
+                        List<AnimationEvent> before, int index, float phase) {
+        if (!Float.isFinite(phase) || phase < 0 || phase > 1 || index < 0 || index >= before.size()) return false;
+        if (!editable(model, owner, clip) || !clip.getEvents().equals(before)) return false;
+        var event = before.get(index);
+        if (event.getNormalizedTime() == phase) return false;
+        var next = new ArrayList<>(before);
+        next.set(index, new AnimationEvent(phase, event.getAction(), event.getTiming()));
+        replace(model, owner, clip, before, next);
+        return true;
     }
     public static void replace(TimelineModel model,TimelineTrack owner,EntityAnimationClip clip,List<AnimationEvent> expected,List<AnimationEvent> events) {
         if(!editable(model,owner,clip)) throw new IllegalArgumentException("动画事件当前不可编辑");

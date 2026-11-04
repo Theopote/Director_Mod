@@ -10,7 +10,9 @@ import java.util.*;
 
 /** Animation source events: explicit application, clock and parameter visibility. */
 public final class ActorAnimationEventPanel {
-    private static String tr(String key) { return com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.event_editor." + key); }
+    static String tr(String key) { return com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.event_editor." + key); }
+    private TimelineModel sourceModel;
+    private TimelineTrack sourceOwner;
     private EntityAnimationClip source;
     private List<AnimationEvent> before=List.of();
     private int index=-1;
@@ -19,19 +21,52 @@ public final class ActorAnimationEventPanel {
     private EntityActionClip.ActionType type=EntityActionClip.ActionType.DETACH_PROP;
     private Map<String,Object> params=new LinkedHashMap<>();
     private String message="";
+    private final ActorAnimationEventTimeline timeline = new ActorAnimationEventTimeline();
     private void load(AnimationEvent event) {
         time.set(event.getNormalizedTime());timing=event.getTiming();type=event.getAction().type();params=new LinkedHashMap<>(PropEventParameters.copy(event.getAction().params(),false));
     }
     public void render(TimelineModel model,EntityAnimationClip clip) {
-        if(!ImGui.collapsingHeader(tr("title"))) return;
-        if(source!=clip || !before.equals(clip.getEvents())) {source=clip;before=ActorAnimationEventEditing.copy(clip.getEvents());index=-1;message="";}
+        if(!ImGui.collapsingHeader(tr("title"))) { timeline.cancel(); return; }
         var owner=clip.getTimelineClip()==null?null:clip.getTimelineClip().getParentTrack();
+        render(model, owner, clip, true);
+    }
+
+    void renderTimeline(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip) {
+        render(model, owner, clip, false);
+    }
+
+    private void beginDraft(ActorAnimationEventTimeline.DraftSeed seed) {
+        index = before.size();
+        time.set(seed.phase());
+        timing = seed.timing();
+        type = EntityActionClip.ActionType.DETACH_PROP;
+        params = new LinkedHashMap<>(Map.of("slot", "MAIN_HAND"));
+        message = "";
+    }
+
+    private void syncSource(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip) {
+        if (sourceModel == model && sourceOwner == owner && source == clip && before.equals(clip.getEvents())) return;
+        sourceModel = model;
+        sourceOwner = owner;
+        source = clip;
+        before = ActorAnimationEventEditing.copy(clip.getEvents());
+        index = -1;
+        message = "";
+    }
+
+    private void render(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip, boolean showList) {
         ImGui.pushID("eventEditorTimeline");
-        try { ActorAnimationEventTimeline.render(model,owner,clip); }
+        try { renderContents(model, owner, clip, showList); }
         finally { ImGui.popID(); }
-        boolean writable=ActorAnimationEventEditing.editable(model,owner,clip)&&!ActorBoneGizmoController.getInstance().isDragging();
-        ImGui.textWrapped("片段进度只按片段触发；动画源进度跟随速度、循环与路径距离时钟，每次经过该相位都会触发。");
-        for(int i=0;i<before.size();i++) {
+    }
+
+    private void renderContents(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip, boolean showList) {
+        syncSource(model, owner, clip);
+        timeline.render(model, owner, clip, this::beginDraft);
+        syncSource(model, owner, clip);
+        boolean writable=ActorAnimationEventEditing.editable(model,owner,clip)&&ActorAnimationEventTimeline.canSeek(model);
+        if (showList) ImGui.textWrapped("片段进度只按片段触发；动画源进度跟随速度、循环与路径距离时钟，每次经过该相位都会触发。");
+        for(int i=0;showList && i<before.size();i++) {
             var event=before.get(i);
             if(ImGui.selectable(String.format("%.3f · %s · %s##event%d",event.getNormalizedTime(),tr(event.getTiming()==AnimationEvent.Timing.CLIP?"clip_clock":"asset_clock"),event.getAction().type().getDisplayName(),i),index==i)) {
                 index=i;load(event);
@@ -39,7 +74,7 @@ public final class ActorAnimationEventPanel {
             }
         }
         ImGui.beginDisabled(!writable);
-        if(ImGui.button(tr("add"))) {index=before.size();time.set(.5f);timing=AnimationEvent.Timing.CLIP;type=EntityActionClip.ActionType.DETACH_PROP;params=new LinkedHashMap<>(Map.of("slot","MAIN_HAND"));}
+        if(showList && ImGui.button(tr("add"))) beginDraft(new ActorAnimationEventTimeline.DraftSeed(AnimationEvent.Timing.CLIP, .5f));
         if(index>=0) {
             ImGui.inputFloat(tr("time"),time);
             var clock=new ImInt(timing.ordinal());if(ImGui.combo(tr("clock"),clock,new String[]{tr("clip_clock"),tr("asset_clock")})) timing=AnimationEvent.Timing.values()[clock.get()];
@@ -84,15 +119,18 @@ public final class ActorAnimationEventPanel {
                     if(!Float.isFinite(time.get())||time.get()<0||time.get()>1) throw new IllegalArgumentException("事件时间必须为 0–1");
                     var next=new ArrayList<>(before);var event=new AnimationEvent(time.get(),new EntityActionEvent(type,params),timing);
                     if(index==next.size()) next.add(event);else next.set(index,event);
-                    next.sort(Comparator.comparing(AnimationEvent::getNormalizedTime));ActorAnimationEventEditing.replace(model,owner,clip,before,next);index=-1;message="已应用，可撤销。";
+                    ActorAnimationEventEditing.replace(model,owner,clip,before,next);
+                    before = ActorAnimationEventEditing.copy(clip.getEvents());
+                    index=-1;message="已应用，可撤销。";
                 } catch(RuntimeException failure){message=failure.getMessage();}
             }
             if(index>=0&&index<before.size()) {ImGui.sameLine();if(ImGui.button(tr("delete"))) {
                 try {var next=new ArrayList<>(before);next.remove(index);ActorAnimationEventEditing.replace(model,owner,clip,before,next);index=-1;}
                 catch(RuntimeException failure){message=failure.getMessage();}
             }}
-            ImGui.sameLine();if(ImGui.button(tr("cancel"))) index=-1;
         }
-        ImGui.endDisabled();if(!message.isEmpty()) ImGui.textWrapped(message);
+        ImGui.endDisabled();
+        if(index>=0) { ImGui.sameLine(); if(ImGui.button(tr("cancel"))) { index=-1; message=""; } }
+        if(!message.isEmpty()) ImGui.textWrapped(message);
     }
 }
