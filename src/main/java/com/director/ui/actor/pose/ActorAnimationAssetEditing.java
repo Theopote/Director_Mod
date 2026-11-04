@@ -62,8 +62,17 @@ public final class ActorAnimationAssetEditing {
         requireEditing(model); var asset=requireAsset(library,id); var before=asset.purpose();
         Objects.requireNonNull(purpose); if(before==purpose) return;
         TimelineCommandBridge.execute(new StateChangeCommand(model,"Change animation purpose",
-                ()->{requireIdentity(library,asset);asset.setPurpose(before);model.invalidateActorEditContext();},
-                ()->{requireIdentity(library,asset);asset.setPurpose(purpose);model.invalidateActorEditContext();}));
+                () -> changePurpose(model, library, asset, before),
+                () -> changePurpose(model, library, asset, purpose)));
+    }
+
+    private static void changePurpose(TimelineModel model, AnimationAssetLibrary library, AnimationAsset asset,
+                                      com.director.actor.animation.AnimationData.Purpose purpose) {
+        requireIdentity(library, asset);
+        if (purpose == com.director.actor.animation.AnimationData.Purpose.STATIC_POSE && referenceCount(model, asset.id()) > 0)
+            throw new IllegalArgumentException("请先解除动画引用，或复制资产后将副本设为静态姿态。");
+        asset.setPurpose(purpose);
+        model.invalidateActorEditContext();
     }
 
     public static AnimationAsset importFile(TimelineModel model, AnimationAssetLibrary library,
@@ -183,6 +192,8 @@ public final class ActorAnimationAssetEditing {
     }
 
     private static AttachmentPreview previewAt(TimelineModel model, Target target, AnimationAsset asset, float start) {
+        if (asset.purpose() == com.director.actor.animation.AnimationData.Purpose.STATIC_POSE)
+            throw new IllegalArgumentException("静态姿态请在「姿态」中应用到当前帧。");
         float end = start + Math.max(0.1f, asset.duration());
         if (!Float.isFinite(end)) throw new IllegalArgumentException("动画片段时间范围无效");
         int overlaps = 0;

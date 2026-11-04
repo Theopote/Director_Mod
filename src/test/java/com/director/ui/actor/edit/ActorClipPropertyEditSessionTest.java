@@ -11,7 +11,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorClipPropertyEditSessionTest {
-    @Test void staticPoseCanStillBeInspectedInALegacyBindingButCannotBeNewlyBound() {
+    @Test void staticPoseIsRejectedInEitherActionSlot() {
         var spawn = new EntitySpawnClip("Actor", 0, 10);
         attach(spawn);
         var idle = ActorPresetBinding.select("idle", null);
@@ -20,13 +20,10 @@ class ActorClipPropertyEditSessionTest {
         assertThrows(IllegalArgumentException.class, rejected::commit);
         assertNull(spawn.getSecondaryPreset());
 
-        spawn.setPreset(idle);
-        var legacy = new ActorClipPropertyEditSession(model, spawn);
-        ((EntitySpawnClip) legacy.draft()).setPreset(new ActorPresetBinding("idle", false, 2f, idle.blend()));
-        assertTrue(legacy.commit());
-        assertEquals(2f, spawn.getPreset().speed());
-        assertTrue(history.undo());
-        assertEquals(idle, spawn.getPreset());
+        var primary = new ActorClipPropertyEditSession(model, spawn);
+        ((EntitySpawnClip) primary.draft()).setPreset(idle);
+        assertThrows(IllegalArgumentException.class, primary::commit);
+        assertNull(spawn.getPreset());
     }
     @Test void editingSecondPresetIsUndoableAndKeepsThePrimaryBinding() {
         var spawn = new EntitySpawnClip("Actor", 0, 10);

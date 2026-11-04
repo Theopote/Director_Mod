@@ -79,7 +79,7 @@ class ActorPoseGalleryEditingTest {
     }
     @Test void bindPreservesCorrectionLayerAndUndoRestoresPreviousBinding() {
         assertTrue(pose(HumanoidRig.RIGHT_ARM));String correction=spawn.getBoneAnimationId();
-        var before=new ActorPresetBinding("idle",true,1,PoseBlendSettings.DEFAULT);spawn.setPreset(before);
+        var before=new ActorPresetBinding("walk",true,2,PoseBlendSettings.DEFAULT);spawn.setPreset(before);
         assertTrue(ActorPoseGalleryEditing.bind(model,actor.getActorId(),spawn,"wave"));
         assertEquals("wave",spawn.getPreset().animationId());assertEquals(correction,spawn.getBoneAnimationId());
         assertTrue(history.undo());assertEquals(before,spawn.getPreset());assertEquals(correction,spawn.getBoneAnimationId());

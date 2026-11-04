@@ -255,6 +255,9 @@ public final class ActorClipPropertyEditSession {
     private void validateBehavior(State next, State expected, boolean forward) {
         if (next instanceof Animation animation) {
             var old=(Animation)expected;
+            if (forward && source.getTimelineClip() != null && owner.getClips().contains(wrapper))
+                com.director.ui.actor.pose.ActorPresetValidation.requireAction(
+                        com.director.actor.animation.asset.AnimationAssetLibrary.getInstance(), animation.id);
             if(forward && (!Objects.equals(animation.id,old.id) || animation.source!=old.source)) {
                 var currentActor=ActorRegistryManager.getInstance().getActor(actor).orElse(null);
                 var entry=com.director.ui.actor.pose.ActorAnimationCatalog.entries(
@@ -262,8 +265,6 @@ public final class ActorClipPropertyEditSession {
                         com.director.actor.animation.AnimationLibrary.getInstance().getAllAnimations(),currentActor)
                         .stream().filter(e->e.id().equals(animation.id) && e.compatible()).findFirst().orElse(null);
                 if(entry==null) throw new IllegalArgumentException("动画不存在或与当前演员骨架不兼容");
-                if (!Objects.equals(animation.id, old.id) && entry.isPose())
-                    throw new IllegalArgumentException("静态姿态请在「姿态」中应用到当前帧。");
                 boolean project=entry.source()==com.director.ui.actor.pose.ActorAnimationCatalog.Source.PROJECT;
                 if(project!=(animation.source==EntityAnimationClip.AnimationSource.CUSTOM))
                     throw new IllegalArgumentException("动画来源与引用不一致，请从动作列表重新选择");
@@ -287,8 +288,8 @@ public final class ActorClipPropertyEditSession {
                 var currentActor = ActorRegistryManager.getInstance().getActor(actor).orElse(null);
                 var library = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance();
                 boolean manualChanged = !Objects.equals(s.animationId, old.animationId);
-                validateNewPresetKind(library, old.preset, s.preset);
-                validateNewPresetKind(library, old.secondaryPreset, s.secondaryPreset);
+                if (s.preset != null) com.director.ui.actor.pose.ActorPresetValidation.requireAction(library, s.preset.animationId());
+                if (s.secondaryPreset != null) com.director.ui.actor.pose.ActorPresetValidation.requireAction(library, s.secondaryPreset.animationId());
                 if (s.preset != null && (!Objects.equals(s.preset, old.preset) || manualChanged && s.preset.animationId().equals(s.animationId)))
                     com.director.ui.actor.pose.ActorPresetValidation.requireReference(currentActor, library, s.preset.animationId(), s.animationId);
                 if (s.secondaryPreset != null && (!Objects.equals(s.secondaryPreset, old.secondaryPreset)
@@ -307,11 +308,6 @@ public final class ActorClipPropertyEditSession {
         }
     }
 
-    private static void validateNewPresetKind(com.director.actor.animation.asset.AnimationAssetLibrary library,
-                                              ActorPresetBinding before, ActorPresetBinding after) {
-        if (after != null && (before == null || !after.animationId().equals(before.animationId())))
-            com.director.ui.actor.pose.ActorPresetValidation.requireAction(library, after.animationId());
-    }
     private static boolean validScale(Vector3f value) {
         return value.isFinite() && value.x >= .01f && value.y >= .01f && value.z >= .01f
                 && value.x <= 100 && value.y <= 100 && value.z <= 100;
