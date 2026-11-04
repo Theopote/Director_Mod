@@ -2539,6 +2539,7 @@
   "gui.director.actor.coordination.written": "Written: %d parts / %d channels",
   "gui.director.actor.coordination.weight": " · Effective blend weight %.0f%%",
   "gui.director.actor.coordination.kind.preset": "Action preset",
+  "gui.director.actor.coordination.kind.secondary_preset": "Second action preset",
   "gui.director.actor.coordination.kind.quick": "Quick pose",
   "gui.director.actor.coordination.kind.manual": "Manual bone keys",
   "gui.director.actor.coordination.kind.contact": "Foot contact",

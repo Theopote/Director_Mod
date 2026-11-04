@@ -11,6 +11,24 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorClipPropertyEditSessionTest {
+    @Test void editingSecondPresetIsUndoableAndKeepsThePrimaryBinding() {
+        var spawn = new EntitySpawnClip("Actor", 0, 10);
+        var primary = ActorPresetBinding.select("wave", null);
+        var secondary = new ActorPresetBinding("wave", false, 2f, com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT);
+        spawn.setPreset(primary);
+        attach(spawn);
+        var edit = new ActorClipPropertyEditSession(model, spawn);
+        ((EntitySpawnClip) edit.draft()).setSecondaryPreset(secondary);
+        assertTrue(edit.commit());
+        assertEquals(primary, spawn.getPreset());
+        assertEquals(secondary, spawn.getSecondaryPreset());
+        assertEquals(2, com.director.ui.actor.pose.ActorAnimationAssetEditing.referenceCount(model, "wave"));
+        assertTrue(history.undo());
+        assertNull(spawn.getSecondaryPreset());
+        assertEquals(primary, spawn.getPreset());
+        assertTrue(history.redo());
+        assertEquals(secondary, spawn.getSecondaryPreset());
+    }
     @Test void changedAnimationReferenceMustExistButLegacyMissingReferenceCanBeInspectedAndRestored() {
         var clip=new EntityAnimationClip("Animation",0,10);clip.setAnimationId("missing:old");attach(clip);
         var edit=new ActorClipPropertyEditSession(model,clip);((EntityAnimationClip)edit.draft()).setAnimationId("missing:new");

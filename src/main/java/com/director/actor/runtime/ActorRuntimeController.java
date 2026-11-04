@@ -67,6 +67,13 @@ import java.util.UUID;
  * @version 2.0
  */
 public final class ActorRuntimeController {
+    private static ActorPoseEvaluator.Layer secondaryLayer(EntitySample sample, Actor actor,
+                                                            com.director.actor.rig.skeleton.RigDefinition rig) {
+        var binding = ActorPresetClock.resolve(sample.secondaryPresetAnimation, sample, actor.getRigProfile());
+        if (binding == null || rig == null) return null;
+        var pose = binding.sample(rig);
+        return pose == null ? null : new ActorPoseEvaluator.Layer(pose, binding.settings(), binding.envelope());
+    }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorRuntimeController.class);
     private static final ActorRuntimeController INSTANCE = new ActorRuntimeController();
@@ -168,6 +175,7 @@ public final class ActorRuntimeController {
         sample.animationSpeed=animation.animationSpeed;sample.animationBlendSettings=animation.animationBlendSettings;
         sample.animationBlendEnvelope=animation.animationBlendEnvelope;
         sample.presetAnimation=animation.presetAnimation;
+        sample.secondaryPresetAnimation = animation.secondaryPresetAnimation;
         // Root offsets must always start at the sampled world position, never the prior preview offset.
         entity.refreshPositionAndAngles(sample.position.x,sample.position.y,sample.position.z,sample.rotation.x,sample.rotation.y);
         target.applyRigProfile(sample,0,boneDraft);
@@ -581,6 +589,7 @@ public final class ActorRuntimeController {
             var presetPose=preset==null?null:preset.sample(definition);
             var evaluated=ActorPoseEvaluator.evaluate(sourceActor.getType(),sourceActor.getRigProfile(),definition,base,at,
                     presetPose==null?null:new ActorPoseEvaluator.Layer(presetPose,preset.settings(),preset.envelope()),
+                    secondaryLayer(at, sourceActor, definition),
                     authored==null?null:new ActorPoseEvaluator.Layer(authored,at.animationBlendSettings,primaryClock.envelope()),sourceActor.getLimbBendMode());
             for(var diagnostic:evaluated.diagnostics()) reportPlacement(sourceActor.getActorId(),time,diagnostic.stage(),false,diagnostic.detail().reason());
             var pose=evaluated.pose();
@@ -846,7 +855,8 @@ public final class ActorRuntimeController {
             var legacyPose = rigAsset.isEmpty() && boneDraft == null
                     ? AnimationDataSampler.sampleRig(primaryClock.id(), legacyRig, primaryClock.localTime(),
                             primaryClock.loop(), primaryClock.speed()) : null;
-            if (rigAsset.isPresent() || boneDraft!=null || legacyPose!=null || legacyRig!=null && (s.presetAnimation!=null || actor.getType()==com.director.actor.ActorType.PLAYER)) {
+            if (rigAsset.isPresent() || boneDraft!=null || legacyPose!=null || legacyRig!=null && (s.presetAnimation!=null
+                    || s.secondaryPresetAnimation != null || actor.getType()==com.director.actor.ActorType.PLAYER)) {
                 var definition=boneDraft!=null?boneDraft.rig():rigAsset.isPresent()?rigAsset.get().rig():legacyRig;
                 var blend=boneDraft!=null?boneDraft.settings():s.animationBlendSettings;
                 float envelope=boneDraft!=null?boneDraft.envelope():primaryClock.envelope();
@@ -863,8 +873,10 @@ public final class ActorRuntimeController {
                 String presetId=presetInput==null?null:presetInput.id();
                 var presetPose=presetInput==null?null:presetDraft!=null?presetDraft.authoredPose():presetInput.sample(definition);
                 if(presetPose!=null && presetDraft==null) presetPose=com.director.ui.actor.pose.ActorBonePropertiesPanel.previewAuthoredPose(actor.getActorId(),presetId,presetPose);
+                var secondary = secondaryLayer(s, actor, definition);
                 var evaluated=ActorPoseEvaluator.evaluate(actor.getType(),rig,definition,rigPose.pose,s,
                         presetPose==null?null:new ActorPoseEvaluator.Layer(presetPose,presetInput.settings(),presetInput.envelope()),
+                        secondary,
                         (boneDraft!=null || primaryClock.id()!=null)?new ActorPoseEvaluator.Layer(authoredPose,blend,envelope):null,actor.getLimbBendMode());
                 for(var diagnostic:evaluated.diagnostics()) reportPlacement(actor.getActorId(),timelineSource.getCurrentTime(),
                         diagnostic.stage(),false,diagnostic.detail().reason());
@@ -879,6 +891,7 @@ public final class ActorRuntimeController {
                         previewEntity.setFinalRigPose(finalRigPose);
                         var issues=new java.util.ArrayList<>(evaluated.diagnostics().stream().map(d->d.stage()+": "+d.detail().reason()).toList());
                         if(presetInput!=null && presetPose==null) issues.add("动作预设不存在或无法适配当前骨架");
+                        if(s.secondaryPresetAnimation != null && secondary == null) issues.add("第二动作预设不存在或无法适配当前骨架");
                         if(primaryClock.id()!=null && !primaryClock.id().isBlank() && rigAsset.isEmpty() && legacyPose==null && boneDraft==null)
                             issues.add("手工动画引用不存在或无法适配当前骨架");
                         poseFeedback=new ActorPoseFeedback(timelineSource.getCurrentTime(),timelineSource.getActorEditContextRevision(),

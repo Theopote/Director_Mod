@@ -22,6 +22,11 @@ public final class ActorPoseEvaluator {
     }
     public static Result evaluate(ActorType type,ActorRigProfile profile,RigDefinition rig,Pose base,
                                   EntitySample sample,Layer preset,Layer manual,LimbBendMode bendMode) {
+        return evaluate(type, profile, rig, base, sample, preset, null, manual, bendMode);
+    }
+
+    public static Result evaluate(ActorType type, ActorRigProfile profile, RigDefinition rig, Pose base,
+                                  EntitySample sample, Layer preset, Layer secondary, Layer manual, LimbBendMode bendMode) {
         // A Spawn preset may be carried in the primary sampler slot when no manual layer exists.
         if(sample.animationIsPreset && preset==null && manual!=null) {preset=manual;manual=null;}
         var stages=new ArrayList<ActorPoseStage>();
@@ -39,6 +44,14 @@ public final class ActorPoseEvaluator {
         pose=applyLayer(pose,preset,"preset-layer",weights,diagnostics);
         if(diagnostics.isEmpty()) sources.layer(preset,"动作预设");
         stages.add(stage(ActorPoseStage.Kind.PRESET,preset,diagnostics.isEmpty()?null:diagnostics.getFirst().detail().reason()));
+        if (secondary != null) {
+            int beforeSecondary = diagnostics.size();
+            pose = applyLayer(pose, secondary, "secondary-preset-layer", weights, diagnostics);
+            boolean accepted = diagnostics.size() == beforeSecondary;
+            if (accepted) sources.layer(secondary, "第二动作预设");
+            stages.add(stage(ActorPoseStage.Kind.SECONDARY_PRESET, secondary,
+                    accepted ? null : diagnostics.getLast().detail().reason()));
+        }
         applyQuickPose(pose,sample);
         if(sample.poseOverrideEnabled) {
             var quick=new RigPose(rig);

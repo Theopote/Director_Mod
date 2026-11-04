@@ -70,6 +70,7 @@ public class EntitySample {
     public boolean animationIsPreset;
     /** Lower preset layer retained when the primary animation is the spawn-owned manual layer. */
     public ActorAnimationLayerSample presetAnimation;
+    public ActorAnimationLayerSample secondaryPresetAnimation;
 
     /** 动画源类型（来自 EntityAnimationClip） */
     public EntityKeyframe.EntityType animationSource; // 临时复用，未来可扩展
@@ -293,6 +294,7 @@ public class EntitySample {
         animationId = s.animationId;
         animationIsPreset = s.animationIsPreset;
         presetAnimation = s.presetAnimation;
+        secondaryPresetAnimation = s.secondaryPresetAnimation;
         animationSource = s.animationSource;
         animationLoop = s.animationLoop;
         animationSpeed = s.animationSpeed;

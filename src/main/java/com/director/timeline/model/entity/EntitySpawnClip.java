@@ -26,6 +26,14 @@ public class EntitySpawnClip extends EntityClip {
     public void setPreset(ActorPresetBinding value) {
         if(!java.util.Objects.equals(preset,value)) { preset=value; presetRevision++; }
     }
+    private ActorPresetBinding secondaryPreset;
+    public ActorPresetBinding getSecondaryPreset() { return secondaryPreset; }
+    public void setSecondaryPreset(ActorPresetBinding value) {
+        if (!java.util.Objects.equals(secondaryPreset, value)) {
+            secondaryPreset = value;
+            presetRevision++;
+        }
+    }
     private boolean boneAnimationMuted;
     public boolean isBoneAnimationMuted() {return boneAnimationMuted;}
     public void setBoneAnimationMuted(boolean value) {boneAnimationMuted=value;syncBoneAnimation();}

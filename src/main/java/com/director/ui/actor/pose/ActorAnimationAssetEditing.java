@@ -154,6 +154,7 @@ public final class ActorAnimationAssetEditing {
                 if (clip instanceof com.director.timeline.model.entity.EntitySpawnClip spawn) {
                     if(id.equals(spawn.getBoneAnimationId())) count++;
                     if(spawn.getPreset()!=null && id.equals(spawn.getPreset().animationId())) count++;
+                    if(spawn.getSecondaryPreset()!=null && id.equals(spawn.getSecondaryPreset().animationId())) count++;
                 }
             }
         }

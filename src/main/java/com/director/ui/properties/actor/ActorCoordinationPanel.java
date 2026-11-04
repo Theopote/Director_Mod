@@ -13,7 +13,7 @@ public final class ActorCoordinationPanel {
     public enum Focus { PRESET, QUICK, MANUAL, ROUTE, GAZE }
     public record Navigation(Focus focus,UUID clipId) {}
     private static final List<ActorPoseStage.Kind> ORDER=List.of(ActorPoseStage.Kind.CONTACT,
-            ActorPoseStage.Kind.MANUAL,ActorPoseStage.Kind.QUICK,ActorPoseStage.Kind.PRESET);
+            ActorPoseStage.Kind.MANUAL,ActorPoseStage.Kind.QUICK,ActorPoseStage.Kind.SECONDARY_PRESET,ActorPoseStage.Kind.PRESET);
     private static String tr(String key,Object... args) {
         return com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.coordination."+key,args);
     }
@@ -61,7 +61,9 @@ public final class ActorCoordinationPanel {
             ImGui.textWrapped(stage.detailCode()==ActorPoseStage.Detail.DIAGNOSTIC?stage.detail():
                     tr("detail."+stage.detailCode().name().toLowerCase(Locale.ROOT)));
             if(kind!=ActorPoseStage.Kind.CONTACT && stage.state()!=ActorPoseStage.State.UNSUPPORTED) {
-                if(ImGui.smallButton(tr("view_settings"))) requested=new Navigation(kind==ActorPoseStage.Kind.PRESET?Focus.PRESET:kind==ActorPoseStage.Kind.QUICK?Focus.QUICK:Focus.MANUAL,null);
+                if(ImGui.smallButton(tr("view_settings"))) requested=new Navigation(
+                        kind==ActorPoseStage.Kind.PRESET || kind==ActorPoseStage.Kind.SECONDARY_PRESET
+                                ?Focus.PRESET:kind==ActorPoseStage.Kind.QUICK?Focus.QUICK:Focus.MANUAL,null);
             }
             ImGui.popID();
         }

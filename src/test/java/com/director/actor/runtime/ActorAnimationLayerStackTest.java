@@ -10,6 +10,55 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorAnimationLayerStackTest {
+    @Test void twoSavedSpawnPresetsSampleIndependentClocksAndBlendByBone() {
+        var rig = ArticulatedPlayerRig.DEFINITION;
+        var library = AnimationAssetLibrary.getInstance();
+        var lower = new AnimationAsset("test:spawn-lower", "Lower", rig, 3f, AnimationLoopMode.ONCE);
+        var upper = new AnimationAsset("test:spawn-upper", "Upper", rig, 3f, AnimationLoopMode.ONCE);
+        var leg = new Quaternionf().rotateX(.35f);
+        var arm = new Quaternionf().rotateZ(.6f);
+        lower.getOrCreateBoneTrack("left_leg").rotation().put(0, leg, InterpolationMode.LINEAR);
+        lower.getOrCreateBoneTrack("right_arm").rotation().put(0, new Quaternionf().rotateZ(.9f), InterpolationMode.LINEAR);
+        upper.getOrCreateBoneTrack("right_arm").rotation().put(0, arm, InterpolationMode.LINEAR);
+        upper.getOrCreateBoneTrack("left_leg").rotation().put(0, new Quaternionf().rotateX(.8f), InterpolationMode.LINEAR);
+        library.register(lower);
+        library.register(upper);
+        try {
+            var spawn = new EntitySpawnClip("Actor", 2, 8);
+            var base = new ActorPresetBinding(lower.id(), false, 1f,
+                    PoseScope.LOWER.apply(PoseBlendSettings.DEFAULT, rig));
+            var overlay = new ActorPresetBinding(upper.id(), true, 2f,
+                    PoseScope.UPPER.apply(PoseBlendSettings.DEFAULT, rig));
+            spawn.setPreset(base);
+            spawn.setSecondaryPreset(overlay);
+            var dto = com.director.timeline.persistence.TimelineModelPersistence.entityClipToDTO(spawn);
+            var restored = (EntitySpawnClip) com.director.timeline.persistence.TimelineModelPersistence.entityClipFromDTO(dto);
+            assertEquals(base, restored.getPreset());
+            assertEquals(overlay, restored.getSecondaryPreset());
+            var track = new ActorTrack();
+            track.addClip(restored);
+            var sampler = new EntityClipSampler(track);
+            var sample = sampler.sampleSnapshot(3);
+            assertTrue(sample.animationIsPreset);
+            var main = ActorAnimationLayerSample.from(sample);
+            var second = sample.secondaryPresetAnimation;
+            assertEquals(1f, second.localTime());
+            assertEquals(2f, second.speed());
+            assertTrue(second.loop());
+            assertSame(second, sample.copy().secondaryPresetAnimation);
+            var result = ActorPoseEvaluator.evaluate(com.director.actor.ActorType.PLAYER,
+                    new com.director.actor.rig.HumanoidRigProfile(), rig, new com.director.actor.rig.Pose(), sample,
+                    null, new ActorPoseEvaluator.Layer(second.sample(rig), second.settings(), second.envelope()),
+                    new ActorPoseEvaluator.Layer(main.sample(rig), main.settings(), main.envelope()), LimbBendMode.SHARP);
+            assertTrue(result.diagnostics().isEmpty());
+            assertTrue(leg.equals(result.pose().localTransform("left_leg").rotation(), 1e-5f));
+            assertTrue(arm.equals(result.pose().localTransform("right_arm").rotation(), 1e-5f));
+            assertNull(sampler.sampleSnapshot(1).secondaryPresetAnimation);
+        } finally {
+            library.remove(lower.id());
+            library.remove(upper.id());
+        }
+    }
     private static final String MISSING="test:manual-not-registered";
     private ActorTrack track() {
         var track=new ActorTrack("Actor");

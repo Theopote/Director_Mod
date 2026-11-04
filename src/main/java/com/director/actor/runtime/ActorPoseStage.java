@@ -5,7 +5,7 @@ import java.util.*;
 
 /** A stage's accepted channel writes, not an estimate of its final visual contribution. */
 public record ActorPoseStage(Kind kind,State state,Set<ActorPoseSources.Channel> channels,float weight,Detail detailCode,String detail) {
-    public enum Kind { PRESET, QUICK, MANUAL, CONTACT }
+    public enum Kind { PRESET, SECONDARY_PRESET, QUICK, MANUAL, CONTACT }
     public enum State { ABSENT, DISABLED, EMPTY, REJECTED, APPLIED, UNCHANGED, UNSUPPORTED }
     public enum Detail { ABSENT, ZERO_WEIGHT, EMPTY, ADDITIVE, OVERRIDE, UNSUPPORTED_QUICK, QUICK_ABSENT,
         UNSUPPORTED_CONTACT, CONTACT_UNCHANGED, CONTACT_APPLIED, DIAGNOSTIC }

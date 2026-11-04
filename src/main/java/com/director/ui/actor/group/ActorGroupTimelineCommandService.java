@@ -115,7 +115,7 @@ public final class ActorGroupTimelineCommandService {
             // A separate animation clip plays under manual bone corrections. Existing spawn presets
             // have higher priority, so overlapping preset or animation clips are reported as conflicts.
             if (clips.stream().anyMatch(EntityAnimationClip.class::isInstance)
-                    || spawns.stream().anyMatch(spawn -> spawn.getPreset() != null)) {
+                    || spawns.stream().anyMatch(spawn -> spawn.getPreset() != null || spawn.getSecondaryPreset() != null)) {
                 skipped.add(new SkippedMember(id, SkipReason.PRESET_CONFLICT));
                 continue;
             }

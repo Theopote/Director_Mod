@@ -4,7 +4,7 @@ import com.director.timeline.model.entity.*;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/** Includes visible animation clips and both references owned by a lifecycle clip. */
+/** Includes visible animation clips and references owned by a lifecycle clip. */
 public final class ActorAnimationReferences {
     private ActorAnimationReferences() {}
     public static Set<String> ids(ActorTrack track) {
@@ -18,6 +18,7 @@ public final class ActorAnimationReferences {
         if (clip instanceof EntitySpawnClip spawn) {
             add(result, spawn.getBoneAnimationId());
             if (spawn.getPreset() != null) add(result, spawn.getPreset().animationId());
+            if (spawn.getSecondaryPreset() != null) add(result, spawn.getSecondaryPreset().animationId());
         }
         return Set.copyOf(result);
     }

@@ -2539,6 +2539,7 @@
   "gui.director.actor.coordination.written": "已写入 %d 个部位 / %d 条通道",
   "gui.director.actor.coordination.weight": " · 有效混合权重 %.0f%%",
   "gui.director.actor.coordination.kind.preset": "动作预设",
+  "gui.director.actor.coordination.kind.secondary_preset": "第二动作预设",
   "gui.director.actor.coordination.kind.quick": "快速姿态",
   "gui.director.actor.coordination.kind.manual": "手工骨骼关键帧",
   "gui.director.actor.coordination.kind.contact": "脚底接触",

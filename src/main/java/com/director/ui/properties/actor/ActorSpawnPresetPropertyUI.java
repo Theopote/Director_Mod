@@ -81,6 +81,7 @@ public final class ActorSpawnPresetPropertyUI {
             var actor=payload==null || payload.getActorRef()==null?null:
                     ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
             var catalog=catalogCache.entries(AnimationAssetLibrary.getInstance(),AnimationLibrary.getInstance(),actor);
+            renderSecondary(draft, gesture, catalog, ActorRigCompatibility.resolveRig(actor).orElse(null));
             var binding=draft.getPreset();
             String current="无预设";
             if(binding!=null) {
@@ -188,5 +189,55 @@ public final class ActorSpawnPresetPropertyUI {
 
 
         } finally { ImGui.popID(); }
+    }
+
+    private static void renderSecondary(EntitySpawnClip draft, ActorClipInspectorGesture gesture,
+            List<com.director.ui.actor.pose.ActorAnimationCatalog.Entry> catalog, RigDefinition rig) {
+        if (!ImGui.treeNode("第二动作预设##secondaryPreset")) return;
+        try {
+            var binding = draft.getSecondaryPreset();
+            String id = binding == null ? null : binding.animationId();
+            String label = id == null ? "无预设" : catalog.stream().filter(entry -> entry.id().equals(id))
+                    .map(entry -> entry.name() + (entry.compatible() ? "" : " · 不兼容"))
+                    .findFirst().orElse("缺失引用 · " + id);
+            ImGui.textWrapped("第二预设在主预设之后混合。若希望动作分开控制，给主预设选「仅双腿」，给第二预设选「仅上半身」。");
+            if (ImGui.beginCombo("动作##secondaryAsset", label)) {
+                try {
+                    if (ImGui.selectable("无预设##clearSecondary", binding == null) && binding != null) {
+                        binding = null;
+                        gesture.requestCommit();
+                    }
+                    for (var entry : catalog) {
+                        if (!entry.compatible() || entry.id().equals(draft.getBoneAnimationId())) continue;
+                        if (ImGui.selectable(entry.name() + "##" + entry.id(), entry.id().equals(id))
+                                && !entry.id().equals(id)) {
+                            boolean first = binding == null;
+                            binding = ActorPresetBinding.select(entry.id(), binding);
+                            if (first && ActorPresetScope.UPPER.supported(rig)) binding = ActorPresetScope.UPPER.apply(binding, rig);
+                            gesture.requestCommit();
+                        }
+                    }
+                } finally { ImGui.endCombo(); }
+            }
+            if (binding == null) {
+                draft.setSecondaryPreset(null);
+                return;
+            }
+            boolean loop = binding.loop();
+            boolean changed = ImGui.checkbox("循环##secondaryLoop", loop);
+            if (changed) loop = !loop;
+            gesture.observe("secondaryLoop", changed);
+            float[] speed = {binding.speed()};
+            changed = ImGui.sliderFloat("速度##secondarySpeed", speed, .01f, 4f);
+            gesture.observe("secondarySpeed", changed);
+            var blend = binding.blend();
+            float[] weight = {blend.weight()};
+            changed = ImGui.sliderFloat("权重##secondaryWeight", weight, 0f, 1f);
+            gesture.observe("secondaryWeight", changed);
+            var updated = new ActorPresetBinding(binding.animationId(), loop, speed[0],
+                    new PoseBlendSettings(blend.mode(), weight[0], blend.channels(), blend.allBones(), blend.boneIds(),
+                            blend.fadeIn(), blend.fadeOut()));
+            draft.setSecondaryPreset(renderScopeButtons(updated, rig, gesture));
+        } finally { ImGui.treePop(); }
     }
 }
