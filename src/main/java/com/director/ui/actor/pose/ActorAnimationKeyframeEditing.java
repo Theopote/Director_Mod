@@ -206,24 +206,23 @@ public final class ActorAnimationKeyframeEditing {
                                     InterpolationMode fallbackInterpolation) {
         BoneTrack target = asset.getOrCreateBoneTrack(targetBone);
         ChannelKeyframe<Quaternionf> before = target.rotation().findAt(time).orElse(null);
-        InterpolationMode mode = asset.findBoneTrack(sourceBone)
-                .flatMap(track -> track.rotation().findAt(time))
-                .map(ChannelKeyframe::interpolation)
-                .orElse(fallbackInterpolation == null ? InterpolationMode.SMOOTH : fallbackInterpolation);
+        var source = asset.findBoneTrack(sourceBone).flatMap(track -> track.rotation().findAt(time)).orElse(null);
+        InterpolationMode mode = source == null ? fallbackInterpolation : source.interpolation();
         Quaternionf mirrored = mirrorAcrossX(sampled.localTransform(sourceBone).rotation());
-        changes.add(new MirrorState(target, time, before, new ChannelKeyframe<>(time, mirrored, mode)));
+        changes.add(new MirrorState(target, time, before, new ChannelKeyframe<>(time, mirrored, mode,
+                source == null ? null : source.ease())));
     }
 
     private static void restoreMirror(List<MirrorState> changes) {
         for (MirrorState state : changes) {
             if (state.before == null) state.track.rotation().removeAt(state.time);
-            else state.track.rotation().put(state.before.time(), state.before.value(), state.before.interpolation());
+            else state.track.rotation().put(state.before.time(), state.before.value(), state.before.interpolation(), state.before.ease());
         }
     }
 
     private static void applyMirror(List<MirrorState> changes) {
         for (MirrorState state : changes) state.track.rotation().put(
-                state.after.time(), state.after.value(), state.after.interpolation());
+                state.after.time(), state.after.value(), state.after.interpolation(), state.after.ease());
     }
 
     private static List<KeyState> resolve(List<RotationKey> keys) {
@@ -267,7 +266,7 @@ public final class ActorAnimationKeyframeEditing {
 
     private static void putScales(List<ScaleState> states, float offset) {
         for (ScaleState state : states) state.track.scale().put(
-                state.frame.time() + offset, state.frame.value(), state.frame.interpolation());
+                state.frame.time() + offset, state.frame.value(), state.frame.interpolation(), state.frame.ease());
     }
 
     private static boolean occupiedTranslation(BoneTrack track, float target, List<TranslationState> selected) {
@@ -283,7 +282,7 @@ public final class ActorAnimationKeyframeEditing {
 
     private static void putTranslations(List<TranslationState> states, float offset) {
         for (TranslationState state : states) state.track.translation().put(
-                state.frame.time() + offset, state.frame.value(), state.frame.interpolation());
+                state.frame.time() + offset, state.frame.value(), state.frame.interpolation(), state.frame.ease());
     }
 
     private static boolean occupiedByUnselected(BoneTrack track, float target, List<KeyState> selected) {
@@ -300,7 +299,7 @@ public final class ActorAnimationKeyframeEditing {
 
     private static void putAll(List<KeyState> states) {
         for (KeyState state : states) state.track.rotation().put(
-                state.frame.time(), state.frame.value(), state.frame.interpolation());
+                state.frame.time(), state.frame.value(), state.frame.interpolation(), state.frame.ease());
     }
 
     private static void removeShifted(List<KeyState> states, float delta) {
@@ -309,7 +308,7 @@ public final class ActorAnimationKeyframeEditing {
 
     private static void putShifted(List<KeyState> states, float delta) {
         for (KeyState state : states) state.track.rotation().put(
-                state.frame.time() + delta, state.frame.value(), state.frame.interpolation());
+                state.frame.time() + delta, state.frame.value(), state.frame.interpolation(), state.frame.ease());
     }
 
     private record KeyState(BoneTrack track, ChannelKeyframe<Quaternionf> frame) {}

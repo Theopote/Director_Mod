@@ -122,9 +122,9 @@ public final class ActorAnimationAssetEditing {
         copy.setPurpose(source.purpose());
         source.boneTracks().forEach((bone, track) -> {
             BoneTrack target = copy.getOrCreateBoneTrack(bone);
-            track.translation().keyframes().forEach(k -> target.translation().put(k.time(), k.value(), k.interpolation()));
-            track.rotation().keyframes().forEach(k -> target.rotation().put(k.time(), k.value(), k.interpolation()));
-            track.scale().keyframes().forEach(k -> target.scale().put(k.time(), k.value(), k.interpolation()));
+            track.translation().keyframes().forEach(k -> target.translation().put(k.time(), k.value(), k.interpolation(), k.ease()));
+            track.rotation().keyframes().forEach(k -> target.rotation().put(k.time(), k.value(), k.interpolation(), k.ease()));
+            track.scale().keyframes().forEach(k -> target.scale().put(k.time(), k.value(), k.interpolation(), k.ease()));
         });
         source.markers().forEach(copy::addMarker);
         return copy;

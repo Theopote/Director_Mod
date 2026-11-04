@@ -4,5 +4,6 @@ package com.director.actor.animation.asset;
 public enum InterpolationMode {
     STEP,
     LINEAR,
-    SMOOTH
+    SMOOTH,
+    BEZIER
 }

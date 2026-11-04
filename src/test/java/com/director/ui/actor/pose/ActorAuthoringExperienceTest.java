@@ -17,6 +17,19 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorAuthoringExperienceTest {
+    @Test void curvePreviewSamplesBothSidesOfAnOffGridStep() {
+        var track = new BoneTrack().translation();
+        track.put(0f, new org.joml.Vector3f(), InterpolationMode.STEP);
+        float transition = .337f;
+        track.put(transition, new org.joml.Vector3f(2f), InterpolationMode.LINEAR);
+        var times = ActorAnimationCurvePreview.sampleTimes(track, .2f, .8f);
+        int jump = times.indexOf(transition);
+        assertTrue(jump > 0);
+        assertEquals(Math.nextDown(transition), times.get(jump - 1));
+        assertEquals(0f, track.sample(times.get(jump - 1), new org.joml.Vector3f()).x);
+        assertEquals(2f, track.sample(times.get(jump), new org.joml.Vector3f()).x);
+    }
+
     private TimelineModel model;
     private TimelineTrack owner;
     private TimelineCommandHistory history;

@@ -267,6 +267,9 @@ public final class ActorAnimationDopeSheet {
 
         ViewState view = views.computeIfAbsent(asset.id(), ignored -> new ViewState());
         clampView(view, asset.duration());
+        ImGui.beginDisabled(isKeyInteractionActive());
+        if (ImGui.checkbox(curveText("show"), view.curve)) view.curve = !view.curve;
+        ImGui.endDisabled();
         if (ImGui.smallButton(Icons.ZOOM_IN + "##dopeZoomIn")) zoomView(view, asset.duration(), view.zoom * 1.5f, 0.5f);
         ImGui.sameLine();
         if (ImGui.smallButton(Icons.ZOOM_OUT + "##dopeZoomOut")) zoomView(view, asset.duration(), view.zoom / 1.5f, 0.5f);
@@ -278,6 +281,10 @@ public final class ActorAnimationDopeSheet {
         ImGui.sameLine();
         ImGui.textDisabled(String.format("%.1fx  %.2f–%.2fs", view.zoom, view.startTime,
                 view.startTime + visibleDuration(asset.duration(), view.zoom)));
+        if (view.curve) {
+            renderCurve(rows, view, asset.duration());
+            return;
+        }
 
         final float labelWidth = 140f;
         final float rulerHeight = 18f;
@@ -671,6 +678,40 @@ public final class ActorAnimationDopeSheet {
         };
     }
 
+    private static String curveText(String key) {
+        return net.minecraft.client.resource.language.I18n.translate("gui.director.actor.curve." + key);
+    }
+
+    private static void renderCurve(List<Row> rows, ViewState view, float duration) {
+        var keyed = rows.stream().filter(row -> switch (row.channel()) {
+            case ROTATION -> !row.track().rotation().isEmpty();
+            case TRANSLATION -> !row.track().translation().isEmpty();
+            case SCALE -> !row.track().scale().isEmpty();
+        }).toList();
+        if (keyed.isEmpty()) {
+            ImGui.textDisabled(curveText("empty"));
+            return;
+        }
+        Row selected = keyed.stream().filter(row -> row.boneId().equals(view.curveBone)
+                && row.channel() == view.curveChannel).findFirst().orElse(keyed.getFirst());
+        if (ImGui.beginCombo(curveText("channel"), curveLabel(selected))) {
+            for (Row row : keyed) {
+                if (ImGui.selectable(curveLabel(row) + "##" + row.boneId() + row.channel(), row.equals(selected))) {
+                    selected = row;
+                    view.curveBone = row.boneId();
+                    view.curveChannel = row.channel();
+                }
+            }
+            ImGui.endCombo();
+        }
+        if (selected.channel() == Channel.ROTATION) ImGui.textWrapped(curveText("quaternion"));
+        ActorAnimationCurvePreview.render(selected, view.startTime, visibleDuration(duration, view.zoom), renderContext.assetTime());
+    }
+
+    private static String curveLabel(Row row) {
+        return row.boneId() + " · " + curveText(row.channel().name().toLowerCase(java.util.Locale.ROOT));
+    }
+
     static List<Row> rows(AnimationAsset asset) {
         List<Row> rows=new ArrayList<>();
         for(var bone:asset.rig().bones()) for(var channel:Channel.values())
@@ -691,6 +732,9 @@ public final class ActorAnimationDopeSheet {
     private static final class ViewState {
         private float zoom = 1f;
         private float startTime;
+        private boolean curve;
+        private String curveBone;
+        private Channel curveChannel;
     }
 
 }

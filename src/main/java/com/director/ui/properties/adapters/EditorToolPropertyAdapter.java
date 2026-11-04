@@ -236,7 +236,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
         var modes = com.director.actor.animation.asset.InterpolationMode.values();
         animationInterpolation.set(settings.getInterpolation().ordinal());
-        String[] labels = {"阶梯", "线性", "平滑"};
+        String[] labels = {"阶梯", "线性", "平滑", "贝塞尔"};
         if (ImGui.combo("关键帧插值##actorAnimationInterpolation", animationInterpolation, labels)) {
             settings.setInterpolation(modes[Math.max(0, Math.min(animationInterpolation.get(), modes.length - 1))]);
         }

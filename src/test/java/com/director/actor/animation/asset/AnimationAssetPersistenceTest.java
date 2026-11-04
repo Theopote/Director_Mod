@@ -19,6 +19,23 @@ class AnimationAssetPersistenceTest {
 
     @AfterEach void cleanUp() { library.clear(); }
 
+    @Test void roundTripsBezierHandlesAndUsesThemToSample() throws Exception {
+        var asset = asset("project:ease", "Ease");
+        var track = asset.getOrCreateBoneTrack(HumanoidRig.LEFT_ARM).translation();
+        var ease = new BezierEase(1f / 3f, 0f, 2f / 3f, 0f);
+        track.put(0f, new Vector3f(), InterpolationMode.BEZIER, ease);
+        track.put(1f, new Vector3f(8f), InterpolationMode.LINEAR);
+        library.register(asset);
+        Path file = tempDir.resolve("bezier.json");
+        AnimationAssetPersistence.save(file, library);
+        library.clear();
+        AnimationAssetPersistence.load(file, library);
+        var restored = library.find(asset.id()).orElseThrow().findBoneTrack(HumanoidRig.LEFT_ARM).orElseThrow().translation();
+        assertEquals(ease, restored.findAt(0f).orElseThrow().ease());
+        assertEquals(1f, restored.sample(.5f, new Vector3f()).x, 1e-5f);
+        assertEquals(8f, restored.sample(1f, new Vector3f()).x);
+    }
+
     @Test void invalidOptionalPurposeDoesNotDiscardAssetsOrTheirKeys() throws Exception {
         var first=asset("project:a","A");
         first.getOrCreateBoneTrack("head").rotation().put(0,new Quaternionf().rotateY(.4f),InterpolationMode.LINEAR);

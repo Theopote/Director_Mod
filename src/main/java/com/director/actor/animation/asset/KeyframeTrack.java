@@ -17,7 +17,13 @@ public final class KeyframeTrack<T> {
     }
 
     public void put(float time, T value, InterpolationMode interpolation) {
-        ChannelKeyframe<T> inserted = copied(new ChannelKeyframe<>(time, value, interpolation));
+        BezierEase ease = interpolation == InterpolationMode.BEZIER
+                ? findAt(time).map(ChannelKeyframe::ease).orElse(null) : null;
+        put(time, value, interpolation, ease);
+    }
+
+    public void put(float time, T value, InterpolationMode interpolation, BezierEase ease) {
+        ChannelKeyframe<T> inserted = copied(new ChannelKeyframe<>(time, value, interpolation, ease));
         for (int i = 0; i < keyframes.size(); i++) {
             if (Math.abs(keyframes.get(i).time() - time) <= TIME_EPSILON) {
                 keyframes.set(i, inserted);
@@ -55,6 +61,7 @@ public final class KeyframeTrack<T> {
         if (from.interpolation() == InterpolationMode.STEP) return values.copy(from.value());
         float amount = (time - from.time()) / (to.time() - from.time());
         if (from.interpolation() == InterpolationMode.SMOOTH) amount = amount * amount * (3f - 2f * amount);
+        if (from.interpolation() == InterpolationMode.BEZIER) amount = from.ease().map(amount);
         return values.interpolate(from.value(), to.value(), amount);
     }
 
@@ -68,6 +75,6 @@ public final class KeyframeTrack<T> {
     public int size() { return keyframes.size(); }
 
     private ChannelKeyframe<T> copied(ChannelKeyframe<T> frame) {
-        return new ChannelKeyframe<>(frame.time(), values.copy(frame.value()), frame.interpolation());
+        return new ChannelKeyframe<>(frame.time(), values.copy(frame.value()), frame.interpolation(), frame.ease());
     }
 }

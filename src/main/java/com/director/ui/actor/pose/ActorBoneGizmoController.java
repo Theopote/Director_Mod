@@ -579,12 +579,12 @@ public final class ActorBoneGizmoController {
                 () -> {
                     if (scaling) {
                         if (beforeScale == null) boneTrack.scale().removeAt(keyTime);
-                        else boneTrack.scale().put(beforeScale.time(), beforeScale.value(), beforeScale.interpolation());
+                        else boneTrack.scale().put(beforeScale.time(), beforeScale.value(), beforeScale.interpolation(), beforeScale.ease());
                     } else if (translating) {
                         if (beforeTranslation == null) boneTrack.translation().removeAt(keyTime);
-                        else boneTrack.translation().put(beforeTranslation.time(), beforeTranslation.value(), beforeTranslation.interpolation());
+                        else boneTrack.translation().put(beforeTranslation.time(), beforeTranslation.value(), beforeTranslation.interpolation(), beforeTranslation.ease());
                     } else if (before == null) boneTrack.rotation().removeAt(keyTime);
-                    else boneTrack.rotation().put(before.time(), before.value(), before.interpolation());
+                    else boneTrack.rotation().put(before.time(), before.value(), before.interpolation(), before.ease());
                     if (addBoneTrack && boneTrack.isEmpty()) asset.removeBoneTrack(targetBone);
                     if (addClip && clip != null) {
                         spawnOwner.setBoneAnimationId(oldAnimationId);
@@ -595,9 +595,9 @@ public final class ActorBoneGizmoController {
                     if (addAsset) AnimationAssetLibrary.getInstance().register(asset);
                     if (addBoneTrack) asset.attachBoneTrack(targetBone, boneTrack);
                     if (addClip && clip != null) spawnOwner.setBoneAnimationId(asset.id());
-                    if (scaling) boneTrack.scale().put(afterScale.time(), afterScale.value(), afterScale.interpolation());
-                    else if (translating) boneTrack.translation().put(afterTranslation.time(), afterTranslation.value(), afterTranslation.interpolation());
-                    else boneTrack.rotation().put(after.time(), after.value(), after.interpolation());
+                    if (scaling) boneTrack.scale().put(afterScale.time(), afterScale.value(), afterScale.interpolation(), afterScale.ease());
+                    else if (translating) boneTrack.translation().put(afterTranslation.time(), afterTranslation.value(), afterTranslation.interpolation(), afterTranslation.ease());
+                    else boneTrack.rotation().put(after.time(), after.value(), after.interpolation(), after.ease());
                 }));
     }
 

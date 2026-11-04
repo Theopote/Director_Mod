@@ -60,6 +60,6 @@ public final class ActorPoseKeyframeEditing {
 
     private static <T> void restore(KeyframeTrack<T> track, float time, ChannelKeyframe<T> frame) {
         track.removeAt(time);
-        if (frame != null) track.put(frame.time(), frame.value(), frame.interpolation());
+        if (frame != null) track.put(frame.time(), frame.value(), frame.interpolation(), frame.ease());
     }
 }

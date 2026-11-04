@@ -13,7 +13,10 @@ public final class ActorAnimationAuthoringService {
     private ActorAnimationAuthoringService() {}
     public enum Channel { TRANSLATION, ROTATION, SCALE }
     public record Key(String boneId, Channel channel, float time) {}
-    public record Paste(String boneId, Channel channel, float time, Object value, InterpolationMode interpolation) {
+    public record Paste(String boneId, Channel channel, float time, Object value, InterpolationMode interpolation, BezierEase ease) {
+        public Paste(String boneId, Channel channel, float time, Object value, InterpolationMode interpolation) {
+            this(boneId, channel, time, value, interpolation, null);
+        }
         public Paste {
             if (value instanceof Vector3f vector) value = new Vector3f(vector);
             else if (value instanceof Quaternionf rotation) value = new Quaternionf(rotation);
@@ -42,7 +45,7 @@ public final class ActorAnimationAuthoringService {
         if(context==null || key==null) return false;
         var track=context.asset().findBoneTrack(key.boneId()).orElse(null);
         var existing=track==null?null:frame(track,key);
-        return existing!=null && write(context,List.of(new Paste(key.boneId(),key.channel(),key.time(),value,existing.interpolation())),true,"Edit actor key value");
+        return existing!=null && write(context,List.of(new Paste(key.boneId(),key.channel(),key.time(),value,existing.interpolation(),existing.ease())),true,"Edit actor key value");
     }
 
     public static boolean paste(ActorAnimationEditContext context, Collection<Paste> keys) {
@@ -65,8 +68,12 @@ public final class ActorAnimationAuthoringService {
             var existing = frame(target, destination);
             if (!overwrite && existing != null) return false;
             InterpolationMode mode = key.interpolation() == null ? InterpolationMode.SMOOTH : key.interpolation();
-            changed |= existing == null || !existing.value().equals(key.value()) || existing.interpolation() != mode;
-            put(target, destination, key.value(), mode);
+            BezierEase ease = mode == InterpolationMode.BEZIER
+                    ? Objects.requireNonNullElse(key.ease(), existing != null && existing.ease() != null ? existing.ease() : BezierEase.DEFAULT)
+                    : null;
+            changed |= existing == null || !existing.value().equals(key.value()) || existing.interpolation() != mode
+                    || !Objects.equals(existing.ease(), ease);
+            put(target, destination, key.value(), mode, ease);
         }
         return changed && draft.commit(context, description,overwrite?null:destinations);
     }
@@ -86,6 +93,19 @@ public final class ActorAnimationAuthoringService {
     /** Change outgoing interpolation only; no new keys, time shifts or value changes. */
     public static boolean setInterpolation(ActorAnimationEditContext context, Collection<Key> keys,
                                            InterpolationMode mode) {
+        return setInterpolation(context, keys, mode, null);
+    }
+
+    public static boolean setBezierEase(ActorAnimationEditContext context, Key key, BezierEase ease) {
+        if (context == null || key == null || ease == null || !valid(context.asset(), key)) return false;
+        var track = context.asset().findBoneTrack(key.boneId()).orElse(null);
+        var existing = track == null ? null : frame(track, key);
+        return existing != null && existing.interpolation() == InterpolationMode.BEZIER
+                && setInterpolation(context, List.of(key), InterpolationMode.BEZIER, ease);
+    }
+
+    private static boolean setInterpolation(ActorAnimationEditContext context, Collection<Key> keys,
+                                            InterpolationMode mode, BezierEase ease) {
         if(context==null || !context.isCurrent() || keys==null || keys.isEmpty() || mode==null) return false;
         Draft draft=new Draft(context.asset());
         boolean changed=false;
@@ -94,9 +114,9 @@ public final class ActorAnimationAuthoringService {
             var track=draft.track(key.boneId());
             var existing=frame(track,key);
             if(existing==null) return false;
-            if(existing.interpolation()!=mode) {
+            if(existing.interpolation()!=mode || ease != null && !ease.equals(existing.ease())) {
                 changed=true;
-                put(track,new Key(key.boneId(),key.channel(),existing.time()),existing.value(),mode);
+                put(track,new Key(key.boneId(),key.channel(),existing.time()),existing.value(),mode,ease);
             }
         }
         return changed && draft.commit(context,"Change actor keyframe interpolation");
@@ -133,11 +153,11 @@ public final class ActorAnimationAuthoringService {
                     && source.stream().noneMatch(selected -> sameKey(selected, destination))) return false;
             if (moved.stream().anyMatch(paste -> sameKey(new Key(paste.boneId(), paste.channel(), paste.time()), destination)))
                 return false;
-            moved.add(new Paste(key.boneId(), key.channel(), destination.time(), before.value(), before.interpolation()));
+            moved.add(new Paste(key.boneId(), key.channel(), destination.time(), before.value(), before.interpolation(), before.ease()));
         }
         for (Key key : source) channel(draft.track(key.boneId()), key.channel()).removeAt(key.time());
         for (Paste paste : moved) put(draft.track(paste.boneId()),
-                new Key(paste.boneId(), paste.channel(), paste.time()), paste.value(), paste.interpolation());
+                new Key(paste.boneId(), paste.channel(), paste.time()), paste.value(), paste.interpolation(), paste.ease());
         return draft.commit(context, "Move actor keyframes",moved.stream().map(p -> new Key(p.boneId(),p.channel(),p.time())).toList());
     }
 
@@ -152,10 +172,10 @@ public final class ActorAnimationAuthoringService {
             for(var bone:rig.bones()) {
                 if(!supports(context.asset(),bone.id(),Channel.ROTATION)) continue;
                 String source=opposite(rig,bone.id());
-                var interpolation=context.asset().findBoneTrack(source).flatMap(t->t.rotation().findAt(time))
-                        .map(ChannelKeyframe::interpolation).orElse(mode);
+                var sourceKey = context.asset().findBoneTrack(source).flatMap(t -> t.rotation().findAt(time)).orElse(null);
                 keys.add(new Paste(bone.id(),Channel.ROTATION,time,
-                        ActorAnimationKeyframeEditing.mirrorAcrossX(pose.localTransform(source).rotation()),interpolation));
+                        ActorAnimationKeyframeEditing.mirrorAcrossX(pose.localTransform(source).rotation()),
+                        sourceKey == null ? mode : sourceKey.interpolation(), sourceKey == null ? null : sourceKey.ease()));
             }
         }
         return write(context, keys, true, "Mirror actor pose");
@@ -181,7 +201,7 @@ public final class ActorAnimationAuthoringService {
                     yield rig.bone(rig.requireBoneIndex(target)).restLocal().translation().add(delta);
                 }
             };
-            keys.add(new Paste(target,key.channel(),key.time(),reflected,value.interpolation()));
+            keys.add(new Paste(target,key.channel(),key.time(),reflected,value.interpolation(),value.ease()));
         }
         return write(context,keys,true,"Mirror selected actor keys");
     }
@@ -226,11 +246,11 @@ public final class ActorAnimationAuthoringService {
     private static ChannelKeyframe<?> frame(BoneTrack track, Key key) {
         return channel(track, key.channel()).findAt(key.time()).orElse(null);
     }
-    private static void put(BoneTrack track, Key key, Object value, InterpolationMode mode) {
+    private static void put(BoneTrack track, Key key, Object value, InterpolationMode mode, BezierEase ease) {
         switch (key.channel()) {
-            case TRANSLATION -> track.translation().put(key.time(), (Vector3f)value, mode);
-            case ROTATION -> track.rotation().put(key.time(), (Quaternionf)value, mode);
-            case SCALE -> track.scale().put(key.time(), (Vector3f)value, mode);
+            case TRANSLATION -> track.translation().put(key.time(), (Vector3f)value, mode, ease);
+            case ROTATION -> track.rotation().put(key.time(), (Quaternionf)value, mode, ease);
+            case SCALE -> track.scale().put(key.time(), (Vector3f)value, mode, ease);
         }
     }
 
@@ -246,7 +266,7 @@ public final class ActorAnimationAuthoringService {
     }
     private static <T> void copyChannel(KeyframeTrack<T> source, KeyframeTrack<T> target) {
         for (var key : List.copyOf(target.keyframes())) target.removeAt(key.time());
-        for (var key : source.keyframes()) target.put(key.time(), key.value(), key.interpolation());
+        for (var key : source.keyframes()) target.put(key.time(), key.value(), key.interpolation(), key.ease());
     }
     private static final class Draft {
         private final AnimationAsset asset;

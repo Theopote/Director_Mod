@@ -210,7 +210,7 @@ public final class AnimationAssetPersistence {
         JsonArray out = new JsonArray();
         for (ChannelKeyframe<Vector3f> frame : track.keyframes()) {
             Vector3f v = frame.value();
-            JsonObject value = frame(frame.time(), frame.interpolation());
+            JsonObject value = frame(frame);
             value.addProperty("x", v.x); value.addProperty("y", v.y); value.addProperty("z", v.z);
             out.add(value);
         }
@@ -221,18 +221,33 @@ public final class AnimationAssetPersistence {
         JsonArray out = new JsonArray();
         for (ChannelKeyframe<Quaternionf> frame : track.keyframes()) {
             Quaternionf q = frame.value();
-            JsonObject value = frame(frame.time(), frame.interpolation());
+            JsonObject value = frame(frame);
             value.addProperty("x", q.x); value.addProperty("y", q.y); value.addProperty("z", q.z); value.addProperty("w", q.w);
             out.add(value);
         }
         return out;
     }
 
-    private static JsonObject frame(float time, InterpolationMode interpolation) {
+    private static JsonObject frame(ChannelKeyframe<?> frame) {
         JsonObject out = new JsonObject();
-        out.addProperty("time", time);
-        out.addProperty("interpolation", interpolation.name());
+        out.addProperty("time", frame.time());
+        out.addProperty("interpolation", frame.interpolation().name());
+        if (frame.ease() != null) {
+            JsonObject ease = new JsonObject();
+            ease.addProperty("x1", frame.ease().x1());
+            ease.addProperty("y1", frame.ease().y1());
+            ease.addProperty("x2", frame.ease().x2());
+            ease.addProperty("y2", frame.ease().y2());
+            out.add("ease", ease);
+        }
         return out;
+    }
+
+    private static BezierEase readEase(JsonObject frame) {
+        if (!frame.has("ease")) return null;
+        var ease = frame.getAsJsonObject("ease");
+        return new BezierEase(required(ease, "x1").getAsFloat(), required(ease, "y1").getAsFloat(),
+                required(ease, "x2").getAsFloat(), required(ease, "y2").getAsFloat());
     }
 
     private static void readVectors(JsonArray values, KeyframeTrack<Vector3f> track, float duration, boolean scaling) {
@@ -244,7 +259,7 @@ public final class AnimationAssetPersistence {
             if (!vector.isFinite() || scaling && (vector.x <= 0 || vector.y <= 0 || vector.z <= 0))
                 throw new IllegalArgumentException("Invalid vector keyframe");
             track.put(time, vector,
-                    InterpolationMode.valueOf(required(value, "interpolation").getAsString()));
+                    InterpolationMode.valueOf(required(value, "interpolation").getAsString()), readEase(value));
         }
     }
 
@@ -258,7 +273,7 @@ public final class AnimationAssetPersistence {
             if (!rotation.isFinite() || !Float.isFinite(rotation.lengthSquared()) || rotation.lengthSquared() <= 0)
                 throw new IllegalArgumentException("Invalid quaternion keyframe");
             track.put(time, rotation,
-                    InterpolationMode.valueOf(required(value, "interpolation").getAsString()));
+                    InterpolationMode.valueOf(required(value, "interpolation").getAsString()), readEase(value));
         }
     }
 

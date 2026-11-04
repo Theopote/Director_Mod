@@ -15,6 +15,23 @@ import static com.director.ui.actor.pose.ActorAnimationAuthoringService.Channel.
 
 class ActorAnimationAuthoringServiceTest {
     private TimelineModel model;
+
+    @Test void bezierHandlesSurviveMoveClipboardAndUndo() {
+        var channel = asset.getOrCreateBoneTrack("head").rotation();
+        channel.put(1, new Quaternionf(), InterpolationMode.BEZIER);
+        var source = key("head", ROTATION, 1);
+        var ease = new BezierEase(.2f, 0f, .4f, .8f);
+        assertTrue(ActorAnimationAuthoringService.setBezierEase(context, source, ease));
+        assertTrue(history.undo());
+        assertEquals(BezierEase.DEFAULT, channel.findAt(1).orElseThrow().ease());
+        assertTrue(history.redo());
+        assertTrue(ActorAnimationAuthoringService.move(context, List.of(source), .5f));
+        assertEquals(ease, channel.findAt(1.5f).orElseThrow().ease());
+        var clipboard = new ActorKeyframeClipboard();
+        assertTrue(clipboard.copy(asset, List.of(key("head", ROTATION, 1.5f))));
+        assertTrue(ActorAnimationAuthoringService.paste(context, clipboard.at(asset, 2f, 5f)));
+        assertEquals(ease, channel.findAt(2f).orElseThrow().ease());
+    }
     private TimelineTrack track;
     private Actor actor;
     private EntityAnimationClip clip;

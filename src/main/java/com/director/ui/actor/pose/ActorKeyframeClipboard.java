@@ -28,7 +28,7 @@ public final class ActorKeyframeClipboard {
                 case SCALE -> track.scale().findAt(key.time()).orElse(null);
             };
             if(frame==null) return false;
-            result.add(new Paste(key.boneId(),key.channel(),key.time()-origin,frame.value(),frame.interpolation()));
+            result.add(new Paste(key.boneId(),key.channel(),key.time()-origin,frame.value(),frame.interpolation(), frame.ease()));
         }
         content=List.copyOf(result); rigId=asset.rigId(); return true;
     }
@@ -39,7 +39,7 @@ public final class ActorKeyframeClipboard {
         for(var key:content) {
             float time=origin+key.time();
             if(!Float.isFinite(time) || time<0 || time>Math.min(asset.duration(),limit)) return List.of();
-            result.add(new Paste(key.boneId(),key.channel(),time,key.value(),key.interpolation()));
+            result.add(new Paste(key.boneId(),key.channel(),time,key.value(),key.interpolation(), key.ease()));
         }
         return List.copyOf(result);
     }
