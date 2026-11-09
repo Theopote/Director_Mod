@@ -1,6 +1,7 @@
 package com.director.actor.model;
 
 import com.director.actor.model.texture.CuboidFaceUvs;
+import com.director.persistence.ActorLibrarySaveGuard;
 import com.director.persistence.AtomicFileWriter;
 import com.director.util.WorldIdentifier;
 import com.google.gson.Gson;
@@ -18,10 +19,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /** Versioned JSON persistence for project custom block-cuboid models. */
 public final class CustomModelPersistence {
+    private static final ActorLibrarySaveGuard SAVE_GUARD = new ActorLibrarySaveGuard();
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomModelPersistence.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final int FILE_SCHEMA_VERSION = 1;
@@ -68,7 +71,7 @@ public final class CustomModelPersistence {
 
     public static boolean loadFromWorld(CustomModelLibrary library) {
         Path file = worldFile();
-        if (file == null || !Files.exists(file)) return false;
+        if (file == null || Files.notExists(file)) return false;
         try {
             load(file, library);
             return true;
@@ -79,6 +82,7 @@ public final class CustomModelPersistence {
     }
 
     public static void save(Path file, CustomModelLibrary library) throws IOException {
+        SAVE_GUARD.requireWritable(file);
         JsonObject root = new JsonObject();
         root.addProperty("schemaVersion", FILE_SCHEMA_VERSION);
         JsonArray models = new JsonArray();
@@ -88,12 +92,22 @@ public final class CustomModelPersistence {
     }
 
     public static void load(Path file, CustomModelLibrary library) throws IOException {
-        JsonObject root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
-        int version = required(root, "schemaVersion").getAsInt();
-        if (version != FILE_SCHEMA_VERSION) throw new IllegalArgumentException("Unsupported custom model schema: " + version);
-        JsonArray array = required(root, "models").getAsJsonArray();
-        library.clear();
-        for (JsonElement element : array) library.register(readModel(element.getAsJsonObject()));
+        try {
+            JsonObject root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
+            int version = required(root, "schemaVersion").getAsInt();
+            if (version != FILE_SCHEMA_VERSION) throw new IllegalArgumentException("Unsupported custom model schema: " + version);
+            var loaded = new LinkedHashMap<String, CustomModelDefinition>();
+            for (JsonElement element : required(root, "models").getAsJsonArray()) {
+                var model = readModel(element.getAsJsonObject());
+                if (loaded.putIfAbsent(model.id(), model) != null) throw new IllegalArgumentException("Duplicate model ID: " + model.id());
+            }
+            library.clear();
+            loaded.values().forEach(library::register);
+            SAVE_GUARD.loaded(file);
+        } catch (IOException | RuntimeException failure) {
+            SAVE_GUARD.loadFailed(file);
+            throw failure;
+        }
     }
 
     private static JsonObject writeModel(CustomModelDefinition model) {

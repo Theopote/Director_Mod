@@ -47,7 +47,6 @@ public class EntityClipSampler {
     private final List<EntityActionClip> actionClips = new ArrayList<>();
     private final List<EntityStateClip> stateClips = new ArrayList<>();
     private final List<EntityLookAtClip> lookAtClips = new ArrayList<>();
-    private final List<EntityDespawnClip> despawnClips = new ArrayList<>();
     private final List<ActorActionClip> actorActionClips = new ArrayList<>();
     private final List<ActorPoseClip> actorPoseClips = new ArrayList<>();
     private final List<ActorRouteClip> actorRouteClips = new ArrayList<>();
@@ -56,7 +55,7 @@ public class EntityClipSampler {
 
     private void clearScratch() {
         spawnClips.clear(); transformClips.clear(); animationClips.clear(); actionClips.clear();
-        stateClips.clear(); lookAtClips.clear(); despawnClips.clear(); actorActionClips.clear();
+        stateClips.clear(); lookAtClips.clear(); actorActionClips.clear();
         actorPoseClips.clear(); actorRouteClips.clear(); actorRelationClips.clear(); embedded.clear();
     }
 
@@ -175,9 +174,7 @@ public class EntityClipSampler {
                     }
                     break;
                 case DESPAWN:
-                    if (clip instanceof EntityDespawnClip despawnClip) {
-                        despawnClips.add(despawnClip);
-                    }
+                    // Lifecycle effects are evaluated even after the clip ends.
                     break;
                 case ACTOR_ACTION:
                     if (clip instanceof ActorActionClip actorActionClip) {
@@ -252,11 +249,8 @@ public class EntityClipSampler {
         applyLookAt(result, lookAtClips);
 
         // ========== 处理 Despawn Clip（离场）==========
-        if (!despawnClips.isEmpty()) {
-            // 如果有多个 Despawn Clip，使用最后一个
-            EntityDespawnClip despawnClip = despawnClips.getLast();
-            applyDespawnClip(result, despawnClip, timeSeconds);
-        }
+        if (presetOwner != null && track.hasCompletedDespawn(timeSeconds, presetOwner, EntityDespawnClip.DespawnMode.HIDE))
+            result.visibility = 0f;
 
         // ========== 处理 Action Clip（行为事件）==========
         // 规则：一次性触发（只在刚进入 Clip 时触发）
@@ -519,17 +513,6 @@ public class EntityClipSampler {
     /**
      * 应用 Despawn Clip（离场）。
      */
-    private void applyDespawnClip(EntitySample result, EntityDespawnClip clip, float time) {
-        // Despawn Clip 在结束时生效
-        if (time >= clip.getEndTime()) { // 接近结束时
-            if (clip.getMode() == EntityDespawnClip.DespawnMode.HIDE) {
-                result.visibility = 0.0f;
-            } else if (clip.getMode() == EntityDespawnClip.DespawnMode.REMOVE) {
-                result.active = false;
-            }
-        }
-    }
-
     // ==========================================================
     // 工具方法
     // ==========================================================

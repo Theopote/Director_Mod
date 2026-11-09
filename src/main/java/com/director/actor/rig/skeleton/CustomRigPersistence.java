@@ -1,5 +1,6 @@
 package com.director.actor.rig.skeleton;
 
+import com.director.persistence.ActorLibrarySaveGuard;
 import com.director.persistence.AtomicFileWriter;
 import com.director.util.WorldIdentifier;
 import com.google.gson.Gson;
@@ -15,9 +16,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 
 /** Versioned JSON persistence for project custom rig skeletons. */
 public final class CustomRigPersistence {
+    private static final ActorLibrarySaveGuard SAVE_GUARD = new ActorLibrarySaveGuard();
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomRigPersistence.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final int FILE_SCHEMA_VERSION = 1;
@@ -65,7 +68,7 @@ public final class CustomRigPersistence {
 
     public static boolean loadFromWorld(CustomRigLibrary library) {
         Path file = worldFile();
-        if (file == null || !Files.exists(file)) return false;
+        if (file == null || Files.notExists(file)) return false;
         try {
             load(file, library);
             return true;
@@ -76,6 +79,7 @@ public final class CustomRigPersistence {
     }
 
     public static void save(Path file, CustomRigLibrary library) throws IOException {
+        SAVE_GUARD.requireWritable(file);
         JsonObject root = new JsonObject();
         root.addProperty("schemaVersion", FILE_SCHEMA_VERSION);
         JsonArray rigs = new JsonArray();
@@ -85,12 +89,22 @@ public final class CustomRigPersistence {
     }
 
     public static void load(Path file, CustomRigLibrary library) throws IOException {
-        JsonObject root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
-        int version = required(root, "schemaVersion").getAsInt();
-        if (version != FILE_SCHEMA_VERSION) throw new IllegalArgumentException("Unsupported custom rig schema: " + version);
-        JsonArray array = required(root, "rigs").getAsJsonArray();
-        library.clear();
-        for (JsonElement element : array) library.register(RigDefinitionPersistence.read(element.getAsJsonObject()));
+        try {
+            JsonObject root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
+            int version = required(root, "schemaVersion").getAsInt();
+            if (version != FILE_SCHEMA_VERSION) throw new IllegalArgumentException("Unsupported custom rig schema: " + version);
+            var loaded = new LinkedHashMap<String, RigDefinition>();
+            for (JsonElement element : required(root, "rigs").getAsJsonArray()) {
+                var rig = RigDefinitionPersistence.read(element.getAsJsonObject());
+                if (loaded.putIfAbsent(rig.id(), rig) != null) throw new IllegalArgumentException("Duplicate rig ID: " + rig.id());
+            }
+            library.clear();
+            loaded.values().forEach(library::register);
+            SAVE_GUARD.loaded(file);
+        } catch (IOException | RuntimeException failure) {
+            SAVE_GUARD.loadFailed(file);
+            throw failure;
+        }
     }
 
     private static JsonElement required(JsonObject object, String name) {

@@ -302,13 +302,18 @@ public class ActorTrack {
             if(clip instanceof EntitySpawnClip spawn && !spawn.isMuted() && time<=spawn.getEndTime()) active=spawn;
         }
         if(active==null) return false;
+        return !hasCompletedDespawn(time, active, EntityDespawnClip.DespawnMode.REMOVE);
+    }
+
+    /** A completed departure applies to the active spawn until another spawn takes over. */
+    public boolean hasCompletedDespawn(float time, EntitySpawnClip spawn, EntityDespawnClip.DespawnMode mode) {
         for(var clip:getClips()) {
             if(clip.getStartTime()>time) break;
             if(clip instanceof EntityDespawnClip despawn && !despawn.isMuted()
-                    && despawn.getMode()==EntityDespawnClip.DespawnMode.REMOVE
-                    && despawn.getStartTime()>=active.getStartTime() && time>=despawn.getEndTime()) return false;
+                    && despawn.getMode()==mode && despawn.getStartTime()>=spawn.getStartTime()
+                    && time>=despawn.getEndTime()) return true;
         }
-        return true;
+        return false;
     }
 
     public void addDefaultSpawnClip(float time) {

@@ -4,6 +4,7 @@ import com.director.actor.Actor;
 import com.director.actor.ActorGroup;
 import com.director.actor.ActorRegistry;
 import com.director.actor.ActorType;
+import com.director.persistence.ActorLibrarySaveGuard;
 import com.director.persistence.AtomicFileWriter;
 import com.director.util.WorldIdentifier;
 import com.google.gson.Gson;
@@ -29,6 +30,7 @@ import java.util.UUID;
  */
 public class ActorRegistryPersistence {
 
+    private static final ActorLibrarySaveGuard SAVE_GUARD = new ActorLibrarySaveGuard();
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorRegistryPersistence.class);
     private static final Gson GSON = new GsonBuilder()
             .setPrettyPrinting()
@@ -85,6 +87,7 @@ public class ActorRegistryPersistence {
                 LOGGER.debug("[ActorRegistryPersistence] 当前无活动存档目录，跳过保存");
                 return false;
             }
+            SAVE_GUARD.requireWritable(file);
             
             Path parent = file.getParent();
             if (parent != null && !Files.exists(parent)) {
@@ -168,25 +171,28 @@ public class ActorRegistryPersistence {
             return;
         }
 
+        Path file = getActorRegistryFile();
+        if (file == null || Files.notExists(file)) {
+            return;
+        }
         try {
-            Path file = getActorRegistryFile();
-            if (file == null) {
-                LOGGER.debug("[ActorRegistryPersistence] 当前无活动存档目录，跳过加载");
-                return;
-            }
-            if (!Files.exists(file)) {
-                LOGGER.debug("[ActorRegistryPersistence] ActorRegistry 文件不存在: {}", file);
-                return;
-            }
-
             String json = Files.readString(file);
             JsonObject root = GSON.fromJson(json, JsonObject.class);
-
-            loadFromJson(registry, root);
-
+            int actorCount = root.getAsJsonArray("actors").size();
+            int groupCount = root.getAsJsonArray("groups").size();
+            ActorRegistry loaded = new ActorRegistry();
+            loadFromJson(loaded, root);
+            if (loaded.size() != actorCount || loaded.groupSize() != groupCount) {
+                throw new IllegalArgumentException("Actor registry contains invalid or duplicate entries");
+            }
+            loaded.getAllActors().forEach(registry::registerActor);
+            loaded.getAllGroups().forEach(registry::registerGroup);
+            SAVE_GUARD.loaded(file);
         } catch (IOException e) {
+            SAVE_GUARD.loadFailed(file);
             LOGGER.error("[ActorRegistryPersistence] 加载 ActorRegistry 失败", e);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            SAVE_GUARD.loadFailed(file);
             LOGGER.error("[ActorRegistryPersistence] 解析 ActorRegistry 文件失败", e);
         }
     }
@@ -309,7 +315,7 @@ public class ActorRegistryPersistence {
      */
     public static boolean hasSavedData() {
         Path file = getActorRegistryFile();
-        return file != null && Files.exists(file);
+        return file != null && !Files.notExists(file);
     }
 }
 

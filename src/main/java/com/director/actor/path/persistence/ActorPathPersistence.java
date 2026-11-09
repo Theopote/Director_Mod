@@ -2,6 +2,8 @@ package com.director.actor.path.persistence;
 
 import com.director.actor.path.ActorPathDefinition;
 import com.director.actor.path.ActorPathLibrary;
+import com.director.persistence.ActorLibrarySaveGuard;
+import com.director.persistence.AtomicFileWriter;
 import com.director.timeline.model.entity.ActorRouteClip;
 import com.director.util.WorldIdentifier;
 import com.google.gson.Gson;
@@ -17,6 +19,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,13 +28,14 @@ public final class ActorPathPersistence {
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorPathPersistence.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String VERSION = "1.0";
+    private static final ActorLibrarySaveGuard SAVE_GUARD = new ActorLibrarySaveGuard();
 
     private ActorPathPersistence() {
     }
 
     public static boolean hasSavedData() {
         Path file = getActorPathsFile();
-        return file != null && Files.exists(file);
+        return file != null && !Files.notExists(file);
     }
 
     public static boolean saveToFile(ActorPathLibrary library) {
@@ -43,28 +47,7 @@ public final class ActorPathPersistence {
             if (file == null) {
                 return false;
             }
-            Path parent = file.getParent();
-            if (parent != null && !Files.exists(parent)) {
-                Files.createDirectories(parent);
-            }
-
-            JsonObject root = new JsonObject();
-            root.addProperty("version", VERSION);
-            JsonArray paths = new JsonArray();
-            for (ActorPathDefinition path : library.getAll()) {
-                paths.add(serializePath(path));
-            }
-            root.add("paths", paths);
-
-            Path tempFile = file.resolveSibling(file.getFileName().toString() + ".tmp");
-            Files.writeString(tempFile, GSON.toJson(root));
-            try {
-                Files.move(tempFile, file,
-                        java.nio.file.StandardCopyOption.REPLACE_EXISTING,
-                        java.nio.file.StandardCopyOption.ATOMIC_MOVE);
-            } catch (java.nio.file.FileSystemException e) {
-                Files.move(tempFile, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            }
+            save(file, library);
             LOGGER.info("[ActorPathPersistence] 保存 {} 条演员路径到 {}", library.size(), file);
             return true;
         } catch (IOException e) {
@@ -73,31 +56,49 @@ public final class ActorPathPersistence {
         }
     }
 
+    public static void save(Path file, ActorPathLibrary library) throws IOException {
+        SAVE_GUARD.requireWritable(file);
+        JsonObject root = new JsonObject();
+        root.addProperty("version", VERSION);
+        JsonArray paths = new JsonArray();
+        for (ActorPathDefinition path : library.getAll()) paths.add(serializePath(path));
+        root.add("paths", paths);
+        AtomicFileWriter.writeString(file, GSON.toJson(root));
+    }
+
     public static void loadFromFile(ActorPathLibrary library) {
         if (library == null) {
             return;
         }
-        library.clear();
         try {
             Path file = getActorPathsFile();
-            if (file == null || !Files.exists(file)) {
+            if (file == null || Files.notExists(file)) {
                 return;
             }
-            JsonObject root = GSON.fromJson(Files.readString(file), JsonObject.class);
-            if (root == null || !root.has("paths")) {
-                return;
-            }
-            List<ActorPathDefinition> loaded = new ArrayList<>();
-            for (JsonElement element : root.getAsJsonArray("paths")) {
-                ActorPathDefinition path = deserializePath(element.getAsJsonObject());
-                if (path != null && path.getWaypoints().size() >= 2) {
-                    loaded.add(path);
-                }
-            }
-            library.replaceAll(loaded);
-            LOGGER.info("[ActorPathPersistence] 从 {} 加载 {} 条演员路径", file, loaded.size());
+            load(file, library);
+            LOGGER.info("[ActorPathPersistence] 从 {} 加载 {} 条演员路径", file, library.size());
         } catch (Exception e) {
             LOGGER.error("[ActorPathPersistence] 加载失败", e);
+        }
+    }
+
+    public static void load(Path file, ActorPathLibrary library) throws IOException {
+        try {
+            JsonObject root = GSON.fromJson(Files.readString(file), JsonObject.class);
+            if (root == null || !root.has("paths")) throw new IllegalArgumentException("Missing actor paths");
+            List<ActorPathDefinition> loaded = new ArrayList<>();
+            var ids = new HashSet<UUID>();
+            for (JsonElement element : root.getAsJsonArray("paths")) {
+                ActorPathDefinition path = deserializePath(element.getAsJsonObject());
+                if (path == null || path.getWaypoints().size() < 2 || !ids.add(path.getId()))
+                    throw new IllegalArgumentException("Invalid or duplicate actor path");
+                loaded.add(path);
+            }
+            library.replaceAll(loaded);
+            SAVE_GUARD.loaded(file);
+        } catch (IOException | RuntimeException failure) {
+            SAVE_GUARD.loadFailed(file);
+            throw failure;
         }
     }
 

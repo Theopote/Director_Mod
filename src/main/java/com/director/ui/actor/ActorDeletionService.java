@@ -29,7 +29,7 @@ public final class ActorDeletionService {
                     PropertyContextService.get().inspectActorObject(actor);
                 }
             }
-            ActorRegistryManager.save();
+            ActorRegistryManager.saveImmediately();
         }));
     }
 }

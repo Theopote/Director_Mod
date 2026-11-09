@@ -1606,7 +1606,7 @@ public class TimelineModelPersistence {
                     if (kfdto.entityType != null) {
                         ParseUtils.setEnumIfValid(kfdto.entityType, com.director.timeline.model.entity.EntityKeyframe.EntityType.class, "EntityType", kf::setEntityType);
                     }
-                    clip.addKeyframe(kf);
+                    clip.restoreKeyframe(kf);
                 } catch (RuntimeException e) {
                     LOGGER.debug("[TimelineModelPersistence] Skip invalid entity clip keyframe at {}: {}",
                             kfdto.time, e.getMessage());

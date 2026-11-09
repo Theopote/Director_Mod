@@ -248,10 +248,17 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
         float globalTime = keyframe.getTime();
         
         // 确保关键帧在 Clip 时间范围内
-        if (globalTime < this.startTime || globalTime > this.endTime) {
+        if (!Float.isFinite(globalTime) || globalTime < this.startTime || globalTime > this.endTime) {
             return;
         }
+        restoreKeyframe(keyframe);
+    }
         
+    /** Restore saved keys, including handles outside a non-destructively trimmed range. */
+    public void restoreKeyframe(EntityClipKeyframe keyframe) {
+        if (keyframe == null || !Float.isFinite(keyframe.getTime())) return;
+        float globalTime = keyframe.getTime();
+
         // 检查是否已存在相同时间的关键帧（容差范围内）
         float epsilon = 0.0001f;
         EntityClipKeyframe existing = findKeyframeAt(globalTime, epsilon);

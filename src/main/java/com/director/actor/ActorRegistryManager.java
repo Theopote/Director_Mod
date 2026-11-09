@@ -88,7 +88,7 @@ public final class ActorRegistryManager {
         } else {
             // 保存当前实例（如果存在）
             ActorRegistry oldRegistry = GLOBAL.get();
-            if (oldRegistry != null && !oldRegistry.isEmpty()) {
+            if (oldRegistry != null && oldRegistry != registry) {
                 persistNow(oldRegistry);
             }
             
@@ -106,12 +106,10 @@ public final class ActorRegistryManager {
      * 清空当前 ActorRegistry（用于项目卸载）
      */
     public static void clear() {
-        ActorRegistry registry = GLOBAL.get();
+        ActorRegistry registry = GLOBAL.getAndSet(null);
         if (registry != null) {
             // 保存当前实例
-            if (!registry.isEmpty()) {
-                persistNow(registry);
-            }
+            persistNow(registry);
             registry.clear();
             LOGGER.info("[ActorRegistryManager] 清空 ActorRegistry");
         }
@@ -158,7 +156,7 @@ public final class ActorRegistryManager {
     }
 
     private static boolean persistNow(ActorRegistry registry) {
-        if (registry == null || registry.isEmpty()) {
+        if (registry == null) {
             return true;
         }
 

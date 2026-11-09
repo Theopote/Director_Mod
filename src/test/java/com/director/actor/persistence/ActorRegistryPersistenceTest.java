@@ -2,11 +2,57 @@ package com.director.actor.persistence;
 
 import com.director.actor.Actor;
 import com.director.actor.ActorRegistry;
+import com.director.actor.ActorRegistryManager;
 import com.director.actor.ActorType;
+import com.director.util.WorldIdentifier;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorRegistryPersistenceTest {
+    @Test
+    void deletingLastActorPersistsEmptyMembershipAndRetainsGroup(@TempDir Path world) {
+        WorldIdentifier.overrideWorldSavePathForTesting(world);
+        try {
+            var registry = ActorRegistryManager.createNewRegistry();
+            var actor = registry.createActor("A", ActorType.PLAYER);
+            var group = registry.createGroup("Cast");
+            group.addActor(actor.getActorId());
+            assertTrue(ActorRegistryManager.saveImmediately());
+
+            assertTrue(registry.removeActor(actor.getActorId()));
+            assertTrue(ActorRegistryManager.saveImmediately());
+            var restored = new ActorRegistry();
+            ActorRegistryPersistence.loadFromFile(restored);
+
+            assertEquals(0, restored.size());
+            assertTrue(restored.getGroup(group.getGroupId()).orElseThrow().getActorIds().isEmpty());
+        } finally {
+            ActorRegistryManager.setRegistry(null);
+            WorldIdentifier.overrideWorldSavePathForTesting(null);
+        }
+    }
+
+    @Test
+    void failedRegistryLoadPreventsEmptyOverwrite(@TempDir Path world) throws Exception {
+        var file = Files.createDirectories(world.resolve("director")).resolve("actor_registry.json");
+        String invalid = "{\"actors\":[{}],\"groups\":[]}";
+        Files.writeString(file, invalid);
+        WorldIdentifier.overrideWorldSavePathForTesting(world);
+        try {
+            ActorRegistryManager.createNewRegistry();
+            assertFalse(ActorRegistryManager.saveImmediately());
+            assertEquals(invalid, Files.readString(file));
+        } finally {
+            ActorRegistryManager.setRegistry(null);
+            WorldIdentifier.overrideWorldSavePathForTesting(null);
+        }
+    }
+
     @Test void groupRandomSeedAndDelayScheduleSurviveRoundTrip() {
         var registry = new ActorRegistry(); var group = registry.createGroup("Cast");
         group.addActor(registry.createActor("A", ActorType.PLAYER).getActorId());

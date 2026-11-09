@@ -1,5 +1,7 @@
 package com.director.ui.actor.group;
 
+import com.director.actor.animation.AnimationData;
+import com.director.actor.animation.asset.AnimationAsset;
 import com.director.core.DirectorServices;
 import com.director.actor.ActorGroup;
 import com.director.actor.ActorRegistryManager;
@@ -73,8 +75,8 @@ public final class ActorGroupTimelineCommandService {
         var plan = planPresets(model, group, animationId, duration);
         if (!plan.preview().canExecute()) return 0;
         var asset = AnimationAssetLibrary.getInstance().find(animationId);
-        String name = asset.map(a -> a.name()).orElseGet(() -> com.director.actor.animation.AnimationLibrary.getInstance()
-                .get(animationId).map(a -> a.getName()).orElse(animationId));
+        String name = asset.map(AnimationAsset::name).orElseGet(() -> com.director.actor.animation.AnimationLibrary.getInstance()
+                .get(animationId).map(AnimationData::getName).orElse(animationId));
         List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
         for (var placement : plan.placements()) {
             var clip = new EntityAnimationClip(name, placement.start(), placement.end());
@@ -109,24 +111,32 @@ public final class ActorGroupTimelineCommandService {
             float end = start + duration;
             if (!Float.isFinite(end) || start < 0 || end <= start)
                 return new PresetPlan(new Preview(List.of(), skipped, "invalid_parameters", 0), List.of());
-            var clips = track.getActorTrackPayload().getClips().stream()
-                    .filter(clip -> !clip.isMuted() && clip.getStartTime() < end && clip.getEndTime() > start).toList();
-            var spawns = clips.stream().filter(EntitySpawnClip.class::isInstance).map(EntitySpawnClip.class::cast).toList();
+            List<EntityClip> clips = null;
+            if (track != null) {
+                clips = track.getActorTrackPayload().getClips().stream()
+                        .filter(clip -> !clip.isMuted() && clip.getStartTime() < end && clip.getEndTime() > start).toList();
+            }
+            List<EntitySpawnClip> spawns = null;
+            if (clips != null) {
+                spawns = clips.stream().filter(EntitySpawnClip.class::isInstance).map(EntitySpawnClip.class::cast).toList();
+            }
             // A separate animation clip plays under manual bone corrections. Existing spawn presets
             // have higher priority, so overlapping preset or animation clips are reported as conflicts.
-            if (clips.stream().anyMatch(clip -> clip instanceof EntityAnimationClip animation && animation.hasAnimation())
-                    || spawns.stream().anyMatch(spawn -> spawn.getPreset() != null || spawn.getSecondaryPreset() != null)) {
+            if (clips != null && (clips.stream().anyMatch(clip -> clip instanceof EntityAnimationClip animation && animation.hasAnimation())
+                    || spawns.stream().anyMatch(spawn -> spawn.getPreset() != null || spawn.getSecondaryPreset() != null))) {
                 skipped.add(new SkippedMember(id, SkipReason.PRESET_CONFLICT));
                 continue;
             }
-            if (spawns.size() != 1 || !spawns.getFirst().isVisibleOnSpawn()
+            if (spawns != null && (spawns.size() != 1 || !spawns.getFirst().isVisibleOnSpawn()
                     || spawns.getFirst().getStartTime() > start || spawns.getFirst().getEndTime() < end
-                    || clips.stream().anyMatch(EntityDespawnClip.class::isInstance)) {
+                    || clips.stream().anyMatch(EntityDespawnClip.class::isInstance))) {
                 skipped.add(new SkippedMember(id, SkipReason.NO_PRESET_SPAWN));
                 continue;
             }
             try {
-                ActorPresetValidation.require(registry.getActor(id).orElse(null), spawns.getFirst(), library, animationId);
+                if (spawns != null) {
+                    ActorPresetValidation.require(registry.getActor(id).orElse(null), spawns.getFirst(), library, animationId);
+                }
             } catch (IllegalArgumentException incompatible) {
                 skipped.add(new SkippedMember(id, SkipReason.INCOMPATIBLE_PRESET));
                 continue;
