@@ -40,7 +40,7 @@ public class EntityAnimationClip extends EntityClip {
     private AnimationSource source = AnimationSource.BUILT_IN;
 
     /** 动画 id：例如 "walk" / "attack" / "mymod:wave" */
-    private String animationId = "idle";
+    private String animationId = "";
 
     private boolean loop = true;
     private float speed = 1.0f;
@@ -79,8 +79,10 @@ public class EntityAnimationClip extends EntityClip {
     }
 
     public void setAnimationId(String animationId) {
-        this.animationId = (animationId == null || animationId.isBlank()) ? "idle" : animationId;
+        this.animationId = animationId == null || animationId.isBlank() ? "" : animationId;
     }
+
+    public boolean hasAnimation() { return !animationId.isEmpty(); }
 
     public boolean isLoop() {
         return loop;

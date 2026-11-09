@@ -53,7 +53,7 @@ class ActorRouteGaitTest {
         var track=new ActorTrack("test");track.addClip(new EntitySpawnClip("Spawn",0,20));
         var route=moving().routeClip;route.setTimeRange(2,10);track.addClip(route);
         var action=new ActorActionClip("Run",4,9);action.setActionType(ActorActionType.RUN);track.addClip(action);
-        var animation=new EntityAnimationClip("Wave",3,8);track.addClip(animation);
+        var animation=new EntityAnimationClip("Wave",3,8);animation.setAnimationId("wave");track.addClip(animation);
         var value=new EntityClipSampler(track).sampleAt(5);
         assertEquals(3,value.routeLocalTime);assertEquals(3,value.motionLocalTime);
         assertEquals(1,value.actionLocalTime);assertEquals(2,value.animationLocalTime);

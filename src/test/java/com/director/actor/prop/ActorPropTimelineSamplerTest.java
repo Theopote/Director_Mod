@@ -40,7 +40,9 @@ class ActorPropTimelineSamplerTest {
     }
     @Test void throwWithoutHeldPropDoesNotCreateFlight() { throwAt(1); assertTrue(sample(2).flights().isEmpty()); }
     @Test void animationMarkerIsReplayedAtClipNormalizedTime() {
-        var c=new EntityAnimationClip("Animation",1,5); c.addEvent(new AnimationEvent(.5f,new EntityActionEvent(EntityActionClip.ActionType.ATTACH_PROP,Map.of("propId","stone","slot","MAIN_HAND")))); track.addClip(c);
+        var c=new EntityAnimationClip("Animation",1,5); c.setAnimationId("wave");
+        c.addEvent(new AnimationEvent(.5f,new EntityActionEvent(EntityActionClip.ActionType.ATTACH_PROP,Map.of("propId","stone","slot","MAIN_HAND")))); track.addClip(c);
+        track.addClip(new EntityAnimationClip("Unbound",2,4));
         assertTrue(sample(2).held().isEmpty()); assertFalse(sample(3).held().isEmpty()); assertFalse(sample(6).held().isEmpty());
         c.setMuted(true); assertTrue(sample(6).held().isEmpty());
     }
@@ -53,8 +55,11 @@ class ActorPropTimelineSamplerTest {
     }
     @Test void overriddenAnimationMarkerDoesNotMutatePropState() {
         var c=new EntityAnimationClip("Old",1,5);
+        c.setAnimationId("wave");
         c.addEvent(new AnimationEvent(.5f,new EntityActionEvent(EntityActionClip.ActionType.ATTACH_PROP,Map.of("propId","stone","slot","MAIN_HAND"))));
-        track.addClip(c); track.addClip(new EntityAnimationClip("New",2,4));
+        var other = new EntityAnimationClip("New",2,4);
+        other.setAnimationId("attack");
+        track.addClip(c); track.addClip(other);
         assertTrue(sample(6).held().isEmpty());
     }
     @Test void offsetsSurviveReplayAndInvalidTimeReturnsEmptyState() {

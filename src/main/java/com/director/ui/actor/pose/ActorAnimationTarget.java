@@ -27,7 +27,8 @@ public final class ActorAnimationTarget {
         for(var clip:payload.getClips()) {
             if(clip.isMuted() || time<clip.getStartTime() || time>clip.getEndTime()) continue;
             if(clip instanceof EntitySpawnClip next && (spawn==null || next.getStartTime()>=spawn.getStartTime())) spawn=next;
-            if(clip instanceof EntityAnimationClip next && (animation==null || next.getStartTime()>=animation.getStartTime())) animation=next;
+            if(clip instanceof EntityAnimationClip next && next.hasAnimation()
+                    && (animation==null || next.getStartTime()>=animation.getStartTime())) animation=next;
         }
         return spawn!=null && spawn.getBoneAnimation()!=null?spawn.getBoneAnimation():animation;
     }

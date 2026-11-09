@@ -24,6 +24,7 @@ class ActorAnimationClockRegressionTest {
     @AfterEach void cleanup() {ids.forEach(AnimationAssetLibrary.getInstance()::remove);ActorRegistryManager.setRegistry(null);}
     @Test void simultaneousDistinctAnimationEventsShouldBothBeCollected() {
         var track=new ActorTrack();var clip=new EntityAnimationClip("Two events",0,2);
+        clip.setAnimationId("wave");
         clip.addEvent(new AnimationEvent(.5f,action(EntityActionClip.ActionType.PLAY_SOUND)));
         clip.addEvent(new AnimationEvent(.5f,action(EntityActionClip.ActionType.THROW_PROP)));
         track.addClip(clip);var sampler=new EntityClipSampler(track);sampler.sampleAt(0);

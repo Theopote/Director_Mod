@@ -445,7 +445,7 @@ public class EntityClipSampler {
 
         // 找到最后一个（按开始时间排序）
         for (EntityAnimationClip clip : clips) {
-            if (!clip.isMuted()) {
+            if (!clip.isMuted() && clip.hasAnimation()) {
                 if (active == null || clip.getStartTime() >= active.getStartTime()) {
                     active = clip;
                 }

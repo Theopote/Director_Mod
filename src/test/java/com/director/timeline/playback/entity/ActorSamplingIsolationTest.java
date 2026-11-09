@@ -9,8 +9,12 @@ class ActorSamplingIsolationTest {
         var track=new ActorTrack("actor");track.addClip(new EntitySpawnClip("Spawn",0,10));
         track.addClip(new EntityActionClip("event",0,10));
         var animation=new EntityAnimationClip("animation",0,10);
+        animation.setAnimationId("wave");
         animation.addEvent(new AnimationEvent(.2f,new EntityActionEvent(EntityActionClip.ActionType.ATTACK,Map.of())));
-        track.addClip(animation);var sampler=new EntityClipSampler(track);
+        track.addClip(animation);
+        track.addClip(new EntityAnimationClip("Unbound",1,10));
+        var sampler=new EntityClipSampler(track);
+        assertEquals("wave", sampler.sampleSnapshot(3).animationId);
         assertTrue(sampler.sampleSnapshot(3).actionEvents.isEmpty());
         assertEquals(2,sampler.sampleAt(3).actionEvents.size());
         for(float time:new float[]{7,0,3}) assertTrue(sampler.sampleSnapshot(time).actionEvents.isEmpty());

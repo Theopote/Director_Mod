@@ -89,7 +89,7 @@ public final class ActorClipPropertyEditSession {
             c.setSpeed(speed); c.setBlendSettings(blend);
         }
         public void validate() {
-            if(source==null || id==null || id.isBlank() || !Float.isFinite(speed) || speed<0 || speed>4)
+            if(source==null || id==null || !Float.isFinite(speed) || speed<0 || speed>4)
                 throw new IllegalArgumentException("动画参数无效");
         }
     }
@@ -254,6 +254,7 @@ public final class ActorClipPropertyEditSession {
     }
     private void validateBehavior(State next, State expected, boolean forward) {
         if (next instanceof Animation animation) {
+            if (animation.id.isEmpty()) return;
             var old=(Animation)expected;
             if (forward && source.getTimelineClip() != null && owner.getClips().contains(wrapper))
                 com.director.ui.actor.pose.ActorPresetValidation.requireAction(

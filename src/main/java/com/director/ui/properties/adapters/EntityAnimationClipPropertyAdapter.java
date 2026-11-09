@@ -22,7 +22,8 @@ public class EntityAnimationClipPropertyAdapter implements IPropertyAdapter<Enti
                 com.director.actor.animation.AnimationLibrary.getInstance().getAllAnimations(),actor);
         var current=entries.stream().filter(e->e.id().equals(clip.getAnimationId())).findFirst().orElse(null);
         boolean changed=false;
-        if(ImGui.beginCombo("动画",current==null?clip.getAnimationId():current.name())) {
+        String label = !clip.hasAnimation() ? "选择动作" : current == null ? clip.getAnimationId() : current.name();
+        if(ImGui.beginCombo("动画", label)) {
             for(var entry:entries) {
                 if (entry.isPose()) continue;
                 ImGui.beginDisabled(!entry.compatible());
@@ -37,8 +38,9 @@ public class EntityAnimationClipPropertyAdapter implements IPropertyAdapter<Enti
             ImGui.endCombo();
         }
         gesture.observe("animation",changed);
-        ImGui.textDisabled(clip.getAnimationId());
-        if(current==null || !current.compatible()) ImGui.textWrapped("当前动画缺失或不兼容；原引用已保留，请选择有效动画修复。");
+        if (clip.hasAnimation()) ImGui.textDisabled(clip.getAnimationId());
+        if (!clip.hasAnimation()) ImGui.textWrapped("选择动作后，此片段才会参与播放。");
+        else if(current==null || !current.compatible() || current.isPose()) ImGui.textWrapped("请选择与演员骨架兼容的动作。");
         changed=ImGui.checkbox("循环播放",clip.isLoop()); if(changed) clip.setLoop(!clip.isLoop()); gesture.observe("loop",changed);
         float[] speed={clip.getSpeed()}; changed=ImGui.sliderFloat("播放速度",speed,.01f,4);
         if(changed) clip.setSpeed(speed[0]); gesture.observe("speed",changed);

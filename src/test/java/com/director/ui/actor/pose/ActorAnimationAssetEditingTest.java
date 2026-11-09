@@ -49,6 +49,19 @@ class ActorAnimationAssetEditingTest {
         assertEquals(asset.purpose(),copy.purpose());
     }
 
+    @Test void referencedActionCannotBeReclassifiedAsAPose() {
+        var asset = ActorAnimationAssetEditing.create(model, library, "test:referenced-action", "Action", 2);
+        var track = new TimelineTrack("Actor", TrackType.ACTOR);
+        var clip = new com.director.timeline.model.entity.EntityAnimationClip("Action", 0, 2);
+        clip.setAnimationId(asset.id());
+        track.getOrCreateActorTrackPayload().addClip(clip);
+        model.addTrack(track);
+        var pose = com.director.actor.animation.AnimationData.Purpose.STATIC_POSE;
+        assertThrows(IllegalArgumentException.class, () -> ActorAnimationAssetEditing.setPurpose(model, library, asset.id(), pose));
+        assertEquals(com.director.actor.animation.AnimationData.Purpose.PERFORMANCE, asset.purpose());
+        assertEquals(asset.id(), clip.getAnimationId());
+    }
+
     @Test void applyingPresetReusesSpawnAndPreservesManualKeysThroughUndo() {
         var registry = new com.director.actor.ActorRegistry();
         com.director.actor.ActorRegistryManager.setRegistry(registry);

@@ -114,7 +114,7 @@ public final class ActorGroupTimelineCommandService {
             var spawns = clips.stream().filter(EntitySpawnClip.class::isInstance).map(EntitySpawnClip.class::cast).toList();
             // A separate animation clip plays under manual bone corrections. Existing spawn presets
             // have higher priority, so overlapping preset or animation clips are reported as conflicts.
-            if (clips.stream().anyMatch(EntityAnimationClip.class::isInstance)
+            if (clips.stream().anyMatch(clip -> clip instanceof EntityAnimationClip animation && animation.hasAnimation())
                     || spawns.stream().anyMatch(spawn -> spawn.getPreset() != null || spawn.getSecondaryPreset() != null)) {
                 skipped.add(new SkippedMember(id, SkipReason.PRESET_CONFLICT));
                 continue;

@@ -57,7 +57,7 @@ public final class ActorPropTimelineSampler {
                     || clip.getStartTime()<0 || clip.getEndTime()<clip.getStartTime()) continue;
             if (clip instanceof EntityActionClip c && PropEventParameters.supports(c.getActionType()))
                 events.add(new Event(c.getId().toString(),c.getStartTime(),new EntityActionEvent(c.getActionType(),c.getParams())));
-            if (clip instanceof EntityAnimationClip c) {
+            if (clip instanceof EntityAnimationClip c && c.hasAnimation()) {
                 int index=0;
                 for (var marker : c.getEvents()) {
                     if(PropEventParameters.supports(marker.getAction().type()))
@@ -109,7 +109,7 @@ public final class ActorPropTimelineSampler {
     }
     private static EntityAnimationClip activeAnimation(ActorTrack track,float time) {
         EntityAnimationClip active=null;
-        for(var clip:track.getClips()) if(clip instanceof EntityAnimationClip c && !c.isMuted()
+        for(var clip:track.getClips()) if(clip instanceof EntityAnimationClip c && !c.isMuted() && c.hasAnimation()
                 && time>=c.getStartTime() && time<=c.getEndTime()
                 && (active==null || c.getStartTime()>=active.getStartTime())) active=c;
         return active;
