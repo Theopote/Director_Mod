@@ -53,7 +53,11 @@ public class EntityLookAtClip extends EntityClip {
      * @param endTime 结束时间（秒）
      */
     public EntityLookAtClip(String name, float startTime, float endTime) {
-        super(name, startTime, endTime);
+        this(java.util.UUID.randomUUID(), name, startTime, endTime);
+    }
+
+    public EntityLookAtClip(java.util.UUID id, String name, float startTime, float endTime) {
+        super(id, name, startTime, endTime);
     }
 
     @Override

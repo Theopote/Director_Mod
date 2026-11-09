@@ -55,6 +55,20 @@ class ActorAnimationAuditRegressionTest {
         assertEquals(new Vector3f(2,3,4),c.getFromScale());
         assertEquals(35,c.getFromRot().z);
     }
+    @Test void fullPoseMirrorReflectsTranslationAndSwapsScale() {
+        var asset = asset();
+        asset.getOrCreateBoneTrack(HumanoidRig.ROOT).translation().put(1, new Vector3f(2, 3, 4), InterpolationMode.STEP);
+        asset.getOrCreateBoneTrack(HumanoidRig.LEFT_ARM).scale().put(1, new Vector3f(2, 3, 4), InterpolationMode.LINEAR);
+        var context = ActorAnimationEditContext.resolve(model, actor.getActorId());
+        assertTrue(ActorAnimationAuthoringService.mirror(context, List.of(1f), InterpolationMode.LINEAR));
+        var root = asset.findBoneTrack(HumanoidRig.ROOT).orElseThrow().translation().findAt(1).orElseThrow();
+        assertEquals(new Vector3f(-2, 3, 4), root.value());
+        assertEquals(InterpolationMode.STEP, root.interpolation());
+        assertEquals(new Vector3f(2, 3, 4), asset.findBoneTrack(HumanoidRig.RIGHT_ARM).orElseThrow()
+                .scale().findAt(1).orElseThrow().value());
+        assertEquals(new Vector3f(1), asset.findBoneTrack(HumanoidRig.LEFT_ARM).orElseThrow()
+                .scale().findAt(1).orElseThrow().value());
+    }
     @Test void zeroAnimationSpeedIsNormalizedToTheVisibleMinimum() {
         var clip=new EntityAnimationClip("Animation",0,5);clip.setSpeed(0);
         assertEquals(.01f,clip.getSpeed());

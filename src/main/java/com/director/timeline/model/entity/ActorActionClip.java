@@ -62,7 +62,11 @@ public final class ActorActionClip extends EntityClip {
             float startTime,
             float endTime
     ) {
-        super(name, startTime, endTime);
+        this(java.util.UUID.randomUUID(), name, startTime, endTime);
+    }
+
+    public ActorActionClip(java.util.UUID id, String name, float startTime, float endTime) {
+        super(id, name, startTime, endTime);
     }
 
     @Override

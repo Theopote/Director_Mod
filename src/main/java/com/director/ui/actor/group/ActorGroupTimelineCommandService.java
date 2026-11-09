@@ -201,9 +201,10 @@ public final class ActorGroupTimelineCommandService {
             var payload = Objects.requireNonNull(resolveTrack(model, id)).getActorTrackPayload();
             float time = model.getCurrentTime();
             var sample = new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleSnapshot(time);
-            boolean controlled = sample.relationEnabled || payload.findClipsAt(time).stream()
-                    .anyMatch(c -> !c.isMuted() && (c instanceof EntityTransformClip || c instanceof ActorRouteClip
-                            || c instanceof EntitySpawnClip && !c.getKeyframes().isEmpty()));
+            var spawn = payload.findSpawnClipAt(time);
+            boolean controlled = sample.relationEnabled || spawn != null && !spawn.getKeyframes().isEmpty()
+                    || payload.findClipsAt(time).stream()
+                            .anyMatch(c -> !c.isMuted() && (c instanceof EntityTransformClip || c instanceof ActorRouteClip));
             if (controlled) skipped.add(new SkippedMember(id, SkipReason.PLACEMENT_CONTROLLED));
             else eligible.add(id);
         }
@@ -576,15 +577,7 @@ public final class ActorGroupTimelineCommandService {
     }
 
     private EntitySpawnClip findSpawnClipAt(ActorTrack actorTrack, float timeSeconds) {
-        if (actorTrack == null) {
-            return null;
-        }
-        for (EntityClip clip : actorTrack.findClipsAt(timeSeconds)) {
-            if (clip instanceof EntitySpawnClip spawnClip && !clip.isMuted()) {
-                return spawnClip;
-            }
-        }
-        return null;
+        return actorTrack == null ? null : actorTrack.findSpawnClipAt(timeSeconds);
     }
 
     private Vector3f forwardFromYaw(float yawDeg) {

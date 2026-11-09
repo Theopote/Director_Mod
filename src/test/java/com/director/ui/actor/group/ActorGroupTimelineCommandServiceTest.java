@@ -11,6 +11,9 @@ import com.director.timeline.model.TrackType;
 import com.director.timeline.model.entity.ActorActionClip;
 import com.director.timeline.model.entity.ActorRouteClip;
 import com.director.timeline.model.entity.ActorTrack;
+import com.director.timeline.model.entity.EntityClipKeyframe;
+import com.director.timeline.model.entity.EntitySpawnClip;
+import com.director.timeline.playback.entity.EntityClipSampler;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
@@ -20,6 +23,33 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorGroupTimelineCommandServiceTest {
+    @Test void groupPlacementMovesOnlyTheSpawnUsedByPlayback() {
+        var model = new TimelineModel(new TimelineViewportState());
+        model.setCurrentTime(4);
+        var id = UUID.randomUUID();
+        var payload = createActorTrackPayload(id);
+        model.addTrack(createActorTimelineTrack("Actor", payload));
+        var earlier = new EntitySpawnClip("Earlier", 0, 8);
+        earlier.setPosition(1, 0, 0);
+        earlier.addKeyframe(new EntityClipKeyframe(2));
+        var later = new EntitySpawnClip("Later", 3, 8);
+        later.setPosition(2, 0, 0);
+        payload.addClip(later);
+        payload.addClip(earlier);
+        var group = new ActorGroup("Group");
+        group.addActor(id);
+        var history = new com.director.ui.timeline.commands.TimelineCommandHistory();
+        com.director.ui.timeline.commands.TimelineCommandBridge.bind(history);
+
+        var sampler = new EntityClipSampler(payload);
+        assertEquals(2f, sampler.sampleSnapshot(4).position.x);
+        assertEquals(1, ActorGroupTimelineCommandService.getInstance().placeGroup(model, group,
+                new net.minecraft.util.math.Vec3d(20, 0, 0), 0, 0));
+        assertEquals(1f, earlier.getPosition().x);
+        assertEquals(20f, sampler.sampleSnapshot(4).position.x);
+        assertTrue(history.undo());
+        assertEquals(2f, sampler.sampleSnapshot(4).position.x);
+    }
     @Test void groupPresetsPlayAtStaggeredTimesAndUndoTogether() {
         var library = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance();
         var asset = new com.director.actor.animation.asset.AnimationAsset("test:group-wave", "Wave",

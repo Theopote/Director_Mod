@@ -214,8 +214,14 @@ public class ActorRegistryPersistence {
                     ActorType type = ActorType.valueOf(typeStr);
 
                     Actor actor = new Actor(actorId, name, type);
-                    if(actorObj.has("limbBendMode")) actor.setLimbBendMode(
-                            com.director.actor.rig.skeleton.LimbBendMode.valueOf(actorObj.get("limbBendMode").getAsString()));
+                    if (actorObj.has("limbBendMode")) {
+                        try {
+                            actor.setLimbBendMode(com.director.actor.rig.skeleton.LimbBendMode.valueOf(
+                                    actorObj.get("limbBendMode").getAsString()));
+                        } catch (IllegalArgumentException | IllegalStateException | UnsupportedOperationException invalid) {
+                            LOGGER.warn("[ActorRegistryPersistence] 演员 {} 的肢体弯曲模式无效，使用默认值", actorId);
+                        }
+                    }
                     if (actorObj.has("playerModel") && !actorObj.get("playerModel").isJsonNull()) {
                         try {
                             actor.setPlayerModel(Actor.PlayerModel.valueOf(actorObj.get("playerModel").getAsString()));

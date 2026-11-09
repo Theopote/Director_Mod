@@ -295,14 +295,21 @@ public class ActorTrack {
      * @param time 时间（秒）
      */
     public boolean isPresentAt(float time) {
-        if(!enabled || !Float.isFinite(time)) return false;
+        if (!enabled) return false;
+        EntitySpawnClip spawn = findSpawnClipAt(time);
+        return spawn != null && !hasCompletedDespawn(time, spawn, EntityDespawnClip.DespawnMode.REMOVE);
+    }
+
+    /** Select the last covering, unmuted spawn in the track's start-time and ID order. */
+    @org.jetbrains.annotations.Nullable
+    public EntitySpawnClip findSpawnClipAt(float time) {
+        if (!Float.isFinite(time)) return null;
         EntitySpawnClip active=null;
         for(var clip:getClips()) {
             if(clip.getStartTime()>time) break;
             if(clip instanceof EntitySpawnClip spawn && !spawn.isMuted() && time<=spawn.getEndTime()) active=spawn;
         }
-        if(active==null) return false;
-        return !hasCompletedDespawn(time, active, EntityDespawnClip.DespawnMode.REMOVE);
+        return active;
     }
 
     /** A completed departure applies to the active spawn until another spawn takes over. */

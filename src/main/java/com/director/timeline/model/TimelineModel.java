@@ -208,10 +208,6 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     public TimelineModel(TimelineViewportState viewportState) {
         this.viewportState = viewportState != null ? viewportState : new TimelineViewportState();
 
-        // 尝试加载保存的数据
-        if (TimelineModelPersistence.hasSavedData()) {
-            TimelineModelPersistence.loadFromFile(this, this.viewportState);
-        }
         com.director.actor.rig.skeleton.CustomRigPersistence.loadFromWorld(
                 com.director.actor.rig.skeleton.CustomRigLibrary.getInstance());
         com.director.actor.rig.skeleton.BuiltInCustomRigs.registerDefaults();
@@ -221,6 +217,10 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         com.director.actor.model.CustomModelPersistence.loadFromWorld(
                 com.director.actor.model.CustomModelLibrary.getInstance());
         com.director.actor.model.BuiltInCustomModels.registerDefaults();
+        // Clip preset validation needs the project's animation purposes.
+        if (TimelineModelPersistence.hasSavedData()) {
+            TimelineModelPersistence.loadFromFile(this, this.viewportState);
+        }
         // 如果没有保存的数据，轨道列表已初始化为空，时间线为空
     }
     
@@ -281,7 +281,6 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      * 重新加载保存的数据
      */
     public void reload() {
-        TimelineModelPersistence.loadFromFile(this, viewportState);
         // 同时重新加载 ActorRegistry
         com.director.actor.ActorRegistry registry = 
             com.director.actor.ActorRegistryManager.getInstance();
@@ -295,6 +294,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         com.director.actor.model.CustomModelPersistence.loadFromWorld(
                 com.director.actor.model.CustomModelLibrary.getInstance());
         com.director.actor.model.BuiltInCustomModels.registerDefaults();
+        TimelineModelPersistence.loadFromFile(this, viewportState);
     }
 
     /**
@@ -305,9 +305,6 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      */
     public void reloadForCurrentWorld() {
         resetInMemoryToDefaults();
-        if (TimelineModelPersistence.hasSavedData()) {
-            TimelineModelPersistence.loadFromFile(this, viewportState);
-        }
 
         // 同步 ActorRegistry：先清空内存，再加载当前存档的数据（若存在）。
         try {
@@ -341,6 +338,9 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         customModels.clear();
         com.director.actor.model.CustomModelPersistence.loadFromWorld(customModels);
         com.director.actor.model.BuiltInCustomModels.registerDefaults();
+        if (TimelineModelPersistence.hasSavedData()) {
+            TimelineModelPersistence.loadFromFile(this, viewportState);
+        }
     }
 
     /**

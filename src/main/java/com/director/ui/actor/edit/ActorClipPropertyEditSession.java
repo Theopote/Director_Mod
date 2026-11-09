@@ -93,14 +93,14 @@ public final class ActorClipPropertyEditSession {
                 throw new IllegalArgumentException("动画参数无效");
         }
     }
-    private record Status(boolean sneaking, boolean sprinting, boolean glowing, boolean invulnerable, float visibility) implements State {
+    private record Status(Boolean sneaking, Boolean sprinting, Boolean glowing, Boolean invulnerable, Float visibility) implements State {
         public void apply(EntityClip clip) {
             var c = (EntityStateClip) clip;
             c.setSneaking(sneaking); c.setSprinting(sprinting); c.setGlowing(glowing);
-            c.setInvulnerable(invulnerable); c.setVisibility(visibility);
+            c.setInvulnerable(invulnerable); c.setVisibilityOverride(visibility);
         }
         public void validate() {
-            if (!Float.isFinite(visibility) || visibility < 0 || visibility > 1)
+            if (visibility != null && (!Float.isFinite(visibility) || visibility < 0 || visibility > 1))
                 throw new IllegalArgumentException("可见性必须是 0–1 的有限数值");
         }
     }
@@ -247,7 +247,8 @@ public final class ActorClipPropertyEditSession {
         if (clip instanceof EntitySpawnClip c) return new Spawn(new Vector3f(c.getPosition()),c.getYawDeg(),c.getPitchDeg(),c.getRollDeg(),new Vector3f(c.getScale()),c.isVisibleOnSpawn(),c.getStartTime(),c.getEndTime(),c.getBoneAnimationId(),c.getBlendSettings(),c.getPreset(),c.getSecondaryPreset(),c.isBoneAnimationMuted());
         if (clip instanceof ActorPoseClip c) return new PoseState(List.of(c.isOverrideBody(),c.isOverrideHead(),c.isOverrideArms(),c.isOverrideLegs()),
                 List.of(c.getBodyPitch(),c.getBodyYaw(),c.getBodyRoll(),c.getHeadPitch(),c.getHeadYaw(),c.getLeftArmPitch(),c.getLeftArmYaw(),c.getLeftArmRoll(),c.getRightArmPitch(),c.getRightArmYaw(),c.getRightArmRoll(),c.getLeftLegPitch(),c.getRightLegPitch()));
-        if (clip instanceof EntityStateClip c) return new Status(c.isSneaking(),c.isSprinting(),c.isGlowing(),c.isInvulnerable(),c.getVisibility());
+        if (clip instanceof EntityStateClip c) return new Status(c.getSneakingOverride(), c.getSprintingOverride(),
+                c.getGlowingOverride(), c.getInvulnerableOverride(), c.getVisibilityOverride());
         if (clip instanceof EntityAnimationClip c) return new Animation(c.getSource(),c.getAnimationId(),c.isLoop(),c.getSpeed(),c.getBlendSettings());
         if (clip instanceof EntityDespawnClip c) return new Despawn(c.getMode());
         throw new IllegalArgumentException("不支持此片段类型");
@@ -291,6 +292,8 @@ public final class ActorClipPropertyEditSession {
                 boolean manualChanged = !Objects.equals(s.animationId, old.animationId);
                 if (s.preset != null) com.director.ui.actor.pose.ActorPresetValidation.requireAction(library, s.preset.animationId());
                 if (s.secondaryPreset != null) com.director.ui.actor.pose.ActorPresetValidation.requireAction(library, s.secondaryPreset.animationId());
+                if (s.preset != null)
+                    com.director.ui.actor.pose.ActorPresetValidation.requireDistinctFullOverride(s.preset.animationId(), s.secondaryPreset);
                 if (s.preset != null && (!Objects.equals(s.preset, old.preset) || manualChanged && s.preset.animationId().equals(s.animationId)))
                     com.director.ui.actor.pose.ActorPresetValidation.requireReference(currentActor, library, s.preset.animationId(), s.animationId);
                 if (s.secondaryPreset != null && (!Objects.equals(s.secondaryPreset, old.secondaryPreset)

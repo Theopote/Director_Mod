@@ -40,6 +40,10 @@ public class EntityClipKeyframe extends ClipKeyframe {
         super(time, interpolation);
     }
 
+    public EntityClipKeyframe(java.util.UUID id, float time) {
+        super(id, time, TimelineInterpolation.LINEAR);
+    }
+
     @Override
     public String getType() {
         return "EntityClipKeyframe";

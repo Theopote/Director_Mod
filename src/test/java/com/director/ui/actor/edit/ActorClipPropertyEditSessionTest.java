@@ -28,9 +28,16 @@ class ActorClipPropertyEditSessionTest {
     @Test void editingSecondPresetIsUndoableAndKeepsThePrimaryBinding() {
         var spawn = new EntitySpawnClip("Actor", 0, 10);
         var primary = ActorPresetBinding.select("wave", null);
-        var secondary = new ActorPresetBinding("wave", false, 2f, com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT);
+        var fullOverride = new ActorPresetBinding("wave", false, 2f, com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT);
         spawn.setPreset(primary);
         attach(spawn);
+        var rejected = new ActorClipPropertyEditSession(model, spawn);
+        ((EntitySpawnClip) rejected.draft()).setSecondaryPreset(fullOverride);
+        assertThrows(IllegalArgumentException.class, rejected::commit);
+        assertNull(spawn.getSecondaryPreset());
+
+        var secondary = new ActorPresetBinding("wave", false, 2f, com.director.actor.rig.skeleton.PoseScope.UPPER.apply(
+                fullOverride.blend(), com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION));
         var edit = new ActorClipPropertyEditSession(model, spawn);
         ((EntitySpawnClip) edit.draft()).setSecondaryPreset(secondary);
         assertTrue(edit.commit());
@@ -42,6 +49,28 @@ class ActorClipPropertyEditSessionTest {
         assertEquals(primary, spawn.getPreset());
         assertTrue(history.redo());
         assertEquals(secondary, spawn.getSecondaryPreset());
+    }
+
+    @Test void loadedInvalidPresetsAreClearedAndDoNotBlockEditingTheSpawn() {
+        var spawn = new EntitySpawnClip("Actor", 0, 10);
+        spawn.setPreset(ActorPresetBinding.select("idle", null));
+        spawn.setSecondaryPreset(ActorPresetBinding.select("wave", null));
+        var persistence = com.director.timeline.persistence.TimelineModelPersistence.entityClipToDTO(spawn);
+        var restored = (EntitySpawnClip) com.director.timeline.persistence.TimelineModelPersistence.entityClipFromDTO(persistence);
+        assertNull(restored.getPreset());
+        assertEquals(spawn.getSecondaryPreset(), restored.getSecondaryPreset());
+        assertFalse(restored.getLoadWarnings().isEmpty());
+        attach(restored);
+        var edit = new ActorClipPropertyEditSession(model, restored);
+        ((EntitySpawnClip) edit.draft()).setPosition(2, 3, 4);
+        assertTrue(edit.commit());
+        assertEquals(new Vector3f(2, 3, 4), restored.getPosition());
+
+        spawn.setPreset(spawn.getSecondaryPreset());
+        var duplicate = (EntitySpawnClip) com.director.timeline.persistence.TimelineModelPersistence.entityClipFromDTO(
+                com.director.timeline.persistence.TimelineModelPersistence.entityClipToDTO(spawn));
+        assertEquals(spawn.getPreset(), duplicate.getPreset());
+        assertNull(duplicate.getSecondaryPreset());
     }
     @Test void changedAnimationReferenceMustExistButLegacyMissingReferenceCanBeInspectedAndRestored() {
         var clip=new EntityAnimationClip("Animation",0,10);clip.setAnimationId("missing:old");attach(clip);

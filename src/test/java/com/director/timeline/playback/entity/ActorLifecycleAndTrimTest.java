@@ -51,11 +51,14 @@ class ActorLifecycleAndTrimTest {
         String json = gson.toJson(TimelineModelPersistence.entityClipToDTO(spawn));
         var dto = gson.fromJson(json, TimelineModelPersistence.EntityClipDTO.class);
         var restored = TimelineModelPersistence.entityClipFromDTO(dto);
+        assertEquals(spawn.getId(), restored.getId());
         var restoredTrack = new ActorTrack();
         restoredTrack.addClip(restored);
         var sampler = new EntityClipSampler(restoredTrack);
         assertEquals(original, sampler.sampleSnapshot(4f).position);
         assertEquals(2, restored.getKeyframes().size());
+        assertEquals(first.getId(), restored.getKeyframes().getFirst().getId());
+        assertEquals(second.getId(), restored.getKeyframes().getLast().getId());
 
         restored.setTimeRange(0, 10);
         assertEquals(7f, sampler.sampleSnapshot(8f).position.x);

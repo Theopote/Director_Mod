@@ -170,12 +170,25 @@ public final class ActorAnimationAuthoringService {
             if(time==null || !Float.isFinite(time) || time<0 || time>context.asset().duration()) return false;
             var pose=context.asset().sample(time,AnimationLoopMode.ONCE);
             for(var bone:rig.bones()) {
-                if(!supports(context.asset(),bone.id(),Channel.ROTATION)) continue;
-                String source=opposite(rig,bone.id());
-                var sourceKey = context.asset().findBoneTrack(source).flatMap(t -> t.rotation().findAt(time)).orElse(null);
-                keys.add(new Paste(bone.id(),Channel.ROTATION,time,
-                        ActorAnimationKeyframeEditing.mirrorAcrossX(pose.localTransform(source).rotation()),
-                        sourceKey == null ? mode : sourceKey.interpolation(), sourceKey == null ? null : sourceKey.ease()));
+                String target = bone.id();
+                String source = opposite(rig, target);
+                var sourceTrack = context.asset().findBoneTrack(source).orElse(null);
+                var targetTrack = context.asset().findBoneTrack(target).orElse(null);
+                var sampled = pose.localTransform(source);
+                for (Channel channel : Channel.values()) {
+                    if (!supports(context.asset(), target, channel)) continue;
+                    if (channel != Channel.ROTATION
+                            && (sourceTrack == null || channel(sourceTrack, channel).keyframes().isEmpty())
+                            && (targetTrack == null || channel(targetTrack, channel).keyframes().isEmpty())) continue;
+                    var sourceKey = sourceTrack == null ? null : frame(sourceTrack, new Key(source, channel, time));
+                    Object value = switch (channel) {
+                        case ROTATION -> sampled.rotation();
+                        case TRANSLATION -> sampled.translation();
+                        case SCALE -> sampled.scale();
+                    };
+                    keys.add(new Paste(target, channel, time, reflect(rig, source, target, channel, value),
+                            sourceKey == null ? mode : sourceKey.interpolation(), sourceKey == null ? null : sourceKey.ease()));
+                }
             }
         }
         return write(context, keys, true, "Mirror actor pose");
@@ -192,18 +205,22 @@ public final class ActorAnimationAuthoringService {
             var value=source==null?null:frame(source,key);if(value==null) return false;
             String target=opposite(rig,key.boneId());
             if(!supports(context.asset(),target,key.channel())) return false;
-            Object reflected=switch(key.channel()) {
-                case ROTATION -> ActorAnimationKeyframeEditing.mirrorAcrossX((Quaternionf)value.value());
-                case SCALE -> value.value();
-                case TRANSLATION -> {
-                    var delta=new Vector3f((Vector3f)value.value()).sub(rig.bone(rig.requireBoneIndex(key.boneId())).restLocal().translation());
-                    delta.x=-delta.x;
-                    yield rig.bone(rig.requireBoneIndex(target)).restLocal().translation().add(delta);
-                }
-            };
+            Object reflected = reflect(rig, key.boneId(), target, key.channel(), value.value());
             keys.add(new Paste(target,key.channel(),key.time(),reflected,value.interpolation(),value.ease()));
         }
         return write(context,keys,true,"Mirror selected actor keys");
+    }
+
+    private static Object reflect(RigDefinition rig, String source, String target, Channel channel, Object value) {
+        return switch (channel) {
+            case ROTATION -> ActorAnimationKeyframeEditing.mirrorAcrossX((Quaternionf) value);
+            case SCALE -> value;
+            case TRANSLATION -> {
+                var delta = new Vector3f((Vector3f) value).sub(rig.bone(rig.requireBoneIndex(source)).restLocal().translation());
+                delta.x = -delta.x;
+                yield rig.bone(rig.requireBoneIndex(target)).restLocal().translation().add(delta);
+            }
+        };
     }
     private static String opposite(RigDefinition rig,String id) {
         String result=id.startsWith("left_")?"right_"+id.substring(5):id.startsWith("right_")?"left_"+id.substring(6):id;

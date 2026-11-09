@@ -1,6 +1,8 @@
 package com.director.timeline.model.entity;
 
 import com.director.actor.rig.skeleton.PoseBlendSettings;
+import com.director.actor.rig.skeleton.PoseLayer;
+import com.director.actor.rig.skeleton.RigPose;
 import java.util.Objects;
 
 /** A preset reference owned by a Spawn, with no visible timeline clip or asset ownership. */
@@ -9,6 +11,12 @@ public record ActorPresetBinding(String animationId, boolean loop, float speed, 
         if(animationId==null || animationId.isBlank()) throw new IllegalArgumentException("Preset ID must not be blank");
         if(!Float.isFinite(speed) || speed<.01f || speed>4) throw new IllegalArgumentException("Preset speed must be 0.01–4");
         Objects.requireNonNull(blend);
+    }
+
+    public boolean fullyOverridesSameAction(String primaryId) {
+        return animationId.equals(primaryId) && blend.mode() == PoseLayer.BlendMode.OVERRIDE
+                && blend.weight() == 1f && blend.allBones() && blend.channels() == RigPose.ALL_CHANNELS
+                && blend.fadeIn() == 0f && blend.fadeOut() == 0f;
     }
     /** A new selection gets its own loop default; prior loop flags must not leak between purposes. */
     public static ActorPresetBinding select(String id,ActorPresetBinding previous) {

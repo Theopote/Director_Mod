@@ -38,8 +38,7 @@ public class ClipKeyframe implements TimelineSelectable, Comparable<ClipKeyframe
      * @param time 关键帧时间（全局时间，秒）
      */
     public ClipKeyframe(float time) {
-        this.id = UUID.randomUUID();
-        this.time = time;
+        this(time, TimelineInterpolation.LINEAR);
     }
     
     /**
@@ -49,7 +48,11 @@ public class ClipKeyframe implements TimelineSelectable, Comparable<ClipKeyframe
      * @param interpolation 插值类型
      */
     public ClipKeyframe(float time, TimelineInterpolation interpolation) {
-        this.id = UUID.randomUUID();
+        this(UUID.randomUUID(), time, interpolation);
+    }
+
+    protected ClipKeyframe(UUID id, float time, TimelineInterpolation interpolation) {
+        this.id = Objects.requireNonNull(id, "id");
         this.time = time;
         this.interpolation = Objects.requireNonNullElse(interpolation, TimelineInterpolation.LINEAR);
     }

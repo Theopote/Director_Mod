@@ -70,9 +70,9 @@ class ActorMotionSamplingTest {
         var track = movingTrack();
         var transform = (EntityTransformClip) track.getClips().getFirst();
         var first = new EntityClipKeyframe(3f, TimelineInterpolation.LINEAR);
-        var second = new EntityClipKeyframe(5f, TimelineInterpolation.LINEAR);
+        var second = new EntityClipKeyframe(5f, TimelineInterpolation.STEP);
         second.setPosition(4f, 0f, 0f);
-        var third = new EntityClipKeyframe(7f, TimelineInterpolation.STEP);
+        var third = new EntityClipKeyframe(7f, TimelineInterpolation.LINEAR);
         third.setPosition(100f, 0f, 0f);
         transform.addKeyframe(first);
         transform.addKeyframe(second);

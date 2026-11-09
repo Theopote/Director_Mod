@@ -15,6 +15,27 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ActorRegistryPersistenceTest {
     @Test
+    void invalidLimbBendModeKeepsActorAndGroupMembership(@TempDir Path world) throws Exception {
+        var registry = new ActorRegistry();
+        var actor = registry.createActor("A", ActorType.PLAYER);
+        var group = registry.createGroup("Cast");
+        group.addActor(actor.getActorId());
+        var json = ActorRegistryPersistence.getJsonObject(registry);
+        json.getAsJsonArray("actors").get(0).getAsJsonObject().addProperty("limbBendMode", "invalid");
+        var file = Files.createDirectories(world.resolve("director")).resolve("actor_registry.json");
+        Files.writeString(file, json.toString());
+        WorldIdentifier.overrideWorldSavePathForTesting(world);
+        try {
+            var restored = new ActorRegistry();
+            ActorRegistryPersistence.loadFromFile(restored);
+            assertEquals(actor.getLimbBendMode(), restored.getActor(actor.getActorId()).orElseThrow().getLimbBendMode());
+            assertEquals(group.getActorIds(), restored.getGroup(group.getGroupId()).orElseThrow().getActorIds());
+            assertTrue(ActorRegistryPersistence.saveToFile(restored));
+        } finally {
+            WorldIdentifier.overrideWorldSavePathForTesting(null);
+        }
+    }
+    @Test
     void deletingLastActorPersistsEmptyMembershipAndRetainsGroup(@TempDir Path world) {
         WorldIdentifier.overrideWorldSavePathForTesting(world);
         try {

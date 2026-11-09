@@ -12,6 +12,12 @@ public final class ActorPresetValidation {
         if(spawn==null || id==null) throw new IllegalArgumentException("请选择演员片段和动作");
         requireAction(library, id);
         requireReference(actor, library, id, spawn.getBoneAnimationId());
+        requireDistinctFullOverride(id, spawn.getSecondaryPreset());
+    }
+
+    public static void requireDistinctFullOverride(String primaryId, com.director.timeline.model.entity.ActorPresetBinding secondary) {
+        if (secondary != null && secondary.fullyOverridesSameAction(primaryId))
+            throw new IllegalArgumentException("第二预设会完全覆盖同一个主动作。请缩小第二预设的骨骼或通道范围、降低权重，或选择另一个动作。");
     }
 
     public static void requireAction(AnimationAssetLibrary library, String id) {

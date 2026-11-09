@@ -3,6 +3,7 @@ package com.director.timeline.playback.entity;
 import com.director.timeline.model.entity.*;
 import com.director.timeline.model.*;
 import com.director.timeline.persistence.TimelineModelPersistence;
+import com.director.actor.action.ActorActionType;
 import com.director.ui.timeline.commands.*;
 import org.junit.jupiter.api.Test;
 import java.util.*;
@@ -68,5 +69,54 @@ class ActorClipOrderingTest {
         var loaded=new ActorTrack();for(var clip:track.getClips()) loaded.addClip(TimelineModelPersistence.entityClipFromDTO(TimelineModelPersistence.entityClipToDTO(clip)));
         assertEquals(List.of("B","A"),loaded.getClips().stream().map(EntityClip::getName).toList());
         assertEquals(loaded.getClips().getLast().getId(),loaded.findClipsAt(12).getFirst().getId());
+    }
+
+    @Test void sameStartActionAndPoseUseTheHigherPersistedId() {
+        var track = new ActorTrack();
+        var earlyAction = new ActorActionClip(new UUID(0, 1), "Walk", 1, 8);
+        earlyAction.setActionType(ActorActionType.WALK);
+        var lateAction = new ActorActionClip(new UUID(0, 2), "Run", 1, 8);
+        lateAction.setActionType(ActorActionType.RUN);
+        var earlyPose = new ActorPoseClip(new UUID(0, 3), "First pose", 1, 8);
+        earlyPose.setBodyPitch(10);
+        var latePose = new ActorPoseClip(new UUID(0, 4), "Second pose", 1, 8);
+        latePose.setBodyPitch(30);
+        for (var clip : List.of(lateAction, earlyAction, latePose, earlyPose)) {
+            track.addClip(TimelineModelPersistence.entityClipFromDTO(TimelineModelPersistence.entityClipToDTO(clip)));
+            assertTrue(track.findClip(clip.getId()).isPresent());
+        }
+        var sample = new EntityClipSampler(track).sampleSnapshot(2);
+        assertEquals(ActorActionType.RUN, sample.action);
+        assertEquals(30f, sample.poseBodyPitch);
+    }
+
+    @Test void stateFieldsInheritIndependentlyAndExplicitOffWins() {
+        var track = new ActorTrack();
+        track.addClip(new EntitySpawnClip("Spawn", 0, 10));
+        var glow = new EntityStateClip("Glow", 1, 9);
+        glow.setGlowing(true);
+        var fade = new EntityStateClip("Fade", 2, 8);
+        fade.setVisibility(.3f);
+        var stopGlow = new EntityStateClip("Stop glow", 3, 4);
+        stopGlow.setGlowing(false);
+        for (var clip : List.of(glow, fade, stopGlow)) {
+            track.addClip(TimelineModelPersistence.entityClipFromDTO(TimelineModelPersistence.entityClipToDTO(clip)));
+        }
+        var sampler = new EntityClipSampler(track);
+        assertTrue(sampler.sampleSnapshot(2.5f).glowing);
+        var off = sampler.sampleSnapshot(3.5f);
+        assertFalse(off.glowing);
+        assertEquals(.3f, off.visibility);
+        assertTrue(sampler.sampleSnapshot(5).glowing);
+    }
+
+    @Test void copyingAnActorClipAllocatesNewClipAndKeyIds() {
+        var spawn = new EntitySpawnClip("Spawn", 0, 10);
+        var key = new EntityClipKeyframe(5);
+        spawn.addKeyframe(key);
+        var copy = (EntityTimelineClip) TimelineClipCopies.copy(new EntityTimelineClip(spawn, 0));
+        assertNotEquals(spawn.getId(), copy.getEntityClip().getId());
+        assertNotEquals(key.getId(), copy.getEntityClip().getKeyframes().getFirst().getId());
+        assertEquals(key.getTime(), copy.getEntityClip().getKeyframes().getFirst().getTime());
     }
 }

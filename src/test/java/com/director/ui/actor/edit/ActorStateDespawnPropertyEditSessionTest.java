@@ -44,7 +44,7 @@ class ActorStateDespawnPropertyEditSessionTest {
     @Test void sourceChangeBlocksUndoAndRetainsHistory() {
         var c=state(); var edit=new ActorClipPropertyEditSession(model,c); ((EntityStateClip)edit.draft()).setGlowing(true); edit.commit();
         c.setSprinting(true); assertThrows(IllegalArgumentException.class,history::undo); assertEquals(1,history.getUndoSize());
-        c.setSprinting(false); history.undo(); assertFalse(c.isGlowing());
+        c.setSprinting(null); history.undo(); assertFalse(c.isGlowing());
     }
     @Test void despawnPreservesWrapperTimeKeysAndSupportsUndoRedo() {
         var c=new EntityDespawnClip("Exit",1,3); attach(c); var wrapper=c.getTimelineClip();

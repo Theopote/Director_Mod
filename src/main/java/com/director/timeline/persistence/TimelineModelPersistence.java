@@ -1486,11 +1486,11 @@ public class TimelineModelPersistence {
                 cdto.setPoseBlend(ac.getBlendSettings());
             }
             case com.director.timeline.model.entity.EntityStateClip stc -> {
-                cdto.sneaking = stc.isSneaking();
-                cdto.sprinting = stc.isSprinting();
-                cdto.glowing = stc.isGlowing();
-                cdto.invulnerable = stc.isInvulnerable();
-                cdto.stateVisibility = stc.getVisibility();
+                cdto.sneaking = stc.getSneakingOverride();
+                cdto.sprinting = stc.getSprintingOverride();
+                cdto.glowing = stc.getGlowingOverride();
+                cdto.invulnerable = stc.getInvulnerableOverride();
+                cdto.stateVisibility = stc.getVisibilityOverride();
             }
             case com.director.timeline.model.entity.EntityActionClip xac -> {
                 cdto.actionType = xac.getActionType() != null ? xac.getActionType().name() : null;
@@ -1576,6 +1576,37 @@ public class TimelineModelPersistence {
         }
     }
 
+    private static void restoreSpawnPresets(EntityClipDTO dto, com.director.timeline.model.entity.EntitySpawnClip spawn) {
+        var primary = readSpawnPreset(dto.spawnPreset);
+        var secondary = readSpawnPreset(dto.spawnSecondaryPreset);
+        var warnings = new ArrayList<>(spawn.getLoadWarnings());
+        primary = validateLoadedPreset(primary, spawn.getBoneAnimationId(), warnings);
+        secondary = validateLoadedPreset(secondary, spawn.getBoneAnimationId(), warnings);
+        if (primary != null && secondary != null && secondary.fullyOverridesSameAction(primary.animationId())) {
+            warnings.add("已移除完全覆盖同一主动作的第二预设：" + secondary.animationId());
+            secondary = null;
+        }
+        spawn.setPreset(primary);
+        spawn.setSecondaryPreset(secondary);
+        spawn.setLoadWarnings(warnings);
+    }
+
+    private static com.director.timeline.model.entity.ActorPresetBinding validateLoadedPreset(
+            com.director.timeline.model.entity.ActorPresetBinding binding, String manualId, List<String> warnings) {
+        if (binding == null) return null;
+        String id = binding.animationId();
+        if (com.director.actor.runtime.ActorPresetClock.purpose(id)
+                == com.director.actor.animation.AnimationData.Purpose.STATIC_POSE) {
+            warnings.add("已移除绑定到动作预设的静态姿态：" + id);
+            return null;
+        }
+        if (id.equals(manualId)) {
+            warnings.add("已移除与手工修正层重复的动作预设：" + id);
+            return null;
+        }
+        return binding;
+    }
+
     public static EntityClip entityClipFromDTO(EntityClipDTO cdto) {
         com.director.timeline.model.entity.EntityClipType clipType =
             com.director.timeline.model.entity.EntityClipType.valueOf(cdto.clipType);
@@ -1586,7 +1617,7 @@ public class TimelineModelPersistence {
             for (EntityClipKeyframeDTO kfdto : cdto.keyframes) {
                 if (kfdto == null) continue;
                 try {
-                    com.director.timeline.model.entity.EntityClipKeyframe kf = new com.director.timeline.model.entity.EntityClipKeyframe(kfdto.time);
+                    var kf = new com.director.timeline.model.entity.EntityClipKeyframe(readEntityId(kfdto.id), kfdto.time);
                     if (kfdto.interpolation != null) {
                         ParseUtils.setEnumIfValid(kfdto.interpolation, com.director.timeline.model.TimelineInterpolation.class, "TimelineInterpolation", kf::setInterpolation);
                     }
@@ -1623,9 +1654,8 @@ public class TimelineModelPersistence {
                 if (cdto.pitchDeg != null) sc.setPitchDeg(cdto.pitchDeg);
                 sc.setBoneAnimationId(cdto.spawnBoneAnimationId);
                 sc.setBoneAnimationMuted(Boolean.TRUE.equals(cdto.spawnBoneAnimationMuted));
-                sc.setPreset(readSpawnPreset(cdto.spawnPreset));
-                sc.setSecondaryPreset(readSpawnPreset(cdto.spawnSecondaryPreset));
                 cdto.restorePoseBlend(sc);
+                restoreSpawnPresets(cdto, sc);
                 if (cdto.spawnRoll != null) sc.setRollDeg(cdto.spawnRoll);
                 if (cdto.spawnScaleX != null && cdto.spawnScaleY != null && cdto.spawnScaleZ != null)
                     sc.setScale(cdto.spawnScaleX, cdto.spawnScaleY, cdto.spawnScaleZ);
@@ -1764,20 +1794,32 @@ public class TimelineModelPersistence {
 
         return clip;
     }
+    private static UUID readEntityId(String value) {
+        if (value != null) {
+            try {
+                return UUID.fromString(value);
+            } catch (IllegalArgumentException invalid) {
+                LOGGER.warn("[TimelineModelPersistence] 已重新生成无效的演员时间线 ID: {}", value);
+            }
+        }
+        return UUID.randomUUID();
+    }
+
     private static @NotNull EntityClip getEntityClip(EntityClipDTO cdto, EntityClipType clipType) {
         String cname = cdto.name != null ? cdto.name : cdto.clipType;
+        UUID id = readEntityId(cdto.id);
         EntityClip clip = switch (clipType) {
-            case SPAWN -> new com.director.timeline.model.entity.EntitySpawnClip(cname, cdto.startTime, cdto.endTime);
-            case TRANSFORM -> new com.director.timeline.model.entity.EntityTransformClip(cname, cdto.startTime, cdto.endTime);
-            case LOOK_AT -> new com.director.timeline.model.entity.EntityLookAtClip(cname, cdto.startTime, cdto.endTime);
-            case ANIMATION -> new com.director.timeline.model.entity.EntityAnimationClip(cname, cdto.startTime, cdto.endTime);
-            case STATE -> new com.director.timeline.model.entity.EntityStateClip(cname, cdto.startTime, cdto.endTime);
-            case ACTION -> new com.director.timeline.model.entity.EntityActionClip(cname, cdto.startTime, cdto.endTime);
-            case DESPAWN -> new com.director.timeline.model.entity.EntityDespawnClip(cname, cdto.startTime, cdto.endTime);
-            case ACTOR_ACTION -> new com.director.timeline.model.entity.ActorActionClip(cname, cdto.startTime, cdto.endTime);
-            case ACTOR_POSE -> new com.director.timeline.model.entity.ActorPoseClip(cname, cdto.startTime, cdto.endTime);
-            case ACTOR_ROUTE -> new com.director.timeline.model.entity.ActorRouteClip(cname, cdto.startTime, cdto.endTime);
-            case ACTOR_RELATION -> new com.director.timeline.model.entity.ActorRelationClip(cname, cdto.startTime, cdto.endTime);
+            case SPAWN -> new com.director.timeline.model.entity.EntitySpawnClip(id, cname, cdto.startTime, cdto.endTime);
+            case TRANSFORM -> new com.director.timeline.model.entity.EntityTransformClip(id, cname, cdto.startTime, cdto.endTime);
+            case LOOK_AT -> new com.director.timeline.model.entity.EntityLookAtClip(id, cname, cdto.startTime, cdto.endTime);
+            case ANIMATION -> new com.director.timeline.model.entity.EntityAnimationClip(id, cname, cdto.startTime, cdto.endTime);
+            case STATE -> new com.director.timeline.model.entity.EntityStateClip(id, cname, cdto.startTime, cdto.endTime);
+            case ACTION -> new com.director.timeline.model.entity.EntityActionClip(id, cname, cdto.startTime, cdto.endTime);
+            case DESPAWN -> new com.director.timeline.model.entity.EntityDespawnClip(id, cname, cdto.startTime, cdto.endTime);
+            case ACTOR_ACTION -> new com.director.timeline.model.entity.ActorActionClip(id, cname, cdto.startTime, cdto.endTime);
+            case ACTOR_POSE -> new com.director.timeline.model.entity.ActorPoseClip(id, cname, cdto.startTime, cdto.endTime);
+            case ACTOR_ROUTE -> new com.director.timeline.model.entity.ActorRouteClip(id, cname, cdto.startTime, cdto.endTime);
+            case ACTOR_RELATION -> new com.director.timeline.model.entity.ActorRelationClip(id, cname, cdto.startTime, cdto.endTime);
         };
         clip.setMuted(cdto.muted);
         clip.setWeight(cdto.weight);

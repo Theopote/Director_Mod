@@ -41,7 +41,6 @@ public class EntityClipSampler {
     private final ActorTrack track;
 
     // A sampler is thread-confined. Classification scratch is reused, never returned in a sample.
-    private final List<EntitySpawnClip> spawnClips = new ArrayList<>();
     private final List<EntityTransformClip> transformClips = new ArrayList<>();
     private final List<EntityAnimationClip> animationClips = new ArrayList<>();
     private final List<EntityActionClip> actionClips = new ArrayList<>();
@@ -54,7 +53,7 @@ public class EntityClipSampler {
     private final List<EntityAnimationClip> embedded = new ArrayList<>();
 
     private void clearScratch() {
-        spawnClips.clear(); transformClips.clear(); animationClips.clear(); actionClips.clear();
+        transformClips.clear(); animationClips.clear(); actionClips.clear();
         stateClips.clear(); lookAtClips.clear(); actorActionClips.clear();
         actorPoseClips.clear(); actorRouteClips.clear(); actorRelationClips.clear(); embedded.clear();
     }
@@ -144,9 +143,7 @@ public class EntityClipSampler {
 
             switch (clip.getClipType()) {
                 case SPAWN:
-                    if (clip instanceof EntitySpawnClip spawnClip) {
-                        spawnClips.add(spawnClip);
-                    }
+                    // Spawn ownership is shared with the track and group editor.
                     break;
                 case TRANSFORM:
                     if (clip instanceof EntityTransformClip transformClip) {
@@ -198,13 +195,11 @@ public class EntityClipSampler {
         }
 
         // Only a lifecycle clip can make an actor exist; action/path clips cannot respawn it.
-        result.active = track.isPresentAt(timeSeconds);
+        EntitySpawnClip presetOwner = track.findSpawnClipAt(timeSeconds);
+        result.active = presetOwner != null
+                && !track.hasCompletedDespawn(timeSeconds, presetOwner, EntityDespawnClip.DespawnMode.REMOVE);
         // ========== 处理 Spawn Clip（优先级最高，作为基础）==========
-        if (!spawnClips.isEmpty()) {
-            // 使用最后一个 Spawn Clip（如果有多个重叠）
-            EntitySpawnClip spawnClip = spawnClips.getLast();
-            applySpawnClip(result, spawnClip, timeSeconds);
-        }
+        if (presetOwner != null) applySpawnClip(result, presetOwner, timeSeconds);
 
         // ========== 处理 ActorRoute Clip（路线移动）==========
         // 规则：last-wins（取 startTime 最大的那个），Transform 仍可覆盖它
@@ -216,7 +211,6 @@ public class EntityClipSampler {
 
         // Presets and spawn-owned manual keys retain independent clocks and blend settings.
         applyAnimation(result, animationClips, timeSeconds,emitEvents);
-        EntitySpawnClip presetOwner=spawnClips.isEmpty()?null:spawnClips.getLast();
         if (presetOwner != null && presetOwner.getSecondaryPreset() != null) {
             var binding = presetOwner.getSecondaryPreset();
             float local = Math.max(0f, timeSeconds - presetOwner.getStartTime());
@@ -232,8 +226,8 @@ public class EntityClipSampler {
             result.animationBlendEnvelope=binding.blend().envelopeAt(result.animationLocalTime,presetOwner.getLength());
         }
         var preset = result.animationId == null ? null : ActorAnimationLayerSample.from(result);
-        var manualOwner=spawnClips.isEmpty()?null:spawnClips.getLast();
-        if(manualOwner!=null && manualOwner.getBoneAnimation()!=null && !manualOwner.getBoneAnimation().isMuted()) embedded.add(manualOwner.getBoneAnimation());
+        if (presetOwner != null && presetOwner.getBoneAnimation() != null && !presetOwner.getBoneAnimation().isMuted())
+            embedded.add(presetOwner.getBoneAnimation());
         if (!embedded.isEmpty()) {
             applyAnimation(result, embedded, timeSeconds, emitEvents);
             result.presetAnimation = preset;
@@ -241,7 +235,6 @@ public class EntityClipSampler {
         }
 
         // ========== 处理 State Clip（状态）==========
-        // 规则：last-wins（最后一个生效，按时间排序）
         applyState(result, stateClips);
 
         // ========== 处理 LookAt Clip（看向目标）==========
@@ -292,7 +285,7 @@ public class EntityClipSampler {
             var prev = findPrevKeyframe(clip.getKeyframes().stream().filter(k -> k.hasChannel(EntityClipKeyframe.POSITION)).toList(), time);
             var next = findNextKeyframe(clip.getKeyframes().stream().filter(k -> k.hasChannel(EntityClipKeyframe.POSITION)).toList(), time);
             result.speed = prev == null || next == null ? 0 : segmentSpeed(prev.getPosition(), next.getPosition(),
-                    prev.getTime(), next.getTime(), time, next.getInterpolation());
+                    prev.getTime(), next.getTime(), time, prev.getInterpolation());
         }
         result.visibility = clip.isVisibleOnSpawn() ? 1.0f : 0.0f;
     }
@@ -307,7 +300,7 @@ public class EntityClipSampler {
         // 找到最后一个（按开始时间排序）
         for (EntityTransformClip clip : clips) {
             if (!clip.isMuted()) {
-                if (active == null || clip.getStartTime() >= active.getStartTime()) {
+                if (active == null || clip.compareTo(active) > 0) {
                     active = clip;
                 }
             }
@@ -336,8 +329,8 @@ public class EntityClipSampler {
             if (prev == null) prev = next;
             if (next == null) next = prev;
             float t = next.getTime() == prev.getTime() ? 0 : Math.clamp((time-prev.getTime())/(next.getTime()-prev.getTime()),0f,1f);
-            if (next.getInterpolation() == TimelineInterpolation.SMOOTH) t = t*t*(3-2*t);
-            else if (next.getInterpolation() == TimelineInterpolation.STEP) t = 0;
+            if (prev.getInterpolation() == TimelineInterpolation.SMOOTH) t = t*t*(3-2*t);
+            else if (prev.getInterpolation() == TimelineInterpolation.STEP) t = 0;
             Vector3f from = channel == 1 ? prev.getPosition() : channel == 2 ? prev.getRotation() : prev.getScale();
             Vector3f to = channel == 1 ? next.getPosition() : channel == 2 ? next.getRotation() : next.getScale();
             Vector3f out = channel == 1 ? result.position : channel == 2 ? result.rotation : result.scale;
@@ -440,7 +433,7 @@ public class EntityClipSampler {
         // 找到最后一个（按开始时间排序）
         for (EntityAnimationClip clip : clips) {
             if (!clip.isMuted() && clip.hasAnimation()) {
-                if (active == null || clip.getStartTime() >= active.getStartTime()) {
+                if (active == null || clip.compareTo(active) > 0) {
                     active = clip;
                 }
             }
@@ -468,18 +461,15 @@ public class EntityClipSampler {
 
     /**
      * 应用 State Clip（状态）。
-     * 规则：last-wins（最后一个生效，按时间排序）
+     * 按时间顺序应用每个片段明确设置的字段。
      */
     private void applyState(EntitySample result, List<EntityStateClip> clips) {
-        // 按时间排序，最后一个覆盖前面的
         for (EntityStateClip clip : clips) {
-            if (!clip.isMuted()) {
-                result.sneaking = clip.isSneaking();
-                result.sprinting = clip.isSprinting();
-                result.glowing = clip.isGlowing();
-                result.invulnerable = clip.isInvulnerable();
-                result.visibility = clip.getVisibility();
-            }
+            if (clip.getSneakingOverride() != null) result.sneaking = clip.getSneakingOverride();
+            if (clip.getSprintingOverride() != null) result.sprinting = clip.getSprintingOverride();
+            if (clip.getGlowingOverride() != null) result.glowing = clip.getGlowingOverride();
+            if (clip.getInvulnerableOverride() != null) result.invulnerable = clip.getInvulnerableOverride();
+            if (clip.getVisibilityOverride() != null) result.visibility = clip.getVisibilityOverride();
         }
     }
 
@@ -580,7 +570,7 @@ public class EntityClipSampler {
             }
 
             if (timeSeconds >= clip.getStartTime() && timeSeconds <= clip.getEndTime()) {
-                if (active == null || clip.getStartTime() > active.getStartTime()) {
+                if (active == null || clip.compareTo(active) > 0) {
                     active = clip;
                 }
             }
@@ -609,7 +599,7 @@ public class EntityClipSampler {
                 continue;
             }
             if (timeSeconds >= clip.getStartTime() && timeSeconds <= clip.getEndTime()) {
-                if (active == null || clip.getStartTime() > active.getStartTime()) {
+                if (active == null || clip.compareTo(active) > 0) {
                     active = clip;
                 }
             }
@@ -621,7 +611,7 @@ public class EntityClipSampler {
         ActorPoseClip previous = null;
         for (ActorPoseClip clip : clips) {
             if (clip != active && !clip.isMuted() && clip.getStartTime() < active.getStartTime()
-                && (previous == null || clip.getStartTime() > previous.getStartTime())) {
+                && (previous == null || clip.compareTo(previous) > 0)) {
                 previous = clip;
             }
         }
@@ -669,7 +659,7 @@ public class EntityClipSampler {
                 continue;
             }
             if (timeSeconds >= clip.getStartTime() && timeSeconds <= clip.getEndTime()) {
-                if (active == null || clip.getStartTime() > active.getStartTime()) {
+                if (active == null || clip.compareTo(active) > 0) {
                     active = clip;
                 }
             }
@@ -723,7 +713,7 @@ public class EntityClipSampler {
                 continue;
             }
             if (timeSeconds >= clip.getStartTime() && timeSeconds <= clip.getEndTime()) {
-                if (active == null || clip.getStartTime() > active.getStartTime()) {
+                if (active == null || clip.compareTo(active) > 0) {
                     active = clip;
                 }
             }
@@ -769,7 +759,7 @@ public class EntityClipSampler {
             var next = findNextKeyframe(keys, time);
             if (previous == null || next == null) return 0f;
             return segmentSpeed(previous.getPosition(), next.getPosition(), previous.getTime(),
-                    next.getTime(), time, next.getInterpolation());
+                    next.getTime(), time, previous.getInterpolation());
         }
         return segmentSpeed(clip.getFromPos(), clip.getToPos(), clip.getStartTime(),
                 clip.getEndTime(), time, clip.getInterpolation());

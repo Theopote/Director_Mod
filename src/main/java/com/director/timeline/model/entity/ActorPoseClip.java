@@ -30,7 +30,11 @@ public final class ActorPoseClip extends EntityClip {
     private float rightLegPitch = 0f;
 
     public ActorPoseClip(String name, float startTime, float endTime) {
-        super(name, startTime, endTime);
+        this(java.util.UUID.randomUUID(), name, startTime, endTime);
+    }
+
+    public ActorPoseClip(java.util.UUID id, String name, float startTime, float endTime) {
+        super(id, name, startTime, endTime);
     }
 
     @Override

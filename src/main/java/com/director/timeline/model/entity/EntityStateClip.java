@@ -5,26 +5,20 @@ package com.director.timeline.model.entity;
  *
  * <p>State：持续状态（潜行/冲刺/发光/无敌等）。
  *
- * <p>可叠加：比如一个长 StateClip 维持"发光"。
- *
- * <p>特点：
- * <ul>
- *   <li>适合关键帧插值</li>
- *   <li>支持淡入淡出</li>
- * </ul>
+ * <p>重叠片段按字段覆盖。未设置的字段继承前一个覆盖值。
  *
  * @author Director Team
  * @version 1.0
  */
 public class EntityStateClip extends EntityClip {
 
-    private boolean sneaking = false;
-    private boolean sprinting = false;
-    private boolean glowing = false;
-    private boolean invulnerable = false;
+    private Boolean sneaking;
+    private Boolean sprinting;
+    private Boolean glowing;
+    private Boolean invulnerable;
 
     /** 透明度/可见性（0-1） */
-    private float visibility = 1.0f;
+    private Float visibility;
 
     /**
      * 构造函数
@@ -34,7 +28,11 @@ public class EntityStateClip extends EntityClip {
      * @param endTime 结束时间（秒）
      */
     public EntityStateClip(String name, float startTime, float endTime) {
-        super(name, startTime, endTime);
+        this(java.util.UUID.randomUUID(), name, startTime, endTime);
+    }
+
+    public EntityStateClip(java.util.UUID id, String name, float startTime, float endTime) {
+        super(id, name, startTime, endTime);
     }
 
     @Override
@@ -45,43 +43,57 @@ public class EntityStateClip extends EntityClip {
     // ========== Getters and Setters ==========
 
     public boolean isSneaking() {
-        return sneaking;
+        return Boolean.TRUE.equals(sneaking);
     }
 
-    public void setSneaking(boolean sneaking) {
+    public Boolean getSneakingOverride() { return sneaking; }
+
+    public void setSneaking(Boolean sneaking) {
         this.sneaking = sneaking;
     }
 
     public boolean isSprinting() {
-        return sprinting;
+        return Boolean.TRUE.equals(sprinting);
     }
 
-    public void setSprinting(boolean sprinting) {
+    public Boolean getSprintingOverride() { return sprinting; }
+
+    public void setSprinting(Boolean sprinting) {
         this.sprinting = sprinting;
     }
 
     public boolean isGlowing() {
-        return glowing;
+        return Boolean.TRUE.equals(glowing);
     }
 
-    public void setGlowing(boolean glowing) {
+    public Boolean getGlowingOverride() { return glowing; }
+
+    public void setGlowing(Boolean glowing) {
         this.glowing = glowing;
     }
 
     public boolean isInvulnerable() {
-        return invulnerable;
+        return Boolean.TRUE.equals(invulnerable);
     }
 
-    public void setInvulnerable(boolean invulnerable) {
+    public Boolean getInvulnerableOverride() { return invulnerable; }
+
+    public void setInvulnerable(Boolean invulnerable) {
         this.invulnerable = invulnerable;
     }
 
     public float getVisibility() {
-        return visibility;
+        return visibility == null ? 1f : visibility;
     }
 
     public void setVisibility(float visibility) {
-        this.visibility = Math.max(0f, Math.min(1f, visibility));
+        setVisibilityOverride(visibility);
+    }
+
+    public Float getVisibilityOverride() { return visibility; }
+
+    public void setVisibilityOverride(Float visibility) {
+        this.visibility = visibility == null ? null : Math.clamp(visibility, 0f, 1f);
     }
 }
 

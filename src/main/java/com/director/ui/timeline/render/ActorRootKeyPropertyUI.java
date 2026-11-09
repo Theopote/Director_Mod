@@ -51,7 +51,7 @@ public final class ActorRootKeyPropertyUI {
             boolean route=com.director.ui.actor.pose.ActorMovementSource.routeOwnsInterval(model,s.owner());
             for(int i=0;i<3;i++) if((mask&(1<<i))!=0) {ImGui.beginDisabled(route&&i<2);ImGui.inputFloat3(labels[i],values[i]);ImGui.endDisabled();}
             ImGui.beginDisabled(mask!=key.getChannels());
-            var mode=new ImInt(interpolation);if(ImGui.combo("插值",mode,java.util.Arrays.stream(TimelineInterpolation.values()).map(TimelineInterpolation::getDisplayName).toArray(String[]::new))) interpolation=mode.get();
+            var mode=new ImInt(interpolation);if(ImGui.combo("到下一关键帧的插值",mode,java.util.Arrays.stream(TimelineInterpolation.values()).map(TimelineInterpolation::getDisplayName).toArray(String[]::new))) interpolation=mode.get();
             ImGui.endDisabled();
             if(ImGui.button("应用整体键值")) {
                 int allowed=route?mask&4:mask;

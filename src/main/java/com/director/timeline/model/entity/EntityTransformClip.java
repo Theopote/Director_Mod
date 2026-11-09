@@ -49,7 +49,11 @@ public class EntityTransformClip extends EntityClip {
      * @param endTime 结束时间（秒）
      */
     public EntityTransformClip(String name, float startTime, float endTime) {
-        super(name, startTime, endTime);
+        this(java.util.UUID.randomUUID(), name, startTime, endTime);
+    }
+
+    public EntityTransformClip(java.util.UUID id, String name, float startTime, float endTime) {
+        super(id, name, startTime, endTime);
     }
 
     @Override

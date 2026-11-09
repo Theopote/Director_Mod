@@ -201,6 +201,7 @@ public final class ActorSpawnPresetPropertyUI {
                     .map(entry -> entry.name() + (entry.compatible() ? "" : " · 不兼容"))
                     .findFirst().orElse("缺失引用 · " + id);
             ImGui.textWrapped("第二预设在主预设之后混合。若希望动作分开控制，给主预设选「仅双腿」，给第二预设选「仅上半身」。");
+            ImGui.textWrapped("同一个动作可以按骨骼或通道分层。第二预设不能以全权重、全骨骼和全通道覆盖同一个主动作。");
             if (ImGui.beginCombo("动作##secondaryAsset", label)) {
                 try {
                     if (ImGui.selectable("无预设##clearSecondary", binding == null) && binding != null) {
@@ -213,7 +214,10 @@ public final class ActorSpawnPresetPropertyUI {
                                 && !entry.id().equals(id)) {
                             boolean first = binding == null;
                             binding = ActorPresetBinding.select(entry.id(), binding);
-                            if (first && ActorPresetScope.UPPER.supported(rig)) binding = ActorPresetScope.UPPER.apply(binding, rig);
+                            var primary = draft.getPreset();
+                            if (ActorPresetScope.UPPER.supported(rig) && (first
+                                    || primary != null && binding.fullyOverridesSameAction(primary.animationId())))
+                                binding = ActorPresetScope.UPPER.apply(binding, rig);
                             gesture.requestCommit();
                         }
                     }

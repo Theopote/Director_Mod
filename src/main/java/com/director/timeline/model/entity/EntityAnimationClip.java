@@ -56,7 +56,11 @@ public class EntityAnimationClip extends EntityClip {
      * @param endTime 结束时间（秒）
      */
     public EntityAnimationClip(String name, float startTime, float endTime) {
-        super(name, startTime, endTime);
+        this(java.util.UUID.randomUUID(), name, startTime, endTime);
+    }
+
+    public EntityAnimationClip(java.util.UUID id, String name, float startTime, float endTime) {
+        super(id, name, startTime, endTime);
     }
 
     @Override

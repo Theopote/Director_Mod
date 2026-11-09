@@ -61,7 +61,11 @@ public final class ActorRouteClip extends EntityClip {
     public void setTerrainWarning(String warning) { terrainWarning = warning == null ? "" : warning; }
 
     public ActorRouteClip(String name, float startTime, float endTime) {
-        super(name, startTime, endTime);
+        this(java.util.UUID.randomUUID(), name, startTime, endTime);
+    }
+
+    public ActorRouteClip(java.util.UUID id, String name, float startTime, float endTime) {
+        super(id, name, startTime, endTime);
     }
 
     @Override

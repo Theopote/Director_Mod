@@ -144,9 +144,7 @@ public final class ActorTrackClipAuthoringService {
     }
 
     private EntityStateClip createStateClip(float start) {
-        EntityStateClip clip = new EntityStateClip("State", start, start + DEFAULT_STATE_DURATION_SECONDS);
-        clip.setVisibility(1.0f);
-        return clip;
+        return new EntityStateClip("State", start, start + DEFAULT_STATE_DURATION_SECONDS);
     }
 
     private TransformSeed resolveTransformSeed(ActorTrack actorTrack, float timeSeconds) {
