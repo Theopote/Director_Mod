@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.ImGuiColorEditFlags;
@@ -82,7 +83,8 @@ public class ColorPropertyAdapter implements IPropertyAdapter<Vector4f> {
                   | ImGuiColorEditFlags.InputRGB
                   | ImGuiColorEditFlags.PickerHueWheel;
         
-        if (ImGui.colorEdit4("RGBA", rgba, flags)) {
+        PropertyRow.field("RGBA");
+        if (ImGui.colorEdit4("##RGBA", rgba, flags)) {
             color.set(rgba[0], rgba[1], rgba[2], rgba[3]);
             modified = true;
             LOGGER.debug("[ColorPropertyAdapter] 颜色已更新: ({}, {}, {}, {})", 

@@ -2,6 +2,7 @@ package com.director.ui.properties.adapters;
 import com.director.lighting.*;
 import com.director.ui.lighting.*;
 import com.director.ui.panels.LightsPanel;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.timeline.commands.*;
 import com.director.timeline.model.TimelineInterpolation;
@@ -22,13 +23,15 @@ public final class LightKeyframePropertyAdapter implements IPropertyAdapter<Ligh
             || com.director.client.gizmo.GizmoManager.get().isDraggingHandle();
         ImGui.textWrapped(LightsPanel.tr("key_hint"));ImGui.beginDisabled(locked);
         float[] time={key.getTime()};
-        if(ImGui.dragFloat(LightsPanel.tr("time"),time,.01f) && Float.isFinite(time[0])) {
+        PropertyRow.field(LightsPanel.tr("time"));
+        if(ImGui.dragFloat("##light_time",time,.01f) && Float.isFinite(time[0])) {
             PointLightParameterEditing.finish();
             TimelineCommandBridge.execute(new MoveClipKeyframeCommand(model,track,clip,key,key.getTime(),Math.max(clip.getStartTime(),Math.min(clip.getEndTime(),time[0]))));
         }
         var modes=TimelineInterpolation.values();String[] labels=java.util.Arrays.stream(modes).map(TimelineInterpolation::getDisplayName).toArray(String[]::new);
         var mode=new ImInt(key.getInterpolation().ordinal());
-        if(ImGui.combo(LightsPanel.tr("interpolation"),mode,labels)) {
+        PropertyRow.field(LightsPanel.tr("interpolation"));
+        if(ImGui.combo("##light_interpolation",mode,labels)) {
             PointLightParameterEditing.finish();TimelineCommandBridge.execute(new ChangeClipKeyframeInterpolationCommand(model,track,clip,key,modes[mode.get()]));
         }
         ImGui.textWrapped(LightsPanel.tr("transition_hint"));

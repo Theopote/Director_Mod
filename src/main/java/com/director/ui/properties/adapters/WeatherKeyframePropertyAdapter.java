@@ -2,6 +2,8 @@ package com.director.ui.properties.adapters;
 
 import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.container.ContainerTimelineService;
@@ -10,7 +12,6 @@ import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.weather.WeatherKeyframe;
 import com.director.timeline.playback.weather.TimelineWeatherController;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
@@ -131,10 +132,10 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         // ==========================================================
         // ⏱ 基础信息
         // ==========================================================
-        if (ImGui.collapsingHeader(Icons.INFO + " 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("weather.basic", "基础信息")) {
             timeFloat.set(kf.getTime());
-            if (ImGui.dragFloat("时间 (秒)", timeFloat.getData(), 0.02f, 0, 10_000f, "%.2f")) {
+            PropertyRow.field("时间");
+            if (ImGui.dragFloat("##时间 (秒)", timeFloat.getData(), 0.02f, 0, 10_000f, "%.2f s")) {
                 kf.setTime(timeFloat.get());
                 timeChanged.set(true);
             }
@@ -150,7 +151,8 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             weatherPresetIndex.set(kf.getWeatherType().ordinal());
             WeatherKeyframe.WeatherType[] types = WeatherKeyframe.WeatherType.values();
 
-            if (ImGui.combo("天气预设", weatherPresetIndex, PRESET_LABELS)) {
+            PropertyRow.field("天气预设");
+            if (ImGui.combo("##天气预设", weatherPresetIndex, PRESET_LABELS)) {
                 WeatherKeyframe.WeatherType newType = types[weatherPresetIndex.get()];
                 kf.applyWeatherPreset(newType); // 自动写入默认雨量/云量等
                 parameterChanged.set(true);
@@ -168,7 +170,8 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             com.director.timeline.model.TimelineInterpolation[] interpolationTypes = 
                 com.director.timeline.model.TimelineInterpolation.values();
 
-            if (ImGui.combo("插值模式", interpolationIndex, INTERPOLATION_LABELS)) {
+            PropertyRow.field("插值模式");
+            if (ImGui.combo("##插值模式", interpolationIndex, INTERPOLATION_LABELS)) {
                 kf.setInterpolation(interpolationTypes[interpolationIndex.get()]);
                 parameterChanged.set(true);
             }
@@ -179,18 +182,17 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             }
 
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         // ==========================================================
         // 🌧 降水 (Precipitation)
         // ==========================================================
-        if (ImGui.collapsingHeader(Icons.PARTICLE + " 降水 (Precipitation)", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("weather.precipitation", "降水")) {
 
             // 雨强度
             rainFloat.set(kf.getRainIntensity());
-            if (ImGui.sliderFloat("雨强度", rainFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+            PropertyRow.field("雨强度");
+            if (ImGui.sliderFloat("##雨强度", rainFloat.getData(), 0.0f, 1.0f, "%.2f")) {
                 float value = rainFloat.get();
                 float snowIntensity = kf.getSnowIntensity();
                 
@@ -223,7 +225,8 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
             // 雪强度
             snowFloat.set(kf.getSnowIntensity());
-            if (ImGui.sliderFloat("雪强度", snowFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+            PropertyRow.field("雪强度");
+            if (ImGui.sliderFloat("##雪强度", snowFloat.getData(), 0.0f, 1.0f, "%.2f")) {
                 float value = snowFloat.get();
                 float rainIntensity = kf.getRainIntensity();
                 
@@ -257,7 +260,8 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
             // 地面湿度
             wetnessFloat.set(kf.getWetness());
-            if (ImGui.sliderFloat("地面湿度", wetnessFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+            PropertyRow.field("地面湿度");
+            if (ImGui.sliderFloat("##地面湿度", wetnessFloat.getData(), 0.0f, 1.0f, "%.2f")) {
                 if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
                     kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
                 }
@@ -321,11 +325,11 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         // ==========================================================
         // 云层 (Clouds)
         // ==========================================================
-        if (ImGui.collapsingHeader(Icons.LAYERS + " 云层 (Clouds)", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("weather.clouds", "云层")) {
 
             cloudDensityFloat.set(kf.getCloudDensity());
-            if (ImGui.sliderFloat("云量", cloudDensityFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+            PropertyRow.field("云量");
+            if (ImGui.sliderFloat("##云量", cloudDensityFloat.getData(), 0.0f, 1.0f, "%.2f")) {
                 if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
                     kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
                 }
@@ -341,7 +345,8 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             UITheme.spacingSmall();
 
             cloudSpeedFloat.set(kf.getCloudSpeed());
-            if (ImGui.sliderFloat("云速", cloudSpeedFloat.getData(), 0.0f, 3.0f, "%.2f")) {
+            PropertyRow.field("云速");
+            if (ImGui.sliderFloat("##云速", cloudSpeedFloat.getData(), 0.0f, 3.0f, "%.2f")) {
                 if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
                     kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
                 }
@@ -358,7 +363,8 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
             // ✅ 新增：云亮度参数
             cloudBrightnessFloat.set(kf.getCloudBrightness());
-            if (ImGui.sliderFloat("云亮度", cloudBrightnessFloat.getData(), 0.3f, 1.2f, "%.2f")) {
+            PropertyRow.field("云亮度");
+            if (ImGui.sliderFloat("##云亮度", cloudBrightnessFloat.getData(), 0.3f, 1.2f, "%.2f")) {
                 if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
                     kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
                 }
@@ -372,18 +378,17 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             }
 
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         // ==========================================================
         // 🌬 风 (Wind)
         // ==========================================================
-        if (ImGui.collapsingHeader("\uD83C\uDF2C 风 (Wind)", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("weather.wind", "风")) {
 
             // 风强度
             windFloat.set(kf.getWindStrength());
-            if (ImGui.sliderFloat("风强度", windFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+            PropertyRow.field("风强度");
+            if (ImGui.sliderFloat("##风强度", windFloat.getData(), 0.0f, 1.0f, "%.2f")) {
                 // ⭐ 如果当前不是自定义模式，切换到自定义模式
                 if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
                     kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
@@ -415,7 +420,8 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             UITheme.spacingSmall();
 
             // 角度数值滑块（精确调整）
-            if (ImGui.sliderFloat("方向角 (°)", windDirectionFloat.getData(), 0.0f, 360.0f, "%.0f°")) {
+            PropertyRow.field("方向角");
+            if (ImGui.sliderFloat("##方向角 (°)", windDirectionFloat.getData(), 0.0f, 360.0f, "%.0f°")) {
                 if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
                     kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
                 }
@@ -429,18 +435,17 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             }
 
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         // ==========================================================
         // ⛈ 雷暴 (Thunderstorm)
         // ==========================================================
-        if (ImGui.collapsingHeader(Icons.LIGHTNING + " 雷暴 (Thunderstorm)")) {
-            ImGui.indent();
+        if (Section.header("weather.thunder", "雷暴", false)) {
 
             // 雷暴强度
             thunderFloat.set(kf.getThunderIntensity());
-            if (ImGui.sliderFloat("雷暴强度", thunderFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+            PropertyRow.field("雷暴强度");
+            if (ImGui.sliderFloat("##雷暴强度", thunderFloat.getData(), 0.0f, 1.0f, "%.2f")) {
                 kf.setThunderStrength(thunderFloat.get());
                 parameterChanged.set(true);
             }
@@ -454,7 +459,8 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
             // 闪电频率
             lightningFloat.set(kf.getLightningFrequency());
-            if (ImGui.sliderFloat("闪电频率", lightningFloat.getData(), 0.0f, 5.0f, "%.2f")) {
+            PropertyRow.field("闪电频率");
+            if (ImGui.sliderFloat("##闪电频率", lightningFloat.getData(), 0.0f, 5.0f, "%.2f")) {
                 kf.setLightningFrequency(lightningFloat.get());
                 parameterChanged.set(true);
             }
@@ -470,7 +476,8 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
             // ✅ 新增：只视觉雷暴（导演安全模式）开关
             visualOnlyThunderBool.set(kf.isVisualOnlyThunder());
-            if (ImGui.checkbox("只视觉雷暴（导演安全模式）", visualOnlyThunderBool)) {
+            PropertyRow.label("只视觉雷暴（导演安全模式）");
+            if (ImGui.checkbox("##只视觉雷暴（导演安全模式）", visualOnlyThunderBool)) {
                 if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
                     kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
                 }
@@ -485,18 +492,17 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             }
 
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         // ==========================================================
         // 🌌 天空/光照 (Sky / Lighting)
         // ==========================================================
-        if (ImGui.collapsingHeader(Icons.LIGHT + " 天空/光照 (Sky / Lighting)")) {
-            ImGui.indent();
+        if (Section.header("weather.sky", "天空/光照", false)) {
 
             // 天空变暗（使用 stormDarkness，这是现有的字段）
             stormDarknessFloat.set(kf.getStormDarkness());
-            if (ImGui.sliderFloat("天空变暗", stormDarknessFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+            PropertyRow.field("天空变暗");
+            if (ImGui.sliderFloat("##天空变暗", stormDarknessFloat.getData(), 0.0f, 1.0f, "%.2f")) {
                 kf.setStormDarkness(stormDarknessFloat.get());
                 parameterChanged.set(true);
             }
@@ -512,7 +518,6 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             // 如果未来需要区分，可以在这里添加
 
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         // ==========================================================

@@ -9,11 +9,12 @@ import com.director.timeline.model.TrackType;
 import com.director.timeline.model.audio.AudioClipKeyframe;
 import com.director.timeline.model.audio.AudioTimelineClip;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.audio.TimelineAudioService;
 import com.director.util.ParseUtils;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImInt;
 
 import java.util.Map;
@@ -37,7 +38,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
 
         UITheme.title(TrackType.AUDIO.getIcon() + " 音频片段");
 
-        if (ImGui.collapsingHeader("基础", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("audio.clip.basic", "基础")) {
             boolean isBound = clip.getBoundContainerId() != null;
             if (isBound) {
                 ImGui.textDisabled("提示：该音频片段已绑定容器。时间范围将自动与容器片段保持一致；若要整体移动请先取消绑定。");
@@ -45,13 +46,15 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
             }
 
             float[] start = { clip.getStartTime() };
-            if (ImGui.dragFloat("开始时间(秒)", start, 0.05f, 0.0f, 100000f, "%.2fs")) {
+            PropertyRow.field("开始时间");
+            if (ImGui.dragFloat("##开始时间(秒)", start, 0.05f, 0.0f, 100000f, "%.2fs")) {
                 clip.setStartTime(Math.max(0.0f, start[0]));
                 modified = true;
             }
 
             float[] len = { clip.getLength() };
-            if (ImGui.dragFloat("时长(秒)", len, 0.05f, 0.05f, 100000f, "%.2fs")) {
+            PropertyRow.field("时长");
+            if (ImGui.dragFloat("##时长(秒)", len, 0.05f, 0.05f, 100000f, "%.2fs")) {
                 clip.setLength(len[0]);
                 modified = true;
             }
@@ -61,7 +64,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
             }
         }
 
-        if (ImGui.collapsingHeader("链接", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("audio.clip.link", "链接")) {
             String boundName = clip.getBoundContainerName();
             if (boundName == null || boundName.isBlank()) {
                 boundName = "（未绑定）";
@@ -79,7 +82,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
             }
         }
 
-        if (ImGui.collapsingHeader("音效同步", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("audio.clip.sync", "音效同步")) {
             if (clip.getBoundContainerId() == null) {
                 ImGui.textDisabled("未绑定容器：此处无自动放置/破坏音效可同步。");
             } else {
@@ -116,8 +119,8 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                                 default -> 0;
                             };
                             ImInt buf = new ImInt(idx);
-                            ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
-                            if (ImGui.combo("放置音效时机", buf, timingLabels)) {
+                            PropertyRow.field("放置音效时机");
+                            if (ImGui.combo("##放置音效时机", buf, timingLabels)) {
                                 String newTiming = switch (buf.get()) {
                                     case 1 -> "IMPACT";
                                     case 2 -> "START";
@@ -128,7 +131,6 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                                 changed = true;
                                 requestRefresh = true; // combo 选择完成即可刷新
                             }
-                            ImGui.popItemWidth();
                             if (ImGui.isItemHovered()) {
                                 ImGui.setTooltip(
                                         """
@@ -141,7 +143,8 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
 
                             float offset = ParseUtils.asFloat(params.get("enterSoundOffsetSeconds"), 0.0f, "enterSoundOffsetSeconds");
                             float[] offArr = { offset };
-                            if (ImGui.dragFloat("放置音效偏移(秒)", offArr, 0.01f, -2.0f, 2.0f, "%+.2fs")) {
+                            PropertyRow.field("放置音效偏移");
+                            if (ImGui.dragFloat("##放置音效偏移(秒)", offArr, 0.01f, -2.0f, 2.0f, "%+.2fs")) {
                                 params.put("enterSoundOffsetSeconds", offArr[0]);
                                 changed = true;
                             }
@@ -168,8 +171,8 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                                 default -> 0;
                             };
                             ImInt buf = new ImInt(idx);
-                            ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
-                            if (ImGui.combo("破坏音效时机", buf, timingLabels)) {
+                            PropertyRow.field("破坏音效时机");
+                            if (ImGui.combo("##破坏音效时机", buf, timingLabels)) {
                                 String newTiming = switch (buf.get()) {
                                     case 1 -> "IMPACT";
                                     case 2 -> "START";
@@ -180,7 +183,6 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                                 changed = true;
                                 requestRefresh = true;
                             }
-                            ImGui.popItemWidth();
                             if (ImGui.isItemHovered()) {
                                 ImGui.setTooltip(
                                         """
@@ -193,7 +195,8 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
 
                             float offset = ParseUtils.asFloat(params.get("exitSoundOffsetSeconds"), 0.0f, "exitSoundOffsetSeconds");
                             float[] offArr = { offset };
-                            if (ImGui.dragFloat("破坏音效偏移(秒)", offArr, 0.01f, -2.0f, 2.0f, "%+.2fs")) {
+                            PropertyRow.field("破坏音效偏移");
+                            if (ImGui.dragFloat("##破坏音效偏移(秒)", offArr, 0.01f, -2.0f, 2.0f, "%+.2fs")) {
                                 params.put("exitSoundOffsetSeconds", offArr[0]);
                                 changed = true;
                             }
@@ -215,7 +218,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
             }
         }
 
-        if (ImGui.collapsingHeader("音量自动化", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("audio.clip.automation", "音量自动化")) {
             int count = 0;
             for (var kf : clip.getClipKeyframes()) {
                 if (kf instanceof AudioClipKeyframe) {

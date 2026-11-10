@@ -1,12 +1,13 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,7 +90,7 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
         
         try {
             // ========== 重力系统 ==========
-            if (ImGui.collapsingHeader("🌍 重力系统", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("project.physics.gravity", "重力系统")) {
                 // 重力向量（使用 Vector3fPropertyAdapter）
                 Object gravity = PropertyReflection.readProperty(physics, "gravity", "getGravity");
                 if (gravity != null) {
@@ -122,7 +123,7 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             }
             
             // ========== 风场系统 ==========
-            if (ImGui.collapsingHeader("🌪️ 风场系统")) {
+            if (Section.header("project.physics.wind", "风场系统", false)) {
                 // 风向量（使用 Vector3fPropertyAdapter）
                 Object wind = PropertyReflection.readProperty(physics, "wind", "getWind");
                 if (wind != null) {
@@ -140,7 +141,8 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 风速
                 float currentWindSpeed = PropertyReflection.getFloat(physics, "windSpeed", "getWindSpeed", 0.0f);
                 float[] windSpeed = {currentWindSpeed};
-                if (ImGui.dragFloat("风速", windSpeed, 0.1f, 0.0f, 50.0f, "%.1f")) {
+                PropertyRow.field("风速");
+                if (ImGui.dragFloat("##风速", windSpeed, 0.1f, 0.0f, 50.0f, "%.1f")) {
                     if (PropertyReflection.setFloat(physics, "windSpeed", "setWindSpeed", windSpeed[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PhysicsEnvironmentPropertyAdapter] 风速已更新: {}", windSpeed[0]);
@@ -153,7 +155,8 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 湍流
                 float currentTurbulence = PropertyReflection.getFloat(physics, "turbulence", "getTurbulence", 0.0f);
                 float[] turbulence = {currentTurbulence};
-                if (ImGui.dragFloat("湍流强度", turbulence, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                PropertyRow.field("湍流强度");
+                if (ImGui.dragFloat("##湍流强度", turbulence, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(physics, "turbulence", "setTurbulence", turbulence[0])) {
                         modifiedRef[0] = true;
                     }
@@ -164,11 +167,12 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             }
             
             // ========== 碰撞系统 ==========
-            if (ImGui.collapsingHeader("💥 碰撞系统")) {
+            if (Section.header("project.physics.collision", "碰撞系统", false)) {
                 // 启用碰撞
                 boolean currentCollision = PropertyReflection.getBoolean(physics, "collisionEnabled", "isCollisionEnabled", true);
                 ImBoolean enableCollision = new ImBoolean(currentCollision);
-                if (ImGui.checkbox("启用碰撞检测", enableCollision)) {
+                PropertyRow.label("启用碰撞检测");
+                if (ImGui.checkbox("##启用碰撞检测", enableCollision)) {
                     if (PropertyReflection.setBoolean(physics, "collisionEnabled", "setCollisionEnabled", enableCollision.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PhysicsEnvironmentPropertyAdapter] 碰撞检测已更新: {}", enableCollision.get());
@@ -181,7 +185,8 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 弹性系数
                 float currentRestitution = PropertyReflection.getFloat(physics, "restitution", "getRestitution", 0.5f);
                 float[] restitution = {currentRestitution};
-                if (ImGui.dragFloat("弹性系数", restitution, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                PropertyRow.field("弹性系数");
+                if (ImGui.dragFloat("##弹性系数", restitution, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(physics, "restitution", "setRestitution", restitution[0])) {
                         modifiedRef[0] = true;
                     }
@@ -193,7 +198,8 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 摩擦系数
                 float currentFriction = PropertyReflection.getFloat(physics, "friction", "getFriction", 0.5f);
                 float[] friction = {currentFriction};
-                if (ImGui.dragFloat("摩擦系数", friction, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                PropertyRow.field("摩擦系数");
+                if (ImGui.dragFloat("##摩擦系数", friction, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(physics, "friction", "setFriction", friction[0])) {
                         modifiedRef[0] = true;
                     }
@@ -204,11 +210,12 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             }
             
             // ========== 空气阻力 ==========
-            if (ImGui.collapsingHeader("🌫️ 空气阻力")) {
+            if (Section.header("project.physics.drag", "空气阻力", false)) {
                 // 阻力系数
                 float currentDrag = PropertyReflection.getFloat(physics, "airResistance", "getAirResistance", 0.01f);
                 float[] airDrag = {currentDrag};
-                if (ImGui.dragFloat("阻力系数", airDrag, 0.01f, 0.0f, 1.0f, "%.3f")) {
+                PropertyRow.field("阻力系数");
+                if (ImGui.dragFloat("##阻力系数", airDrag, 0.01f, 0.0f, 1.0f, "%.3f")) {
                     if (PropertyReflection.setFloat(physics, "airResistance", "setAirResistance", airDrag[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PhysicsEnvironmentPropertyAdapter] 空气阻力已更新: {}", airDrag[0]);
@@ -221,7 +228,8 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 流体密度
                 float currentDensity = PropertyReflection.getFloat(physics, "fluidDensity", "getFluidDensity", 1.0f);
                 float[] fluidDensity = {currentDensity};
-                if (ImGui.dragFloat("流体密度", fluidDensity, 0.1f, 0.0f, 10.0f, "%.1f")) {
+                PropertyRow.field("流体密度");
+                if (ImGui.dragFloat("##流体密度", fluidDensity, 0.1f, 0.0f, 10.0f, "%.1f")) {
                     if (PropertyReflection.setFloat(physics, "fluidDensity", "setFluidDensity", fluidDensity[0])) {
                         modifiedRef[0] = true;
                     }
@@ -232,11 +240,12 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             }
             
             // ========== 物理开关 ==========
-            if (ImGui.collapsingHeader("⚙️ 物理开关")) {
+            if (Section.header("project.physics.options", "物理开关", false)) {
                 // 启用物理系统
                 boolean currentEnabled = PropertyReflection.getBoolean(physics, "enabled", "isEnabled", true);
                 ImBoolean enabled = new ImBoolean(currentEnabled);
-                if (ImGui.checkbox("启用物理系统", enabled)) {
+                PropertyRow.label("启用物理系统");
+                if (ImGui.checkbox("##启用物理系统", enabled)) {
                     if (PropertyReflection.setBoolean(physics, "enabled", "setEnabled", enabled.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PhysicsEnvironmentPropertyAdapter] 物理系统已更新: {}", enabled.get());
@@ -249,7 +258,8 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 调试可视化
                 boolean currentDebug = PropertyReflection.getBoolean(physics, "debugVisualization", "isDebugVisualization", false);
                 ImBoolean debugVis = new ImBoolean(currentDebug);
-                if (ImGui.checkbox("调试可视化", debugVis)) {
+                PropertyRow.label("调试可视化");
+                if (ImGui.checkbox("##调试可视化", debugVis)) {
                     if (PropertyReflection.setBoolean(physics, "debugVisualization", "setDebugVisualization", debugVis.get())) {
                         modifiedRef[0] = true;
                     }

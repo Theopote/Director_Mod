@@ -1,11 +1,12 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,14 +95,15 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
         
         try {
             // ========== 光照系统 ==========
-            if (ImGui.collapsingHeader("💡 光照系统", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("project.environment.lighting", "光照系统")) {
                 // 环境光颜色
                 float[] ambientColor = PropertyReflection.getFloatArray(env, "ambientColor", "getAmbientColor");
                 if (ambientColor == null || ambientColor.length < 4) {
                     ambientColor = new float[]{0.7f, 0.7f, 0.7f, 1.0f};
                 }
                 
-                if (ImGui.colorEdit4("环境光颜色", ambientColor)) {
+                PropertyRow.field("环境光颜色");
+                if (ImGui.colorEdit4("##环境光颜色", ambientColor)) {
                     if (PropertyReflection.setFloatArray(env, "ambientColor", "setAmbientColor", ambientColor)) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 环境光颜色已更新");
@@ -117,7 +119,8 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                     skyColor = new float[]{0.5f, 0.7f, 1.0f, 1.0f};
                 }
                 
-                if (ImGui.colorEdit4("天空光颜色", skyColor)) {
+                PropertyRow.field("天空光颜色");
+                if (ImGui.colorEdit4("##天空光颜色", skyColor)) {
                     if (PropertyReflection.setFloatArray(env, "skyColor", "setSkyColor", skyColor)) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 天空光颜色已更新");
@@ -132,7 +135,8 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 float lightPitch = PropertyReflection.getFloat(env, "lightPitch", "getLightPitch", 60.0f);
                 float[] lightDirection = {lightYaw, lightPitch};
                 
-                if (ImGui.dragFloat2("光照方向 (偏航/俯仰)", lightDirection, 1.0f, 0.0f, 360.0f)) {
+                PropertyRow.field("光照方向 (偏航/俯仰)");
+                if (ImGui.dragFloat2("##光照方向 (偏航/俯仰)", lightDirection, 1.0f, 0.0f, 360.0f)) {
                     PropertyReflection.setFloat(env, "lightYaw", "setLightYaw", lightDirection[0]);
                     PropertyReflection.setFloat(env, "lightPitch", "setLightPitch", lightDirection[1]);
                     modifiedRef[0] = true;
@@ -146,7 +150,8 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 曝光度
                 float currentExposure = PropertyReflection.getFloat(env, "exposure", "getExposure", 1.0f);
                 float[] exposure = {currentExposure};
-                if (ImGui.dragFloat("曝光度", exposure, 0.05f, 0.1f, 3.0f, "%.2f")) {
+                PropertyRow.field("曝光度");
+                if (ImGui.dragFloat("##曝光度", exposure, 0.05f, 0.1f, 3.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(env, "exposure", "setExposure", exposure[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 曝光度已更新: {}", exposure[0]);
@@ -158,11 +163,12 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             }
             
             // ========== 天气系统 ==========
-            if (ImGui.collapsingHeader("🌤 天气系统", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("project.environment.weather", "天气系统")) {
                 // 雨雪天气
                 boolean currentRain = PropertyReflection.getBoolean(env, "weatherRain", "isWeatherRain", false);
                 ImBoolean enableRain = new ImBoolean(currentRain);
-                if (ImGui.checkbox("启用雨雪天气", enableRain)) {
+                PropertyRow.label("启用雨雪天气");
+                if (ImGui.checkbox("##启用雨雪天气", enableRain)) {
                     if (PropertyReflection.setBoolean(env, "weatherRain", "setWeatherRain", enableRain.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 雨雪天气已更新: {}", enableRain.get());
@@ -175,7 +181,8 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 雾浓度
                 float currentFog = PropertyReflection.getFloat(env, "fogDensity", "getFogDensity", 0.1f);
                 float[] fogDensity = {currentFog};
-                if (ImGui.dragFloat("雾浓度", fogDensity, 0.01f, 0.0f, 1.0f, "%.2f")) {
+                PropertyRow.field("雾浓度");
+                if (ImGui.dragFloat("##雾浓度", fogDensity, 0.01f, 0.0f, 1.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(env, "fogDensity", "setFogDensity", fogDensity[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 雾浓度已更新: {}", fogDensity[0]);
@@ -190,7 +197,8 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 昼夜循环
                 boolean currentDayCycle = PropertyReflection.getBoolean(env, "dayCycle", "isDayCycle", false);
                 ImBoolean enableDayCycle = new ImBoolean(currentDayCycle);
-                if (ImGui.checkbox("启用昼夜循环", enableDayCycle)) {
+                PropertyRow.label("启用昼夜循环");
+                if (ImGui.checkbox("##启用昼夜循环", enableDayCycle)) {
                     if (PropertyReflection.setBoolean(env, "dayCycle", "setDayCycle", enableDayCycle.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 昼夜循环已更新: {}", enableDayCycle.get());
@@ -203,7 +211,8 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 时间（Minecraft ticks）
                 int currentTime = PropertyReflection.getInt(env, "timeOfDay", "getTimeOfDay", 6000);
                 int[] timeOfDay = {currentTime};
-                if (ImGui.dragInt("时间 (ticks)", timeOfDay, 100.0f, 0, 24000)) {
+                PropertyRow.field("时间 (ticks)");
+                if (ImGui.dragInt("##时间 (ticks)", timeOfDay, 100.0f, 0, 24000)) {
                     if (PropertyReflection.setInt(env, "timeOfDay", "setTimeOfDay", timeOfDay[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 时间已更新: {}", timeOfDay[0]);
@@ -234,11 +243,12 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             }
             
             // ========== 渲染控制 ==========
-            if (ImGui.collapsingHeader("🎨 渲染控制")) {
+            if (Section.header("project.environment.rendering", "渲染控制", false)) {
                 // 启用阴影
                 boolean currentShadows = PropertyReflection.getBoolean(env, "shadowsEnabled", "isShadowsEnabled", true);
                 ImBoolean enableShadows = new ImBoolean(currentShadows);
-                if (ImGui.checkbox("启用阴影", enableShadows)) {
+                PropertyRow.label("启用阴影");
+                if (ImGui.checkbox("##启用阴影", enableShadows)) {
                     if (PropertyReflection.setBoolean(env, "shadowsEnabled", "setShadowsEnabled", enableShadows.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 阴影已更新: {}", enableShadows.get());
@@ -251,7 +261,8 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 抗锯齿
                 boolean currentAA = PropertyReflection.getBoolean(env, "antiAliasing", "isAntiAliasing", false);
                 ImBoolean enableAA = new ImBoolean(currentAA);
-                if (ImGui.checkbox("抗锯齿 (FXAA)", enableAA)) {
+                PropertyRow.label("抗锯齿 (FXAA)");
+                if (ImGui.checkbox("##抗锯齿 (FXAA)", enableAA)) {
                     if (PropertyReflection.setBoolean(env, "antiAliasing", "setAntiAliasing", enableAA.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 抗锯齿已更新: {}", enableAA.get());
@@ -264,7 +275,8 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 后处理
                 boolean currentPostProcess = PropertyReflection.getBoolean(env, "postProcessing", "isPostProcessing", false);
                 ImBoolean enablePostProcess = new ImBoolean(currentPostProcess);
-                if (ImGui.checkbox("后处理效果", enablePostProcess)) {
+                PropertyRow.label("后处理效果");
+                if (ImGui.checkbox("##后处理效果", enablePostProcess)) {
                     if (PropertyReflection.setBoolean(env, "postProcessing", "setPostProcessing", enablePostProcess.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 后处理已更新: {}", enablePostProcess.get());
@@ -276,11 +288,12 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             }
             
             // ========== 可视层控制 ==========
-            if (ImGui.collapsingHeader("🪟 可视层控制")) {
+            if (Section.header("project.environment.layers", "可视层控制", false)) {
                 // 显示透明方块
                 boolean currentTransparent = PropertyReflection.getBoolean(env, "showTransparentBlocks", "isShowTransparentBlocks", true);
                 ImBoolean showTransparent = new ImBoolean(currentTransparent);
-                if (ImGui.checkbox("显示透明方块", showTransparent)) {
+                PropertyRow.label("显示透明方块");
+                if (ImGui.checkbox("##显示透明方块", showTransparent)) {
                     if (PropertyReflection.setBoolean(env, "showTransparentBlocks", "setShowTransparentBlocks", showTransparent.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 透明方块显示已更新: {}", showTransparent.get());
@@ -293,7 +306,8 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 显示实体
                 boolean currentEntities = PropertyReflection.getBoolean(env, "showEntities", "isShowEntities", true);
                 ImBoolean showEntities = new ImBoolean(currentEntities);
-                if (ImGui.checkbox("显示实体模型", showEntities)) {
+                PropertyRow.label("显示实体模型");
+                if (ImGui.checkbox("##显示实体模型", showEntities)) {
                     if (PropertyReflection.setBoolean(env, "showEntities", "setShowEntities", showEntities.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 实体显示已更新: {}", showEntities.get());
@@ -306,7 +320,8 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 显示粒子
                 boolean currentParticles = PropertyReflection.getBoolean(env, "showParticles", "isShowParticles", true);
                 ImBoolean showParticles = new ImBoolean(currentParticles);
-                if (ImGui.checkbox("显示粒子特效", showParticles)) {
+                PropertyRow.label("显示粒子特效");
+                if (ImGui.checkbox("##显示粒子特效", showParticles)) {
                     if (PropertyReflection.setBoolean(env, "showParticles", "setShowParticles", showParticles.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 粒子显示已更新: {}", showParticles.get());
@@ -319,7 +334,8 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 // 显示网格
                 boolean currentGrid = PropertyReflection.getBoolean(env, "showGrid", "isShowGrid", false);
                 ImBoolean showGrid = new ImBoolean(currentGrid);
-                if (ImGui.checkbox("显示网格", showGrid)) {
+                PropertyRow.label("显示网格");
+                if (ImGui.checkbox("##显示网格", showGrid)) {
                     if (PropertyReflection.setBoolean(env, "showGrid", "setShowGrid", showGrid.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 网格显示已更新: {}", showGrid.get());
@@ -331,7 +347,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             }
             
             // ========== 环境预设 ==========
-            if (ImGui.collapsingHeader("🌈 环境预设")) {
+            if (Section.header("project.environment.presets", "环境预设", false)) {
                 UITheme.label("快速应用环境预设:", UITheme.DarkTheme.TEXT);
                 UITheme.spacingSmall();
                 

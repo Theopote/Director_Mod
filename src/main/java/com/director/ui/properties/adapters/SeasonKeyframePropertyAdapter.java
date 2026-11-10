@@ -2,6 +2,8 @@ package com.director.ui.properties.adapters;
 
 import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.container.ContainerTimelineService;
@@ -11,7 +13,6 @@ import com.director.timeline.model.season.SeasonKeyframe;
 import com.director.timeline.playback.season.TimelineSeasonController;
 import imgui.ImGui;
 import imgui.flag.ImGuiColorEditFlags;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import org.joml.Vector3f;
@@ -110,28 +111,27 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         // ===========================================================
         // 1. 基础信息
         // ===========================================================
-        if (ImGui.collapsingHeader(Icons.INFO + " 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("season.basic", "基础信息")) {
             float maxTime = timelineModel.getDuration();
             timeFloat.set(keyframe.getTime());
-            if (ImGui.dragFloat("时间位置", timeFloat.getData(), 0.05f, 0f, maxTime, "%.2fs")) {
+            PropertyRow.field("时间位置");
+            if (ImGui.dragFloat("##时间位置", timeFloat.getData(), 0.05f, 0f, maxTime, "%.2fs")) {
                 keyframe.setTime(timeFloat.get());
                 timeChanged.set(true);
             }
             ImGui.textDisabled("关键帧在时间线上的位置");
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         // ===========================================================
         // 2. 季节类型（预设）
         // ===========================================================
-        if (ImGui.collapsingHeader(Icons.COLOR + " 季节类型", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("season.season", "季节类型")) {
             seasonTypeIndex.set(keyframe.getSeasonType().ordinal());
             SeasonKeyframe.SeasonType[] types = SeasonKeyframe.SeasonType.values();
 
-            if (ImGui.combo("季节类型", seasonTypeIndex, SEASON_TYPE_LABELS)) {
+            PropertyRow.field("季节类型");
+            if (ImGui.combo("##季节类型", seasonTypeIndex, SEASON_TYPE_LABELS)) {
                 SeasonKeyframe.SeasonType newType = types[seasonTypeIndex.get()];
                 keyframe.applySeasonPreset(newType);
                 paramChanged.set(true);
@@ -172,14 +172,12 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
                 paramChanged.set(true);
             }
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         // ===========================================================
         // 3. 气候预设
         // ===========================================================
-        if (ImGui.collapsingHeader(Icons.FILTER + " 气候预设", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("season.presets", "气候预设")) {
             if (ImGui.button(Icons.FILTER + " 温带湿润")) {
                 keyframe.applyClimatePresetTemperate();
                 paramChanged.set(true);
@@ -212,31 +210,29 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
             UITheme.spacingSmall();
             ImGui.textDisabled("• 预设会同时调整湿度、雪/冰参数与颜色趋势");
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         // ===========================================================
         // 4. 气候控制
         // ===========================================================
-        if (ImGui.collapsingHeader(Icons.FILTER + " 气候控制", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("season.climate", "气候控制")) {
             humidityFloat.set(keyframe.getHumidity());
-            if (ImGui.sliderFloat("湿度", humidityFloat.getData(), 0f, 1f, "%.2f")) {
+            PropertyRow.field("湿度");
+            if (ImGui.sliderFloat("##湿度", humidityFloat.getData(), 0f, 1f, "%.2f")) {
                 keyframe.setHumidity(humidityFloat.get());
                 paramChanged.set(true);
             }
             ImGui.textDisabled("• 0.0 = 干燥，1.0 = 潮湿（用于长期气候趋势）");
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         // ===========================================================
         // 5. 积雪控制（v4.0 新增）
         // ===========================================================
-        if (ImGui.collapsingHeader(Icons.PARTICLE + " 积雪控制", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("season.snow", "积雪控制")) {
             snowAmountFloat.set(keyframe.getSnowAmount());
-            if (ImGui.sliderFloat("雪覆盖度", snowAmountFloat.getData(), 0f, 1f, "%.2f")) {
+            PropertyRow.field("雪覆盖度");
+            if (ImGui.sliderFloat("##雪覆盖度", snowAmountFloat.getData(), 0f, 1f, "%.2f")) {
                 keyframe.setSnowAmount(snowAmountFloat.get());
                 paramChanged.set(true);
             }
@@ -244,7 +240,8 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
             UITheme.spacingSmall();
 
             snowlineFloat.set(keyframe.getSnowlineHeight());
-            if (ImGui.dragFloat("雪线高度 (Y)", snowlineFloat.getData(), 1f, -64f, 320f, "%.0f")) {
+            PropertyRow.field("雪线高度 (Y)");
+            if (ImGui.dragFloat("##雪线高度 (Y)", snowlineFloat.getData(), 1f, -64f, 320f, "%.0f")) {
                 keyframe.setSnowlineHeight(snowlineFloat.get());
                 paramChanged.set(true);
             }
@@ -252,37 +249,35 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
             UITheme.spacingSmall();
 
             snowThicknessInt.set(keyframe.getSnowThickness());
-            if (ImGui.sliderInt("积雪厚度", snowThicknessInt.getData(), 0, 10)) {
+            PropertyRow.field("积雪厚度");
+            if (ImGui.sliderInt("##积雪厚度", snowThicknessInt.getData(), 0, 10)) {
                 keyframe.setSnowThickness(snowThicknessInt.get());
                 paramChanged.set(true);
             }
             ImGui.textDisabled("• 0 = 无厚度，10 = 最大厚度（大多数区域覆盖此层数，使用正态分布扰动）");
             ImGui.textDisabled("• 季节过渡通过关键帧之间的插值自动实现");
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         // ===========================================================
         // 6. 冰冻控制（v4.0 新增）
         // ===========================================================
-        if (ImGui.collapsingHeader(Icons.LIGHT + " 冰冻控制", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("season.ice", "冰冻控制")) {
             freezeStrengthFloat.set(keyframe.getFreezeStrength());
-            if (ImGui.sliderFloat("冰覆盖度", freezeStrengthFloat.getData(), 0f, 1f, "%.2f")) {
+            PropertyRow.field("冰覆盖度");
+            if (ImGui.sliderFloat("##冰覆盖度", freezeStrengthFloat.getData(), 0f, 1f, "%.2f")) {
                 keyframe.setFreezeStrength(freezeStrengthFloat.get());
                 paramChanged.set(true);
             }
             ImGui.textDisabled("• 0.0 = 没有覆盖，1.0 = 几乎全覆盖（区域内的占比概率）");
             ImGui.textDisabled("• 季节过渡通过关键帧之间的插值自动实现");
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         // ===========================================================
         // 7. 颜色 Tint 控制
         // ===========================================================
-        if (ImGui.collapsingHeader(Icons.PALETTE + " 颜色与光照", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("season.lighting", "颜色与光照")) {
             int flags = ImGuiColorEditFlags.DisplayRGB
                     | ImGuiColorEditFlags.InputRGB
                     | ImGuiColorEditFlags.PickerHueWheel
@@ -296,7 +291,8 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
             tintToColor(keyframe.getLightTint(), lightTintArr);
 
             // 草地
-            if (ImGui.colorEdit3("草地颜色趋势", grassTintArr, flags)) {
+            PropertyRow.field("草地颜色趋势");
+            if (ImGui.colorEdit3("##草地颜色趋势", grassTintArr, flags)) {
                 keyframe.setGrassTint(colorToTint(grassTintArr));
                 paramChanged.set(true);
             }
@@ -304,7 +300,8 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
             UITheme.spacingSmall();
 
             // 树叶
-            if (ImGui.colorEdit3("树叶颜色趋势", foliageTintArr, flags)) {
+            PropertyRow.field("树叶颜色趋势");
+            if (ImGui.colorEdit3("##树叶颜色趋势", foliageTintArr, flags)) {
                 keyframe.setFoliageTint(colorToTint(foliageTintArr));
                 paramChanged.set(true);
             }
@@ -312,37 +309,39 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
             UITheme.spacingSmall();
 
             // 天空
-            if (ImGui.colorEdit3("天空颜色趋势", skyTintArr, flags)) {
+            PropertyRow.field("天空颜色趋势");
+            if (ImGui.colorEdit3("##天空颜色趋势", skyTintArr, flags)) {
                 keyframe.setSkyTint(colorToTint(skyTintArr));
                 paramChanged.set(true);
             }
             UITheme.spacingSmall();
 
             // 雾
-            if (ImGui.colorEdit3("雾颜色趋势", fogTintArr, flags)) {
+            PropertyRow.field("雾颜色趋势");
+            if (ImGui.colorEdit3("##雾颜色趋势", fogTintArr, flags)) {
                 keyframe.setFogTint(colorToTint(fogTintArr));
                 paramChanged.set(true);
             }
             UITheme.spacingSmall();
 
             // 光照
-            if (ImGui.colorEdit3("光照颜色趋势", lightTintArr, flags)) {
+            PropertyRow.field("光照颜色趋势");
+            if (ImGui.colorEdit3("##光照颜色趋势", lightTintArr, flags)) {
                 keyframe.setLightTint(colorToTint(lightTintArr));
                 paramChanged.set(true);
             }
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         // ===========================================================
         // 8. 插值方式
         // ===========================================================
-        if (ImGui.collapsingHeader(Icons.INTERPOLATION + " 插值设置", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("season.interpolation", "插值设置")) {
             SeasonKeyframe.Interpolation[] types = SeasonKeyframe.Interpolation.values();
             interpolationIndex.set(keyframe.getInterpolation().ordinal());
 
-            if (ImGui.combo("插值类型", interpolationIndex, INTERPOLATION_LABELS)) {
+            PropertyRow.field("插值类型");
+            if (ImGui.combo("##插值类型", interpolationIndex, INTERPOLATION_LABELS)) {
                 keyframe.setInterpolation(types[interpolationIndex.get()]);
                 paramChanged.set(true);
             }
@@ -351,7 +350,6 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
             ImGui.textDisabled("• 平滑：缓入缓出");
             ImGui.textDisabled("• 曲线：Catmull-Rom 样条");
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         // ===========================================================

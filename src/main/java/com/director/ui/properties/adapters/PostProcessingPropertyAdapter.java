@@ -1,11 +1,12 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import org.slf4j.Logger;
@@ -82,11 +83,12 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
         
         try {
             // ========== Bloom 泛光 ==========
-            if (ImGui.collapsingHeader("🌟 Bloom 泛光", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("post_processing.bloom", "Bloom 泛光")) {
                 // 启用 Bloom
                 boolean currentBloom = PropertyReflection.getBoolean(profile, "bloomEnabled", "isBloomEnabled", false);
                 ImBoolean enableBloom = new ImBoolean(currentBloom);
-                if (ImGui.checkbox("启用 Bloom", enableBloom)) {
+                PropertyRow.label("启用 Bloom");
+                if (ImGui.checkbox("##启用 Bloom", enableBloom)) {
                     if (PropertyReflection.setBoolean(profile, "bloomEnabled", "setBloomEnabled", enableBloom.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PostProcessingPropertyAdapter] Bloom已更新: {}", enableBloom.get());
@@ -99,7 +101,8 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
                 // Bloom 强度
                 float currentIntensity = PropertyReflection.getFloat(profile, "bloomIntensity", "getBloomIntensity", 1.0f);
                 float[] bloomIntensity = {currentIntensity};
-                if (ImGui.dragFloat("Bloom 强度", bloomIntensity, 0.05f, 0.0f, 5.0f, "%.2f")) {
+                PropertyRow.field("Bloom 强度");
+                if (ImGui.dragFloat("##Bloom 强度", bloomIntensity, 0.05f, 0.0f, 5.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(profile, "bloomIntensity", "setBloomIntensity", bloomIntensity[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PostProcessingPropertyAdapter] Bloom强度已更新: {}", bloomIntensity[0]);
@@ -112,7 +115,8 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
                 // Bloom 阈值
                 float currentThreshold = PropertyReflection.getFloat(profile, "bloomThreshold", "getBloomThreshold", 1.0f);
                 float[] bloomThreshold = {currentThreshold};
-                if (ImGui.dragFloat("Bloom 阈值", bloomThreshold, 0.05f, 0.0f, 5.0f, "%.2f")) {
+                PropertyRow.field("Bloom 阈值");
+                if (ImGui.dragFloat("##Bloom 阈值", bloomThreshold, 0.05f, 0.0f, 5.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(profile, "bloomThreshold", "setBloomThreshold", bloomThreshold[0])) {
                         modifiedRef[0] = true;
                     }
@@ -123,11 +127,12 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
             }
             
             // ========== 景深 DOF ==========
-            if (ImGui.collapsingHeader("📷 景深 (Depth of Field)")) {
+            if (Section.header("post_processing.dof", "景深", false)) {
                 // 启用景深
                 boolean currentDOF = PropertyReflection.getBoolean(profile, "depthOfField", "isDepthOfField", false);
                 ImBoolean enableDOF = new ImBoolean(currentDOF);
-                if (ImGui.checkbox("启用景深", enableDOF)) {
+                PropertyRow.label("启用景深");
+                if (ImGui.checkbox("##启用景深", enableDOF)) {
                     if (PropertyReflection.setBoolean(profile, "depthOfField", "setDepthOfField", enableDOF.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PostProcessingPropertyAdapter] 景深已更新: {}", enableDOF.get());
@@ -137,7 +142,8 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
                 // 焦距
                 float currentFocus = PropertyReflection.getFloat(profile, "focusDistance", "getFocusDistance", 10.0f);
                 float[] focusDistance = {currentFocus};
-                if (ImGui.dragFloat("焦距", focusDistance, 0.5f, 0.1f, 100.0f, "%.1f")) {
+                PropertyRow.field("焦距");
+                if (ImGui.dragFloat("##焦距", focusDistance, 0.5f, 0.1f, 100.0f, "%.1f")) {
                     if (PropertyReflection.setFloat(profile, "focusDistance", "setFocusDistance", focusDistance[0])) {
                         modifiedRef[0] = true;
                     }
@@ -148,11 +154,12 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
             }
             
             // ========== 色调映射 ==========
-            if (ImGui.collapsingHeader("🎨 色调映射", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("post_processing.tonemap", "色调映射")) {
                 // 色调映射模式
                 int currentMode = PropertyReflection.getInt(profile, "toneMapMode", "getToneMapMode", 0);
                 ImInt modeIdx = new ImInt(currentMode);
-                if (ImGui.combo("色调映射模式", modeIdx, TONEMAP_MODES)) {
+                PropertyRow.field("色调映射模式");
+                if (ImGui.combo("##色调映射模式", modeIdx, TONEMAP_MODES)) {
                     if (PropertyReflection.setInt(profile, "toneMapMode", "setToneMapMode", modeIdx.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PostProcessingPropertyAdapter] 色调映射已更新: {}", 
@@ -165,11 +172,12 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
             }
             
             // ========== 颜色分级 ==========
-            if (ImGui.collapsingHeader("🎛️ 颜色分级", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("post_processing.grading", "颜色分级")) {
                 // 曝光
                 float currentExposure = PropertyReflection.getFloat(profile, "exposure", "getExposure", 1.0f);
                 float[] exposure = {currentExposure};
-                if (ImGui.dragFloat("曝光", exposure, 0.05f, 0.0f, 5.0f, "%.2f")) {
+                PropertyRow.field("曝光");
+                if (ImGui.dragFloat("##曝光", exposure, 0.05f, 0.0f, 5.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(profile, "exposure", "setExposure", exposure[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PostProcessingPropertyAdapter] 曝光已更新: {}", exposure[0]);
@@ -182,7 +190,8 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
                 // 对比度
                 float currentContrast = PropertyReflection.getFloat(profile, "contrast", "getContrast", 1.0f);
                 float[] contrast = {currentContrast};
-                if (ImGui.dragFloat("对比度", contrast, 0.05f, 0.1f, 3.0f, "%.2f")) {
+                PropertyRow.field("对比度");
+                if (ImGui.dragFloat("##对比度", contrast, 0.05f, 0.1f, 3.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(profile, "contrast", "setContrast", contrast[0])) {
                         modifiedRef[0] = true;
                     }
@@ -194,7 +203,8 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
                 // 饱和度
                 float currentSaturation = PropertyReflection.getFloat(profile, "saturation", "getSaturation", 1.0f);
                 float[] saturation = {currentSaturation};
-                if (ImGui.dragFloat("饱和度", saturation, 0.05f, 0.0f, 2.0f, "%.2f")) {
+                PropertyRow.field("饱和度");
+                if (ImGui.dragFloat("##饱和度", saturation, 0.05f, 0.0f, 2.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(profile, "saturation", "setSaturation", saturation[0])) {
                         modifiedRef[0] = true;
                     }
@@ -205,11 +215,12 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
             }
             
             // ========== 屏幕空间效果 ==========
-            if (ImGui.collapsingHeader("✨ 屏幕空间效果")) {
+            if (Section.header("post_processing.screen_space", "屏幕空间效果", false)) {
                 // SSAO
                 boolean currentSSAO = PropertyReflection.getBoolean(profile, "ssaoEnabled", "isSSAOEnabled", false);
                 ImBoolean enableSSAO = new ImBoolean(currentSSAO);
-                if (ImGui.checkbox("SSAO（环境光遮蔽）", enableSSAO)) {
+                PropertyRow.label("SSAO（环境光遮蔽）");
+                if (ImGui.checkbox("##SSAO（环境光遮蔽）", enableSSAO)) {
                     if (PropertyReflection.setBoolean(profile, "ssaoEnabled", "setSSAOEnabled", enableSSAO.get())) {
                         modifiedRef[0] = true;
                     }
@@ -218,7 +229,8 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
                 // SSR
                 boolean currentSSR = PropertyReflection.getBoolean(profile, "ssrEnabled", "isSSREnabled", false);
                 ImBoolean enableSSR = new ImBoolean(currentSSR);
-                if (ImGui.checkbox("SSR（屏幕空间反射）", enableSSR)) {
+                PropertyRow.label("SSR（屏幕空间反射）");
+                if (ImGui.checkbox("##SSR（屏幕空间反射）", enableSSR)) {
                     if (PropertyReflection.setBoolean(profile, "ssrEnabled", "setSSREnabled", enableSSR.get())) {
                         modifiedRef[0] = true;
                     }

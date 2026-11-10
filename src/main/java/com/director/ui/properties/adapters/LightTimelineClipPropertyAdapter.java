@@ -2,6 +2,7 @@ package com.director.ui.properties.adapters;
 import com.director.lighting.*;
 import com.director.ui.lighting.*;
 import com.director.ui.panels.LightsPanel;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.timeline.commands.*;
 import com.director.ui.selection.SelectionType;
@@ -18,8 +19,10 @@ public final class LightTimelineClipPropertyAdapter implements IPropertyAdapter<
         boolean locked=track.isLocked() || com.director.export.video.VideoExportManager.getInstance().isExporting();
         ImGui.beginDisabled(locked);
         float[] start={clip.getStartTime()},end={clip.getEndTime()};
-        boolean changed=ImGui.dragFloat(LightsPanel.tr("start"),start,.01f);
-        changed |= ImGui.dragFloat(LightsPanel.tr("end"),end,.01f);
+        PropertyRow.field(LightsPanel.tr("start"));
+        boolean changed=ImGui.dragFloat("##light_start",start,.01f);
+        PropertyRow.field(LightsPanel.tr("end"));
+        changed |= ImGui.dragFloat("##light_end",end,.01f);
         if(changed && Float.isFinite(start[0]) && Float.isFinite(end[0]) && start[0]>=0 && end[0]>=start[0]+.05f) {
             PointLightParameterEditing.finish();
             var before=clip.captureState();

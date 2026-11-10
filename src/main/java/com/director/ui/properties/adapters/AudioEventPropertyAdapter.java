@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.audio.TimelineAudioService;
 import com.director.timeline.model.TimelineClip;
@@ -30,13 +31,15 @@ public class AudioEventPropertyAdapter implements IPropertyAdapter<AudioEvent> {
 
         // 基础信息
         ImString label = new ImString(event.getLabel() != null ? event.getLabel() : "", 256);
-        if (ImGui.inputText("标签", label, ImGuiInputTextFlags.EnterReturnsTrue)) {
+        PropertyRow.field("标签");
+        if (ImGui.inputText("##标签", label, ImGuiInputTextFlags.EnterReturnsTrue)) {
             event.setLabel(label.get());
             modified = true;
         }
 
         ImString soundId = new ImString(event.getSoundId() != null ? event.getSoundId() : "", 256);
-        if (ImGui.inputText("声音ID", soundId, ImGuiInputTextFlags.EnterReturnsTrue)) {
+        PropertyRow.field("声音ID");
+        if (ImGui.inputText("##声音ID", soundId, ImGuiInputTextFlags.EnterReturnsTrue)) {
             event.setSoundId(soundId.get());
             modified = true;
         }
@@ -48,31 +51,35 @@ public class AudioEventPropertyAdapter implements IPropertyAdapter<AudioEvent> {
         boolean isLinked = TimelineAudioService.getInstance().isEventLinked(event);
 
         if (isLinked) {
-            ImGui.textDisabled(String.format("时间(秒): %.2fs", time[0]));
+            PropertyRow.value("时间", String.format("%.2f s", time[0]));
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("该事件已与容器片段链接，时间由方块序列决定，不能手动修改。");
             }
         } else {
-            if (ImGui.dragFloat("时间(秒)", time, 0.01f, 0.0f, 100000f, "%.2fs")) {
+            PropertyRow.field("时间");
+            if (ImGui.dragFloat("##时间(秒)", time, 0.01f, 0.0f, 100000f, "%.2fs")) {
                 event.setTime(Math.max(0.0f, time[0]));
                 modified = true;
             }
         }
 
         float[] volume = { event.getVolume() };
-        if (ImGui.sliderFloat("音量", volume, 0.0f, 1.0f, "%.2f")) {
+        PropertyRow.field("音量");
+        if (ImGui.sliderFloat("##音量", volume, 0.0f, 1.0f, "%.2f")) {
             event.setVolume(volume[0]);
             modified = true;
         }
 
         float[] pitch = { event.getPitch() };
-        if (ImGui.sliderFloat("音调", pitch, 0.1f, 3.0f, "%.2f")) {
+        PropertyRow.field("音调");
+        if (ImGui.sliderFloat("##音调", pitch, 0.1f, 3.0f, "%.2f")) {
             event.setPitch(pitch[0]);
             modified = true;
         }
 
         ImBoolean enabled = new ImBoolean(event.isEnabled());
-        if (ImGui.checkbox("启用", enabled)) {
+        PropertyRow.label("启用");
+        if (ImGui.checkbox("##启用", enabled)) {
             event.setEnabled(enabled.get());
             modified = true;
         }

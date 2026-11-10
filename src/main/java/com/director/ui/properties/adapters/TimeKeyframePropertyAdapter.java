@@ -1,12 +1,13 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.time.TimeKeyframe;
 import com.director.timeline.playback.time.TimelineWorldController;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
@@ -84,9 +85,10 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
         UITheme.title(Icons.CLOCK + " " + TITLE);
         
                // ========== 基础信息 ==========
-        if (ImGui.collapsingHeader(Icons.INFO + " 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("time.basic", "基础信息")) {
             timeFloat.set(keyframe.getTime());
-            if (ImGui.dragFloat("时间", timeFloat.getData(), 0.05f, 0.0f, 10_000f, "%.2fs")) {
+            PropertyRow.field("时间");
+            if (ImGui.dragFloat("##时间", timeFloat.getData(), 0.05f, 0.0f, 10_000f, "%.2fs")) {
                 keyframe.setTime(timeFloat.get());
                 timeChanged.set(true);
                 // ⭐ 关键：时间变化不触发世界预览
@@ -96,7 +98,7 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
         }
         
         // ========== 世界时间设置 ==========
-        if (ImGui.collapsingHeader(Icons.TIME + " 世界时间设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("time.world", "世界时间设置")) {
             // ⭐ v3.0：模式选择 - 明确两种模式的互斥性
             useNaturalTimeBool.set(keyframe.isUseNaturalTime());
             
@@ -134,7 +136,8 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
                 // 世界时间（tick）
                 long worldTime = keyframe.getWorldTimeTicks();
                 worldTimeFloat.set(worldTime);
-                if (ImGui.sliderFloat("世界时间（tick）", worldTimeFloat.getData(), 0.0f, 24000.0f, "%.0f")) {
+                PropertyRow.field("世界时间");
+                if (ImGui.sliderFloat("##世界时间（tick）", worldTimeFloat.getData(), 0.0f, 24000.0f, "%.0f ticks")) {
                     long newWorldTime = (long)worldTimeFloat.get();
                     keyframe.setWorldTimeTicks(newWorldTime);
                     parameterChanged.set(true);
@@ -196,7 +199,8 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
             if (!keyframe.isUseNaturalTime()) {
                 ImGui.separator();
                 
-                boolean elevationChanged = ImGui.sliderFloat("太阳高度角（Elevation）", sunElevationFloat.getData(), -60.0f, 60.0f, "%.1f°");
+                PropertyRow.field("太阳高度角");
+                boolean elevationChanged = ImGui.sliderFloat("##太阳高度角（Elevation）", sunElevationFloat.getData(), -60.0f, 60.0f, "%.1f°");
                 if (elevationChanged) {
                     float newElevation = sunElevationFloat.get();
                     keyframe.setSunElevation(newElevation);
@@ -208,7 +212,8 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
                 
                 // ⭐ v3.2：太阳方位角编辑
                 sunAzimuthFloat.set(keyframe.getSunAzimuth());
-                boolean azimuthChanged = ImGui.sliderFloat("太阳方位角（Azimuth）", sunAzimuthFloat.getData(), 0.0f, 360.0f, "%.1f°");
+                PropertyRow.field("太阳方位角");
+                boolean azimuthChanged = ImGui.sliderFloat("##太阳方位角（Azimuth）", sunAzimuthFloat.getData(), 0.0f, 360.0f, "%.1f°");
                 if (azimuthChanged) {
                     float newAzimuth = sunAzimuthFloat.get();
                     keyframe.setSunAzimuth(newAzimuth);
@@ -223,11 +228,12 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
         }
         
         // ========== 插值设置 ==========
-        if (ImGui.collapsingHeader(Icons.INTERPOLATION + " 插值设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("time.interpolation", "插值设置")) {
             // 位置/时间插值类型
             TimeKeyframe.TimeInterpolation[] timeTypes = TimeKeyframe.TimeInterpolation.values();
             interpolationIndex.set(keyframe.getPathInterpolation().ordinal());
-            if (ImGui.combo("位置插值", interpolationIndex, TIME_INTERPOLATION_LABELS)) {
+            PropertyRow.field("位置插值");
+            if (ImGui.combo("##位置插值", interpolationIndex, TIME_INTERPOLATION_LABELS)) {
                 keyframe.setPathInterpolation(timeTypes[interpolationIndex.get()]);
                 parameterChanged.set(true);
             }
@@ -236,7 +242,8 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
             
             // 角度插值类型
             interpolationIndex.set(keyframe.getAngleInterpolation().ordinal());
-            if (ImGui.combo("方位插值", interpolationIndex, TIME_INTERPOLATION_LABELS)) {
+            PropertyRow.field("方位插值");
+            if (ImGui.combo("##方位插值", interpolationIndex, TIME_INTERPOLATION_LABELS)) {
                 keyframe.setAngleInterpolation(timeTypes[interpolationIndex.get()]);
                 parameterChanged.set(true);
             }

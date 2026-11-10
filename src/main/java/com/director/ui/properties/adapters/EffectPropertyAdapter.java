@@ -1,12 +1,13 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImString;
 import imgui.type.ImInt;
 import imgui.type.ImBoolean;
@@ -88,11 +89,12 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
         
         try {
             // ========== 基础信息 ==========
-            if (ImGui.collapsingHeader("📋 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("effect.basic", "基础信息")) {
                 // 名称编辑（尝试反射获取）
                 String currentName = PropertyReflection.getString(effect, "name", "getName", "未命名特效");
                 ImString nameBuffer = new ImString(currentName, 256);
-                if (ImGui.inputText("特效名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
+                PropertyRow.field("特效名称");
+                if (ImGui.inputText("##特效名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
                     if (PropertyReflection.setString(effect, "name", "setName", nameBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 特效名称已更新: {}", nameBuffer.get());
@@ -105,7 +107,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 // 启用状态
                 boolean currentEnabled = PropertyReflection.getBoolean(effect, "enabled", "isEnabled", true);
                 ImBoolean enabled = new ImBoolean(currentEnabled);
-                if (ImGui.checkbox("启用特效", enabled)) {
+                PropertyRow.label("启用特效");
+                if (ImGui.checkbox("##启用特效", enabled)) {
                     if (PropertyReflection.setBoolean(effect, "enabled", "setEnabled", enabled.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 启用状态已更新: {}", enabled.get());
@@ -119,7 +122,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 int currentTypeIndex = PropertyReflection.getInt(effect, "typeIndex", "getTypeIndex", 0);
                 ImInt selectedIdx = new ImInt(currentTypeIndex);
                 
-                if (ImGui.combo("特效类型", selectedIdx, EFFECT_TYPES)) {
+                PropertyRow.field("特效类型");
+                if (ImGui.combo("##特效类型", selectedIdx, EFFECT_TYPES)) {
                     if (PropertyReflection.setInt(effect, "typeIndex", "setTypeIndex", selectedIdx.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 特效类型已更新: {}", 
@@ -139,11 +143,12 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             }
             
             // ========== 时间控制 ==========
-            if (ImGui.collapsingHeader("⏱ 时间控制", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("effect.timing", "时间控制")) {
                 // 开始时间
                 float currentStart = PropertyReflection.getFloat(effect, "startTime", "getStartTime", 0.0f);
                 float[] startTime = {currentStart};
-                if (ImGui.dragFloat("开始时间 (秒)", startTime, 0.05f, 0.0f, 600.0f)) {
+                PropertyRow.field("开始时间 (秒)");
+                if (ImGui.dragFloat("##开始时间 (秒)", startTime, 0.05f, 0.0f, 600.0f)) {
                     if (PropertyReflection.setFloat(effect, "startTime", "setStartTime", startTime[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 开始时间已更新: {}", startTime[0]);
@@ -156,7 +161,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 // 持续时间
                 float currentDuration = PropertyReflection.getFloat(effect, "duration", "getDuration", 2.0f);
                 float[] duration = {currentDuration};
-                if (ImGui.dragFloat("持续时间 (秒)", duration, 0.05f, 0.1f, 600.0f)) {
+                PropertyRow.field("持续时间 (秒)");
+                if (ImGui.dragFloat("##持续时间 (秒)", duration, 0.05f, 0.1f, 600.0f)) {
                     if (PropertyReflection.setFloat(effect, "duration", "setDuration", duration[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 持续时间已更新: {}", duration[0]);
@@ -169,7 +175,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 // 强度
                 float currentIntensity = PropertyReflection.getFloat(effect, "intensity", "getIntensity", 1.0f);
                 float[] intensity = {currentIntensity};
-                if (ImGui.sliderFloat("强度", intensity, 0.0f, 10.0f, "%.2f")) {
+                PropertyRow.field("强度");
+                if (ImGui.sliderFloat("##强度", intensity, 0.0f, 10.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(effect, "intensity", "setIntensity", intensity[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 强度已更新: {}", intensity[0]);
@@ -186,7 +193,7 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             }
             
             // ========== 通用参数 ==========
-            if (ImGui.collapsingHeader("🎨 通用参数")) {
+            if (Section.header("effect.common", "通用参数", false)) {
                 // 位置偏移（尝试使用 Vector3fPropertyAdapter）
                 Object offset = PropertyReflection.readProperty(effect, "offset", "getOffset");
                 if (offset != null) {
@@ -215,7 +222,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                     // 尝试 float[] colorRGBA
                     float[] colorRGBA = PropertyReflection.getFloatArray(effect, "color", "getColor");
                     if (colorRGBA != null && colorRGBA.length >= 4) {
-                        if (ImGui.colorEdit4("特效颜色 (RGBA)", colorRGBA)) {
+                        PropertyRow.field("特效颜色 (RGBA)");
+                        if (ImGui.colorEdit4("##特效颜色 (RGBA)", colorRGBA)) {
                             if (PropertyReflection.setFloatArray(effect, "color", "setColor", colorRGBA)) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[EffectPropertyAdapter] 颜色已更新");
@@ -229,7 +237,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 // 随机性
                 float currentRandomness = PropertyReflection.getFloat(effect, "randomness", "getRandomness", 0.0f);
                 float[] randomness = {currentRandomness};
-                if (ImGui.sliderFloat("随机性", randomness, 0.0f, 1.0f, "%.2f")) {
+                PropertyRow.field("随机性");
+                if (ImGui.sliderFloat("##随机性", randomness, 0.0f, 1.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(effect, "randomness", "setRandomness", randomness[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 随机性已更新: {}", randomness[0]);
@@ -305,11 +314,12 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
      * 粒子特效参数
      */
     private void renderParticleParameters(Object effect, ModifiedCallback callback) {
-        if (ImGui.collapsingHeader("✨ 粒子参数")) {
+        if (Section.header("effect.particles", "粒子参数", false)) {
             // 粒子数量
             int count = PropertyReflection.getInt(effect, "particleCount", "getParticleCount", 100);
             int[] particleCount = {count};
-            if (ImGui.dragInt("粒子数量", particleCount, 1.0f, 1, 10000)) {
+            PropertyRow.field("粒子数量");
+            if (ImGui.dragInt("##粒子数量", particleCount, 1.0f, 1, 10000)) {
                 if (PropertyReflection.setInt(effect, "particleCount", "setParticleCount", particleCount[0])) {
                     callback.onModified(true);
                 }
@@ -318,7 +328,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             // 速度
             float speed = PropertyReflection.getFloat(effect, "speed", "getSpeed", 1.0f);
             float[] speedArr = {speed};
-            if (ImGui.dragFloat("发射速度", speedArr, 0.01f, 0.0f, 10.0f)) {
+            PropertyRow.field("发射速度");
+            if (ImGui.dragFloat("##发射速度", speedArr, 0.01f, 0.0f, 10.0f)) {
                 if (PropertyReflection.setFloat(effect, "speed", "setSpeed", speedArr[0])) {
                     callback.onModified(true);
                 }
@@ -327,7 +338,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             // 散射角
             float spread = PropertyReflection.getFloat(effect, "spread", "getSpread", 45.0f);
             float[] spreadArr = {spread};
-            if (ImGui.dragFloat("散射角度 (°)", spreadArr, 1.0f, 0.0f, 180.0f)) {
+            PropertyRow.field("散射角度 (°)");
+            if (ImGui.dragFloat("##散射角度 (°)", spreadArr, 1.0f, 0.0f, 180.0f)) {
                 if (PropertyReflection.setFloat(effect, "spread", "setSpread", spreadArr[0])) {
                     callback.onModified(true);
                 }
@@ -336,7 +348,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             // 受重力影响
             boolean gravity = PropertyReflection.getBoolean(effect, "affectedByGravity", "isAffectedByGravity", true);
             ImBoolean gravityBool = new ImBoolean(gravity);
-            if (ImGui.checkbox("受重力影响", gravityBool)) {
+            PropertyRow.label("受重力影响");
+            if (ImGui.checkbox("##受重力影响", gravityBool)) {
                 if (PropertyReflection.setBoolean(effect, "affectedByGravity", "setAffectedByGravity", gravityBool.get())) {
                     callback.onModified(true);
                 }
@@ -348,11 +361,12 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
      * 光照特效参数
      */
     private void renderLightParameters(Object effect, ModifiedCallback callback) {
-        if (ImGui.collapsingHeader("💡 光照参数")) {
+        if (Section.header("effect.lighting", "光照参数", false)) {
             // 亮度
             float brightness = PropertyReflection.getFloat(effect, "brightness", "getBrightness", 1.0f);
             float[] brightnessArr = {brightness};
-            if (ImGui.sliderFloat("亮度", brightnessArr, 0.0f, 5.0f, "%.2f")) {
+            PropertyRow.field("亮度");
+            if (ImGui.sliderFloat("##亮度", brightnessArr, 0.0f, 5.0f, "%.2f")) {
                 if (PropertyReflection.setFloat(effect, "brightness", "setBrightness", brightnessArr[0])) {
                     callback.onModified(true);
                 }
@@ -361,7 +375,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             // 半径
             float radius = PropertyReflection.getFloat(effect, "radius", "getRadius", 5.0f);
             float[] radiusArr = {radius};
-            if (ImGui.dragFloat("光照半径", radiusArr, 0.1f, 0.0f, 50.0f)) {
+            PropertyRow.field("光照半径");
+            if (ImGui.dragFloat("##光照半径", radiusArr, 0.1f, 0.0f, 50.0f)) {
                 if (PropertyReflection.setFloat(effect, "radius", "setRadius", radiusArr[0])) {
                     callback.onModified(true);
                 }
@@ -370,7 +385,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             // 闪烁
             boolean flicker = PropertyReflection.getBoolean(effect, "flicker", "isFlicker", false);
             ImBoolean flickerBool = new ImBoolean(flicker);
-            if (ImGui.checkbox("光照闪烁", flickerBool)) {
+            PropertyRow.label("光照闪烁");
+            if (ImGui.checkbox("##光照闪烁", flickerBool)) {
                 if (PropertyReflection.setBoolean(effect, "flicker", "setFlicker", flickerBool.get())) {
                     callback.onModified(true);
                 }
@@ -382,11 +398,12 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
      * 镜头抖动参数
      */
     private void renderCameraShakeParameters(Object effect, ModifiedCallback callback) {
-        if (ImGui.collapsingHeader("📷 镜头抖动参数")) {
+        if (Section.header("effect.shake", "镜头抖动参数", false)) {
             // 振幅
             float amplitude = PropertyReflection.getFloat(effect, "amplitude", "getAmplitude", 0.2f);
             float[] amplitudeArr = {amplitude};
-            if (ImGui.dragFloat("振幅", amplitudeArr, 0.01f, 0.0f, 2.0f)) {
+            PropertyRow.field("振幅");
+            if (ImGui.dragFloat("##振幅", amplitudeArr, 0.01f, 0.0f, 2.0f)) {
                 if (PropertyReflection.setFloat(effect, "amplitude", "setAmplitude", amplitudeArr[0])) {
                     callback.onModified(true);
                 }
@@ -395,7 +412,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             // 频率
             float frequency = PropertyReflection.getFloat(effect, "frequency", "getFrequency", 5.0f);
             float[] frequencyArr = {frequency};
-            if (ImGui.dragFloat("频率 (Hz)", frequencyArr, 0.1f, 0.0f, 20.0f)) {
+            PropertyRow.field("频率 (Hz)");
+            if (ImGui.dragFloat("##频率 (Hz)", frequencyArr, 0.1f, 0.0f, 20.0f)) {
                 if (PropertyReflection.setFloat(effect, "frequency", "setFrequency", frequencyArr[0])) {
                     callback.onModified(true);
                 }
@@ -404,7 +422,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             // 随机相位
             boolean randomPhase = PropertyReflection.getBoolean(effect, "randomPhase", "isRandomPhase", true);
             ImBoolean randomPhaseBool = new ImBoolean(randomPhase);
-            if (ImGui.checkbox("随机相位", randomPhaseBool)) {
+            PropertyRow.label("随机相位");
+            if (ImGui.checkbox("##随机相位", randomPhaseBool)) {
                 if (PropertyReflection.setBoolean(effect, "randomPhase", "setRandomPhase", randomPhaseBool.get())) {
                     callback.onModified(true);
                 }
@@ -416,11 +435,12 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
      * 材质渐变参数
      */
     private void renderMaterialFadeParameters(Object effect, ModifiedCallback callback) {
-        if (ImGui.collapsingHeader("🎨 材质渐变参数")) {
+        if (Section.header("effect.materials", "材质渐变参数", false)) {
             // 起始透明度
             float fromAlpha = PropertyReflection.getFloat(effect, "fromAlpha", "getFromAlpha", 1.0f);
             float[] fromAlphaArr = {fromAlpha};
-            if (ImGui.sliderFloat("起始透明度", fromAlphaArr, 0.0f, 1.0f, "%.2f")) {
+            PropertyRow.field("起始透明度");
+            if (ImGui.sliderFloat("##起始透明度", fromAlphaArr, 0.0f, 1.0f, "%.2f")) {
                 if (PropertyReflection.setFloat(effect, "fromAlpha", "setFromAlpha", fromAlphaArr[0])) {
                     callback.onModified(true);
                 }
@@ -429,7 +449,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             // 目标透明度
             float toAlpha = PropertyReflection.getFloat(effect, "toAlpha", "getToAlpha", 0.0f);
             float[] toAlphaArr = {toAlpha};
-            if (ImGui.sliderFloat("目标透明度", toAlphaArr, 0.0f, 1.0f, "%.2f")) {
+            PropertyRow.field("目标透明度");
+            if (ImGui.sliderFloat("##目标透明度", toAlphaArr, 0.0f, 1.0f, "%.2f")) {
                 if (PropertyReflection.setFloat(effect, "toAlpha", "setToAlpha", toAlphaArr[0])) {
                     callback.onModified(true);
                 }
@@ -438,7 +459,8 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             // 影响子对象
             boolean affectChildren = PropertyReflection.getBoolean(effect, "affectChildren", "isAffectChildren", false);
             ImBoolean affectChildrenBool = new ImBoolean(affectChildren);
-            if (ImGui.checkbox("影响子对象", affectChildrenBool)) {
+            PropertyRow.label("影响子对象");
+            if (ImGui.checkbox("##影响子对象", affectChildrenBool)) {
                 if (PropertyReflection.setBoolean(effect, "affectChildren", "setAffectChildren", affectChildrenBool.get())) {
                     callback.onModified(true);
                 }
@@ -450,7 +472,7 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
      * 物理力场参数
      */
     private void renderPhysicsParameters(Object effect, ModifiedCallback callback) {
-        if (ImGui.collapsingHeader("🌪️ 物理力场参数")) {
+        if (Section.header("effect.physics", "物理力场参数", false)) {
             UITheme.label("物理力场特效参数", UITheme.DarkTheme.TEXT_DISABLED);
             UITheme.label("（待实现）", UITheme.DarkTheme.TEXT_DISABLED);
         }
@@ -460,7 +482,7 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
      * 音效参数
      */
     private void renderSoundParameters(Object effect, ModifiedCallback callback) {
-        if (ImGui.collapsingHeader("🔊 音效参数")) {
+        if (Section.header("effect.audio", "音效参数", false)) {
             UITheme.label("音效播放参数", UITheme.DarkTheme.TEXT_DISABLED);
             UITheme.label("（待实现）", UITheme.DarkTheme.TEXT_DISABLED);
         }

@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 import com.director.lighting.PointLight;
 import com.director.ui.panels.LightsPanel;
+import com.director.ui.properties.PropertyRow;
 import imgui.ImGui;
 import imgui.type.ImBoolean;
 /** Shared controls for scene defaults and animated light values. */
@@ -19,22 +20,39 @@ final class LightParameterControls {
         }
         if (locked) finish.run();
         ImGui.beginDisabled(locked);
-        boolean changed = ImGui.checkbox(LightsPanel.tr("enabled"), enabled);
+        PropertyRow.label(LightsPanel.tr("enabled"));
+        boolean changed = ImGui.checkbox("##light_enabled", enabled);
         boolean active = ImGui.isItemActive();
         boolean finished = ImGui.isItemDeactivatedAfterEdit();
-        changed |= ImGui.inputFloat3(LightsPanel.tr("position"), position);
+        PropertyRow.field(LightsPanel.tr("position"));
+        changed |= ImGui.inputFloat3("##light_position", position);
         active |= ImGui.isItemActive(); finished |= ImGui.isItemDeactivatedAfterEdit();
-        changed |= ImGui.sliderFloat(LightsPanel.tr("brightness"), brightness, 0, 15);
+        PropertyRow.field(LightsPanel.tr("brightness"));
+        changed |= ImGui.sliderFloat("##light_brightness", brightness, 0, 15);
         active |= ImGui.isItemActive(); finished |= ImGui.isItemDeactivatedAfterEdit();
-        changed |= ImGui.sliderFloat(LightsPanel.tr("range"), range, 1, 32);
+        PropertyRow.field(LightsPanel.tr("range"));
+        changed |= ImGui.sliderFloat("##light_range", range, 1, 32);
         active |= ImGui.isItemActive(); finished |= ImGui.isItemDeactivatedAfterEdit();
-        changed |= ImGui.sliderFloat(LightsPanel.tr("falloff"), falloff, .25f, 4);
+        PropertyRow.field(LightsPanel.tr("falloff"));
+        changed |= ImGui.sliderFloat("##light_falloff", falloff, .25f, 4);
         active |= ImGui.isItemActive(); finished |= ImGui.isItemDeactivatedAfterEdit();
         if(current.type()==com.director.lighting.LightType.AREA) {
-            changed |= ImGui.sliderFloat(LightsPanel.tr("width"),width,.1f,64);active |= ImGui.isItemActive();finished |= ImGui.isItemDeactivatedAfterEdit();
-            changed |= ImGui.sliderFloat(LightsPanel.tr("height"),height,.1f,64);active |= ImGui.isItemActive();finished |= ImGui.isItemDeactivatedAfterEdit();
-            changed |= ImGui.sliderFloat(LightsPanel.tr("yaw"),yaw,-180,180);active |= ImGui.isItemActive();finished |= ImGui.isItemDeactivatedAfterEdit();
-            changed |= ImGui.sliderFloat(LightsPanel.tr("pitch"),pitch,-90,90);active |= ImGui.isItemActive();finished |= ImGui.isItemDeactivatedAfterEdit();
+            PropertyRow.field(LightsPanel.tr("width"));
+            changed |= ImGui.sliderFloat("##light_width",width,.1f,64);
+            active |= ImGui.isItemActive();
+            finished |= ImGui.isItemDeactivatedAfterEdit();
+            PropertyRow.field(LightsPanel.tr("height"));
+            changed |= ImGui.sliderFloat("##light_height",height,.1f,64);
+            active |= ImGui.isItemActive();
+            finished |= ImGui.isItemDeactivatedAfterEdit();
+            PropertyRow.field(LightsPanel.tr("yaw"));
+            changed |= ImGui.sliderFloat("##light_yaw",yaw,-180,180);
+            active |= ImGui.isItemActive();
+            finished |= ImGui.isItemDeactivatedAfterEdit();
+            PropertyRow.field(LightsPanel.tr("pitch"));
+            changed |= ImGui.sliderFloat("##light_pitch",pitch,-90,90);
+            active |= ImGui.isItemActive();
+            finished |= ImGui.isItemDeactivatedAfterEdit();
         }
         ImGui.endDisabled();
         ImGui.textDisabled(LightsPanel.tr("white"));

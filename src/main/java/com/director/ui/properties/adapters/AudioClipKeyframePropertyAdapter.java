@@ -2,6 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.TimelineInterpolation;
 import com.director.timeline.model.TimelineClip;
@@ -23,10 +24,11 @@ public class AudioClipKeyframePropertyAdapter implements IPropertyAdapter<AudioC
         }
 
         boolean modified = false;
+        UITheme.title("Volume Keyframe");
 
-        UITheme.beginGroup("Time");
         float[] time = {keyframe.getTime()};
-        if (ImGui.dragFloat("Time (s)", time, 0.01f, 0.0f, Float.MAX_VALUE, "%.3f")) {
+        PropertyRow.field("Time");
+        if (ImGui.dragFloat("##Time (s)", time, 0.01f, 0.0f, Float.MAX_VALUE, "%.3f s")) {
             // ⭐ 正确移动：需要通过所属 clip 进行 moveKeyframe()，否则 clipKeyframes 列表不会重新排序
             TimelineClip owner = findOwnerClip(keyframe);
             if (owner != null) {
@@ -42,13 +44,11 @@ public class AudioClipKeyframePropertyAdapter implements IPropertyAdapter<AudioC
             }
             modified = true;
         }
-        UITheme.endGroup();
 
-        UITheme.separator();
 
-        UITheme.beginGroup("Volume");
         float[] volume = {keyframe.getVolume()};
-        if (ImGui.sliderFloat("Volume", volume, 0.0f, 1.0f, "%.2f")) {
+        PropertyRow.field("Volume");
+        if (ImGui.sliderFloat("##Volume", volume, 0.0f, 1.0f, "%.2f")) {
             keyframe.setVolume(volume[0]);
             TimelineModel model = DirectorServices.get().containerTimeline()
                     .getTimelineModel();
@@ -57,11 +57,8 @@ public class AudioClipKeyframePropertyAdapter implements IPropertyAdapter<AudioC
             }
             modified = true;
         }
-        UITheme.endGroup();
 
-        UITheme.separator();
 
-        UITheme.beginGroup("Interpolation");
         TimelineInterpolation[] values = TimelineInterpolation.values();
         String[] labels = new String[values.length];
         int current = 0;
@@ -72,7 +69,8 @@ public class AudioClipKeyframePropertyAdapter implements IPropertyAdapter<AudioC
             }
         }
         ImInt selected = new ImInt(current);
-        if (ImGui.combo("Mode", selected, labels)) {
+        PropertyRow.field("Interpolation");
+        if (ImGui.combo("##Mode", selected, labels)) {
             keyframe.setInterpolation(values[selected.get()]);
             TimelineModel model = DirectorServices.get().containerTimeline()
                     .getTimelineModel();
@@ -81,7 +79,6 @@ public class AudioClipKeyframePropertyAdapter implements IPropertyAdapter<AudioC
             }
             modified = true;
         }
-        UITheme.endGroup();
 
         return modified;
     }
