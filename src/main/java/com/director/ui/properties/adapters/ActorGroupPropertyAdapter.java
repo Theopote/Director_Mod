@@ -6,10 +6,11 @@ import com.director.actor.ActorRegistryManager;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 
@@ -66,10 +67,9 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
         ImGui.beginDisabled(readOnly);
         UITheme.title(getAdapterName());
 
-        if (ImGui.collapsingHeader(Icons.INFO + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.inputText(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME) + "##actorGroupName", nameDraft);
+        if (Section.header("actor_group.section_basic", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC))) {
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME));
+            ImGui.inputText("##actorGroupName", nameDraft);
             editingDraft |= ImGui.isItemActive();
             if (ImGui.isItemDeactivatedAfterEdit()) {
                 if (nameDraft.get().isBlank()) error = com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.track.empty_group");
@@ -78,29 +78,28 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.MEMBER_COUNT_FMT, group.size()));
         }
 
-        if (ImGui.collapsingHeader(Icons.DISTRIBUTE + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_FORMATION),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("actor_group.section_formation", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_FORMATION))) {
             ActorGroup.FormationType[] formationTypes = ActorGroup.FormationType.values();
             ImInt formation = new ImInt(group.getFormationType().ordinal());
-            if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.FORMATION_TYPE) + "##groupFormation",
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.FORMATION_TYPE));
+            if (ImGui.combo("##groupFormation",
                     formation, ActorPropertyAdapterI18n.formationTypeLabels())) {
                 commit(group, com.director.ui.actor.ActorProjectEditing.GroupState.capture(group).withFormation(formationTypes[Math.max(0, Math.min(formation.get(), formationTypes.length - 1))]));
                 changed = true;
             }
 
-            ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SPACING) + "##groupFormationSpacing", spacingDraft, 0.1f, 12.0f, "%.1f blocks");
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SPACING));
+            ImGui.sliderFloat("##groupFormationSpacing", spacingDraft, 0.1f, 12.0f, "%.1f blocks");
             editingDraft |= ImGui.isItemActive();
             if (ImGui.isItemDeactivatedAfterEdit()) { commit(group, com.director.ui.actor.ActorProjectEditing.GroupState.capture(group).withSpacing(spacingDraft[0])); changed = true; }
 
         }
 
-        if (ImGui.collapsingHeader(Icons.TIME + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_DELAY),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("actor_group.section_delay", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_DELAY))) {
             ActorGroup.DelayPolicy[] delayPolicies = ActorGroup.DelayPolicy.values();
             ImInt delay = new ImInt(group.getDelayPolicy().ordinal());
-            if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.DELAY_POLICY) + "##groupDelayPolicy",
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.DELAY_POLICY));
+            if (ImGui.combo("##groupDelayPolicy",
                     delay, ActorPropertyAdapterI18n.delayPolicyLabels())) {
                 commit(group, com.director.ui.actor.ActorProjectEditing.GroupState.capture(group).withDelay(delayPolicies[Math.max(0, Math.min(delay.get(), delayPolicies.length - 1))]));
                 changed = true;
@@ -110,7 +109,8 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
                 if (seedOwner != group || seedSource != group.getRandomSeed()) {
                     seedOwner = group; seedSource = group.getRandomSeed(); seedDraft.set(Long.toString(seedSource));
                 }
-                ImGui.inputText(memberText("seed") + "##groupSeed", seedDraft);
+                PropertyRow.field(memberText("seed"));
+                ImGui.inputText("##groupSeed", seedDraft);
                 if (ImGui.button(memberText("apply_seed"))) {
                     try {
                         long value = Long.parseLong(seedDraft.get().strip());
@@ -124,18 +124,18 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
                 }
                 ImGui.textWrapped(memberText("seed_hint"));
             }
-            ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.DELAY_STEP) + "##groupDelayStep", stepDraft, 0.0f, 5.0f, "%.2fs");
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.DELAY_STEP));
+            ImGui.sliderFloat("##groupDelayStep", stepDraft, 0.0f, 5.0f, "%.2fs");
             editingDraft |= ImGui.isItemActive();
             if (ImGui.isItemDeactivatedAfterEdit()) { commit(group, com.director.ui.actor.ActorProjectEditing.GroupState.capture(group).withStep(stepDraft[0])); changed = true; }
 
         }
 
-        if (ImGui.collapsingHeader(Icons.SMILE + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_MEMBERS),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("actor_group.section_members", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_MEMBERS))) {
             var registry = ActorRegistryManager.getInstance();
             ImGui.textWrapped(memberText("order_hint"));
-            ImGui.inputText(memberText("search") + "##memberSearch", memberSearch);
+            PropertyRow.field(memberText("search"));
+            ImGui.inputText("##memberSearch", memberSearch);
             String query = memberSearch.get().strip().toLowerCase(java.util.Locale.ROOT);
             var matches = registry.getAllActors().stream()
                     .filter(a -> !group.containsActor(a.getActorId()) && a.getName().toLowerCase(java.util.Locale.ROOT).contains(query))
@@ -149,7 +149,8 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
                 } catch (IllegalArgumentException failure) { error = failure.getMessage(); }
             }
             ImGui.endDisabled();
-            if (ImGui.beginCombo(memberText("add"), memberText("choose"))) {
+            PropertyRow.field(memberText("add"));
+            if (ImGui.beginCombo("##groupAddMember", memberText("choose"))) {
                 int count = 0;
                 for (Actor candidate : registry.getAllActors()) {
                     if (group.containsActor(candidate.getActorId()) || !candidate.getName().toLowerCase(java.util.Locale.ROOT).contains(query)) continue;

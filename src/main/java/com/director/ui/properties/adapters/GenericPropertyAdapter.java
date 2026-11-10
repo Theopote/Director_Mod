@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
@@ -145,7 +146,8 @@ public class GenericPropertyAdapter implements IPropertyAdapter<Object> {
             if (type == int.class || type == Integer.class) {
                 int currentValue = value != null ? (int) value : 0;
                 ImInt buffer = new ImInt(currentValue);
-                if (ImGui.inputInt(fieldName, buffer)) {
+                PropertyRow.field(fieldName);
+                if (ImGui.inputInt("##generic_value", buffer)) {
                     setValue(field, target, buffer.get());
                     modified = true;
                 }
@@ -154,7 +156,8 @@ public class GenericPropertyAdapter implements IPropertyAdapter<Object> {
             else if (type == float.class || type == Float.class) {
                 float currentValue = value != null ? (float) value : 0.0f;
                 ImFloat buffer = new ImFloat(currentValue);
-                if (ImGui.inputFloat(fieldName, buffer, 0.1f, 1.0f, "%.3f")) {
+                PropertyRow.field(fieldName);
+                if (ImGui.inputFloat("##generic_value", buffer, 0.1f, 1.0f, "%.3f")) {
                     setValue(field, target, buffer.get());
                     modified = true;
                 }
@@ -163,7 +166,8 @@ public class GenericPropertyAdapter implements IPropertyAdapter<Object> {
             else if (type == double.class || type == Double.class) {
                 double currentValue = value != null ? (double) value : 0.0;
                 ImFloat buffer = new ImFloat((float) currentValue);
-                if (ImGui.inputFloat(fieldName, buffer, 0.1f, 1.0f, "%.3f")) {
+                PropertyRow.field(fieldName);
+                if (ImGui.inputFloat("##generic_value", buffer, 0.1f, 1.0f, "%.3f")) {
                     setValue(field, target, (double) buffer.get());
                     modified = true;
                 }
@@ -172,7 +176,8 @@ public class GenericPropertyAdapter implements IPropertyAdapter<Object> {
             else if (type == boolean.class || type == Boolean.class) {
                 boolean currentValue = value != null && (boolean) value;
                 ImBoolean buffer = new ImBoolean(currentValue);
-                if (ImGui.checkbox(fieldName, buffer)) {
+                PropertyRow.label(fieldName);
+                if (ImGui.checkbox("##generic_value", buffer)) {
                     setValue(field, target, buffer.get());
                     modified = true;
                 }
@@ -182,7 +187,8 @@ public class GenericPropertyAdapter implements IPropertyAdapter<Object> {
                 String currentValue = value != null ? (String) value : "";
                 ImString buffer = new ImString(currentValue, 256);
                 
-                if (ImGui.inputText(fieldName, buffer, ImGuiInputTextFlags.None)) {
+                PropertyRow.field(fieldName);
+                if (ImGui.inputText("##generic_value", buffer, ImGuiInputTextFlags.None)) {
                     String newValue = buffer.get();
                     setValue(field, target, newValue);
                     modified = true;
@@ -199,7 +205,8 @@ public class GenericPropertyAdapter implements IPropertyAdapter<Object> {
                     int currentIndex = value != null ? Arrays.asList(constants).indexOf(value) : 0;
                     ImInt selected = new ImInt(Math.max(0, currentIndex));
                     
-                    if (ImGui.combo(fieldName, selected, names, names.length)) {
+                    PropertyRow.field(fieldName);
+                    if (ImGui.combo("##generic_value", selected, names, names.length)) {
                         setValue(field, target, constants[selected.get()]);
                         modified = true;
                     }

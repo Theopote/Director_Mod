@@ -1,12 +1,13 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiSelectableFlags;
 import imgui.type.ImString;
 import org.slf4j.Logger;
@@ -75,7 +76,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
         
         try {
             // ========== 材质列表 ==========
-            if (ImGui.collapsingHeader("📋 材质列表", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("material_library.library", "材质列表")) {
                 // 获取材质列表
                 Object materialsObj = PropertyReflection.readProperty(library, "materials", "getMaterials");
                 
@@ -152,11 +153,12 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                 if (selectedMaterialIndex >= 0 && selectedMaterialIndex < materials.size()) {
                     Object material = materials.get(selectedMaterialIndex);
                     
-                    if (ImGui.collapsingHeader("🎨 材质属性", ImGuiTreeNodeFlags.DefaultOpen)) {
+                    if (Section.header("material_library.properties", "材质属性")) {
                         // 材质名称
                         String currentName = PropertyReflection.getString(material, "name", "getName", "未命名材质");
                         ImString nameBuffer = new ImString(currentName, 256);
-                        if (ImGui.inputText("材质名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
+                        PropertyRow.field("材质名称");
+                        if (ImGui.inputText("##material_library_name", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
                             if (PropertyReflection.setString(material, "name", "setName", nameBuffer.get())) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[MaterialLibraryPropertyAdapter] 材质名称已更新: {}", nameBuffer.get());
@@ -169,7 +171,8 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                             baseColor = new float[]{1.0f, 1.0f, 1.0f, 1.0f};
                         }
                         
-                        if (ImGui.colorEdit4("基础颜色", baseColor)) {
+                        PropertyRow.field("基础颜色");
+                        if (ImGui.colorEdit4("##material_library_color", baseColor)) {
                             if (PropertyReflection.setFloatArray(material, "baseColor", "setBaseColor", baseColor)) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[MaterialLibraryPropertyAdapter] 基础颜色已更新");
@@ -182,7 +185,8 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                         // 金属度
                         float currentMetallic = PropertyReflection.getFloat(material, "metallic", "getMetallic", 0.0f);
                         float[] metallic = {currentMetallic};
-                        if (ImGui.sliderFloat("金属度", metallic, 0.0f, 1.0f, "%.2f")) {
+                        PropertyRow.field("金属度");
+                        if (ImGui.sliderFloat("##material_library_metallic", metallic, 0.0f, 1.0f, "%.2f")) {
                             if (PropertyReflection.setFloat(material, "metallic", "setMetallic", metallic[0])) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[MaterialLibraryPropertyAdapter] 金属度已更新: {}", metallic[0]);
@@ -195,7 +199,8 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                         // 粗糙度
                         float currentRoughness = PropertyReflection.getFloat(material, "roughness", "getRoughness", 0.5f);
                         float[] roughness = {currentRoughness};
-                        if (ImGui.sliderFloat("粗糙度", roughness, 0.0f, 1.0f, "%.2f")) {
+                        PropertyRow.field("粗糙度");
+                        if (ImGui.sliderFloat("##material_library_roughness", roughness, 0.0f, 1.0f, "%.2f")) {
                             if (PropertyReflection.setFloat(material, "roughness", "setRoughness", roughness[0])) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[MaterialLibraryPropertyAdapter] 粗糙度已更新: {}", roughness[0]);
@@ -211,7 +216,8 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                             emissive = new float[]{0.0f, 0.0f, 0.0f, 1.0f};
                         }
                         
-                        if (ImGui.colorEdit4("自发光颜色", emissive)) {
+                        PropertyRow.field("自发光颜色");
+                        if (ImGui.colorEdit4("##material_library_emissive", emissive)) {
                             if (PropertyReflection.setFloatArray(material, "emissive", "setEmissive", emissive)) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[MaterialLibraryPropertyAdapter] 自发光颜色已更新");
@@ -223,11 +229,12 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                     }
                     
                     // ========== 纹理管理 ==========
-                    if (ImGui.collapsingHeader("🖼️ 纹理管理")) {
+                    if (Section.header("material_library.textures", "纹理管理", false)) {
                         // 纹理路径
                         String currentPath = PropertyReflection.getString(material, "texturePath", "getTexturePath", "");
                         ImString pathBuffer = new ImString(currentPath, 512);
-                        if (ImGui.inputText("纹理路径", pathBuffer, ImGuiInputTextFlags.None)) {
+                        PropertyRow.field("纹理路径");
+                        if (ImGui.inputText("##material_library_texture", pathBuffer, ImGuiInputTextFlags.None)) {
                             if (PropertyReflection.setString(material, "texturePath", "setTexturePath", pathBuffer.get())) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[MaterialLibraryPropertyAdapter] 纹理路径已更新: {}", pathBuffer.get());
@@ -270,7 +277,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
             }
             
             // ========== 统计信息 ==========
-            if (ImGui.collapsingHeader("📊 统计信息")) {
+            if (Section.header("material_library.stats", "统计信息", false)) {
                 Object materialsObj = PropertyReflection.readProperty(library, "materials", "getMaterials");
                 int materialCount = 0;
                 

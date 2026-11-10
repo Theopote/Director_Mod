@@ -24,6 +24,7 @@ import com.director.ui.actor.model.BbModelAssetEditing;
 import com.director.ui.actor.model.CustomModelCuboidPropertyUI;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
@@ -201,8 +202,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return false;
         }
         
-        ImGui.inputText("搜索演员##actorSearch", actorSearch);
-        if (ImGui.beginCombo("类型筛选##actorTypeFilter", actorTypeFilter == null ? "全部类型" : ActorPropertyAdapterI18n.actorTypeLabel(actorTypeFilter))) {
+        PropertyRow.field("搜索演员");
+        ImGui.inputText("##actorSearch", actorSearch);
+        PropertyRow.field("类型筛选");
+        if (ImGui.beginCombo("##actorTypeFilter", actorTypeFilter == null ? "全部类型" : ActorPropertyAdapterI18n.actorTypeLabel(actorTypeFilter))) {
             if (ImGui.selectable("全部类型", actorTypeFilter == null)) actorTypeFilter = null;
             for (var type : ActorType.values()) {
                 if (ImGui.selectable(ActorPropertyAdapterI18n.actorTypeLabel(type), type == actorTypeFilter)) actorTypeFilter = type;
@@ -318,7 +321,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     .stream().filter(entry -> !entry.isPose()).toList();
             var selected = entries.stream().filter(entry -> entry.id().equals(groupPresetId)).findFirst().orElse(null);
             String selectedName = selected == null ? ActorPropertyAdapterI18n.tr(prefix + "choose") : selected.name();
-            if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(prefix + "preset"), selectedName)) {
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(prefix + "preset"));
+            if (ImGui.beginCombo("##groupPreset" + group.getGroupId(), selectedName)) {
                 try {
                     for (var entry : entries) {
                         if (ImGui.selectable(entry.name() + " · " + entry.rigName() + "##" + entry.id(), entry.equals(selected))) {
@@ -331,9 +335,11 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     }
                 } finally { ImGui.endCombo(); }
             }
-            ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION),
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION));
+            ImGui.sliderFloat("##actor_project_duration",
                     groupPresetDuration.getData(), .05f, 60f, "%.2fs");
-            ImGui.checkbox(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.loop"), groupPresetLoop);
+            PropertyRow.label(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.loop"));
+            ImGui.checkbox("##actor_project_loop", groupPresetLoop);
             ImGui.textWrapped(ActorPropertyAdapterI18n.tr(prefix + "hint"));
             var service = ActorGroupTimelineCommandService.getInstance();
             var preview = service.previewPresets(model, group, groupPresetId, groupPresetDuration.get());
@@ -358,7 +364,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         String currentLabel = currentBrush != null
                 ? ActorPropertyAdapterI18n.actionSemanticLabel(currentBrush)
                 : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NONE);
-        if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTION) + "##groupAction" + group.getGroupId(), currentLabel)) {
+        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTION));
+        if (ImGui.beginCombo("##groupAction" + group.getGroupId(), currentLabel)) {
             for (ActorActionType type : ActorActionType.values()) {
                 boolean selected = type == currentBrush;
                 if (ImGui.selectable(ActorPropertyAdapterI18n.actionSemanticLabel(type), selected)) {
@@ -371,12 +378,15 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.endCombo();
         }
 
-        ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION) + "##groupActionDuration" + group.getGroupId(),
+        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION));
+        ImGui.sliderFloat("##groupActionDuration" + group.getGroupId(),
                 groupActionDuration.getData(), 0.05f, 20.0f, "%.2fs");
-        ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY) + "##groupActionIntensity" + group.getGroupId(),
+        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY));
+        ImGui.sliderFloat("##groupActionIntensity" + group.getGroupId(),
                 groupActionIntensity.getData(), 0.0f, 1.0f, "%.2f");
 
-        ImGui.checkbox(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.loop") + "##groupLoop", groupActionLoop);
+        PropertyRow.label(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.loop"));
+        ImGui.checkbox("##groupLoop", groupActionLoop);
         ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.loop_hint"));
         var preview = ActorGroupTimelineCommandService.getInstance().previewActions(
                 DirectorServices.get().containerTimeline().getTimelineModel(), group, currentBrush, groupActionDuration.get());
@@ -420,7 +430,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             sourceActorId = null;
         }
         String sourceName = sourceActorId == null ? "请选择路径源演员" : registry.getActor(sourceActorId).map(Actor::getName).orElse("");
-        if (ImGui.beginCombo("路径源演员##routeSource" + group.getGroupId(), sourceName)) {
+        PropertyRow.field("路径源演员");
+        if (ImGui.beginCombo("##routeSource" + group.getGroupId(), sourceName)) {
             for (Actor candidate : registry.getAllActors()) {
                 if (ImGui.selectable(candidate.getName() + "##" + candidate.getActorId(), candidate.getActorId().equals(sourceActorId))) {
                     sourceActorId = candidate.getActorId();
@@ -440,7 +451,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 .filter(c -> c.getId().equals(routeClips.get(group))).findFirst().orElse(null);
         String routeLabel = sourceRoute == null ? ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.choose")
                 : String.format("%s (%.2f–%.2f)", sourceRoute.getName(), sourceRoute.getStartTime(), sourceRoute.getEndTime());
-        if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.clip"), routeLabel)) {
+        PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.clip"));
+        if (ImGui.beginCombo("##actor_project_clip", routeLabel)) {
             for (var candidate : routeService.availableRoutes(routeModel, sourceActorId)) {
                 if (ImGui.selectable(String.format("%s (%.2f–%.2f)##%s", candidate.getName(), candidate.getStartTime(), candidate.getEndTime(), candidate.getId()), candidate == sourceRoute)) {
                     routeClips.put(group, candidate.getId()); sourceRoute = candidate;
@@ -451,7 +463,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         routeId = routeClips.get(group);
         if (sourceRoute != null && !groupRouteAtPlayhead.get()) ImGui.textWrapped(ActorPropertyAdapterI18n.tr(
                 "gui.director.properties.adapter.actor.group_preview.route_source", sourceRoute.getName(), sourceRoute.getStartTime(), sourceRoute.getEndTime()));
-        ImGui.checkbox(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.at_playhead"), groupRouteAtPlayhead);
+        PropertyRow.label(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.at_playhead"));
+        ImGui.checkbox("##actor_project_at_playhead", groupRouteAtPlayhead);
         if (sourceRoute != null && groupRouteAtPlayhead.get() && routeModel != null)
             ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.output_range",
                     routeModel.getCurrentTime(), routeModel.getCurrentTime() + sourceRoute.getLength()));
@@ -555,7 +568,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             nameDraftSource = actor.getName();
             editingActorName.set(nameDraftSource);
         }
-        if (ImGui.inputText(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME), editingActorName, ImGuiInputTextFlags.EnterReturnsTrue)) {
+        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME));
+        if (ImGui.inputText("##actor_project_name", editingActorName, ImGuiInputTextFlags.EnterReturnsTrue)) {
             String newName = editingActorName.get();
             if (newName != null && !newName.isBlank() && !newName.equals(actor.getName())) {
                 var timeline = DirectorServices.get().containerTimeline().getTimelineModel();
@@ -570,7 +584,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         boolean typeEditable = com.director.ui.actor.ActorAppearanceEditing.editable(DirectorServices.get().containerTimeline().getTimelineModel());
         ImGui.beginDisabled(!typeEditable);
         String currentTypeName = ActorPropertyAdapterI18n.actorTypeLabel(actor.getType());
-        if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.TYPE), currentTypeName)) {
+        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.TYPE));
+        if (ImGui.beginCombo("##actor_project_type", currentTypeName)) {
             ActorType[] types = ActorType.values();
             String[] typeLabels = ActorPropertyAdapterI18n.actorTypeLabels();
             for (int i = 0; i < types.length; i++) {
@@ -678,7 +693,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ImGui.beginDisabled(!com.director.ui.actor.ActorAppearanceEditing.editable(editingModel));
         var customRigs = com.director.actor.rig.skeleton.CustomRigLibrary.getInstance().all();
         String currentRigLabel = actor.getCustomRigId() == null ? com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.identity.unbound") : actor.getCustomRigId();
-        if (ImGui.beginCombo("自定义骨架##customRig", currentRigLabel)) {
+        PropertyRow.field("自定义骨架");
+        if (ImGui.beginCombo("##customRig", currentRigLabel)) {
             if (ImGui.selectable(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.identity.unbound"), actor.getCustomRigId() == null)) {
                 editModelBinding(actor,null,null);
                 modified = true;
@@ -695,7 +711,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             }
             ImGui.endCombo();
         }
-        ImGui.sameLine();
         if (ImGui.button("导入 .bbmodel##importBbModel")) {
             modified |= importBbModel(actor);
         }
@@ -703,8 +718,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.setTooltip("从 Blockbench 工程文件导入自定义骨架与方块外观模型");
         }
 
-        ImGui.inputText("骨架 ID##bbModelRigId", bbModelRigId);
-        ImGui.inputText("模型 ID##bbModelModelId", bbModelModelId);
+        PropertyRow.field("骨架 ID");
+        ImGui.inputText("##bbModelRigId", bbModelRigId);
+        PropertyRow.field("模型 ID");
+        ImGui.inputText("##bbModelModelId", bbModelModelId);
 
         if (customRigs.isEmpty()) {
             ImGui.textWrapped("项目中暂无自定义骨架，可通过 .bbmodel 导入，或使用内置示例骨架。");
@@ -713,7 +730,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (actor.getCustomRigId() != null) {
             var models = com.director.actor.model.CustomModelLibrary.getInstance().forRig(actor.getCustomRigId());
             String currentModelLabel = actor.getCustomModelId() == null ? "（无外观，仅骨架）" : actor.getCustomModelId();
-            if (ImGui.beginCombo("自定义模型外观##customModel", currentModelLabel)) {
+            PropertyRow.field("自定义模型外观");
+            if (ImGui.beginCombo("##customModel", currentModelLabel)) {
                 if (ImGui.selectable("（无外观，仅骨架）", actor.getCustomModelId() == null)) {
                     editModelBinding(actor,actor.getCustomRigId(),null);
                     modified = true;
@@ -820,13 +838,15 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             String[] labels = {net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.default"),
                     net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.wide"),
                     net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.slim")};
-            if (ImGui.combo(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model"), model, labels)) {
+            PropertyRow.field(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model"));
+            if (ImGui.combo("##actor_project_player_model", model, labels)) {
                 com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withModel(Actor.PlayerModel.values()[Math.clamp(model.get(), 0, labels.length - 1)]), () -> ActorSkinTextureManager.invalidate(actor.getActorId()));
                 modified = true;
             }
             ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.hint"));
             ImInt bendMode=new ImInt(actor.getLimbBendMode().ordinal());
-            if(ImGui.combo("肘膝弯曲模式##actorLimbBend",bendMode,new String[]{"平滑弯曲","直接折弯"})) {
+            PropertyRow.field("肘膝弯曲模式");
+            if(ImGui.combo("##actorLimbBend",bendMode,new String[]{"平滑弯曲","直接折弯"})) {
                 com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withBend(com.director.actor.rig.skeleton.LimbBendMode.values()[bendMode.get()]), () -> {});
                 modified=true;
             }
@@ -980,13 +1000,15 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CREATE_NEW_ACTOR));
             ImGui.separator();
 
-            if (ImGui.inputText(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME), newActorName, ImGuiInputTextFlags.EnterReturnsTrue)) {
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME));
+            if (ImGui.inputText("##actor_project_create_name", newActorName, ImGuiInputTextFlags.EnterReturnsTrue)) {
                 // Enter key pressed, but we'll handle it in the Create button
             }
             
             // Type combo
             String currentTypeName = ActorPropertyAdapterI18n.actorTypeLabel(newActorType);
-            if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.TYPE), currentTypeName)) {
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.TYPE));
+            if (ImGui.beginCombo("##actor_project_create_type", currentTypeName)) {
                 ActorType[] types = ActorType.values();
                 String[] typeLabels = ActorPropertyAdapterI18n.actorTypeLabels();
                 for (int i = 0; i < types.length; i++) {
@@ -1334,7 +1356,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 ? ActorPropertyAdapterI18n.actionSemanticLabel(currentBrush)
                 : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NONE);
 
-        if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CURRENT_BRUSH), currentLabel)) {
+        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CURRENT_BRUSH));
+        if (ImGui.beginCombo("##actor_project_current_brush", currentLabel)) {
             for (ActorActionType type : ActorActionType.values()) {
                 if (!com.director.actor.ActorCapabilities.of(actor).supports(type)) continue;
                 boolean selected = type == currentBrush;

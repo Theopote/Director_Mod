@@ -3,13 +3,14 @@ package com.director.ui.properties.adapters;
 import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImString;
 import imgui.type.ImBoolean;
 import org.slf4j.Logger;
@@ -38,10 +39,7 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.TITLE));
 
         try {
-            if (ImGui.collapsingHeader(Icons.PIN + " "
-                    + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_TRANSFORM),
-                    ImGuiTreeNodeFlags.DefaultOpen)) {
-                ImGui.indent();
+            if (Section.header("camera.section_transform", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_TRANSFORM))) {
                 Object position = PropertyReflection.readProperty(camera, "position", "getPosition");
                 if (position != null) {
                     var posAdapter = PropertyAdapterRegistry.getAdapterFor(position);
@@ -67,16 +65,13 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                         }
                     }
                 }
-                ImGui.unindent();
             }
 
-            if (ImGui.collapsingHeader(Icons.CAMERA + " "
-                    + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_PROJECTION),
-                    ImGuiTreeNodeFlags.DefaultOpen)) {
-                ImGui.indent();
+            if (Section.header("camera.section_projection", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_PROJECTION))) {
                 float currentFOV = PropertyReflection.getFloat(camera, "fov", "getFov", 70.0f);
                 float[] fov = {currentFOV};
-                if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FOV),
+                PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FOV));
+                if (ImGui.dragFloat("##camera_fov",
                         fov, 0.5f, 10.0f, 150.0f, "%.1f°")) {
                     if (PropertyReflection.setFloat(camera, "fov", "setFov", fov[0])) {
                         modifiedRef[0] = true;
@@ -109,7 +104,8 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
 
                 float currentNear = PropertyReflection.getFloat(camera, "nearPlane", "getNearPlane", 0.1f);
                 float[] nearPlane = {currentNear};
-                if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.NEAR),
+                PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.NEAR));
+                if (ImGui.dragFloat("##camera_near",
                         nearPlane, 0.01f, 0.01f, 10.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(camera, "nearPlane", "setNearPlane", nearPlane[0])) {
                         modifiedRef[0] = true;
@@ -122,7 +118,8 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
 
                 float currentFar = PropertyReflection.getFloat(camera, "farPlane", "getFarPlane", 1000.0f);
                 float[] farPlane = {currentFar};
-                if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FAR),
+                PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FAR));
+                if (ImGui.dragFloat("##camera_far",
                         farPlane, 10.0f, 10.0f, 10000.0f, "%.0f")) {
                     if (PropertyReflection.setFloat(camera, "farPlane", "setFarPlane", farPlane[0])) {
                         modifiedRef[0] = true;
@@ -132,15 +129,13 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FAR_TOOLTIP));
                 }
-                ImGui.unindent();
             }
 
-            if (ImGui.collapsingHeader(Icons.IMAGE + " "
-                    + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_LENS))) {
-                ImGui.indent();
+            if (Section.header("camera.section_lens", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_LENS), false)) {
                 boolean currentDOF = PropertyReflection.getBoolean(camera, "depthOfFieldEnabled", "isDepthOfFieldEnabled", false);
                 ImBoolean enableDOF = new ImBoolean(currentDOF);
-                if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.DOF_ENABLED), enableDOF)) {
+                PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.DOF_ENABLED));
+                if (ImGui.checkbox("##camera_dof_enabled", enableDOF)) {
                     if (PropertyReflection.setBoolean(camera, "depthOfFieldEnabled", "setDepthOfFieldEnabled", enableDOF.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 景深已更新: {}", enableDOF.get());
@@ -152,7 +147,8 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
 
                 float currentFocus = PropertyReflection.getFloat(camera, "focusDistance", "getFocusDistance", 10.0f);
                 float[] focusDistance = {currentFocus};
-                if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FOCUS),
+                PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FOCUS));
+                if (ImGui.dragFloat("##camera_focus",
                         focusDistance, 0.5f, 0.1f, 1000.0f, "%.1f")) {
                     if (PropertyReflection.setFloat(camera, "focusDistance", "setFocusDistance", focusDistance[0])) {
                         modifiedRef[0] = true;
@@ -165,7 +161,8 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
 
                 float currentAperture = PropertyReflection.getFloat(camera, "aperture", "getAperture", 2.8f);
                 float[] aperture = {currentAperture};
-                if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.APERTURE),
+                PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.APERTURE));
+                if (ImGui.dragFloat("##camera_aperture",
                         aperture, 0.1f, 1.4f, 22.0f, "f/%.1f")) {
                     if (PropertyReflection.setFloat(camera, "aperture", "setAperture", aperture[0])) {
                         modifiedRef[0] = true;
@@ -188,15 +185,13 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.BOKEH_TOOLTIP));
                 }
-                ImGui.unindent();
             }
 
-            if (ImGui.collapsingHeader(Icons.FILM + " "
-                    + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_ANIMATION))) {
-                ImGui.indent();
+            if (Section.header("camera.section_animation", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_ANIMATION), false)) {
                 String currentName = PropertyReflection.getString(camera, "animationName", "getAnimationName", "");
                 ImString nameBuffer = new ImString(currentName, 256);
-                if (ImGui.inputText(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.ANIMATION_NAME),
+                PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.ANIMATION_NAME));
+                if (ImGui.inputText("##camera_animation_name",
                         nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
                     if (PropertyReflection.setString(camera, "animationName", "setAnimationName", nameBuffer.get())) {
                         modifiedRef[0] = true;
@@ -205,7 +200,8 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
 
                 float currentDuration = PropertyReflection.getFloat(camera, "animationDuration", "getAnimationDuration", 5.0f);
                 float[] duration = {currentDuration};
-                if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.ANIMATION_DURATION),
+                PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.ANIMATION_DURATION));
+                if (ImGui.dragFloat("##camera_animation_duration",
                         duration, 0.1f, 0.1f, 300.0f)) {
                     if (PropertyReflection.setFloat(camera, "animationDuration", "setAnimationDuration", duration[0])) {
                         modifiedRef[0] = true;
@@ -219,7 +215,8 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
 
                 boolean currentLoop = PropertyReflection.getBoolean(camera, "loop", "isLoop", false);
                 ImBoolean loop = new ImBoolean(currentLoop);
-                if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.LOOP), loop)) {
+                PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.LOOP));
+                if (ImGui.checkbox("##camera_loop", loop)) {
                     if (PropertyReflection.setBoolean(camera, "loop", "setLoop", loop.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 循环播放已更新: {}", loop.get());
@@ -228,7 +225,8 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
 
                 boolean currentSmooth = PropertyReflection.getBoolean(camera, "smoothInterpolation", "isSmoothInterpolation", true);
                 ImBoolean smooth = new ImBoolean(currentSmooth);
-                if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SMOOTH), smooth)) {
+                PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SMOOTH));
+                if (ImGui.checkbox("##camera_smooth", smooth)) {
                     if (PropertyReflection.setBoolean(camera, "smoothInterpolation", "setSmoothInterpolation", smooth.get())) {
                         modifiedRef[0] = true;
                     }
@@ -236,7 +234,6 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SMOOTH_TOOLTIP));
                 }
-                ImGui.unindent();
             }
 
             UITheme.separator();

@@ -3,7 +3,6 @@ package com.director.ui.properties.adapters;
 import com.director.core.DirectorServices;
 import com.director.core.animation.effect.EffectInstance;
 import com.director.core.container.Container;
-import com.director.core.container.ContainerManager;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.Section;
 import com.director.timeline.model.TimelineClip;

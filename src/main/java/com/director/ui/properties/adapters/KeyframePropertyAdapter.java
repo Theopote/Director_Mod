@@ -5,6 +5,8 @@ import com.director.core.animation.container.Keyframe.Easing;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.Vec3Field;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.type.ImInt;
@@ -35,7 +37,8 @@ public class KeyframePropertyAdapter implements IPropertyAdapter<Keyframe> {
 
         UITheme.beginGroup(tr(DirectorLang.Properties.AdapterKeyframe.TIME_GROUP));
         float[] time = {(float) keyframe.time()};
-        if (ImGui.dragFloat(tr(DirectorLang.Properties.AdapterKeyframe.TIME_SECONDS), time, 0.01f, 0.0f, Float.MAX_VALUE, "%.3f")) {
+        PropertyRow.field(tr(DirectorLang.Properties.AdapterKeyframe.TIME_SECONDS));
+        if (ImGui.dragFloat("##keyframe_time_seconds", time, 0.01f, 0.0f, Float.MAX_VALUE, "%.3f")) {
             keyframe.setTime(time[0]);
             modified = true;
         }
@@ -46,14 +49,16 @@ public class KeyframePropertyAdapter implements IPropertyAdapter<Keyframe> {
         UITheme.beginGroup(tr(DirectorLang.Properties.AdapterKeyframe.VALUE_GROUP));
         Object value = keyframe.value();
         if (value instanceof Vec3d vec) {
-            float[] components = {(float) vec.x, (float) vec.y, (float) vec.z};
-            if (ImGui.dragFloat3(tr(DirectorLang.Properties.AdapterKeyframe.VECTOR), components, 0.01f)) {
-                keyframe.setValue(new Vec3d(components[0], components[1], components[2]));
+            PropertyRow.label(tr(DirectorLang.Properties.AdapterKeyframe.VECTOR));
+            Vec3d edited = Vec3Field.drag("keyframeVector", vec, 0.01f);
+            if (edited != vec) {
+                keyframe.setValue(edited);
                 modified = true;
             }
         } else if (value instanceof Number number) {
             float[] scalar = {number.floatValue()};
-            if (ImGui.dragFloat(tr(DirectorLang.Properties.AdapterKeyframe.SCALAR), scalar, 0.01f, -Float.MAX_VALUE, Float.MAX_VALUE, "%.3f")) {
+            PropertyRow.field(tr(DirectorLang.Properties.AdapterKeyframe.SCALAR));
+            if (ImGui.dragFloat("##keyframe_scalar", scalar, 0.01f, -Float.MAX_VALUE, Float.MAX_VALUE, "%.3f")) {
                 keyframe.setValue(scalar[0]);
                 modified = true;
             }
@@ -75,7 +80,8 @@ public class KeyframePropertyAdapter implements IPropertyAdapter<Keyframe> {
             }
         }
         ImInt selectedIndex = new ImInt(currentIndex);
-        if (ImGui.combo(tr(DirectorLang.Properties.AdapterKeyframe.MODE), selectedIndex, labels)) {
+        PropertyRow.field(tr(DirectorLang.Properties.AdapterKeyframe.MODE));
+        if (ImGui.combo("##keyframe_mode", selectedIndex, labels)) {
             keyframe.setEasing(easings[selectedIndex.get()]);
             modified = true;
         }
