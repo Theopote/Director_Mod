@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.actor.*;
 import com.director.timeline.model.entity.EntityAnimationClip;
 import imgui.ImGui;
@@ -29,7 +30,8 @@ public class EntityAnimationClipPropertyAdapter implements IPropertyAdapter<Enti
         var current=entries.stream().filter(e->e.id().equals(clip.getAnimationId())).findFirst().orElse(null);
         boolean changed=false;
         String label = !clip.hasAnimation() ? tr("select") : current == null ? clip.getAnimationId() : current.name();
-        if(ImGui.beginCombo(tr("animation"), label)) {
+        PropertyRow.field(tr("animation"));
+        if(ImGui.beginCombo("##entity_animation_clip_animation", label)) {
             for(var entry:entries) {
                 if (entry.isPose()) continue;
                 ImGui.beginDisabled(!entry.compatible());
@@ -47,8 +49,11 @@ public class EntityAnimationClipPropertyAdapter implements IPropertyAdapter<Enti
         if (clip.hasAnimation()) ImGui.textDisabled(clip.getAnimationId());
         if (!clip.hasAnimation()) ImGui.textWrapped(tr("unbound"));
         else if(current==null || !current.compatible() || current.isPose()) ImGui.textWrapped(tr("compatible"));
-        changed=ImGui.checkbox(tr("loop"),clip.isLoop()); if(changed) clip.setLoop(!clip.isLoop()); gesture.observe("loop",changed);
-        float[] speed={clip.getSpeed()}; changed=ImGui.sliderFloat(tr("speed"),speed,.01f,4);
+        PropertyRow.label(tr("loop"));
+        changed=ImGui.checkbox("##entity_animation_clip_loop",clip.isLoop()); if(changed) clip.setLoop(!clip.isLoop()); gesture.observe("loop",changed);
+        float[] speed={clip.getSpeed()};
+        PropertyRow.field(tr("speed"));
+        changed=ImGui.sliderFloat("##entity_animation_clip_speed",speed,.01f,4);
         if(changed) clip.setSpeed(speed[0]); gesture.observe("speed",changed);
         ActorAnimationBlendPropertyUI.render(source,clip.getBlendSettings(),clip::setBlendSettings,gesture);
         gesture.end(); events.render(com.director.core.DirectorServices.get().containerTimeline().getTimelineModel(),source); return false;

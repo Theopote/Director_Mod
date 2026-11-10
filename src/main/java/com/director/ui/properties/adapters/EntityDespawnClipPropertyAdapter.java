@@ -2,6 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.actor.ActorClipInspectorGesture;
 import com.director.timeline.model.entity.EntityDespawnClip;
 import imgui.ImGui;
@@ -20,7 +21,8 @@ public class EntityDespawnClipPropertyAdapter implements IPropertyAdapter<Entity
         var labels = new String[modes.length]; int selected = 0;
         for (int i=0;i<modes.length;i++) { labels[i]=tr(modes[i].name()); if (modes[i]==clip.getMode()) selected=i; }
         var index = new ImInt(selected);
-        boolean changed = ImGui.combo(tr("mode")+"##despawnMode",index,labels);
+        PropertyRow.field(tr("mode"));
+        boolean changed = ImGui.combo("##despawnMode",index,labels);
         if (changed) clip.setMode(modes[index.get()]);
         gesture.observe("mode",changed);
         ImGui.textWrapped(tr("hint"));

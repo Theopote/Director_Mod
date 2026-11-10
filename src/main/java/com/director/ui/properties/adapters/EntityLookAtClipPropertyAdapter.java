@@ -3,12 +3,13 @@ package com.director.ui.properties.adapters;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.properties.actor.ActorClipInspectorGesture;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.entity.EntityLookAtClip;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 import org.joml.Vector3f;
@@ -35,18 +36,18 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
         UITheme.title(Icons.SMILE + " " + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.TITLE));
         ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.START_FMT, source.getStartTime()));
         ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.END_FMT, source.getEndTime()));
-        if (ImGui.collapsingHeader(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_TARGET_MODE), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("entity_look_at_clip.section_target_mode", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_TARGET_MODE))) {
             var modes = EntityLookAtClip.TargetMode.values(); var index = new ImInt(clip.getMode().ordinal());
-            boolean changed = ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.TARGET_MODE)
-                    + "##lookClipMode", index, ActorPropertyAdapterI18n.lookAtTargetModeLabels());
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.TARGET_MODE));
+            boolean changed = ImGui.combo("##lookClipMode", index, ActorPropertyAdapterI18n.lookAtTargetModeLabels());
             if (changed) clip.setMode(modes[index.get()]);
             gesture.observe("mode", changed);
         }
-        if (ImGui.collapsingHeader(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_TARGET), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("entity_look_at_clip.section_target", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_TARGET))) {
             if (clip.getMode() == EntityLookAtClip.TargetMode.WORLD_POINT) {
                 Vector3f point = clip.getWorldPoint(); float[] xyz = {point.x, point.y, point.z};
-                boolean changed = ImGui.inputFloat3(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.WORLD_COORDS)
-                        + "##lookClipWorldPoint", xyz);
+                PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.WORLD_COORDS));
+                boolean changed = ImGui.inputFloat3("##lookClipWorldPoint", xyz);
                 if (changed) clip.setWorldPoint(xyz[0], xyz[1], xyz[2]);
                 gesture.observe("point", changed);
             } else if (clip.getMode() == EntityLookAtClip.TargetMode.CAMERA) {
@@ -60,7 +61,8 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
                 var registry = com.director.actor.ActorRegistryManager.getInstance();
                 String label = registry.getActor(clip.getTargetEntityUuid()).map(com.director.actor.Actor::getName)
                         .orElse(ActorPropertyAdapterI18n.tr("gui.director.actor.look_at.choose_actor"));
-                if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr("gui.director.actor.look_at.target_actor"), label)) {
+                PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.look_at.target_actor"));
+                if (ImGui.beginCombo("##entity_look_at_clip_target_actor", label)) {
                     for (var actor : registry.getAllActors()) {
                         if (ImGui.selectable(actor.getName() + "##gazeActor" + actor.getActorId(),
                                 actor.getActorId().equals(clip.getTargetEntityUuid()))) {
@@ -72,7 +74,8 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
                     ImGui.endCombo();
                 }
             }
-            ImGui.inputText(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.entity_uuid") + "##lookClipEntityUuid", entityUuid);
+            PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.entity_uuid"));
+            ImGui.inputText("##lookClipEntityUuid", entityUuid);
             if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.apply_entity") + "##lookClipApplyEntity")) {
                 try {
                     String text = entityUuid.get().trim(); UUID parsed = UUID.fromString(text);
@@ -81,10 +84,10 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
                 } catch (IllegalArgumentException invalid) { gesture.report(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.invalid_uuid")); }
             }
         }
-        if (ImGui.collapsingHeader(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_STRENGTH), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("entity_look_at_clip.section_strength", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_STRENGTH))) {
             float[] strength = {clip.getStrength()};
-            boolean changed = ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY)
-                    + "##lookClipStrength", strength, 0, 1);
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY));
+            boolean changed = ImGui.sliderFloat("##lookClipStrength", strength, 0, 1);
             if (changed) clip.setStrength(strength[0]);
             gesture.observe("strength", changed);
             if (ImGui.isItemHovered()) ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.STRENGTH_TOOLTIP));

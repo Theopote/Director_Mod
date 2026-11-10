@@ -2,6 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.actor.ActorClipInspectorGesture;
 import com.director.timeline.model.entity.EntitySpawnClip;
 import imgui.ImGui;
@@ -16,7 +17,8 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         if (!(draft instanceof EntitySpawnClip clip)) { gesture.end(); return false; }
         ImGui.text(tr("title"));
         float[] range = {clip.getStartTime(), clip.getEndTime()};
-        boolean changed = ImGui.inputFloat2(tr("time_range")+"##spawnRange", range);
+        PropertyRow.field(tr("time_range"));
+        boolean changed = ImGui.inputFloat2("##spawnRange", range);
         if (changed) {
             if (Float.isFinite(range[0]) && Float.isFinite(range[1])
                     && range[0] >= 0 && range[1] - range[0] >= .1f - 1e-5f) clip.setTimeRange(range[0], range[1]);
@@ -25,18 +27,25 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         gesture.observe("range", changed);
         ImGui.beginDisabled(!source.getKeyframes().isEmpty());
         float[] pos = {clip.getPosition().x,clip.getPosition().y,clip.getPosition().z};
-        changed = ImGui.inputFloat3(tr("position")+"##spawnPosition",pos);
+        PropertyRow.field(tr("position"));
+        changed = ImGui.inputFloat3("##spawnPosition",pos);
         if (changed) clip.setPosition(pos[0],pos[1],pos[2]);
         gesture.observe("position",changed);
-        var yaw = new ImFloat(clip.getYawDeg()); changed = ImGui.inputFloat(tr("yaw")+"##spawnYaw",yaw);
+        var yaw = new ImFloat(clip.getYawDeg());
+        PropertyRow.field(tr("yaw"));
+        changed = ImGui.inputFloat("##spawnYaw",yaw);
         if (changed) clip.setYawDeg(yaw.get()); gesture.observe("yaw",changed);
-        float[] pitch = {clip.getPitchDeg()}; changed = ImGui.sliderFloat(tr("pitch")+"##spawnPitch",pitch,-90,90);
+        float[] pitch = {clip.getPitchDeg()};
+        PropertyRow.field(tr("pitch"));
+        changed = ImGui.sliderFloat("##spawnPitch",pitch,-90,90);
         if (changed) clip.setPitchDeg(pitch[0]); gesture.observe("pitch",changed);
         var roll = new ImFloat(clip.getRollDeg());
-        changed = ImGui.inputFloat(ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit.roll") + "##spawnRoll", roll);
+        PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit.roll"));
+        changed = ImGui.inputFloat("##spawnRoll", roll);
         if (changed) clip.setRollDeg(roll.get()); gesture.observe("roll", changed);
         float[] scale = {clip.getScale().x, clip.getScale().y, clip.getScale().z};
-        changed = ImGui.inputFloat3(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.scale") + "##spawnScale", scale);
+        PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.scale"));
+        changed = ImGui.inputFloat3("##spawnScale", scale);
         if (changed) {
             if (java.util.stream.IntStream.range(0, 3).allMatch(axis -> Float.isFinite(scale[axis]) && scale[axis] >= .01f && scale[axis] <= 100))
                 clip.setScale(scale[0], scale[1], scale[2]);
@@ -45,7 +54,8 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         gesture.observe("scale", changed);
         ImGui.endDisabled();
         if (!source.getKeyframes().isEmpty()) ImGui.textWrapped(tr("keyed_hint"));
-        changed = ImGui.checkbox(tr("visible")+"##spawnVisible",clip.isVisibleOnSpawn());
+        PropertyRow.label(tr("visible"));
+        changed = ImGui.checkbox("##spawnVisible",clip.isVisibleOnSpawn());
         if (changed) clip.setVisibleOnSpawn(!clip.isVisibleOnSpawn()); gesture.observe("visible",changed);
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.render(source,clip,gesture);
         com.director.ui.properties.actor.ActorAnimationBlendPropertyUI.render(source,clip.getBlendSettings(),clip::setBlendSettings,gesture);

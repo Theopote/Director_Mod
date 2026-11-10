@@ -3,6 +3,7 @@ package com.director.ui.actor.pose;
 import com.director.actor.animation.asset.*;
 import com.director.actor.rig.skeleton.*;
 import com.director.timeline.model.TimelineModel;
+import com.director.ui.properties.PropertyRow;
 import imgui.ImGui;
 import java.util.List;
 import java.util.UUID;
@@ -134,7 +135,12 @@ public final class ActorBonePropertiesPanel {
         ImGui.textWrapped("已有通道显示资产局部值；新通道从当前可见姿态取初值，叠加模式从绑定姿态取中性值。编辑后点击应用并打帧。切换骨骼、演员或播放头会取消未应用的数值。共享资产的修改影响所有引用。世界中显示混合后的结果；低权重、淡入淡出或被排除的通道会减弱或隐藏修改。");
         if (ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) draft.reset();
         int changed = 0;
-        if (bone.capabilities().translation() && ImGui.inputFloat3("位置 XYZ##boneT", draft.translation, "%.3f")) changed |= RigPose.TRANSLATION;
+        if (bone.capabilities().translation()) {
+            PropertyRow.field("位置");
+            if (ImGui.inputFloat3("##boneT", draft.translation, "%.3f")) {
+                changed |= RigPose.TRANSLATION;
+            }
+        }
         boolean joint = ActorJointBend.isJoint(boneId);
         if (joint) {
             if(!draft.isDirty()) {
@@ -149,7 +155,8 @@ public final class ActorBonePropertiesPanel {
             ImGui.textDisabled("局部关节弯曲；修改后点击应用并打帧。");
             if (bend[0] < 0 || bend[0] > maxBend)
                 ImGui.textWrapped("已保留原关键帧角度；当前模式的显示范围为 0–"+(int)maxBend+" 度。");
-            if (ImGui.sliderFloat("弯曲角度（度）##jointBend", bend, 0f, maxBend, "%.1f")) {
+            PropertyRow.field("弯曲角度");
+            if (ImGui.sliderFloat("##jointBend", bend, 0f, maxBend, "%.1f°")) {
                 ActorJointBend.set(boneId, bend[0], draft.rotation);
                 changed |= RigPose.ROTATION;
             }
@@ -158,13 +165,23 @@ public final class ActorBonePropertiesPanel {
                 changed |= RigPose.ROTATION;
             }
             float[] twist={draft.rotation[1]};
-            if (ImGui.sliderFloat("弯曲方向 Y（度）##jointTwist",twist,-90f,90f,"%.1f")) {
+            PropertyRow.field("弯曲方向 Y");
+            if (ImGui.sliderFloat("##jointTwist", twist, -90f, 90f, "%.1f°")) {
                 draft.rotation[1]=twist[0]; draft.rotation[2]=0; changed |= RigPose.ROTATION;
             }
             ImGui.textDisabled("X 控制弯曲角度，Y 改变弯曲平面，不扭转皮肤。");
-        } else if (bone.capabilities().rotation() && !(HumanoidTopology.matches(asset.rig()) && HumanoidRig.ROOT.equals(boneId))
-                && ImGui.inputFloat3("旋转 XYZ（度）##boneR", draft.rotation, "%.2f")) changed |= RigPose.ROTATION;
-        if (bone.capabilities().scale() && ImGui.inputFloat3("缩放 XYZ##boneS", draft.scale, "%.3f")) changed |= RigPose.SCALE;
+        } else if (bone.capabilities().rotation() && !(HumanoidTopology.matches(asset.rig()) && HumanoidRig.ROOT.equals(boneId))) {
+            PropertyRow.field("旋转");
+            if (ImGui.inputFloat3("##boneR", draft.rotation, "%.2f°")) {
+                changed |= RigPose.ROTATION;
+            }
+        }
+        if (bone.capabilities().scale()) {
+            PropertyRow.field("缩放");
+            if (ImGui.inputFloat3("##boneS", draft.scale, "%.3f")) {
+                changed |= RigPose.SCALE;
+            }
+        }
         if (changed != 0) {
             com.director.ui.timeline.render.ActorBoneTimelineRows.cancelAllKeyInteractions();
             ActorAnimationDopeSheet.cancelKeyInteraction(); ActorKeyframeTimePanel.cancelAll();
@@ -237,7 +254,8 @@ public final class ActorBonePropertiesPanel {
             ImGui.sameLine();
         }
         ImGui.newLine();
-        if (ImGui.checkbox("快速姿态自动应用##boneAutoKey", settings.isAutoKeyframe()))
+        PropertyRow.label("快速姿态自动应用");
+        if (ImGui.checkbox("##boneAutoKey", settings.isAutoKeyframe()))
             settings.setAutoKeyframe(!settings.isAutoKeyframe());
         ImGui.textDisabled("骨骼动画：拖动松开即保存；快速姿态：按自动应用设置或应用草稿。");
         var context = ActorAnimationEditContext.resolve(model, actorId);

@@ -9,6 +9,7 @@ import com.director.timeline.model.TrackType;
 import com.director.ui.actor.track.ActorTrackClipAuthoringService;
 import com.director.ui.actor.track.ActorTrackClipKind;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.commands.RenameTrackCommand;
 import com.director.ui.timeline.commands.TimelineCommandBridge;
@@ -37,15 +38,18 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
         UITheme.title(ActorPropertyAdapterI18n.tr("gui.director.actor.track.title"));
         var name = new ImString(track.getName(), 256);
         ImGui.beginDisabled(track.isLocked());
-        if (ImGui.inputText(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.TRACK_NAME),
+        PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.TRACK_NAME));
+        if (ImGui.inputText("##actor_track_track_name",
                 name, ImGuiInputTextFlags.EnterReturnsTrue) && !name.get().isBlank() && !name.get().equals(track.getName())) {
             TimelineCommandBridge.execute(new RenameTrackCommand(model, track, name.get().strip()));
         }
         ImGui.endDisabled();
-        if (ImGui.checkbox(ActorPropertyAdapterI18n.tr("gui.director.actor.track.mute"), track.isMuted())) {
+        PropertyRow.label(ActorPropertyAdapterI18n.tr("gui.director.actor.track.mute"));
+        if (ImGui.checkbox("##actor_track_mute", track.isMuted())) {
             TimelineCommandBridge.execute(new ToggleTrackMuteCommand(model, track));
         }
-        if (ImGui.checkbox(ActorPropertyAdapterI18n.tr("gui.director.actor.track.lock"), track.isLocked())) {
+        PropertyRow.label(ActorPropertyAdapterI18n.tr("gui.director.actor.track.lock"));
+        if (ImGui.checkbox("##actor_track_lock", track.isLocked())) {
             TimelineCommandBridge.execute(new ToggleTrackLockCommand(model, track));
         }
         var payload = track.getActorTrackPayload();

@@ -3,11 +3,12 @@ package com.director.ui.properties.adapters;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.entity.ActorRouteClip;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImInt;
 import org.joml.Vector3f;
 
@@ -89,13 +90,12 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
         ActorRouteClip clip = session.draft();
         UITheme.title(getAdapterName());
 
-        if (ImGui.collapsingHeader(Icons.TIME + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("actor_route_clip.section_basic", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC))) {
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.START_FMT, clip.getStartTime()));
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.END_FMT, clip.getEndTime()));
             imgui.type.ImFloat duration = new imgui.type.ImFloat(clip.getLength());
-            if (ImGui.inputFloat(ActorPropertyAdapterI18n.tr("gui.director.actor.route.duration") + "##routeDuration", duration)) {
+            PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.route.duration"));
+            if (ImGui.inputFloat("##routeDuration", duration)) {
                 if (Float.isFinite(duration.get()) && duration.get() >= .1f
                         && Float.isFinite(clip.getStartTime() + duration.get())) {
                     clip.setTimeRange(clip.getStartTime(), clip.getStartTime() + duration.get());
@@ -107,13 +107,12 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
                     clip.getWaypoints().size()));
         }
 
-        if (ImGui.collapsingHeader(Icons.SETTINGS + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SECTION_SETTINGS),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("actor_route_clip.section_settings", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SECTION_SETTINGS))) {
             ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.exact_curve_hint"));
             boolean fitDuration = clip.getLoopMode() == ActorRouteClip.LoopMode.ONCE;
             ImGui.beginDisabled(!fitDuration);
-            if (ImGui.checkbox(ActorPropertyAdapterI18n.tr("gui.director.actor.route.smooth_travel"), clip.isSmoothTravel()))
+            PropertyRow.label(ActorPropertyAdapterI18n.tr("gui.director.actor.route.smooth_travel"));
+            if (ImGui.checkbox("##actor_route_clip_smooth_travel", clip.isSmoothTravel()))
                 clip.setSmoothTravel(!clip.isSmoothTravel());
             observe("smoothTravel"); ImGui.endDisabled();
             if (fitDuration) {
@@ -123,7 +122,8 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
             }
             ImGui.beginDisabled(fitDuration);
             float[] speed = {clip.getSpeed()};
-            if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SPEED) + "##routeSpeed",
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SPEED));
+            if (ImGui.sliderFloat("##routeSpeed",
                     speed, 0.05f, 20.0f, "%.2f blocks/s")) {
                 clip.setSpeed(speed[0]);
             }
@@ -132,7 +132,8 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
             ImGui.beginDisabled(source.getSourcePathId() != null);
             ActorRouteClip.InterpolationMode[] interpolationModes = ActorRouteClip.InterpolationMode.values();
             ImInt interpolation = new ImInt(clip.getInterpolationMode().ordinal());
-            if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.INTERPOLATION) + "##routeInterpolation",
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.INTERPOLATION));
+            if (ImGui.combo("##routeInterpolation",
                     interpolation, ActorPropertyAdapterI18n.routeInterpolationLabels())) {
                 clip.setInterpolationMode(interpolationModes[Math.max(0, Math.min(interpolation.get(), interpolationModes.length - 1))]);
             }
@@ -140,7 +141,8 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
             observe("interpolation"); ImGui.endDisabled();
             ActorRouteClip.LoopMode[] loopModes = ActorRouteClip.LoopMode.values();
             ImInt loop = new ImInt(clip.getLoopMode().ordinal());
-            if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.LOOP_MODE) + "##routeLoop",
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.LOOP_MODE));
+            if (ImGui.combo("##routeLoop",
                     loop, ActorPropertyAdapterI18n.routeLoopLabels())) {
                 clip.setLoopMode(loopModes[Math.max(0, Math.min(loop.get(), loopModes.length - 1))]);
             }
@@ -148,11 +150,13 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
             observe("loop");
             if(clip.getLoopMode()==ActorRouteClip.LoopMode.PING_PONG) {
                 boolean stopTurn=clip.getEndpointTurnDuration()>0;
-                if(ImGui.checkbox("端点停下转身##routeStopTurn",stopTurn)) clip.setEndpointTurnDuration(stopTurn?0:.35f);
+                PropertyRow.label("端点停下转身");
+                if(ImGui.checkbox("##routeStopTurn",stopTurn)) clip.setEndpointTurnDuration(stopTurn?0:.35f);
                 observe("stopTurn");
                 if(clip.getEndpointTurnDuration()>0) {
                     float[] seconds={clip.getEndpointTurnDuration()};
-                    if(ImGui.sliderFloat("转身时长（秒）##routeTurnDuration",seconds,.1f,2)) clip.setEndpointTurnDuration(seconds[0]);
+                    PropertyRow.field("转身时长");
+                    if (ImGui.sliderFloat("##routeTurnDuration", seconds, .1f, 2f, "%.2f s")) clip.setEndpointTurnDuration(seconds[0]);
                     observe("turnDuration");
                     ImGui.textWrapped("每段行进先加速再减速，到端点原地转身；速度为行进段平均速度，每次折返增加转身时间。步态相位在转身期间暂停。");
                     ImGui.textWrapped("玩家转身时交替抬脚；手工姿态优先。其他生物暂只调整整体朝向。");
@@ -160,27 +164,31 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
                 }
             }
             boolean align = clip.isAlignRotationToRoute();
-            if (ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.ALIGN_ROTATION) + "##routeAlign", align)) {
+            PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.ALIGN_ROTATION));
+            if (ImGui.checkbox("##routeAlign", align)) {
                 clip.setAlignRotationToRoute(!align);
             }
             observe("align");
 
         }
 
-        if (ImGui.collapsingHeader(Icons.PIN + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SECTION_WAYPOINTS),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("actor_route_clip.section_waypoints", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SECTION_WAYPOINTS))) {
             if (source.getSourcePathId() != null) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.linked_hint"));
             ImGui.beginDisabled(source.getSourcePathId() != null);
             for (int i = 0; i < clip.getWaypoints().size(); i++) {
                 Vector3f point = clip.getWaypoints().get(i);
                 float[] xyz = {point.x, point.y, point.z};
-                if (ImGui.inputFloat3(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.WAYPOINT_FMT, i + 1)
-                        + "##routePoint" + i, xyz)) {
+                PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.WAYPOINT_FMT, i + 1));
+                float buttonWidth = ImGui.calcTextSize(Icons.DELETE).x + 2f * ImGui.getStyle().getFramePadding().x;
+                float available = ImGui.getContentRegionAvailX();
+                float fieldWidth = available - buttonWidth - ImGui.getStyle().getItemSpacing().x;
+                boolean inline = fieldWidth >= 72f;
+                ImGui.setNextItemWidth(inline ? fieldWidth : -1f);
+                if (ImGui.inputFloat3("##routePoint" + i, xyz)) {
                     if (new Vector3f(xyz[0], xyz[1], xyz[2]).isFinite()) clip.setWaypoint(i, xyz[0], xyz[1], xyz[2]);
                 }
                 observe("point" + i);
-                ImGui.sameLine();
+                if (inline) ImGui.sameLine();
                 ImGui.beginDisabled(clip.getWaypoints().size() <= 2);
                 if (ImGui.button(Icons.DELETE + "##deleteRoutePoint" + i)) {
                     clip.removeWaypoint(i);

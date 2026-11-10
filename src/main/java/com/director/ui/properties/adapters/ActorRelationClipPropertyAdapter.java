@@ -7,12 +7,13 @@ import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.timeline.model.entity.ActorRelationClip;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.properties.actor.ActorClipInspectorGesture;
 import com.director.actor.ActorBehaviorCapabilities;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImInt;
 
 import java.util.ArrayDeque;
@@ -44,19 +45,15 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
         boolean changed = false;
         UITheme.title(getAdapterName());
 
-        if (ImGui.collapsingHeader(Icons.TIME + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("actor_relation_clip.section_basic", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC))) {
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.START_FMT, clip.getStartTime()));
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.END_FMT, clip.getEndTime()));
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION_FMT, clip.getLength()));
         }
 
-        if (ImGui.collapsingHeader(Icons.SETTINGS + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_RELATION),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.RELATION_TYPE)
-                    + "##relationType", ActorPropertyAdapterI18n.relationTypeLabels()[clip.getRelationType().ordinal()])) {
+        if (Section.header("actor_relation_clip.section_relation", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_RELATION))) {
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.RELATION_TYPE));
+            if (ImGui.beginCombo("##relationType", ActorPropertyAdapterI18n.relationTypeLabels()[clip.getRelationType().ordinal()])) {
                 for (var type : ActorRelationClip.RelationType.values()) {
                     boolean supported = ActorBehaviorCapabilities.supportsRelation(type);
                     ImGui.beginDisabled(!supported);
@@ -85,7 +82,8 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
             ImGui.beginDisabled(!ActorBehaviorCapabilities.supportsRelation(relationType));
             if (showDistance) {
                 float[] distance = {clip.getDistance()};
-                if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.DISTANCE) + "##relationDistance",
+                PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.DISTANCE));
+                if (ImGui.sliderFloat("##relationDistance",
                         distance, 0.1f, 20.0f, "%.2f")) {
                     clip.setDistance(distance[0]);
                     changed = true;
@@ -96,7 +94,8 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
 
             if (showAngle) {
                 float[] angle = {clip.getAngle()};
-                if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.ANGLE) + "##relationAngle",
+                PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.ANGLE));
+                if (ImGui.sliderFloat("##relationAngle",
                         angle, -180.0f, 180.0f,
                         "%.1f deg")) {
                     clip.setAngle(angle[0]);
@@ -108,7 +107,8 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
 
             if (showHeight) {
                 float[] height = {clip.getHeightOffset()};
-                if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.HEIGHT_OFFSET) + "##relationHeight",
+                PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.HEIGHT_OFFSET));
+                if (ImGui.sliderFloat("##relationHeight",
                         height, -5.0f, 5.0f, "%.2f")) {
                     clip.setHeightOffset(height[0]);
                     changed = true;
@@ -119,7 +119,8 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
 
             if (showLookAt) {
                 boolean maintainLookAt = clip.isMaintainLookAt();
-                if (ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.MAINTAIN_LOOK_AT) + "##relationLookAt",
+                PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.MAINTAIN_LOOK_AT));
+                if (ImGui.checkbox("##relationLookAt",
                         maintainLookAt)) {
                     clip.setMaintainLookAt(!maintainLookAt);
                     changed = true;
@@ -130,9 +131,7 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
             ImGui.endDisabled();
         }
 
-        if (ImGui.collapsingHeader(Icons.PIN + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_TARGET),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("actor_relation_clip.section_target", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_TARGET))) {
             ActorRegistry registry = ActorRegistryManager.getInstance();
             UUID selfActorId = source.getTimelineClip().getParentTrack().getActorTrackPayload().getActorRef().getActorId();
             List<Actor> actors = new ArrayList<>();
@@ -157,7 +156,8 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
             if (renderRecentTargets(clip, actors)) gesture.requestCommit();
 
             ImInt targetSelection = new ImInt(selectedIndex);
-            if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.TARGET_ACTOR) + "##relationTargetActor",
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.TARGET_ACTOR));
+            if (ImGui.combo("##relationTargetActor",
                     targetSelection, labels)) {
                 int index = targetSelection.get();
                 if (index <= 0) {
