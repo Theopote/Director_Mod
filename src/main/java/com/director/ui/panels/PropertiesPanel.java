@@ -1,8 +1,6 @@
 package com.director.ui.panels;
 
 import com.director.core.DirectorServices;
-import com.director.actor.Actor;
-import com.director.actor.ActorRegistryManager;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.PanelId;
@@ -20,7 +18,6 @@ import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.UUID;
 
 /**
  * 🎨 智能动态属性面板 v5.0 (现代化增强版) - Director Properties System
@@ -234,7 +231,7 @@ public class PropertiesPanel extends AbstractPanel {
             return;
         }
         if (ctx == PropertyContext.TIMELINE || ctx == PropertyContext.WORLD) {
-            if (target == null || svc.isTimelineTargetRenderedAsProject(target)) {
+            if (target == null) {
                 renderProjectPanel();
                 renderMultiSelectHint(DirectorServices.get().uiSelection());
                 return;
@@ -294,51 +291,6 @@ public class PropertiesPanel extends AbstractPanel {
     private void renderNoToolMessage() {
         ImGui.textColored(1.0f, 1.0f, 0.0f, 1.0f, Icons.WARNING + " " + tr(DirectorLang.Properties.NO_TOOL));
         UITheme.label(tr(DirectorLang.Properties.SELECT_TOOL_HINT), UITheme.DarkTheme.TEXT);
-    }
-    
-    /**
-     * 渲染 Actor 面板
-     */
-    private void renderActorPanel(SelectionManager selectionManager) {
-        UUID actorId = selectionManager.getSelectedActorId();
-        if (actorId == null) {
-            // 如果没有 actorId，回退到 Project 面板
-            renderProjectPanel();
-            return;
-        }
-        
-        // 获取 Actor 对象
-        var actorRegistry = ActorRegistryManager.getInstance();
-
-        var actorOpt = actorRegistry.getActor(actorId);
-        if (actorOpt.isEmpty()) {
-            // Actor 不存在，回退到 Project 面板
-            selectionManager.clearSelection();
-            renderProjectPanel();
-            return;
-        }
-        
-        Actor actor = actorOpt.get();
-        
-        // 使用 ActorProjectPropertyAdapter（Actor 路径暂无 PropertyContext，传 null）
-        var adapter = PropertyAdapterRegistry.getAdapterFor(null, actor);
-        if (adapter != null) {
-            try {
-                UITheme.title(tr(DirectorLang.Properties.ACTOR_TITLE));
-                boolean modified = adapter.renderProperties(actor, PropertyAdapterContext.of(1f, false));
-                if (modified) {
-                    var timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
-                    if (timelineModel != null) {
-                        timelineModel.markDirty();
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.error("[PropertiesPanel] 渲染 Actor 面板时出错", e);
-                renderErrorMessage(e);
-            }
-        } else {
-            UITheme.label(tr(DirectorLang.Properties.NO_ACTOR_ADAPTER), UITheme.DarkTheme.TEXT_DISABLED);
-        }
     }
     
     /**

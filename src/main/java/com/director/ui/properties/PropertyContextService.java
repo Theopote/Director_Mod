@@ -3,8 +3,6 @@ package com.director.ui.properties;
 import com.director.core.DirectorServices;
 import com.director.ui.selection.SelectionManager;
 import com.director.ui.selection.SelectionType;
-import com.director.timeline.model.TimelineTrack;
-import com.director.timeline.model.TrackType;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.ui.tools.ToolRegistry;
 
@@ -133,17 +131,6 @@ public final class PropertyContextService {
     }
 
     /**
-     * 当 ctx=TIMELINE 时，是否应将 target 按「项目面板」渲染而非 Adapter。
-     * 用于 ActorTrack、EntityClip 等尚未提供专用 Adapter 的类型，由 Service 统一决策，Panel 不判断。
-     */
-    public boolean isTimelineTargetRenderedAsProject(Object target) {
-        if (target instanceof TimelineTrack tt) {
-            return tt.getType() == TrackType.ACTOR;
-        }
-        return false;
-    }
-
-    /**
      * 当前上下文关联的对象（TOOL→SelectionTool，TIMELINE→Clip/Keyframe/Track，WORLD/NONE→null）
      */
     public Object getContextTarget() {
@@ -160,9 +147,6 @@ public final class PropertyContextService {
                 if (payload instanceof EntityTimelineClip entityTimelineClip) {
                     yield entityTimelineClip.getEntityClip();
                 }
-                if(payload instanceof TimelineTrack track && track.getType()==TrackType.ACTOR
-                        && track.getActorTrackPayload()!=null && track.getActorTrackPayload().getActorRef()!=null)
-                    yield com.director.actor.ActorRegistryManager.getInstance().getActor(track.getActorTrackPayload().getActorRef().getActorId()).orElse(null);
                 yield payload;
             }
             default -> null;

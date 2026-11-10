@@ -91,6 +91,7 @@ public class DockSpaceLayoutBuilder {
 
             // 5. 将窗口停靠到对应节点
             imgui.internal.ImGui.dockBuilderDockWindow(PanelWindows.container(), dockIdLeft.get());
+            imgui.internal.ImGui.dockBuilderDockWindow(PanelWindows.actors(), dockIdLeft.get());
             imgui.internal.ImGui.dockBuilderDockWindow(PanelWindows.toolbar(), dockIdToolbar.get());
             imgui.internal.ImGui.dockBuilderDockWindow(PanelWindows.properties(), dockIdProps.get());
             imgui.internal.ImGui.dockBuilderDockWindow(PanelWindows.timeline(), dockIdBottom.get());

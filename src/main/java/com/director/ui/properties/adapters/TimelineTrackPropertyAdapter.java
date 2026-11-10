@@ -5,13 +5,8 @@ import com.director.i18n.TimelinePropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.properties.PropertyAdapterRegistry;
-import com.director.ui.actor.track.ActorTrackClipAuthoringService;
-import com.director.ui.actor.track.ActorTrackClipKind;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
-import com.director.ui.timeline.interaction.ActionBrushState;
-import com.director.timeline.model.TrackType;
-import com.director.timeline.model.TimelineTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -386,45 +381,6 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             
             UITheme.separator();
             
-            // ========== 演员轨道片段创建 ==========
-            if (track instanceof TimelineTrack timelineTrack) {
-                if (timelineTrack.getType() == TrackType.ACTOR) {
-                    var actorTrack = timelineTrack.getActorTrackPayload();
-                    if (actorTrack != null) {
-                        var actorRef = actorTrack.getActorRef();
-                        if (actorRef != null) {
-                            UITheme.beginGroup(Icons.ANIMATION + " "
-                                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.SECTION_ACTOR_CLIPS));
-                            ImGui.textDisabled(TimelinePropertyAdapterI18n.tr(
-                                    DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_HINT));
-
-                            if (renderActorClipButton(timelineTrack, ActorTrackClipKind.TRANSFORM)) {
-                                modifiedRef[0] = true;
-                            }
-                            ImGui.sameLine();
-                            if (renderActorClipButton(timelineTrack, ActorTrackClipKind.LOOK_AT_CAMERA)) {
-                                modifiedRef[0] = true;
-                            }
-
-                            if (renderActorClipButton(timelineTrack, ActorTrackClipKind.ACTION)) {
-                                modifiedRef[0] = true;
-                            }
-                            ImGui.sameLine();
-                            if (renderActorClipButton(timelineTrack, ActorTrackClipKind.POSE)) {
-                                modifiedRef[0] = true;
-                            }
-                            ImGui.sameLine();
-                            if (renderActorClipButton(timelineTrack, ActorTrackClipKind.STATE)) {
-                                modifiedRef[0] = true;
-                            }
-
-                            UITheme.endGroup();
-                            UITheme.separator();
-                        }
-                    }
-                }
-            }
-            
             // ========== 快捷操作 ==========
             UITheme.beginGroup(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineCommon.QUICK_ACTIONS));
             
@@ -505,51 +461,6 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         return modifiedRef[0];
-    }
-
-    private boolean renderActorClipButton(TimelineTrack track, ActorTrackClipKind kind) {
-        String label;
-        String tooltip;
-        switch (kind) {
-            case TRANSFORM:
-                label = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_TRANSFORM);
-                tooltip = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_TRANSFORM_TOOLTIP);
-                break;
-            case LOOK_AT_CAMERA:
-                label = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_LOOK_AT);
-                tooltip = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_LOOK_AT_TOOLTIP);
-                break;
-            case ACTION:
-                label = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_ACTION);
-                tooltip = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_ACTION_TOOLTIP);
-                break;
-            case POSE:
-                label = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_POSE);
-                tooltip = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_POSE_TOOLTIP);
-                break;
-            case STATE:
-                label = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_STATE);
-                tooltip = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_STATE_TOOLTIP);
-                break;
-            default:
-                label = kind.name();
-                tooltip = kind.name();
-                break;
-        }
-
-        if (ImGui.button(label + "##actorTrackCreate" + kind, 92, UITheme.Spacing.BUTTON_HEIGHT)) {
-            var action = ActionBrushState.get();
-            var clip = ActorTrackClipAuthoringService.getInstance().createClip(track, kind, action);
-            boolean created = clip != null;
-            if (created) {
-                LOGGER.info("[TimelineTrackPropertyAdapter] 已创建演员轨道片段: {}", kind);
-            }
-            return created;
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(tooltip);
-        }
-        return false;
     }
 
     @Override

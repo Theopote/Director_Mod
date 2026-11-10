@@ -86,7 +86,9 @@ public final class ActorSpawnPresetPropertyUI {
             String current="无预设";
             if(binding!=null) {
                 String id=binding.animationId();
-                current=catalog.stream().filter(e->e.id().equals(id)).map(e->e.name()+" · "+e.purpose().label()+(e.compatible()?"":" · 不兼容")).findFirst().orElse("缺失引用 · "+id);
+                current = catalog.stream().filter(e -> e.id().equals(id))
+                        .map(e -> e.name() + " · " + e.purpose().label() + (e.compatible() ? "" : " · " + presetText("incompatible")))
+                        .findFirst().orElseGet(() -> presetText("missing", id));
             }
             ImGui.textWrapped("当前动作："+current);
             boolean changed=false;
@@ -191,6 +193,10 @@ public final class ActorSpawnPresetPropertyUI {
         } finally { ImGui.popID(); }
     }
 
+    private static String presetText(String key, Object... args) {
+        return com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.preset." + key, args);
+    }
+
     private static void renderSecondary(EntitySpawnClip draft, ActorClipInspectorGesture gesture,
             List<com.director.ui.actor.pose.ActorAnimationCatalog.Entry> catalog, RigDefinition rig) {
         if (!ImGui.treeNode("第二动作预设##secondaryPreset")) return;
@@ -198,10 +204,13 @@ public final class ActorSpawnPresetPropertyUI {
             var binding = draft.getSecondaryPreset();
             String id = binding == null ? null : binding.animationId();
             String label = id == null ? "无预设" : catalog.stream().filter(entry -> entry.id().equals(id))
-                    .map(entry -> entry.name() + (entry.compatible() ? "" : " · 不兼容"))
-                    .findFirst().orElse("缺失引用 · " + id);
-            ImGui.textWrapped("第二预设在主预设之后混合。若希望动作分开控制，给主预设选「仅双腿」，给第二预设选「仅上半身」。");
-            ImGui.textWrapped("同一个动作可以按骨骼或通道分层。第二预设不能以全权重、全骨骼和全通道覆盖同一个主动作。");
+                    .map(entry -> entry.name() + (entry.compatible() ? "" : " · " + presetText("incompatible")))
+                    .findFirst().orElseGet(() -> presetText("missing", id));
+            if (ImGui.treeNode(presetText("layer_help"))) {
+                ImGui.textWrapped(presetText("secondary_order"));
+                ImGui.textWrapped(presetText("secondary_overlap"));
+                ImGui.treePop();
+            }
             if (ImGui.beginCombo("动作##secondaryAsset", label)) {
                 try {
                     if (ImGui.selectable("无预设##clearSecondary", binding == null) && binding != null) {

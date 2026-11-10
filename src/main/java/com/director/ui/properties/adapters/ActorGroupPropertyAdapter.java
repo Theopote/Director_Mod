@@ -72,7 +72,7 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
             ImGui.inputText(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME) + "##actorGroupName", nameDraft);
             editingDraft |= ImGui.isItemActive();
             if (ImGui.isItemDeactivatedAfterEdit()) {
-                if (nameDraft.get().isBlank()) error = "分组名称不能为空";
+                if (nameDraft.get().isBlank()) error = com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.track.empty_group");
                 else { commit(group, com.director.ui.actor.ActorProjectEditing.GroupState.capture(group).withName(nameDraft.get())); changed = true; }
             }
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.ID_FMT, group.getGroupId()));

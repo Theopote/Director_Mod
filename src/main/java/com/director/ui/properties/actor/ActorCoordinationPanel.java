@@ -5,7 +5,6 @@ import com.director.core.DirectorServices;
 import com.director.timeline.model.*;
 import com.director.timeline.model.entity.*;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import java.util.*;
 
 /** Read-only view of the displayed frame. Navigation is deferred until inspector edits commit. */
@@ -20,7 +19,7 @@ public final class ActorCoordinationPanel {
     private ActorCoordinationPanel() {}
     public static Navigation render(EntitySpawnClip source) {
         if(source==null) return null;
-        if(!ImGui.collapsingHeader(tr("title")+"##actorCoordination",ImGuiTreeNodeFlags.DefaultOpen)) return null;
+        if(!ImGui.collapsingHeader(tr("title")+"##actorCoordination")) return null;
         var model=DirectorServices.get().containerTimeline().getTimelineModel();
         var wrapper=source.getTimelineClip();var owner=wrapper==null?null:wrapper.getParentTrack();
         var payload=owner==null?null:owner.getActorTrackPayload();
@@ -30,8 +29,7 @@ public final class ActorCoordinationPanel {
         if(time<source.getStartTime() || time>source.getEndTime()) {
             ImGui.textWrapped(tr("outside_clip"));return null;
         }
-        EntitySpawnClip active=null;
-        for(var clip:payload.findClipsAt(time)) if(clip instanceof EntitySpawnClip spawn && !spawn.isMuted()) active=spawn;
+        var active = payload.findSpawnClipAt(time);
         if(active!=source) {
             ImGui.textWrapped(tr("inactive_clip"));return null;
         }

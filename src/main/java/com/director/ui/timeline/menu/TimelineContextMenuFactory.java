@@ -677,11 +677,12 @@ public class TimelineContextMenuFactory {
                 .end();
             case ACTOR -> builder
                         .submenu(tr(DirectorLang.Timeline.ContextMenu.CREATE_ENTITY_CLIP_SUBMENU))
-                            .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_SPAWN), () -> {
+                            .item(tr("gui.director.actor.spawn_edit.create", (int) EntitySpawnClip.DEFAULT_DURATION_SECONDS), () -> {
                                 float currentTime = model.getCurrentTime();
                                 EntitySpawnClip clip =
                                     new EntitySpawnClip(
-                                        tr(DirectorLang.Timeline.DefaultNames.ENTITY_SPAWN), currentTime, currentTime + 1.0f);
+                                        tr(DirectorLang.Timeline.DefaultNames.ENTITY_SPAWN), currentTime,
+                                        currentTime + EntitySpawnClip.DEFAULT_DURATION_SECONDS);
                                 addEntityClip(track, clip);
                             })
                             .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_TRANSFORM), () -> {

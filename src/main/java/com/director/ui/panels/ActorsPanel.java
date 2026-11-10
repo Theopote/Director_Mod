@@ -30,10 +30,6 @@ public final class ActorsPanel extends AbstractPanel {
     private ActorSelectorPanel actorSelectorPanel;
     private final ActorPathLibraryPanel actorPathLibraryPanel = new ActorPathLibraryPanel();
 
-    public ActorsPanel() {
-        setVisible(false);  // 默认布局不打开，需从菜单「窗口」打开
-    }
-
     @Override
     public String getPanelName() {
         return PANEL_NAME;

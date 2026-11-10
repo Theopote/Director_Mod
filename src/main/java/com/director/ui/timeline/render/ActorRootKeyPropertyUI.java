@@ -26,16 +26,16 @@ public final class ActorRootKeyPropertyUI {
         render(model,new Selection(owner,clip,List.of(key),key.getChannels()));
     }
     private static void render(TimelineModel model,Selection s) {
-        ImGui.text("演员整体关键帧 · "+s.keys().size()+" 个");ImGui.textWrapped(s.owner().getName()+" · "+s.clip().getName());
-        ImGui.textWrapped("时间为场景秒；只编辑所选通道。删除所选通道会保留同一时刻的其他通道。");
-        if(ImGui.button("返回所属片段")) {
+        ImGui.text(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.root_title", s.keys().size()));ImGui.textWrapped(s.owner().getName()+" · "+s.clip().getName());
+        ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.root_hint"));
+        if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.back"))) {
             ActorRootTimelineRows.leaveInspection();model.selectItem(s.clip().getTimelineClip(),false);
             com.director.core.DirectorServices.get().uiSelection().setCurrentSelection(s.clip().getTimelineClip());return;
         }
         boolean writable=ActorRootKeyframeEditing.editable(model,s.owner(),s.clip())
                 && !com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
                 && !com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging();
-        if(!writable) ImGui.textWrapped("只读：请暂停并解锁轨道，将播放头移入片段。");
+        if(!writable) ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.root_readonly"));
         if(s.keys().size()==1) {
             var key=s.keys().getFirst();
             if(editing!=key || snapshot==null || !snapshot.getPosition().equals(key.getPosition()) || !snapshot.getRotation().equals(key.getRotation())
@@ -51,16 +51,16 @@ public final class ActorRootKeyPropertyUI {
             boolean route=com.director.ui.actor.pose.ActorMovementSource.routeOwnsInterval(model,s.owner());
             for(int i=0;i<3;i++) if((mask&(1<<i))!=0) {ImGui.beginDisabled(route&&i<2);ImGui.inputFloat3(labels[i],values[i]);ImGui.endDisabled();}
             ImGui.beginDisabled(mask!=key.getChannels());
-            var mode=new ImInt(interpolation);if(ImGui.combo("到下一关键帧的插值",mode,java.util.Arrays.stream(TimelineInterpolation.values()).map(TimelineInterpolation::getDisplayName).toArray(String[]::new))) interpolation=mode.get();
+            var mode=new ImInt(interpolation);if(ImGui.combo(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.outgoing"),mode,java.util.Arrays.stream(TimelineInterpolation.values()).map(TimelineInterpolation::getDisplayName).toArray(String[]::new))) interpolation=mode.get();
             ImGui.endDisabled();
-            if(ImGui.button("应用整体键值")) {
+            if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.root_apply"))) {
                 int allowed=route?mask&4:mask;
                 message=ActorRootKeyframeEditing.updateExisting(model,s.owner(),s.clip(),key,snapshot,allowed,new Vector3f(values[0]),new Vector3f(values[1]),new Vector3f(values[2]),TimelineInterpolation.values()[interpolation])?"已应用，可撤销。":"目标已变化或通道不可编辑。";
             }
             ImGui.endDisabled();
         } else ImGui.textWrapped("整组时间调整可使用时间线拖动；数值编辑请明确选择单个键。");
         ImGui.beginDisabled(!writable);
-        if(ImGui.button("删除所选整体通道键")) {
+        if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.root_delete"))) {
             ActorRootKeyframeEditing.deleteChannels(model,s.owner(),s.clip(),s.keys(),s.mask());ActorRootTimelineRows.leaveInspection();
         }
         ImGui.endDisabled();if(!message.isEmpty()) ImGui.textWrapped(message);

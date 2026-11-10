@@ -31,7 +31,8 @@ public final class ActorPlacementEditing {
         if(!position.isFinite() || !rotation.isFinite()) throw new IllegalArgumentException("演员位置无效");
         var owner=new TimelineTrack(actor.getName(),TrackType.ACTOR);
         var payload=new ActorTrack();payload.setActorRef(new ActorRef(actor.getActorId()));payload.setDisplayName(actor.getName());owner.setActorTrackPayload(payload);
-        var spawn=new EntitySpawnClip("Spawn",model.getCurrentTime(),model.getCurrentTime()+5);
+        float time = model.getCurrentTime();
+        var spawn = new EntitySpawnClip("Spawn", time, time + EntitySpawnClip.DEFAULT_DURATION_SECONDS);
         spawn.setPosition(position.x,position.y,position.z);spawn.setYawDeg(rotation.x);spawn.setPitchDeg(rotation.y);spawn.setRollDeg(rotation.z);
         payload.addClip(spawn);owner.addClip(new EntityTimelineClip(spawn,payload.getColorRgba()));
         TimelineCommandBridge.execute(new StateChangeCommand(model,"Place actor",()->{

@@ -75,7 +75,6 @@ import java.nio.file.Paths;
  * @version 1.0
  */
 public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
-    private final com.director.ui.actor.pose.ActorPoseGallery poseGallery = new com.director.ui.actor.pose.ActorPoseGallery();
     private java.util.UUID incompatibleTypeActor;
     
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorProjectPropertyAdapter.class);
@@ -615,10 +614,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.endCombo();
         }
         if (actor.getActorId().equals(incompatibleTypeActor)) {
-            ImGui.textWrapped("现有动画与目标类型不兼容，请先移除动画引用，再更换演员类型。");
+            ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.identity.incompatible_type"));
         }
         ImGui.endDisabled();
-        if (!typeEditable) ImGui.textWrapped("更换类型前请先暂停并完成当前草稿。");
+        if (!typeEditable) ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.identity.pause_to_change"));
         ImGui.textWrapped(com.director.actor.rig.ActorRigCompatibility.explanation(actor));
         var capabilities=com.director.actor.ActorCapabilities.of(actor);
         ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.capabilities.summary",
@@ -660,10 +659,14 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         ImGui.spacing();
         
-        poseGallery.render(DirectorServices.get().containerTimeline().getTimelineModel(), actor.getActorId());
-
-        // ---- Action Brush (动作涂抹笔刷) ----
-        renderActionBrushSelector(actor);
+        var rig = actor.resolveRigDefinition();
+        if (rig.isPresent() && ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.track.open_pose"))) {
+            com.director.ui.tools.ToolRegistry.get().activate(com.director.ui.tools.ToolRegistry.ACTOR_POSE_TOOL_ID);
+        }
+        if (ImGui.treeNode(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTION_BRUSH))) {
+            renderActionBrushSelector(actor);
+            ImGui.treePop();
+        }
         
         ImGui.spacing();
 
@@ -688,9 +691,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ImGui.spacing();
 
         // ---- Usage Information (只读) ----
-        com.director.ui.properties.actor.ActorLiveTransformPropertyUI.render(actor.getActorId());
         renderActorUsage(actor);
-        com.director.ui.properties.actor.ActorRuntimeDiagnosticsUI.render(actor.getActorId());
         
         return modified;
     }
@@ -708,9 +709,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         var editingModel=DirectorServices.get().containerTimeline().getTimelineModel();
         ImGui.beginDisabled(!com.director.ui.actor.ActorAppearanceEditing.editable(editingModel));
         var customRigs = com.director.actor.rig.skeleton.CustomRigLibrary.getInstance().all();
-        String currentRigLabel = actor.getCustomRigId() == null ? "（未绑定）" : actor.getCustomRigId();
+        String currentRigLabel = actor.getCustomRigId() == null ? com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.identity.unbound") : actor.getCustomRigId();
         if (ImGui.beginCombo("自定义骨架##customRig", currentRigLabel)) {
-            if (ImGui.selectable("（未绑定）", actor.getCustomRigId() == null)) {
+            if (ImGui.selectable(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.identity.unbound"), actor.getCustomRigId() == null)) {
                 editModelBinding(actor,null,null);
                 modified = true;
             }
@@ -968,7 +969,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         // 所有编辑入口指向同一个演员。
-        ActorSelectionHub.selectActor(actor.getActorId());
+        ActorSelectionHub.selectWholeActor(actor.getActorId());
         this.selectedActorId = actor.getActorId();
         com.director.ui.properties.PropertyContextService.get().inspectActorObject(actor);
 

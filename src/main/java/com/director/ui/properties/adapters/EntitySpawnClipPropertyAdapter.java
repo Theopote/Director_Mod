@@ -12,26 +12,18 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
     @Override public Class<EntitySpawnClip> getTargetType() { return EntitySpawnClip.class; }
     private String tr(String key) { return ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit."+key); }
     @Override public boolean renderProperties(EntitySpawnClip source) {
-        var navigation=com.director.ui.properties.actor.ActorCoordinationPanel.render(source);
         var draft = gesture.begin(source);
-        if (!(draft instanceof EntitySpawnClip clip)) { gesture.end(); com.director.ui.properties.actor.ActorCoordinationPanel.navigate(source,navigation); return false; }
+        if (!(draft instanceof EntitySpawnClip clip)) { gesture.end(); return false; }
         ImGui.text(tr("title"));
         ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.range",clip.getStartTime(),clip.getEndTime()));
-        var end = new ImFloat(clip.getEndTime());
-        boolean changed = ImGui.inputFloat(tr("end")+"##spawnEnd",end);
+        float[] range = {clip.getStartTime(), clip.getEndTime()};
+        boolean changed = ImGui.inputFloat2(tr("time_range")+"##spawnRange", range);
         if (changed) {
-            if (Float.isFinite(end.get()) && end.get()-clip.getStartTime() >= .1f-1e-5f) clip.setTimeRange(clip.getStartTime(),end.get());
+            if (Float.isFinite(range[0]) && Float.isFinite(range[1])
+                    && range[0] >= 0 && range[1] - range[0] >= .1f - 1e-5f) clip.setTimeRange(range[0], range[1]);
             else gesture.report(tr("invalid_time"));
         }
-        gesture.observe("end",changed);
-        var duration = new ImFloat(clip.getLength());
-        changed = ImGui.inputFloat(tr("duration")+"##spawnDuration",duration);
-        if (changed) {
-            if (Float.isFinite(duration.get()) && duration.get() >= .1f-1e-5f
-                    && Float.isFinite(clip.getStartTime()+duration.get())) clip.setTimeRange(clip.getStartTime(),clip.getStartTime()+duration.get());
-            else gesture.report(tr("invalid_time"));
-        }
-        gesture.observe("duration",changed);
+        gesture.observe("range", changed);
         ImGui.beginDisabled(!source.getKeyframes().isEmpty());
         float[] pos = {clip.getPosition().x,clip.getPosition().y,clip.getPosition().z};
         changed = ImGui.inputFloat3(tr("position")+"##spawnPosition",pos);
@@ -58,6 +50,7 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.render(source,clip,gesture);
         com.director.ui.properties.actor.ActorAnimationBlendPropertyUI.render(source,clip.getBlendSettings(),clip::setBlendSettings,gesture);
         gesture.end();
+        var navigation = com.director.ui.properties.actor.ActorCoordinationPanel.render(source);
         com.director.ui.properties.actor.ActorCoordinationPanel.navigate(source,navigation);
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.renderIndependentAction(source);
         com.director.ui.properties.actor.ActorRootKeyframePropertyUI.render(source); return false;

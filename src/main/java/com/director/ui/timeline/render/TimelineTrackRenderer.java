@@ -225,7 +225,8 @@ public final class TimelineTrackRenderer {
         // ⭐ v1.1：季节轨道不显示隐藏/显示按钮
         // ⭐ v1.0：天气轨道不显示隐藏/显示按钮
         if (type != TrackType.CAMERA && type != TrackType.TIME && type != TrackType.SEASON && type != TrackType.WEATHER) {
-            if (!track.isVisible()) {
+            boolean visible = type == TrackType.ACTOR ? !track.isMuted() : track.isVisible();
+            if (!visible) {
                 drawList.addText(visibilityX, y + TRACK_ICON_OFFSET_Y, TimelineColors.rgba(150, 150, 150, 255), Icons.INVISIBLE);
             } else {
                 drawList.addText(visibilityX, y + TRACK_ICON_OFFSET_Y, TimelineColors.rgba(180, 180, 180, 200), Icons.VISIBLE);

@@ -25,23 +25,31 @@ public final class ActorClipInspectorGesture {
         if (session != null && (frame != lastFrame + 1 || competing || !session.isCurrent(model, source))) cancel();
         lastFrame = frame; rendered = false; released = false;
         if (ImGui.isKeyPressed(ImGuiKey.Escape)) cancel();
+        if (source == null) return null;
+        if (competing) return readOnly(source, "gizmo");
         if (cancelledUntilRelease) {
-            if (ImGui.isMouseDown(0) || ImGui.isAnyItemActive()) return null;
+            if (ImGui.isMouseDown(0) || ImGui.isAnyItemActive()) return readOnly(source, "unavailable");
             cancelledUntilRelease = false;
         }
-        if (source == null || competing) return null;
         if (session == null) {
             try { session = new ActorClipPropertyEditSession(model, source); widget = null; dirty = false; }
             catch (RuntimeException unavailable) {
                 var owner=source.getTimelineClip()==null?null:source.getTimelineClip().getParentTrack();
-                String reason=model==null?"工程不可用":model.isPlaying()?"播放中":model.isScrubbing()?"正在拖动播放头":
-                        owner!=null && owner.isLocked()?"轨道已锁定":owner!=null && owner.isMuted()?"轨道已禁用":source.isMuted()?"片段已禁用":"目标当前不可编辑";
-                ImGui.textWrapped("只读："+reason+"。现有参数保留显示。");
-                readOnlyRendered=true;ImGui.beginDisabled();
-                return ActorClipPropertyEditSession.detached(source);
+                String reason = model == null ? "no_project" : model.isPlaying() ? "playing" : model.isScrubbing() ? "scrubbing"
+                        : owner != null && owner.isLocked() ? "locked" : owner != null && owner.isMuted() ? "muted"
+                        : source.isMuted() ? "clip_muted" : "unavailable";
+                return readOnly(source, reason);
             }
         }
         return session.draft();
+    }
+    private EntityClip readOnly(EntityClip source, String reason) {
+        ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.readonly",
+                ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector." + reason)));
+        var draft = ActorClipPropertyEditSession.detached(source);
+        readOnlyRendered = true;
+        ImGui.beginDisabled();
+        return draft;
     }
     public void observe(String id, boolean changed) {
         dirty |= changed;

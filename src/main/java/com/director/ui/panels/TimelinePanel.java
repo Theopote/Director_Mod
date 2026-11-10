@@ -330,38 +330,30 @@ public class TimelinePanel extends AbstractPanel
         return PanelWindows.timeline();
     }
 
-    /**
-     * ⭐ UI 生命周期管理：重写 setVisible 以在 UI 关闭时清理状态
-     */
     @Override
     public void setVisible(boolean visible) {
         boolean wasVisible = isVisible();
         super.setVisible(visible);
-        
-        // UI 关闭时清理状态（但不通知 CameraController，由 DirectorScreen 统一处理）
         if (wasVisible && !visible) {
-            dispose();
+            onContentUnavailable();
         }
     }
-    
-    /**
-     * ⭐ UI 生命周期管理：清理面板资源
-     * 在 UI 关闭时调用，静默取消所有交互，不触发摄像机回调
-     */
+
     @Override
     protected void onContentUnavailable() {
-        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
+        renderer.cancelActorKeyInteraction();
+        interactionHandler.cancelAllInteractionsSilently();
     }
 
     @Override
     public void dispose() {
-        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
         if (disposed) {
             return;
         }
         disposed = true;
 
         LOGGER.debug("[TimelinePanel] 开始清理面板资源");
+        renderer.cancelActorKeyInteraction();
 
         // 1. 静默取消所有交互（不通知 CameraController）
         interactionHandler.cancelAllInteractionsSilently();
@@ -1605,13 +1597,16 @@ public class TimelinePanel extends AbstractPanel
     @Override
     public void onToggleTrackLock(TimelineTrack track) {
         if (track == null) return;
-        track.setLocked(!track.isLocked());
-        markDataChanged();
+        executeCommand(new ToggleTrackLockCommand(model, track));
     }
 
     @Override
     public void onToggleTrackVisible(TimelineTrack track) {
         if (track == null) return;
+        if (track.getType() == TrackType.ACTOR) {
+            executeCommand(new ToggleTrackMuteCommand(model, track));
+            return;
+        }
         track.setVisible(!track.isVisible());
         markDataChanged();
     }

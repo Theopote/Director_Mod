@@ -126,6 +126,8 @@ public final class PropertyAdapterBootstrap {
             // ✅ 摄像机轨道属性适配器（专用适配器，直接注册为 TimelineTrack.class 以确保优先匹配）
             registerAdapter(TimelineTrack.class, new CameraTrackPropertyAdapter());
             registeredCount++;
+            registerAdapter(TimelineTrack.class, new com.director.ui.properties.adapters.ActorTrackPropertyAdapter());
+            registeredCount++;
             
             LOGGER.info("  ========== 核心对象适配器 ==========");
             

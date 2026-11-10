@@ -83,7 +83,7 @@ public final class ActorLiveTransformPropertyUI {
         if (ImGui.collapsingHeader(Icons.TRANSFORM + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SECTION_TRANSFORM),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textWrapped("当前编辑：演员整体（位置、朝向与缩放）。调整肘膝或单个部位请切换到姿态工具。");
+            ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.track.live_transform"));
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.TIME_HINT_FMT, time));
             if (target != null) {
                 var source = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveSource(model, target.timelineTrack());

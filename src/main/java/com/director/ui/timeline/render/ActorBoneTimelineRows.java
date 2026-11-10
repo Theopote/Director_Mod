@@ -57,8 +57,11 @@ public final class ActorBoneTimelineRows {
         if(state==null) { selectedKeys.clear(); keyFocus=false; return; }
         selectedOwner=state.owner(); selectedReference=state.clip(); selectedAsset=state.asset(); keyFocus=state.focused();
         selectedKeys.clear();
+        var clock = com.director.ui.actor.pose.ActorAnimationKeyClock.projection(selectedOwner, selectedReference,
+                selectedReference.getStartTime(), selectedReference.getEndTime());
         for(var k:state.keys()) {
-            var hit=new KeyHit(selectedOwner,k.boneId(),0,0,selectedReference.getStartTime()+k.time()/Math.max(.01f,selectedReference.getSpeed()),
+            float time = clock.nearest(k.time(), model.getCurrentTime()).orElse(Float.NaN);
+            var hit=new KeyHit(selectedOwner,k.boneId(),0,0,time,
                     selectedAsset,selectedReference,selectedAsset.findBoneTrack(k.boneId()).orElseThrow(),k.channel().ordinal(),k.time());
             selectedKeys.put(k,hit);
         }
@@ -183,12 +186,9 @@ public final class ActorBoneTimelineRows {
         if(!action.equals("paste")) return false;
         var pasted=clipboard.at(context.asset(),context.assetTime(),(context.end()-context.start())*Math.max(.01f,context.speed()));
         if(!ActorAnimationAuthoringService.paste(context,pasted)) return false;
-        selectedKeys.clear(); keyFocus=true; selectedOwner=context.track(); selectedReference=context.clip(); selectedAsset=context.asset();
-        for(var key:pasted) {
-            var hit=new KeyHit(context.track(),key.boneId(),0,0,context.start()+key.time()/Math.max(.01f,context.speed()),
-                    context.asset(),context.clip(),context.asset().findBoneTrack(key.boneId()).orElseThrow(),key.channel().ordinal(),key.time());
-            selectedKeys.put(key(key.boneId(),key.channel().ordinal(),key.time()),hit);
-        }
+        sharedSelection.replace(model, context.track(), context.clip(), context.asset(),
+                pasted.stream().map(p -> key(p.boneId(), p.channel().ordinal(), p.time())).toList(), true);
+        importSelection(model);
         return true;
     }
     public boolean isKeyInteractionActive() { return dragging!=null || marquee!=null || rootRows.isDragging(); }
@@ -231,17 +231,7 @@ public final class ActorBoneTimelineRows {
         ImGui.textWrapped(tr("paste_hint"));
         Float numericDelta=timePanel.render(context,selectedKeys.keySet(),hasSelection);
         if(numericDelta!=null) {
-            var previous=new ArrayList<>(selectedKeys.values()); selectedKeys.clear();
-            for(var old:previous) {
-                KeyHit hit= null;
-                if (context != null) {
-                    hit = new KeyHit(old.track(),old.bone(),old.x(),old.y(),old.time()+numericDelta/Math.max(.01f,context.speed()),
-                            old.asset(),old.clip(),old.boneTrack(),old.channel(),old.assetTime()+numericDelta);
-                }
-                if (hit != null) {
-                    selectedKeys.put(key(hit.bone(),hit.channel(),hit.assetTime()),hit);
-                }
-            }
+            importSelection(model);
             timePanel.cancel(); actionMenu=false; pendingKeys=List.of(); ImGui.closeCurrentPopup(); return true;
         }
         boolean interpolationChanged=interpolationPanel.render(context,selectedKeys.keySet(),hasSelection);
@@ -337,15 +327,9 @@ public final class ActorBoneTimelineRows {
 
                 boolean moved = ActorAnimationAuthoringService.move(dragContext,dragKeys.keySet(),delta);
                 if (moved) {
-                    selectedKeys.clear();
-                    for (var frozen : dragKeys.values()) {
-                        var old=frozen.hit();
-                        var movedHit=new KeyHit(old.track(),old.bone(),old.x(),old.y(),
-                                old.time()+delta/Math.max(.01f,dragSpeed),old.asset(),old.clip(),old.boneTrack(),old.channel(),old.assetTime()+delta);
-                        selectedKeys.put(key(old.bone(),old.channel(),movedHit.assetTime()),movedHit);
-                    }
+                    com.director.ui.actor.pose.ActorAnimationKeyClock.seek(model, hit.track(), hit.clip(), target);
+                    importSelection(model);
                 }
-                if (moved) model.setCurrentTime(hit.clip().getStartTime() + target / Math.max(0.01f, hit.clip().getSpeed()));
             }
         } else if (!ImGui.isMouseDown(ImGuiMouseButton.Left)) dragging = null;
         return true;
@@ -430,7 +414,8 @@ public final class ActorBoneTimelineRows {
                 draw.addLine(branchX,top,branchX,top+CHILD_HEIGHT,TimelineColors.COLOR_ACTOR_CHILD_SEPARATOR);
                 draw.addLine(branchX,top+CHILD_HEIGHT/2,branchX+10,top+CHILD_HEIGHT/2,TimelineColors.COLOR_ACTOR_CHILD_SEPARATOR);
             }
-            String label=row.channel()<0 ? (bone.id().equals("root")?"模型根（局部）":bone.displayName()) : new String[]{"位置（局部）","旋转（局部）","缩放（局部）"}[row.channel()];
+            String label = row.channel() < 0 ? (bone.id().equals("root") ? tr("local_root") : bone.displayName())
+                    : net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.local_channel", tr("channel." + row.channel()));
             if(row.channel()<0) draw.addText(x+12+depth*12,top+4,TimelineColors.COLOR_TEXT_LIGHT,
                     expandedBones.getOrDefault(track,Set.of()).contains(bone.id())?"v":">");
             draw.addText(x+28+depth*12+(row.channel()<0?0:12),top+4,
@@ -456,7 +441,8 @@ public final class ActorBoneTimelineRows {
             if(hasKey) draw.addQuadFilled(bx,by-5,bx+5,by,bx,by+5,bx-5,by,color);
             else draw.addQuad(bx,by-5,bx+5,by,bx,by+5,bx-5,by,color);
             if(isCanvasWindowHovered() && Math.abs(ImGui.getMousePosX()-bx)<10 && Math.abs(ImGui.getMousePosY()-by)<10)
-                ImGui.setTooltip(canKey ? "记录"+bone.displayName()+new String[]{"位置","旋转","缩放"}[channel==1?0:channel==2?1:2]+"关键帧" : "需要当前时刻可编辑的骨骼动画资源及支持的通道");
+                ImGui.setTooltip(canKey ? net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.record_channel",
+                        bone.displayName(), tr("channel." + (channel == 1 ? 0 : channel == 2 ? 1 : 2))) : tr("channel_unavailable"));
             draw.addLine(contentX, top, contentX, top + CHILD_HEIGHT, TimelineColors.COLOR_SEPARATOR_LINE);
             // Keep the stroke inside this row so the following background cannot cover it.
             float separatorY=(float)Math.floor(top+CHILD_HEIGHT)-.5f;
@@ -505,7 +491,7 @@ public final class ActorBoneTimelineRows {
                             keyHits.add(new KeyHit(track, bone, px, cy, time, asset, animation, boneTrack, channel, key.time()));
                             if (isCanvasWindowHovered() && Math.abs(ImGui.getMousePosX() - px) < 4
                                     && Math.abs(ImGui.getMousePosY() - cy) < 4) {
-                                ImGui.setTooltip(asset.name() + " · " + new String[]{"位置", "旋转", "缩放"}[channel]
+                                ImGui.setTooltip(asset.name() + " · " + tr("channel." + channel)
                                         + String.format(" · %.3fs\n", time)+tr("selection_hint"));
                             }
                         }

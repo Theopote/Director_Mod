@@ -38,10 +38,13 @@ public final class ActorAnimationKeyClock {
             results.put(assetTime,result);
             return result;
         }
+        public Optional<Float> nearest(float assetTime, float playhead) {
+            return times(assetTime).stream().min(Comparator.comparingDouble(time -> Math.abs(time - playhead)));
+        }
     }
     public static boolean seek(TimelineModel model,TimelineTrack owner,EntityAnimationClip clip,float assetTime) {
-        var target=times(owner,clip,assetTime,clip.getStartTime(),clip.getEndTime()).stream()
-                .min(Comparator.comparingDouble(t->Math.abs(t-model.getCurrentTime())));
+        var target = projection(owner, clip, clip.getStartTime(), clip.getEndTime())
+                .nearest(assetTime, model.getCurrentTime());
         target.ifPresent(model::setCurrentTime);
         return target.isPresent();
     }

@@ -340,7 +340,7 @@ public class ActorTrack {
         EntitySpawnClip clip = new EntitySpawnClip(
                 "Spawn",
                 time,
-                time + 5f  // 生命周期窗口，默认提供可编辑的五秒区间
+                time + EntitySpawnClip.DEFAULT_DURATION_SECONDS
         );
         // 默认位置在原点（0, 0, 0），导演可以在属性面板中调整
         clip.setPosition(0f, 0f, 0f);

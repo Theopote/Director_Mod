@@ -36,18 +36,16 @@ public class EntityActionClipPropertyAdapter implements IPropertyAdapter<EntityA
             cancelledUntilRelease = true;
             error = "";
         }
+        if (source == null) return false;
+        if (competing) return renderReadOnly(source, ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.gizmo"));
         if (cancelledUntilRelease) {
-            if (ImGui.isMouseDown(0) || ImGui.isAnyItemActive()) { ImGui.textDisabled(tr("cancelled")); return false; }
+            if (ImGui.isMouseDown(0) || ImGui.isAnyItemActive()) return renderReadOnly(source, tr("cancelled"));
             cancelledUntilRelease = false;
         }
-        if (source == null || competing) return false;
         if (session == null) {
             try { session = new ActorClipPropertyEditSession(model,source); }
             catch (RuntimeException unavailable) {
-                ImGui.textDisabled(tr("unavailable"));ImGui.text("只读事件："+source.getActionType());
-                ImGui.text(String.format("时间 %.3f – %.3f 秒",source.getStartTime(),source.getEndTime()));
-                source.getParams().entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(e->ImGui.textWrapped(e.getKey()+"："+e.getValue()));
-                return false;
+                return renderReadOnly(source, tr("unavailable"));
             }
         }
         var clip = (EntityActionClip)session.draft();
@@ -105,6 +103,14 @@ public class EntityActionClipPropertyAdapter implements IPropertyAdapter<EntityA
         ImGui.sameLine();
         if (ImGui.button(tr("cancel")+"##propEventCancel")) { if (session != null) session.cancel(); session = null; error = ""; }
         if (error != null && !error.isEmpty()) ImGui.textWrapped(error);
+        return false;
+    }
+    private boolean renderReadOnly(EntityActionClip source, String reason) {
+        ImGui.textDisabled(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.readonly", reason));
+        ImGui.text(tr("type_" + source.getActionType().name()));
+        ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.range", source.getStartTime(), source.getEndTime()));
+        source.getParams().entrySet().stream().sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> ImGui.textWrapped(entry.getKey() + " · " + entry.getValue()));
         return false;
     }
     private void slot(Actor actor,EntityActionClip.ActionType type,Map<String,Object> params,String key,boolean optional) {

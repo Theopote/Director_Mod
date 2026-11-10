@@ -22,16 +22,19 @@ public final class ActorKeySelectionPropertyUI {
         var state=ActorKeyframeSelection.getInstance().snapshot(model);
         if(state==null || !state.focused() || state.keys().isEmpty()) {editing=null;return false;}
         var context=ActorAnimationEditContext.capture(model,state.owner(),state.clip());
-        ImGui.text("骨骼关键帧 · "+state.keys().size()+" 个");
+        ImGui.text(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.bone_title", state.keys().size()));
         ImGui.textWrapped(state.owner().getName()+" · "+state.asset().name());
-        ImGui.textWrapped("这里显示动画资产中的原始键值，场景中的混合结果可能不同。时间单位为资产秒。");
-        if(ImGui.button("返回所属片段")) {
+        ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.bone_hint"));
+        if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.back"))) {
+            var wrapper = ActorEmbeddedAnimation.visibleOwner(state.owner(), state.clip());
+            model.selectItem(wrapper, false);
+            com.director.core.DirectorServices.get().uiSelection().setCurrentSelection(wrapper);
             ActorKeyframeSelection.getInstance().replace(model,state.owner(),state.clip(),state.asset(),state.keys(),false);
             editing=null;return true;
         }
         boolean writable=context!=null && context.isCurrent() && !ActorBonePropertiesPanel.hasNumericDraft()
                 && !ActorBoneGizmoController.getInstance().isDragging();
-        if(!writable) ImGui.textWrapped("只读：播放、锁定、禁用或当前草稿阻止修改。");
+        if(!writable) ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.bone_readonly"));
         Float delta=timePanel.render(context,state.keys(),writable);
         if(delta!=null) {
             var moved=state.keys().stream().map(k->new ActorAnimationAuthoringService.Key(k.boneId(),k.channel(),k.time()+delta)).toList();
@@ -55,7 +58,7 @@ public final class ActorKeySelectionPropertyUI {
             ImGui.text(key.boneId()+" · "+key.channel());
             ImGui.beginDisabled(!writable);
             ImGui.inputFloat3(key.channel()==ActorAnimationAuthoringService.Channel.ROTATION?"局部旋转 XYZ（度）":"局部 XYZ",value);
-            if(ImGui.button("应用关键帧数值")) {
+            if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.bone_apply"))) {
                 Object next=key.channel()==ActorAnimationAuthoringService.Channel.ROTATION
                     ?new Quaternionf().rotationXYZ((float)Math.toRadians(value[0]),(float)Math.toRadians(value[1]),(float)Math.toRadians(value[2]))
                     :new Vector3f(value);
@@ -64,7 +67,7 @@ public final class ActorKeySelectionPropertyUI {
             ImGui.endDisabled();
         } else ImGui.textWrapped("多选键可整组调整时间或插值；不同部位的局部值不作隐式合并。");
         ImGui.beginDisabled(!writable);
-        if(ImGui.button("删除所选骨骼关键帧")) {
+        if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.bone_delete"))) {
             if(ActorAnimationAuthoringService.delete(context,state.keys()))
                 ActorKeyframeSelection.getInstance().replace(model,state.owner(),state.clip(),state.asset(),List.of(),false);
         }

@@ -14,6 +14,7 @@ import org.joml.Vector3f;
  * @version 1.0
  */
 public class EntitySpawnClip extends EntityClip {
+    public static final float DEFAULT_DURATION_SECONDS = 5f;
     private com.director.actor.rig.skeleton.PoseBlendSettings blendSettings = com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT;
     public com.director.actor.rig.skeleton.PoseBlendSettings getBlendSettings() { return blendSettings; }
     public void setBlendSettings(com.director.actor.rig.skeleton.PoseBlendSettings settings) { blendSettings = java.util.Objects.requireNonNull(settings); syncBoneAnimation(); }

@@ -27,8 +27,6 @@ import com.director.timeline.playback.camera.CameraSample;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +41,6 @@ import java.util.UUID;
  * source of truth.</p>
  */
 public final class ActorGroupTimelineCommandService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ActorGroupTimelineCommandService.class);
     private static final float DEFAULT_SPAWN_CLIP_DURATION = 5.0f;
 
     private static final ActorGroupTimelineCommandService INSTANCE = new ActorGroupTimelineCommandService();
@@ -287,11 +284,6 @@ public final class ActorGroupTimelineCommandService {
         }
         ActorGroupEditCommand.execute(model, "Group actor actions", changes);
         return changes.size();
-    }
-
-    public int copyLatestRouteFromActor(ActorGroup group, UUID sourceActorId) {
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        return copyLatestRouteFromActor(model, group, sourceActorId);
     }
 
     int copyLatestRouteFromActor(TimelineModel model, ActorGroup group, UUID sourceActorId) {
@@ -578,15 +570,6 @@ public final class ActorGroupTimelineCommandService {
 
     private EntitySpawnClip findSpawnClipAt(ActorTrack actorTrack, float timeSeconds) {
         return actorTrack == null ? null : actorTrack.findSpawnClipAt(timeSeconds);
-    }
-
-    private Vector3f forwardFromYaw(float yawDeg) {
-        double yawRad = Math.toRadians(yawDeg);
-        return new Vector3f(
-                (float) -Math.sin(yawRad),
-                0.0f,
-                (float) Math.cos(yawRad)
-        );
     }
 
     private float resolveTriggerTime(List<ActorGroupController.ActionTrigger> triggers, UUID actorId, float fallback) {

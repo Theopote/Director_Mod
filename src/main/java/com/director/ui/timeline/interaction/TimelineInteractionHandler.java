@@ -532,7 +532,9 @@ public class TimelineInteractionHandler {
             case LOCK -> tooltip = track.isLocked()
                     ? DirectorI18n.translate(DirectorLang.Timeline.TrackControl.UNLOCK_TRACK)
                     : DirectorI18n.translate(DirectorLang.Timeline.TrackControl.LOCK_TRACK);
-            case VISIBILITY -> tooltip = track.isVisible()
+            case VISIBILITY -> tooltip = track.getType() == com.director.timeline.model.TrackType.ACTOR
+                    ? DirectorI18n.translate("gui.director.actor.track." + (track.isMuted() ? "unmute" : "mute"))
+                    : track.isVisible()
                     ? DirectorI18n.translate(DirectorLang.Timeline.TrackControl.HIDE_TRACK)
                     : DirectorI18n.translate(DirectorLang.Timeline.TrackControl.SHOW_TRACK);
         }

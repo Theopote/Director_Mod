@@ -125,10 +125,9 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
                 ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.NAME_FMT, actor.getName()));
                 ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.TYPE_FMT,
                         ActorPropertyAdapterI18n.actorTypeLabel(actor.getType())));
-                ActorRigProfile rig = actor.getRigProfile();
                 ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.RIG_FMT,
-                        rig != null ? rig.getClass().getSimpleName()
-                                : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.RIG_NONE)));
+                        actor.resolveRigDefinition().map(com.director.actor.rig.skeleton.RigDefinition::displayName)
+                                .orElseGet(() -> ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.RIG_NONE))));
             }
         }
 
@@ -198,7 +197,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         poseGallery.render(DirectorServices.get().containerTimeline().getTimelineModel(), ActorSelectionHub.getSelectedActorId());
         var draft = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance();
         com.director.ui.actor.pose.ActorBoneDraftPanel.render();
-        if (!ImGui.collapsingHeader(Icons.ANIMATION + " 关键帧动画", ImGuiTreeNodeFlags.DefaultOpen)) return;
+        if (!ImGui.collapsingHeader(Icons.ANIMATION + " " + com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.keyframes"), ImGuiTreeNodeFlags.DefaultOpen)) return;
         var settings = com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance();
         ImInt editTarget = new ImInt(settings.getEditTarget().ordinal());
         if (ImGui.combo(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.target") + "##boneEditTarget", editTarget, new String[]{net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.asset"), net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.pose")})) {
@@ -206,15 +205,15 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
             settings.setEditTarget(com.director.ui.actor.pose.ActorAnimationAuthoringSettings.EditTarget.values()[editTarget.get()]);
         }
         animationAutoKeyframe.set(settings.isAutoKeyframe());
-        if (ImGui.checkbox("快速姿态自动应用##actorAnimationAutoKey", animationAutoKeyframe)) {
+        if (ImGui.checkbox(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.auto_apply") + "##actorAnimationAutoKey", animationAutoKeyframe)) {
             settings.setAutoKeyframe(animationAutoKeyframe.get());
         }
         if (ImGui.isItemHovered()) ImGui.setTooltip(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.hint"));
 
         animationBoneGizmoMode.set(settings.getBoneGizmoMode() == com.director.client.gizmo.GizmoMode.TRANSLATE ? 1
                 : settings.getBoneGizmoMode() == com.director.client.gizmo.GizmoMode.SCALE ? 2 : 0);
-        if (ImGui.combo("骨骼 Gizmo##actorBoneGizmoMode", animationBoneGizmoMode,
-                new String[]{"旋转", "位移（支持的骨骼）", "缩放（支持的骨骼）"})) {
+        if (ImGui.combo(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.gizmo") + "##actorBoneGizmoMode", animationBoneGizmoMode,
+                new String[]{com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.rotate"), com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.translate"), com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.scale")})) {
             settings.setBoneGizmoMode(switch (animationBoneGizmoMode.get()) {
                 case 1 -> com.director.client.gizmo.GizmoMode.TRANSLATE;
                 case 2 -> com.director.client.gizmo.GizmoMode.SCALE;
@@ -236,8 +235,8 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
         var modes = com.director.actor.animation.asset.InterpolationMode.values();
         animationInterpolation.set(settings.getInterpolation().ordinal());
-        String[] labels = {"阶梯", "线性", "平滑", "贝塞尔"};
-        if (ImGui.combo("关键帧插值##actorAnimationInterpolation", animationInterpolation, labels)) {
+        String[] labels = java.util.Arrays.stream(modes).map(mode -> com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.keys.mode." + mode.name().toLowerCase(java.util.Locale.ROOT))).toArray(String[]::new);
+        if (ImGui.combo(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.interpolation") + "##actorAnimationInterpolation", animationInterpolation, labels)) {
             settings.setInterpolation(modes[Math.max(0, Math.min(animationInterpolation.get(), modes.length - 1))]);
         }
         ImGui.separator();
@@ -366,7 +365,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
 
         if (ImGui.button(Icons.ADD + " "
-                + "在当前时间创建语义动作片段"
+                + com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.create_action")
                 + "##createActorPoseClip")) {
             createActorActionClip(actor, actions[Math.max(0, Math.min(actionIndex.get(), actions.length - 1))]);
         }
