@@ -4,6 +4,8 @@ import com.director.core.DirectorServices;
 import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.Section;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
 import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
@@ -13,7 +15,6 @@ import com.director.timeline.playback.camera.CameraRuntime;
 import com.director.timeline.playback.camera.CameraSample;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import net.minecraft.util.math.Vec3d;
@@ -135,7 +136,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     private boolean renderTiming(CranePathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("camera.crane.timing_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_SECTION))) {
             ImGui.indent();
             ImGui.beginDisabled();
             float startTime = clip.getStartTime();
@@ -161,7 +162,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     private boolean renderMotionSection(CranePathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.MOTION_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("camera.crane.motion_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.MOTION_SECTION))) {
             ImGui.indent();
             // ⭐ 方向提示：在 slider 上方显示升降语义
             String downLabel = Icons.ARROW_DOWN + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Crane.DOWN);
@@ -181,7 +182,8 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             
             // Slider（使用更语义化的 label）
             String sliderLabel = CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Crane.HEIGHT_LABEL);
-            boolean heightDeltaSliderChanged = ImGui.sliderFloat(sliderLabel, heightDeltaFloat.getData(), -32f, 32f, "%.1f");
+            PropertyRow.field(sliderLabel);
+            boolean heightDeltaSliderChanged = ImGui.sliderFloat("##distance", heightDeltaFloat.getData(), -32f, 32f, "%.1f");
             boolean isHeightDeltaSliderActive = ImGui.isItemActive();
             
             if (heightDeltaSliderChanged) {
@@ -221,10 +223,11 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     private boolean renderAdvancedSection(CranePathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ADVANCED_SECTION), ImGuiTreeNodeFlags.None)) {
+        if (Section.header("camera.crane.advanced_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ADVANCED_SECTION), false)) {
             ImGui.indent();
             ImBoolean align = new ImBoolean(clip.isAlignStartToCurrentPosition());
-            if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ALIGN_START), align)) {
+            PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ALIGN_START));
+            if (ImGui.checkbox("##align_start", align)) {
                 clip.setAlignStartToCurrentPosition(align.get());
                 modified = true;
             }
@@ -233,7 +236,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             }
             
             // 调试信息（可折叠）
-            if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.DEBUG_INFO_SECTION), ImGuiTreeNodeFlags.None)) {
+            if (Section.header("camera.crane.debug_info_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.DEBUG_INFO_SECTION), false)) {
                 ImGui.indent();
                 Vec3d startPos = clip.getStartPosition();
                 if (startPos != null) {

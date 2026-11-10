@@ -3,11 +3,12 @@ package com.director.ui.properties.adapters;
 import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.Section;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
 import com.director.timeline.model.camera.path.CustomPathClip;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImString;
 
@@ -80,13 +81,15 @@ public class CustomPathClipPropertyAdapter implements IPropertyAdapter<CustomPat
 
     private boolean renderBasicSection(CustomPathClip clip) {
         boolean modified = false;
-        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.BASIC_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("camera.custom.basic_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.BASIC_SECTION))) {
             ImGui.indent();
-            if (ImGui.inputText(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.NAME), nameBuffer)) {
+            PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.NAME));
+            if (ImGui.inputText("##name", nameBuffer)) {
                 clip.setName(nameBuffer.get());
                 modified = true;
             }
-            if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.ENABLED), enabled)) {
+            PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.ENABLED));
+            if (ImGui.checkbox("##enabled", enabled)) {
                 clip.setEnabled(enabled.get());
                 modified = true;
             }
@@ -96,7 +99,7 @@ public class CustomPathClipPropertyAdapter implements IPropertyAdapter<CustomPat
     }
 
     private void renderTimingSection(CustomPathClip clip) {
-        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("camera.custom.timing_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_SECTION))) {
             ImGui.indent();
             ImGui.beginDisabled();
             ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_START, clip.getStartTime()));
@@ -109,7 +112,7 @@ public class CustomPathClipPropertyAdapter implements IPropertyAdapter<CustomPat
     }
 
     private void renderKeyframeSection(CustomPathClip clip) {
-        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.KEYFRAMES_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("camera.custom.keyframes_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.KEYFRAMES_SECTION))) {
             ImGui.indent();
             int count = clip.getKeyframes().size();
             ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.KEYFRAME_COUNT, count));

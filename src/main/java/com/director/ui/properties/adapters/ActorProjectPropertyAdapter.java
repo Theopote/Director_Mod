@@ -86,7 +86,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     private final ImString actorSearch = new ImString("", 256);
     
     // Create popup state
-    private boolean createPopupOpen = false;
     private String createError = "";
     private final ImString newActorName = new ImString("Actor", 256);
     private ActorType newActorType = ActorType.VILLAGER;
@@ -160,9 +159,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             
             // 创建 Actor 按钮
             ImGui.spacing();
-            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ADD_ACTOR))) {
-                openCreateActorPopup();
-            }
+            boolean addActor = ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ADD_ACTOR));
             ImGui.sameLine();
             var timeline = DirectorServices.get().containerTimeline().getTimelineModel();
             ImGui.beginDisabled(timeline == null || timeline.isPlaying() || timeline.isScrubbing());
@@ -173,7 +170,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             
             ImGui.endDisabled();
             // 创建 Actor 弹窗
-            renderCreateActorPopup(actorRegistry);
+            renderCreateActorDialog(addActor);
         }
         
         // 选中的 Actor 编辑器
@@ -955,7 +952,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         createError = "";
         newActorName.set("Actor");
         newActorType = ActorType.VILLAGER;
-        createPopupOpen = true;
         ImGui.openPopup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.POPUP_CREATE));
     }
 
@@ -975,11 +971,11 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         LOGGER.info("[ActorProjectPropertyAdapter] Created ActorGroup: {}", candidate);
     }
     
-    private void renderCreateActorPopup(ActorRegistry actorRegistry) {
-        if (!createPopupOpen) {
-            return;
+    public void renderCreateActorDialog(boolean requested) {
+        if (requested) {
+            openCreateActorPopup();
         }
-        
+
         if (ImGui.beginPopupModal(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.POPUP_CREATE))) {
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CREATE_NEW_ACTOR));
             ImGui.separator();
@@ -1016,7 +1012,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     createError = "请输入演员名称。";
                 } else if (com.director.ui.actor.placement.ActorPlacementController.getInstance().startPlacement(name, newActorType)) {
                     ImGui.closeCurrentPopup();
-                    createPopupOpen = false;
                     createError = "";
                 } else {
                     createError = "无法开始放置，请确认已进入世界并打开时间线。";
@@ -1027,7 +1022,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             
             if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CANCEL))) {
                 ImGui.closeCurrentPopup();
-                createPopupOpen = false;
             }
             
             if (!createError.isEmpty()) ImGui.textWrapped(createError);

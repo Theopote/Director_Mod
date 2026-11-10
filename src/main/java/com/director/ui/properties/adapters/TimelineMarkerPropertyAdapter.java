@@ -3,12 +3,13 @@ package com.director.ui.properties.adapters;
 import com.director.i18n.DirectorLang;
 import com.director.i18n.TimelinePropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.Section;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.TimelineMarker;
 import imgui.ImGui;
 import imgui.flag.ImGuiColorEditFlags;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImFloat;
 import imgui.type.ImString;
 
@@ -38,12 +39,10 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
 
         UITheme.title(Icons.TAG + " " + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.TITLE));
 
-        if (ImGui.collapsingHeader(Icons.INFO + " "
-                + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.SECTION_BASIC),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("timeline.marker.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.SECTION_BASIC))) {
             timeFloat.set(marker.getTime());
-            if (ImGui.dragFloat(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.TIME_POSITION),
+            PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.TIME_POSITION));
+            if (ImGui.dragFloat("##time_position",
                     timeFloat.getData(), 0.02f, 0.0f, 10_000f, "%.2fs")) {
                 marker.setTime(timeFloat.get());
                 modified.set(true);
@@ -57,7 +56,8 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
             UITheme.spacingSmall();
 
             nameString.set(marker.getName());
-            if (ImGui.inputText(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.MARKER_NAME),
+            PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.MARKER_NAME));
+            if (ImGui.inputText("##marker_name",
                     nameString)) {
                 marker.setName(nameString.get());
                 modified.set(true);
@@ -69,13 +69,9 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
             }
 
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.PALETTE + " "
-                + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.SECTION_APPEARANCE),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("timeline.marker.section_appearance", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.SECTION_APPEARANCE))) {
             ImGui.text(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.PRESET_COLORS));
             UITheme.spacingSmall();
 
@@ -146,7 +142,8 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
                     | ImGuiColorEditFlags.InputRGB
                     | ImGuiColorEditFlags.NoAlpha;
 
-            if (ImGui.colorEdit3(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.MARKER_COLOR),
+            PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.MARKER_COLOR));
+            if (ImGui.colorEdit3("##marker_color",
                     colorArr, flags)) {
                 int r = (int) (colorArr[0] * 255.0f);
                 int g = (int) (colorArr[1] * 255.0f);
@@ -162,21 +159,17 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
             }
 
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.INFO + " "
-                + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.SECTION_DESCRIPTION))) {
-            ImGui.indent();
+        if (Section.header("timeline.marker.section_description", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.SECTION_DESCRIPTION), false)) {
             String currentNote = marker.getNote();
             if (currentNote == null) {
                 currentNote = "";
             }
             noteString.set(currentNote);
 
-            if (ImGui.inputTextMultiline(
-                    TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.DESCRIPTION),
-                    noteString, 512, 100)) {
+            PropertyRow.label(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.DESCRIPTION));
+            if (ImGui.inputTextMultiline("##description", noteString, -1f, 100f)) {
                 marker.setNote(noteString.get());
                 modified.set(true);
             }
@@ -187,7 +180,6 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
             }
 
             UITheme.spacingSmall();
-            ImGui.unindent();
         }
 
         return modified.get();

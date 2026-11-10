@@ -1,5 +1,6 @@
 package com.director.ui.panels;
 
+import com.director.actor.ActorRegistryManager;
 import com.director.core.DirectorServices;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
@@ -10,12 +11,21 @@ import com.director.ui.properties.PropertyAdapterContext;
 import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.properties.PropertyContext;
 import com.director.ui.properties.PropertyContextService;
-import com.director.ui.selection.SelectionManager;
+import com.director.timeline.model.TrackType;
+import com.director.timeline.model.camera.path.CameraPathType;
+import com.director.ui.aware.ICommandsAware;
+import com.director.ui.commands.UICommandFacade;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.TimelineSelectionProperties;
+import com.director.ui.properties.adapters.ActorProjectPropertyAdapter;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 
 /**
@@ -97,8 +107,17 @@ import org.slf4j.LoggerFactory;
  * @since 2025-10-16
  * @author Director Team
  */
-public class PropertiesPanel extends AbstractPanel {
+public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
     private static final Logger LOGGER = LoggerFactory.getLogger(PropertiesPanel.class);
+    private static final DateTimeFormatter SAVE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+    private UICommandFacade commands;
+
+    @Override
+    public void setCommands(UICommandFacade commands) {
+        this.commands = commands;
+    }
+
 
     private static String tr(String key) {
         return DirectorI18n.translate(key);
@@ -217,7 +236,6 @@ public class PropertiesPanel extends AbstractPanel {
                     currentAdapter = ad;
                     UITheme.title(ad.getAdapterName());
                     ad.renderProperties(target, PropertyAdapterContext.of(1f, false));
-                    renderMultiSelectHint(DirectorServices.get().uiSelection());
                     return;
                 }
             }
@@ -226,13 +244,15 @@ public class PropertiesPanel extends AbstractPanel {
         }
         if (ctx == PropertyContext.NONE) {
             renderProjectPanel();
-            renderMultiSelectHint(DirectorServices.get().uiSelection());
             return;
         }
         if (ctx == PropertyContext.TIMELINE || ctx == PropertyContext.WORLD) {
             if (target == null) {
                 renderProjectPanel();
-                renderMultiSelectHint(DirectorServices.get().uiSelection());
+                return;
+            }
+            if (ctx == PropertyContext.TIMELINE && TimelineSelectionProperties.render(
+                    DirectorServices.get().containerTimeline().getTimelineModel(), target)) {
                 return;
             }
             var ad = PropertyAdapterRegistry.getAdapterFor(ctx, target);
@@ -240,7 +260,6 @@ public class PropertiesPanel extends AbstractPanel {
                 currentSelection = target;
                 currentAdapter = null;
                 renderNoAdapterMessage();
-                renderMultiSelectHint(DirectorServices.get().uiSelection());
                 return;
             }
             currentSelection = target;
@@ -262,31 +281,49 @@ public class PropertiesPanel extends AbstractPanel {
                 LOGGER.error("[PropertiesPanel] 渲染 TIMELINE 属性时出错", e);
                 renderErrorMessage(e);
             }
-            renderMultiSelectHint(DirectorServices.get().uiSelection());
             return;
         }
 
         renderProjectPanel();
-        renderMultiSelectHint(DirectorServices.get().uiSelection());
     }
 
-    /** 多选时在底部显示提示 */
-    private void renderMultiSelectHint(SelectionManager sm) {
-        var multi = sm.getMultiSelection();
-        if (multi.size() > 1) {
-            UITheme.separator();
-            ImGui.textDisabled(tr(DirectorLang.Properties.MULTI_SELECT, multi.size()));
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(tr(DirectorLang.Properties.MULTI_SELECT_TOOLTIP));
-            }
-        }
-    }
-    
-    /**
-     * Render Project panel
-     */
     private void renderProjectPanel() {
-        renderNoSelectionMessage();
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        var actors = ActorRegistryManager.getInstance();
+        UITheme.title(tr(DirectorLang.Properties.Overview.TITLE));
+
+        if (model == null) {
+            ImGui.textDisabled(tr(DirectorLang.Properties.AdapterActor.Project.TIMELINE_NOT_READY));
+            return;
+        }
+
+        long cameras = model.getTracks().stream().filter(track -> track.getType() == TrackType.CAMERA).count();
+        PropertyRow.value(tr(DirectorLang.Properties.Overview.DURATION),
+                tr(DirectorLang.Properties.Overview.SECONDS, model.getDuration()));
+        PropertyRow.value(tr(DirectorLang.Properties.Overview.CAMERAS), Long.toString(cameras));
+        PropertyRow.value(tr(DirectorLang.Properties.Overview.ACTORS), Integer.toString(actors.size()));
+        PropertyRow.value(tr(DirectorLang.Properties.Overview.TRACKS), Integer.toString(model.getTrackCount()));
+        var lastSaved = model.getLastTimelineSave();
+        PropertyRow.value(tr(DirectorLang.Properties.Overview.LAST_SAVE),
+                lastSaved == null ? tr(DirectorLang.Properties.Overview.NEVER_SAVED)
+                        : SAVE_TIME.format(lastSaved.atZone(ZoneId.systemDefault())));
+
+        UITheme.separator();
+        boolean busy = model.isPlaying() || model.isScrubbing();
+        var timeline = commands == null ? null : commands.timeline();
+        ImGui.beginDisabled(busy || timeline == null);
+        if (ImGui.button(tr(DirectorLang.Properties.Overview.NEW_CAMERA))) {
+            timeline.addCameraTrack(CameraPathType.CUSTOM);
+        }
+        ImGui.endDisabled();
+
+        IPropertyAdapter<?> adapter = PropertyAdapterRegistry.getAdapterFor("ACTOR_PROJECT");
+        if (adapter instanceof ActorProjectPropertyAdapter actorProject) {
+            ImGui.beginDisabled(busy);
+            boolean add = ImGui.button(tr(DirectorLang.Properties.AdapterActor.Project.ADD_ACTOR));
+            ImGui.endDisabled();
+            actorProject.renderCreateActorDialog(add);
+        }
     }
 
     /**
@@ -376,73 +413,6 @@ public class PropertiesPanel extends AbstractPanel {
             String typeName = currentSelection.getClass().getSimpleName();
             UITheme.label(tr(DirectorLang.Properties.OBJECT_LABEL, typeName), UITheme.DarkTheme.TEXT);
             UITheme.separator();
-        }
-    }
-    
-    /**
-     * 渲染无选择消息
-     */
-    private void renderNoSelectionMessage() {
-        
-        UITheme.label(tr(DirectorLang.Properties.NO_SELECTION), UITheme.DarkTheme.TEXT_DISABLED);
-        
-        ImGui.textWrapped(tr(DirectorLang.Properties.SELECT_OBJECT_HINT));
-        
-        UITheme.separator();
-        
-        UITheme.label(Icons.STAR + " " + tr(DirectorLang.Properties.SUPPORTED_TYPES_TITLE), UITheme.DarkTheme.TEXT);
-        
-        if (ImGui.collapsingHeader(Icons.ANIMATION + " " + tr(DirectorLang.Properties.GROUP_TIMELINE))) {
-            ImGui.indent();
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_TIMELINE_PROJECT));
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_TIMELINE_SEQUENCE));
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_TIMELINE_TRACK));
-            ImGui.unindent();
-        }
-        
-        if (ImGui.collapsingHeader(Icons.TARGET + " " + tr(DirectorLang.Properties.GROUP_CORE))) {
-            ImGui.indent();
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_KEYFRAME));
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_CONTAINER));
-            ImGui.unindent();
-        }
-        
-        if (ImGui.collapsingHeader(Icons.STAR + " " + tr(DirectorLang.Properties.GROUP_EXTENDED))) {
-            ImGui.indent();
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_EFFECT));
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_PROJECT_ENV));
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_MATERIAL_LIBRARY));
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_CAMERA));
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_POST_PROCESSING));
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_PHYSICS_ENV));
-            ImGui.unindent();
-        }
-        
-        if (ImGui.collapsingHeader(Icons.WRENCH + " " + tr(DirectorLang.Properties.GROUP_TYPES))) {
-            ImGui.indent();
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_VECTOR3F));
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_COLOR));
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_LIST));
-            ImGui.unindent();
-        }
-        
-        if (ImGui.collapsingHeader(Icons.SHIELD + " " + tr(DirectorLang.Properties.GROUP_FALLBACK))) {
-            ImGui.indent();
-            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_GENERIC));
-            ImGui.unindent();
-        }
-        
-        UITheme.separator();
-        
-        int adapterCount = PropertyAdapterRegistry.getAdapterCount();
-        boolean hasFallback = PropertyAdapterRegistry.hasFallbackAdapter();
-        
-        UITheme.label(Icons.STATS + " " + tr(DirectorLang.Properties.ADAPTERS_REGISTERED, adapterCount), UITheme.DarkTheme.TEXT);
-        
-        if (hasFallback) {
-            ImGui.textColored(0.4f, 1.0f, 0.5f, 1.0f, Icons.SHIELD + " " + tr(DirectorLang.Properties.FALLBACK_ENABLED));
-        } else {
-            UITheme.label(Icons.SHIELD + " " + tr(DirectorLang.Properties.FALLBACK_DISABLED), UITheme.DarkTheme.TEXT_DISABLED);
         }
     }
     

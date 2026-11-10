@@ -39,6 +39,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -2017,13 +2018,13 @@ public class TimelineModelPersistence {
     /**
      * 从文件加载 TimelineModel（按世界）
      */
-    public static void loadFromFile(TimelineModel model, TimelineViewportState viewportState) {
+    public static Instant loadFromFile(TimelineModel model, TimelineViewportState viewportState) {
         try {
             Path timelineFile = getTimelineFile();
             Path legacy = getLegacyTimelineFile();
             if (timelineFile == null) {
                 LOGGER.debug("[TimelineModelPersistence] 当前无活动存档目录，跳过加载");
-                return;
+                return null;
             }
 
             // 自动迁移：优先使用世界目录；若世界目录没有但旧 config 存在，则迁移一次
@@ -2052,6 +2053,9 @@ public class TimelineModelPersistence {
                 fromDTO(dto, model, viewportState);
                 LOGGER.info("[TimelineModelPersistence] 世界 {} 的时间线数据已加载: {}", 
                     WorldIdentifier.getCurrentWorldId(), timelineFile);
+                if (dto != null) {
+                    return Files.getLastModifiedTime(timelineFile).toInstant();
+                }
             } else {
                 LOGGER.info("[TimelineModelPersistence] 世界 {} 的时间线数据文件不存在，使用默认数据", 
                     WorldIdentifier.getCurrentWorldId());
@@ -2061,6 +2065,7 @@ public class TimelineModelPersistence {
         } catch (Exception e) {
             LOGGER.error("[TimelineModelPersistence] 解析时间线数据失败: {}", e.getMessage(), e);
         }
+        return null;
     }
     
     /**

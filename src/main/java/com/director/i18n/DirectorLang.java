@@ -310,6 +310,25 @@ public final class DirectorLang {
     }
 
     public static final class Properties {
+        public static final class Overview {
+            public static final String TITLE = "gui.director.properties.overview.title";
+            public static final String DURATION = "gui.director.properties.overview.duration";
+            public static final String CAMERAS = "gui.director.properties.overview.cameras";
+            public static final String ACTORS = "gui.director.properties.overview.actors";
+            public static final String TRACKS = "gui.director.properties.overview.tracks";
+            public static final String LAST_SAVE = "gui.director.properties.overview.last_save";
+            public static final String NEVER_SAVED = "gui.director.properties.overview.never_saved";
+            public static final String NEW_CAMERA = "gui.director.properties.overview.new_camera";
+            public static final String SECONDS = "gui.director.properties.overview.seconds";
+            public static final String SELECTION_NAME = "gui.director.properties.overview.selection_name";
+            public static final String SELECTION_START = "gui.director.properties.overview.selection_start";
+            public static final String SELECTION_END = "gui.director.properties.overview.selection_end";
+            public static final String NO_BATCH_FIELDS = "gui.director.properties.overview.no_batch_fields";
+            public static final String BATCH_READ_ONLY = "gui.director.properties.overview.batch_read_only";
+
+            private Overview() {}
+        }
+
         public static final String MULTI_SELECT = "gui.director.properties.multi_select";
         public static final String MULTI_SELECT_TOOLTIP = "gui.director.properties.multi_select_tooltip";
         public static final String NO_TOOL = "gui.director.properties.no_tool";

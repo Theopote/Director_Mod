@@ -399,6 +399,8 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                 commands.help().openVideoTutorial();
             }
 
+            renderSupportedPropertiesMenu();
+
             ImGui.separator();
 
             if (ImGui.menuItem(tr(DirectorLang.Menu.HELP_REPORT_BUG), "", false, false)) {
@@ -411,4 +413,30 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             ImGui.endMenu();
         }
     }
+    private static void renderSupportedPropertiesMenu() {
+        if (ImGui.beginMenu(tr(DirectorLang.Properties.SUPPORTED_TYPES_TITLE))) {
+            propertyTypes(DirectorLang.Properties.GROUP_TIMELINE, DirectorLang.Properties.TYPE_TIMELINE_PROJECT,
+                    DirectorLang.Properties.TYPE_TIMELINE_SEQUENCE, DirectorLang.Properties.TYPE_TIMELINE_TRACK);
+            propertyTypes(DirectorLang.Properties.GROUP_CORE, DirectorLang.Properties.TYPE_KEYFRAME,
+                    DirectorLang.Properties.TYPE_CONTAINER);
+            propertyTypes(DirectorLang.Properties.GROUP_EXTENDED, DirectorLang.Properties.TYPE_EFFECT,
+                    DirectorLang.Properties.TYPE_PROJECT_ENV, DirectorLang.Properties.TYPE_MATERIAL_LIBRARY,
+                    DirectorLang.Properties.TYPE_CAMERA, DirectorLang.Properties.TYPE_POST_PROCESSING,
+                    DirectorLang.Properties.TYPE_PHYSICS_ENV);
+            propertyTypes(DirectorLang.Properties.GROUP_TYPES, DirectorLang.Properties.TYPE_VECTOR3F,
+                    DirectorLang.Properties.TYPE_COLOR, DirectorLang.Properties.TYPE_LIST);
+            propertyTypes(DirectorLang.Properties.GROUP_FALLBACK, DirectorLang.Properties.TYPE_GENERIC);
+            ImGui.endMenu();
+        }
+    }
+
+    private static void propertyTypes(String group, String... types) {
+        if (ImGui.beginMenu(tr(group))) {
+            for (String type : types) {
+                ImGui.textUnformatted(tr(type));
+            }
+            ImGui.endMenu();
+        }
+    }
+
 }

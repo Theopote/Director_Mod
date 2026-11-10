@@ -1,5 +1,6 @@
 package com.director.timeline.model;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -110,6 +111,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     // ⭐ 性能优化：防止 notifyModelChanged 的无限循环
     private boolean isNotifyingListeners = false;
     private volatile long lastSaveTime = 0;
+    private volatile Instant lastTimelineSave;
     private static final long MIN_SAVE_INTERVAL_MS = 1000; // 最小保存间隔：1秒（避免频繁保存导致崩溃）
 
     /**
@@ -219,7 +221,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         com.director.actor.model.BuiltInCustomModels.registerDefaults();
         // Clip preset validation needs the project's animation purposes.
         if (TimelineModelPersistence.hasSavedData()) {
-            TimelineModelPersistence.loadFromFile(this, this.viewportState);
+            lastTimelineSave = TimelineModelPersistence.loadFromFile(this, this.viewportState);
         }
         // 如果没有保存的数据，轨道列表已初始化为空，时间线为空
     }
@@ -235,6 +237,9 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         }
 
         boolean timelineOk = TimelineModelPersistence.saveToFile(this, viewportState);
+        if (timelineOk) {
+            lastTimelineSave = Instant.now();
+        }
         boolean actorOk = com.director.actor.ActorRegistryManager.save();
         boolean animationAssetOk = com.director.actor.animation.asset.AnimationAssetPersistence.saveToWorld(
                 com.director.actor.animation.asset.AnimationAssetLibrary.getInstance());
@@ -244,6 +249,10 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
                 com.director.actor.model.CustomModelLibrary.getInstance());
         PersistenceSaveStatus.reportTimelineResult(timelineOk);
         return timelineOk && actorOk && animationAssetOk && customRigOk && customModelOk;
+    }
+
+    public Instant getLastTimelineSave() {
+        return lastTimelineSave;
     }
 
     /**
@@ -294,7 +303,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         com.director.actor.model.CustomModelPersistence.loadFromWorld(
                 com.director.actor.model.CustomModelLibrary.getInstance());
         com.director.actor.model.BuiltInCustomModels.registerDefaults();
-        TimelineModelPersistence.loadFromFile(this, viewportState);
+        lastTimelineSave = TimelineModelPersistence.loadFromFile(this, viewportState);
     }
 
     /**
@@ -339,7 +348,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         com.director.actor.model.CustomModelPersistence.loadFromWorld(customModels);
         com.director.actor.model.BuiltInCustomModels.registerDefaults();
         if (TimelineModelPersistence.hasSavedData()) {
-            TimelineModelPersistence.loadFromFile(this, viewportState);
+            lastTimelineSave = TimelineModelPersistence.loadFromFile(this, viewportState);
         }
     }
 
@@ -350,6 +359,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     private void resetInMemoryToDefaults() {
         com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
         actorEditContextRevision++;
+        lastTimelineSave = null;
         playing = false;
         scrubbing = false;
         loopEnabled = false;

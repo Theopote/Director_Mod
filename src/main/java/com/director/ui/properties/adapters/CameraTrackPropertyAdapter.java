@@ -3,13 +3,14 @@ package com.director.ui.properties.adapters;
 import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.Section;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.camera.CameraViewportProfile;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import org.slf4j.Logger;
@@ -60,42 +61,24 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
                 + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.TITLE));
         UITheme.spacingSmall();
 
-        if (ImGui.collapsingHeader(Icons.SCALE + " "
-                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_ASPECT),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("camera.track.section_aspect", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_ASPECT))) {
             renderAspectRatioSection(profile, modifiedRef);
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.SHIELD + " "
-                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_SAFE_AREA),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("camera.track.section_safe_area", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_SAFE_AREA))) {
             renderSafeAreaSection(profile, modifiedRef);
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.PREVIEW + " "
-                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_PREVIEW_RES),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("camera.track.section_preview_res", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_PREVIEW_RES))) {
             renderPreviewResolutionSection(profile, modifiedRef);
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.FILM + " "
-                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_PREVIEW_OPTS))) {
-            ImGui.indent();
+        if (Section.header("camera.track.section_preview_opts", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_PREVIEW_OPTS), false)) {
             renderPreviewOptionsSection(profile, modifiedRef);
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.GRID + " "
-                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_GUIDES))) {
-            ImGui.indent();
+        if (Section.header("camera.track.section_guides", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_GUIDES), false)) {
             renderGuideLinesSection(profile, modifiedRef);
-            ImGui.unindent();
         }
 
         return modifiedRef[0];
@@ -106,7 +89,8 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
         String[] ratioLabels = CameraPropertyAdapterI18n.aspectRatioModeLabels();
 
         ImInt ratioIdx = new ImInt(profile.getAspectMode().ordinal());
-        if (ImGui.combo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.ASPECT_RATIO),
+        PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.ASPECT_RATIO));
+        if (ImGui.combo("##aspect_ratio",
                 ratioIdx, ratioLabels)) {
             profile.setAspectMode(ratioModes[ratioIdx.get()]);
             modifiedRef[0] = true;
@@ -118,21 +102,19 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
 
         UITheme.spacingSmall();
         if (ImGui.button(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.PRESET_16_9),
-                100, UITheme.Spacing.BUTTON_HEIGHT)) {
+                0, UITheme.Spacing.BUTTON_HEIGHT)) {
             profile.setAspectMode(CameraViewportProfile.AspectRatioMode.RATIO_16_9);
             profile.setPreviewResolution(1920, 1080);
             modifiedRef[0] = true;
         }
-        ImGui.sameLine();
         if (ImGui.button(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.PRESET_9_16),
-                100, UITheme.Spacing.BUTTON_HEIGHT)) {
+                0, UITheme.Spacing.BUTTON_HEIGHT)) {
             profile.setAspectMode(CameraViewportProfile.AspectRatioMode.RATIO_9_16);
             profile.setPreviewResolution(1080, 1920);
             modifiedRef[0] = true;
         }
-        ImGui.sameLine();
         if (ImGui.button(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.PRESET_1_1),
-                100, UITheme.Spacing.BUTTON_HEIGHT)) {
+                0, UITheme.Spacing.BUTTON_HEIGHT)) {
             profile.setAspectMode(CameraViewportProfile.AspectRatioMode.RATIO_1_1);
             profile.setPreviewResolution(1080, 1080);
             modifiedRef[0] = true;
@@ -141,7 +123,8 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
         if (profile.getAspectMode() == CameraViewportProfile.AspectRatioMode.CUSTOM) {
             UITheme.spacingSmall();
             int[] customRatio = {profile.getCustomAspectW(), profile.getCustomAspectH()};
-            if (ImGui.inputInt2(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.CUSTOM_RATIO),
+            PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.CUSTOM_RATIO));
+            if (ImGui.inputInt2("##custom_ratio",
                     customRatio)) {
                 profile.setCustomAspectW(customRatio[0]);
                 profile.setCustomAspectH(customRatio[1]);
@@ -166,7 +149,8 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
 
     private void renderSafeAreaSection(CameraViewportProfile profile, final boolean[] modifiedRef) {
         ImBoolean showSafeAreas = new ImBoolean(profile.isShowSafeAreas());
-        if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SHOW_SAFE_AREAS),
+        PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SHOW_SAFE_AREAS));
+        if (ImGui.checkbox("##show_safe_areas",
                 showSafeAreas)) {
             profile.setShowSafeAreas(showSafeAreas.get());
             modifiedRef[0] = true;
@@ -179,7 +163,8 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
             UITheme.spacingSmall();
 
             float[] actionSafe = {profile.getActionSafe() * 100.0f};
-            if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.ACTION_SAFE),
+            PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.ACTION_SAFE));
+            if (ImGui.dragFloat("##action_safe",
                     actionSafe, 0.5f, 50.0f, 100.0f, "%.1f%%")) {
                 profile.setActionSafe(actionSafe[0] / 100.0f);
                 modifiedRef[0] = true;
@@ -191,7 +176,8 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
             UITheme.spacingSmall();
 
             float[] titleSafe = {profile.getTitleSafe() * 100.0f};
-            if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.TITLE_SAFE),
+            PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.TITLE_SAFE));
+            if (ImGui.dragFloat("##title_safe",
                     titleSafe, 0.5f, 50.0f, 100.0f, "%.1f%%")) {
                 profile.setTitleSafe(titleSafe[0] / 100.0f);
                 modifiedRef[0] = true;
@@ -209,7 +195,8 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
 
     private void renderPreviewResolutionSection(CameraViewportProfile profile, final boolean[] modifiedRef) {
         int[] previewRes = {profile.getPreviewWidth(), profile.getPreviewHeight()};
-        if (ImGui.inputInt2(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.PREVIEW_RES),
+        PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.PREVIEW_RES));
+        if (ImGui.inputInt2("##preview_res",
                 previewRes)) {
             profile.setPreviewResolution(previewRes[0], previewRes[1]);
             modifiedRef[0] = true;
@@ -221,19 +208,17 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
 
         UITheme.spacingSmall();
         if (ImGui.button(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.PRESET_1080P),
-                120, UITheme.Spacing.BUTTON_HEIGHT)) {
+                0, UITheme.Spacing.BUTTON_HEIGHT)) {
             profile.setPreviewResolution(1920, 1080);
             modifiedRef[0] = true;
         }
-        ImGui.sameLine();
         if (ImGui.button(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.PRESET_720P),
-                120, UITheme.Spacing.BUTTON_HEIGHT)) {
+                0, UITheme.Spacing.BUTTON_HEIGHT)) {
             profile.setPreviewResolution(1280, 720);
             modifiedRef[0] = true;
         }
-        ImGui.sameLine();
         if (ImGui.button(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.PRESET_4K),
-                120, UITheme.Spacing.BUTTON_HEIGHT)) {
+                0, UITheme.Spacing.BUTTON_HEIGHT)) {
             profile.setPreviewResolution(3840, 2160);
             modifiedRef[0] = true;
         }
@@ -241,7 +226,8 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
         UITheme.spacingSmall();
         String[] scalePolicyLabels = CameraPropertyAdapterI18n.previewScalePolicyLabels();
         ImInt scalePolicyIdx = new ImInt(profile.getPreviewScalePolicy().ordinal());
-        if (ImGui.combo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SCALE_POLICY),
+        PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SCALE_POLICY));
+        if (ImGui.combo("##scale_policy",
                 scalePolicyIdx, scalePolicyLabels)) {
             profile.setPreviewScalePolicy(CameraViewportProfile.PreviewScalePolicy.values()[scalePolicyIdx.get()]);
             modifiedRef[0] = true;
@@ -258,7 +244,8 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
 
     private void renderPreviewOptionsSection(CameraViewportProfile profile, final boolean[] modifiedRef) {
         ImBoolean showLetterbox = new ImBoolean(profile.isShowLetterboxMask());
-        if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SHOW_LETTERBOX),
+        PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SHOW_LETTERBOX));
+        if (ImGui.checkbox("##show_letterbox",
                 showLetterbox)) {
             profile.setShowLetterboxMask(showLetterbox.get());
             modifiedRef[0] = true;
@@ -268,14 +255,13 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
         }
 
         if (profile.isShowLetterboxMask()) {
-            ImGui.indent();
             float[] alpha = {profile.getLetterboxAlpha()};
-            if (ImGui.sliderFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.MASK_ALPHA),
+            PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.MASK_ALPHA));
+            if (ImGui.sliderFloat("##mask_alpha",
                     alpha, 0.0f, 1.0f, "%.2f")) {
                 profile.setLetterboxAlpha(alpha[0]);
                 modifiedRef[0] = true;
             }
-            ImGui.unindent();
         }
 
         UITheme.spacingSmall();
@@ -286,7 +272,8 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
 
     private void renderGuideLinesSection(CameraViewportProfile profile, final boolean[] modifiedRef) {
         ImBoolean showCenterCross = new ImBoolean(profile.isShowCenterCross());
-        if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SHOW_CENTER_CROSS),
+        PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SHOW_CENTER_CROSS));
+        if (ImGui.checkbox("##show_center_cross",
                 showCenterCross)) {
             profile.setShowCenterCross(showCenterCross.get());
             modifiedRef[0] = true;
@@ -298,7 +285,8 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
         UITheme.spacingSmall();
 
         ImBoolean showRuleOfThirds = new ImBoolean(profile.isShowRuleOfThirds());
-        if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SHOW_RULE_OF_THIRDS),
+        PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SHOW_RULE_OF_THIRDS));
+        if (ImGui.checkbox("##show_rule_of_thirds",
                 showRuleOfThirds)) {
             profile.setShowRuleOfThirds(showRuleOfThirds.get());
             modifiedRef[0] = true;

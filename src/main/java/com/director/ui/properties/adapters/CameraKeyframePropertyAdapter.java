@@ -3,6 +3,8 @@ package com.director.ui.properties.adapters;
 import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.Section;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.TimelineTrack;
@@ -12,7 +14,6 @@ import com.director.timeline.playback.camera.TimelineCameraController;
 import com.director.ui.tools.ToolRegistry;
 import com.director.ui.tools.impl.CameraPathEditTool;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
@@ -97,11 +98,9 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ① 基础信息（时间、关键帧类型）
     // ============================================================================
     private void basicInfoSection(CameraKeyframe kf, AtomicBoolean changed) {
-        if (!ImGui.collapsingHeader(Icons.CLIPBOARD + " "
-                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_BASIC),
-                ImGuiTreeNodeFlags.DefaultOpen))
+        if (!Section.header("camera.keyframe.section_basic", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_BASIC)))
             return;
-        ImGui.indent();
+
 
         // ----- 时间 -----
         f1.set(kf.getTime());
@@ -128,7 +127,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         }
         if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.KEY_TYPE_TOOLTIP));
-        ImGui.unindent();
+
     }
 
     private float clampTimeToOwnerClip(CameraKeyframe keyframe, float time) {
@@ -147,11 +146,9 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ② 曲线插值（位置 + 旋转）
     // ============================================================================
     private void interpolationSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
-        if (!ImGui.collapsingHeader(Icons.INTERPOLATION + " "
-                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_INTERPOLATION),
-                ImGuiTreeNodeFlags.DefaultOpen))
+        if (!Section.header("camera.keyframe.section_interpolation", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_INTERPOLATION)))
             return;
-        ImGui.indent();
+
 
         // --- Segment Path Type（位置曲线） ---
         String[] segLabels = CameraPropertyAdapterI18n.segmentPathTypeLabels();
@@ -178,18 +175,16 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         }
         if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION_CURVE_TOOLTIP));
-        ImGui.unindent();
+
     }
 
     // ============================================================================
     // ③ 位置（Position）与旋转（Rotation）
     // ============================================================================
     private void transformSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
-        if (!ImGui.collapsingHeader(Icons.TRANSFORM + " "
-                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_TRANSFORM),
-                ImGuiTreeNodeFlags.DefaultOpen))
+        if (!Section.header("camera.keyframe.section_transform", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_TRANSFORM)))
             return;
-        ImGui.indent();
+
 
         // ---- Capture 按钮 ----
         if (ImGui.button(Icons.CAMERA + " "
@@ -219,7 +214,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
                 CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION_TOOLTIP), editing)) {
             changed.set(true);
         }
-        ImGui.unindent();
+
     }
 
     // ============================================================================
@@ -229,11 +224,9 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         boolean show = kf.getSegmentPathType() == CameraKeyframe.SegmentPathType.BEZIER
                 || kf.getKeyType() == CameraKeyframe.KeyType.MANUAL_BEZIER;
         
-        if (!show || !ImGui.collapsingHeader(Icons.BEZIER + " "
-                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_BEZIER),
-                ImGuiTreeNodeFlags.DefaultOpen))
+        if (!show || !Section.header("camera.keyframe.section_bezier", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_BEZIER)))
             return;
-        ImGui.indent();
+
 
         // 手柄模式
         String[] modeLabels = CameraPropertyAdapterI18n.handleModeLabels();
@@ -305,18 +298,16 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         ImGui.spacing();
         ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_RELATIVE_HINT));
         ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_AUTO_GENERATED_HINT));
-        ImGui.unindent();
+
     }
 
     // ============================================================================
     // ⑤ 投影参数（FOV / near / far）
     // ============================================================================
     private void projectionSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
-        if (!ImGui.collapsingHeader(Icons.CAMERA + " "
-                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_PROJECTION),
-                ImGuiTreeNodeFlags.DefaultOpen))
+        if (!Section.header("camera.keyframe.section_projection", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_PROJECTION)))
             return;
-        ImGui.indent();
+
 
         // FOV
         f1.set(kf.getFov());
@@ -361,23 +352,23 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
                     UITheme.DarkTheme.TEXT_WARNING);
         }
         ImGui.endDisabled();
-        ImGui.unindent();
+
     }
 
     // ============================================================================
     // ⑥ 景深（DOF）
     // ============================================================================
     private void depthOfFieldSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
-        if (!ImGui.collapsingHeader(Icons.EFFECT + " "
-                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_DOF)))
+        if (!Section.header("camera.keyframe.section_dof", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_DOF), false))
             return;
-        ImGui.indent();
+
 
         ImGui.textDisabled(CameraPropertyAdapterI18n.tr("gui.director.camera.dof_unsupported"));
         ImGui.beginDisabled();
         // 复用 ImBoolean 对象
         dofEnabled.set(kf.isDepthOfFieldEnabled());
-        if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.DOF_ENABLED),
+        PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.DOF_ENABLED));
+        if (ImGui.checkbox("##dof_enabled",
                 dofEnabled)) {
             kf.setDepthOfFieldEnabled(dofEnabled.get());
             changed.set(true);
@@ -387,7 +378,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
 
         if (!dofEnabled.get()) {
             ImGui.endDisabled();
-            ImGui.unindent();
+
             return;
         }
 
@@ -414,7 +405,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.APERTURE_TOOLTIP));
 
         ImGui.endDisabled();
-        ImGui.unindent();
+
     }
 
     // ============================================================================
@@ -431,7 +422,8 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     private boolean dragFloat(String label, ImFloat value, float speed, float min, float max, String fmt) {
         // 返回 changed，让调用者决定何时更新 keyframe
         // 如果 changed 为 true，说明值已经被修改了（无论是拖动还是输入）
-        return ImGui.dragFloat(label, value.getData(), speed, min, max, fmt);
+        PropertyRow.field(label);
+        return ImGui.dragFloat("##" + label, value.getData(), speed, min, max, fmt);
     }
 
     /**
@@ -439,7 +431,8 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
      */
     private boolean enumCombo(String label, ImInt idx, String[] labels) {
         // 下拉框选择后立即生效，不需要等待鼠标松开
-        return ImGui.combo(label, idx, labels, labels.length);
+        PropertyRow.field(label);
+        return ImGui.combo("##" + label, idx, labels, labels.length);
     }
 
     /**
@@ -451,7 +444,8 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     private boolean vector3(String label, Vector3f vec, VectorSetter setter, float speed,
                             String tooltipText, AtomicBoolean editing) {
         float[] arr = {vec.x, vec.y, vec.z};
-        if (ImGui.dragFloat3(label, arr, speed)) {
+        PropertyRow.field(label);
+        if (ImGui.dragFloat3("##" + label, arr, speed)) {
             setter.set(new Vector3f(arr[0], arr[1], arr[2]));
             editing.set(true);
         }

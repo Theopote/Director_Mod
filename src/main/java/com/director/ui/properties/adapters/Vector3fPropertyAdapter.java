@@ -1,8 +1,11 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.Vec3Field;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,13 +67,14 @@ public class Vector3fPropertyAdapter implements IPropertyAdapter<Vector3f> {
         // XYZ 编辑
         UITheme.beginGroup("坐标");
         
-        float[] values = {target.x, target.y, target.z};
-        
-        if (ImGui.dragFloat3("XYZ", values, 0.1f)) {
-            target.set(values[0], values[1], values[2]);
+        Vec3d original = new Vec3d(target.x, target.y, target.z);
+        PropertyRow.label("XYZ");
+        Vec3d updated = Vec3Field.drag("vector", original, 0.1f);
+        if (updated != original) {
+            target.set((float) updated.x, (float) updated.y, (float) updated.z);
             modified = true;
             LOGGER.debug("[Vector3fPropertyAdapter] Vector3f 已更新: ({}, {}, {})", 
-                values[0], values[1], values[2]);
+                target.x, target.y, target.z);
         }
         
         UITheme.spacingSmall();

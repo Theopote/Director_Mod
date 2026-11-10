@@ -9,9 +9,15 @@ public final class Section {
     private Section() {}
 
     public static boolean header(String id, String title) {
-        boolean open = ImGui.treeNodeEx(title + "###" + id,
-                ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.NoTreePushOnOpen
-                        | ImGuiTreeNodeFlags.SpanAvailWidth);
+        return header(id, title, true);
+    }
+
+    public static boolean header(String id, String title, boolean defaultOpen) {
+        int flags = ImGuiTreeNodeFlags.NoTreePushOnOpen | ImGuiTreeNodeFlags.SpanAvailWidth;
+        if (defaultOpen) {
+            flags |= ImGuiTreeNodeFlags.DefaultOpen;
+        }
+        boolean open = ImGui.treeNodeEx(title + "###" + id, flags);
         var min = ImGui.getItemRectMin();
         var max = ImGui.getItemRectMax();
         float lineStart = min.x + ImGui.getTreeNodeToLabelSpacing()

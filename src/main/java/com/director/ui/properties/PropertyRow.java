@@ -16,26 +16,36 @@ public final class PropertyRow {
             return;
         }
 
+        clippedText(label, width);
+        ImGui.sameLine(0, UITheme.Spacing.SMALL);
+    }
+
+    private static void clippedText(String text, float width) {
         float x = ImGui.getCursorScreenPosX();
         float y = ImGui.getCursorScreenPosY();
         float height = ImGui.getFrameHeight();
-        boolean truncated = ImGui.calcTextSize(label).x > width;
+        float textWidth = ImGui.calcTextSize(text).x;
+        boolean truncated = textWidth > width;
         ImGui.dummy(width, height);
         var drawList = ImGui.getWindowDrawList();
         drawList.pushClipRect(x, y, x + width, y + height, true);
-        String display = truncated ? ellipsize(label, width) : label;
+        String display = truncated ? ellipsize(text, width) : text;
         drawList.addText(x, y + ImGui.getStyle().getFramePadding().y, ImGui.getColorU32(ImGuiCol.Text), display);
         drawList.popClipRect();
 
         if (truncated && ImGui.isItemHovered()) {
-            ImGui.setTooltip(label);
+            ImGui.setTooltip(text);
         }
-        ImGui.sameLine(0, UITheme.Spacing.SMALL);
     }
 
     public static void field(String label) {
         label(label);
         ImGui.setNextItemWidth(-1f);
+    }
+
+    public static void value(String label, String value) {
+        label(label);
+        clippedText(value, Math.max(1f, ImGui.getContentRegionAvailX()));
     }
 
     private static String ellipsize(String label, float width) {

@@ -4,6 +4,8 @@ import com.director.core.DirectorServices;
 import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.Section;
+import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
 import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
@@ -13,7 +15,6 @@ import com.director.timeline.playback.camera.CameraRuntime;
 import com.director.timeline.playback.camera.CameraSample;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import net.minecraft.util.math.Vec3d;
@@ -143,7 +144,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     private boolean renderTiming(DollyPathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("camera.dolly.timing_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_SECTION))) {
             ImGui.indent();
             ImGui.beginDisabled();
             float startTime = clip.getStartTime();
@@ -169,7 +170,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     private boolean renderMotionSection(DollyPathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.MOTION_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("camera.dolly.motion_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.MOTION_SECTION))) {
             ImGui.indent();
             // ⭐ 方向提示：在 slider 上方显示方向语义
             String pullBackLabel = Icons.ARROW_LEFT + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.PULL_BACK);
@@ -189,7 +190,8 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             
             // Slider（使用隐藏的 label，实际显示在 slider 内部）
             String sliderLabel = CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.DISTANCE_LABEL);
-            boolean distanceSliderChanged = ImGui.sliderFloat(sliderLabel, distanceFloat.getData(), -32f, 32f, "%.1f");
+            PropertyRow.field(sliderLabel);
+            boolean distanceSliderChanged = ImGui.sliderFloat("##distance", distanceFloat.getData(), -32f, 32f, "%.1f");
             boolean isDistanceSliderActive = ImGui.isItemActive();
             
             if (distanceSliderChanged) {
@@ -226,7 +228,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     private boolean renderDirectionSection(DollyPathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.DIRECTION_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Section.header("camera.dolly.direction_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.DIRECTION_SECTION))) {
             ImGui.indent();
             DollyPathClip.DirectionMode mode = clip.getDirectionMode();
             
@@ -268,7 +270,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
                 ImGui.spacing();
                 ImGui.indent();
                 // 使用可折叠区域，让高级选项更"收"一些
-                if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.CUSTOM_DIRECTION_VECTOR), ImGuiTreeNodeFlags.DefaultOpen)) {
+                if (Section.header("camera.dolly.custom_direction_vector", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.CUSTOM_DIRECTION_VECTOR))) {
                     float[] dirArr = {fixedDirectionArr[0].get(), fixedDirectionArr[1].get(), fixedDirectionArr[2].get()};
                     boolean directionChanged = ImGui.dragFloat3("##direction_vector", dirArr, 0.01f);
                     boolean isDirectionActive = ImGui.isItemActive();
@@ -306,10 +308,11 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     private boolean renderAdvancedSection(DollyPathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ADVANCED_SECTION), ImGuiTreeNodeFlags.None)) {
+        if (Section.header("camera.dolly.advanced_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ADVANCED_SECTION), false)) {
             ImGui.indent();
             ImBoolean align = new ImBoolean(clip.isAlignStartToCurrentPosition());
-            if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ALIGN_START), align)) {
+            PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ALIGN_START));
+            if (ImGui.checkbox("##align_start", align)) {
                 clip.setAlignStartToCurrentPosition(align.get());
                 modified = true;
             }
@@ -318,7 +321,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             }
             
             // 调试信息（可折叠）
-            if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.DEBUG_INFO_SECTION), ImGuiTreeNodeFlags.None)) {
+            if (Section.header("camera.dolly.debug_info_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.DEBUG_INFO_SECTION), false)) {
                 ImGui.indent();
                 Vec3d startPos = clip.getStartPosition();
                 Vec3d dollyDir = clip.getDollyDirection();

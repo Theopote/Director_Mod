@@ -113,9 +113,10 @@ public final class PropertyContextService {
         boolean hasTool = ToolRegistry.get().hasNonSelectionActiveTool();
         if (!hasTool) {
             var core = DirectorServices.get().selection();
-            if (core.getCurrentTool() != null) {
-                hasTool = true;
-            }
+            String toolId = core.getCurrentToolId();
+            // The passive click tool is present even in an empty project.
+            hasTool = toolId != null && (!"click".equals(toolId)
+                    || lastToolInteraction > lastTimelineInteraction || !core.getSelectionSet().isEmpty());
         }
         // 两者同时成立时，按最近交互择一，避免 Tool 激活后 Timeline 选中仍存在导致的抖动
         if (hasTimeline && hasTool) {
