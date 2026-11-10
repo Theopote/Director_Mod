@@ -48,14 +48,13 @@ public class EntityClipSampler {
     private final List<EntityLookAtClip> lookAtClips = new ArrayList<>();
     private final List<ActorActionClip> actorActionClips = new ArrayList<>();
     private final List<ActorPoseClip> actorPoseClips = new ArrayList<>();
-    private final List<ActorRouteClip> actorRouteClips = new ArrayList<>();
     private final List<ActorRelationClip> actorRelationClips = new ArrayList<>();
     private final List<EntityAnimationClip> embedded = new ArrayList<>();
 
     private void clearScratch() {
         transformClips.clear(); animationClips.clear(); actionClips.clear();
         stateClips.clear(); lookAtClips.clear(); actorActionClips.clear();
-        actorPoseClips.clear(); actorRouteClips.clear(); actorRelationClips.clear(); embedded.clear();
+        actorPoseClips.clear(); actorRelationClips.clear(); embedded.clear();
     }
 
     /** 用于 Action Clip 的"已触发记录"（防止重复触发） */
@@ -182,9 +181,7 @@ public class EntityClipSampler {
                     // 已在上方从完整轨道收集，避免丢失刚结束的前一姿态。
                     break;
                 case ACTOR_ROUTE:
-                    if (clip instanceof ActorRouteClip actorRouteClip) {
-                        actorRouteClips.add(actorRouteClip);
-                    }
+                    // Route ownership is shared with the movement editor.
                     break;
                 case ACTOR_RELATION:
                     if (clip instanceof ActorRelationClip actorRelationClip) {
@@ -203,7 +200,7 @@ public class EntityClipSampler {
 
         // ========== 处理 ActorRoute Clip（路线移动）==========
         // 规则：last-wins（取 startTime 最大的那个），Transform 仍可覆盖它
-        applyActorRoute(result, actorRouteClips, timeSeconds);
+        applyActorRoute(result, track.findRouteClipAt(timeSeconds), timeSeconds);
 
         // ========== 处理 Transform Clip（位置/旋转/缩放）==========
         // 规则：覆盖（最后一个生效，按时间排序）
@@ -652,21 +649,8 @@ public class EntityClipSampler {
         return Math.clamp(value, 0f, 1f);
     }
 
-    private void applyActorRoute(EntitySample result, List<ActorRouteClip> clips, float timeSeconds) {
-        ActorRouteClip active = null;
-        for (ActorRouteClip clip : clips) {
-            if (clip.isMuted()) {
-                continue;
-            }
-            if (timeSeconds >= clip.getStartTime() && timeSeconds <= clip.getEndTime()) {
-                if (active == null || clip.compareTo(active) > 0) {
-                    active = clip;
-                }
-            }
-        }
-        if (active == null || active.getWaypoints().isEmpty()) {
-            return;
-        }
+    private void applyActorRoute(EntitySample result, ActorRouteClip active, float timeSeconds) {
+        if (active == null) return;
 
         result.routeClip = active;
 

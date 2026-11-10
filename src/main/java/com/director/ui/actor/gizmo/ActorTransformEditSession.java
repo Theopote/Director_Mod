@@ -105,6 +105,8 @@ public final class ActorTransformEditSession {
     }
 
     public static EntitySpawnClip resolveInitialSpawn(ActorTrack payload, float time) {
+        var active = payload.findSpawnClipAt(time);
+        if (active != null) return active;
         EntitySpawnClip result = null;
         for (var clip : payload.getClips()) {
             if (clip instanceof EntitySpawnClip spawn && !spawn.isMuted()

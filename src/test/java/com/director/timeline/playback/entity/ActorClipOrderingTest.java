@@ -119,4 +119,23 @@ class ActorClipOrderingTest {
         assertNotEquals(key.getId(), copy.getEntityClip().getKeyframes().getFirst().getId());
         assertEquals(key.getTime(), copy.getEntityClip().getKeyframes().getFirst().getTime());
     }
+
+    @Test void routeEditorAndPlaybackUseSameNonemptyRouteAtEqualStarts() {
+        var payload = new ActorTrack();
+        var owner = new TimelineTrack("Actor", TrackType.ACTOR);
+        owner.setActorTrackPayload(payload);
+        var first = new ActorRouteClip(new UUID(0, 1), "First", 0, 10);
+        first.addWaypoint(1, 0, 0);
+        var second = new ActorRouteClip(new UUID(0, 2), "Second", 0, 10);
+        second.addWaypoint(2, 0, 0);
+        var empty = new ActorRouteClip(new UUID(0, 3), "Empty", 0, 10);
+        for (var route : List.of(empty, second, first)) payload.addClip(route);
+        var sampler = new EntityClipSampler(payload);
+
+        assertSame(second, com.director.ui.actor.pose.ActorMovementSource.activeRoute(owner, 2));
+        assertEquals(2f, sampler.sampleSnapshot(2).position.x);
+        second.setMuted(true);
+        assertSame(first, com.director.ui.actor.pose.ActorMovementSource.activeRoute(owner, 2));
+        assertEquals(1f, sampler.sampleSnapshot(2).position.x);
+    }
 }

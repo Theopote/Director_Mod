@@ -85,6 +85,24 @@ class ActorTransformEditSessionTest {
         assertEquals(0, loaded.getRollDeg()); assertEquals(new Vector3f(1), loaded.getScale());
     }
 
+    @Test void transformEditsTheCoveringSpawnWhenALaterSpawnHasEnded() {
+        var covering = new EntitySpawnClip("Covering", 0, 5);
+        var ended = new EntitySpawnClip("Ended", 1, 1.5f);
+        var payload = track.getActorTrackPayload();
+        for (var spawn : java.util.List.of(covering, ended)) {
+            payload.addClip(spawn);
+            track.addClip(new EntityTimelineClip(spawn, 0));
+        }
+
+        var edit = session(null);
+        edit.arm();
+        edit.draft().setToPos(4, 0, 0);
+        assertNotNull(edit.commit());
+        assertEquals(0f, ended.getPosition().x);
+        var sampler = new com.director.timeline.playback.entity.EntityClipSampler(payload);
+        assertEquals(4f, sampler.sampleSnapshot(model.getCurrentTime()).position.x);
+    }
+
     @Test void keyedSpawnGestureWritesCurrentKeyWithoutChangingBaseOrCreatingClip() {
         var spawn = new EntitySpawnClip("Actor", 0, 5); spawn.setPosition(1, 2, 3);
         track.getActorTrackPayload().addClip(spawn); track.addClip(new EntityTimelineClip(spawn, 0));

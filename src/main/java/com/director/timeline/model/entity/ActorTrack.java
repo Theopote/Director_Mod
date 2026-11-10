@@ -312,6 +312,19 @@ public class ActorTrack {
         return active;
     }
 
+    /** Select the last covering route that can actually supply a position. */
+    @org.jetbrains.annotations.Nullable
+    public ActorRouteClip findRouteClipAt(float time) {
+        if (!Float.isFinite(time)) return null;
+        ActorRouteClip active = null;
+        for (var clip : getClips()) {
+            if (clip.getStartTime() > time) break;
+            if (clip instanceof ActorRouteClip route && !route.isMuted()
+                    && time <= route.getEndTime() && !route.getWaypoints().isEmpty()) active = route;
+        }
+        return active;
+    }
+
     /** A completed departure applies to the active spawn until another spawn takes over. */
     public boolean hasCompletedDespawn(float time, EntitySpawnClip spawn, EntityDespawnClip.DespawnMode mode) {
         for(var clip:getClips()) {

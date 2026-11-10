@@ -202,9 +202,9 @@ public final class ActorGroupTimelineCommandService {
             float time = model.getCurrentTime();
             var sample = new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleSnapshot(time);
             var spawn = payload.findSpawnClipAt(time);
-            boolean controlled = sample.relationEnabled || spawn != null && !spawn.getKeyframes().isEmpty()
+            boolean controlled = sample.relationEnabled || sample.routeClip != null || spawn != null && !spawn.getKeyframes().isEmpty()
                     || payload.findClipsAt(time).stream()
-                            .anyMatch(c -> !c.isMuted() && (c instanceof EntityTransformClip || c instanceof ActorRouteClip));
+                            .anyMatch(c -> !c.isMuted() && c instanceof EntityTransformClip);
             if (controlled) skipped.add(new SkippedMember(id, SkipReason.PLACEMENT_CONTROLLED));
             else eligible.add(id);
         }
