@@ -4,6 +4,7 @@ import com.director.core.DirectorServices;
 import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyEditCommit;
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.Section;
 import com.director.ui.properties.Vec3Field;
@@ -69,12 +70,9 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
     // ⭐ Edge trigger 状态跟踪（用于检测鼠标"刚按下"）
     private static boolean lastLeftMouseDown = false;
     
-    // ⭐ 性能优化：跟踪滑动条拖动状态，避免拖动时频繁调用 markDirty()
-    private boolean wasRadiusSliderActive = false;
-    private boolean wasStartAngleSliderActive = false;
-    private boolean wasEndAngleSliderActive = false;
+    private final PropertyEditCommit editCommit = new PropertyEditCommit();
+    private boolean numericChanged;
 
-    /** 捕获视角后跳过本帧实时预览，避免参数写入后镜头跳变 */
     private boolean suppressPreviewAfterCapture = false;
     
     @Override
@@ -92,6 +90,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
     
     @Override
     public boolean renderProperties(OrbitPathClip clip) {
+        if (clip != lastClip) finishEditing();
         if (clip == null) {
             ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.NO_CLIP));
             lastClip = null;
@@ -117,17 +116,12 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 pickingClip = null;
             }
             
-            // ⭐ 重置滑动条拖动状态（切换 clip 时）
-            wasRadiusSliderActive = false;
-            wasStartAngleSliderActive = false;
-            wasEndAngleSliderActive = false;
-            
         }
         
         // ⭐ 处理世界拾取（在 UI 渲染之前检查）
-        handleWorldPick(clip);
-        
-        boolean modified = false;
+        boolean modified = handleWorldPick(clip);
+        editCommit.beginFrame();
+        numericChanged = false;
         
         // ⭐ 实时预览：检查播放头是否在当前 clip 上
         boolean isPlayheadOnClip = isPlayheadOnClip(clip);
@@ -160,7 +154,8 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         
         // ⭐ 实时预览：如果参数被修改且播放头在当前 clip 上，立即更新摄像机
         // 捕获视角时只写参数，不预览（否则会立刻用轨道采样覆盖玩家视角）
-        if (modified && isPlayheadOnClip && !suppressPreviewAfterCapture) {
+        modified |= editCommit.endFrame();
+        if ((modified || numericChanged) && isPlayheadOnClip && !suppressPreviewAfterCapture) {
             updateCameraPreview(clip);
         }
         suppressPreviewAfterCapture = false;
@@ -168,6 +163,23 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         return modified;
     }
     
+    public void finishEditing() {
+        boolean changed = editCommit.finish();
+        currentPickMode = PickMode.NONE;
+        pickingClip = null;
+        if (!changed || lastClip == null) return;
+
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (model != null && model.getTracks().stream().anyMatch(track -> track.getCameraPathClips().contains(lastClip))) {
+            model.markDirty();
+        }
+    }
+
+    private void observeNumericEdit(boolean changed) {
+        editCommit.observe(changed, ImGui.isItemActive());
+        numericChanged |= changed;
+    }
+
     private static void sameLineForChoice(String label) {
         sameLineIfFits(ImGui.getFrameHeight() + ImGui.getStyle().getItemInnerSpacing().x + ImGui.calcTextSize(label).x);
     }
@@ -234,9 +246,10 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             Vec3d center = clip.getCenter();
             PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.CENTER_LABEL));
             Vec3d editedCenter = Vec3Field.drag("center", center, 0.1f);
-            if (editedCenter != center) {
+            boolean centerChanged = editedCenter != center;
+            observeNumericEdit(centerChanged);
+            if (centerChanged) {
                 clip.setCenter(editedCenter);
-                modified = true;
             }
             boolean isPickingCenter = currentPickMode == PickMode.PICK_CENTER && pickingClip == clip;
             // ⭐ 改进：按钮显示当前状态
@@ -283,9 +296,10 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             if (!lookAtSameAsCenter) {
                 PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.LOOK_AT_LABEL));
                 Vec3d editedLookAt = Vec3Field.drag("lookAt", lookAt, 0.1f);
-                if (editedLookAt != lookAt) {
+                boolean lookAtChanged = editedLookAt != lookAt;
+                observeNumericEdit(lookAtChanged);
+                if (lookAtChanged) {
                     clip.setLookAt(editedLookAt);
-                    modified = true;
                 }
                 boolean isPickingLookAt = currentPickMode == PickMode.PICK_LOOKAT && pickingClip == clip;
                 // ⭐ 改进：按钮显示当前状态
@@ -354,22 +368,10 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             if (!isFromCurrent) {
                 PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.RADIUS_LABEL));
                 boolean radiusSliderChanged = ImGui.sliderFloat("##radius", radiusFloat.getData(), 0.1f, 100f, "%.1f blocks");
-                boolean isRadiusSliderActive = ImGui.isItemActive();
-                
+                observeNumericEdit(radiusSliderChanged);
                 if (radiusSliderChanged) {
                     clip.setRadius(radiusFloat.get());
-                    // ⭐ 性能优化：只在拖动结束时才标记为已修改（触发 markDirty）
-                    // 如果滑动条正在被拖动，不标记为 modified，避免频繁触发 markDirty()
-                    if (!isRadiusSliderActive) {
-                        modified = true;
-                    }
                 }
-                
-                // ⭐ 检测拖动结束：从 active 变为 inactive
-                if (wasRadiusSliderActive && !isRadiusSliderActive) {
-                    modified = true; // 拖动结束，标记为已修改
-                }
-                wasRadiusSliderActive = isRadiusSliderActive;
                 if (ImGui.button("+1##radius")) {
                     float newRadius = radiusFloat.get() + 1;
                     clip.setRadius(newRadius);
@@ -433,9 +435,10 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             if (!isKeepCurrent) {
                 // ABSOLUTE 模式：显示高度输入框（使用 dragFloat 便于拖动调整）
                 PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.HEIGHT_LABEL));
-                if (ImGui.dragFloat("##height", heightFloat.getData(), 0.1f, -1000f, 1000f, "%.1f blocks")) {
+                boolean heightChanged = ImGui.dragFloat("##height", heightFloat.getData(), 0.1f, -1000f, 1000f, "%.1f blocks");
+                observeNumericEdit(heightChanged);
+                if (heightChanged) {
                     clip.setHeight(heightFloat.get());
-                    modified = true;
                 }
             } else {
                 // KEEP_CURRENT 模式：显示当前缓存的高度（只读）
@@ -582,21 +585,10 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 boolean startAngleSliderChanged = ImGui.sliderFloat(
                         "##startAngle",
                         startAngleFloat.getData(), 0f, 360f, "%.1f°");
-                boolean isStartAngleSliderActive = ImGui.isItemActive();
-                
+                observeNumericEdit(startAngleSliderChanged);
                 if (startAngleSliderChanged) {
                     clip.setStartAngle(startAngleFloat.get());
-                    // ⭐ 性能优化：只在拖动结束时才标记为已修改（触发 markDirty）
-                    if (!isStartAngleSliderActive) {
-                        modified = true;
-                    }
                 }
-                
-                // ⭐ 检测拖动结束：从 active 变为 inactive
-                if (wasStartAngleSliderActive && !isStartAngleSliderActive) {
-                    modified = true; // 拖动结束，标记为已修改
-                }
-                wasStartAngleSliderActive = isStartAngleSliderActive;
             }
             
             UITheme.spacingSmall();
@@ -611,21 +603,10 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             boolean endAngleSliderChanged = ImGui.sliderFloat(
                     "##endAngle",
                     endAngleFloat.getData(), 0f, 720f, "%.1f°");
-            boolean isEndAngleSliderActive = ImGui.isItemActive();
-            
+            observeNumericEdit(endAngleSliderChanged);
             if (endAngleSliderChanged) {
                 clip.setEndAngle(endAngleFloat.get());
-                // ⭐ 性能优化：只在拖动结束时才标记为已修改（触发 markDirty）
-                if (!isEndAngleSliderActive) {
-                    modified = true;
-                }
             }
-            
-            // ⭐ 检测拖动结束：从 active 变为 inactive
-            if (wasEndAngleSliderActive && !isEndAngleSliderActive) {
-                modified = true; // 拖动结束，标记为已修改
-            }
-            wasEndAngleSliderActive = isEndAngleSliderActive;
             
             // 角度范围显示
             float angleRange = endAngleFloat.get() - startAngleFloat.get();
@@ -649,19 +630,14 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
      * 应该在外部系统（如 MouseMixin 或专门的拾取管理器）中处理。
      * 这里只做状态检查和提示显示。
      */
-    private void handleWorldPick(OrbitPathClip clip) {
+    private boolean handleWorldPick(OrbitPathClip clip) {
         if (currentPickMode == PickMode.NONE || pickingClip != clip) {
-            return;
+            return false;
         }
         
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null || client.player == null) {
-            return;
-        }
-        
-        // 检查 ImGui 是否捕获了鼠标（如果 UI 正在使用鼠标，不处理）
-        if (imgui.ImGui.getIO().getWantCaptureMouse()) {
-            return;
+            return false;
         }
         
         // ⭐ 使用 GLFW 直接检查鼠标左键是否按下（edge trigger）
@@ -673,7 +649,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         boolean justPressed = currentLeftMouseDown && !lastLeftMouseDown;
         lastLeftMouseDown = currentLeftMouseDown;
         
-        if (justPressed) {
+        if (justPressed && !ImGui.getIO().getWantCaptureMouse()) {
             // 获取射线命中结果
             BlockHitResult hit = com.director.client.input.DirectorInputSystem.getCurrentRay();
             if (hit == null && client.crosshairTarget instanceof BlockHitResult crosshairHit) {
@@ -689,20 +665,20 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                     blockPos.getZ() + 0.5
                 );
                 
-                // 根据拾取模式设置对应的值
-                if (currentPickMode == PickMode.PICK_CENTER) {
-                    clip.setCenter(blockCenter);
-                    LOGGER.info("[OrbitPathClip] 从世界拾取中心点: {} -> {}", blockPos, blockCenter);
-                } else if (currentPickMode == PickMode.PICK_LOOKAT) {
-                    clip.setLookAt(blockCenter);
-                    LOGGER.info("[OrbitPathClip] 从世界拾取注视点: {} -> {}", blockPos, blockCenter);
-                }
-                
-                // 拾取完成后，取消拾取模式
+                boolean center = currentPickMode == PickMode.PICK_CENTER;
+                Vec3d previous = center ? clip.getCenter() : clip.getLookAt();
                 currentPickMode = PickMode.NONE;
                 pickingClip = null;
+                if (blockCenter.equals(previous)) return false;
+                if (center) {
+                    clip.setCenter(blockCenter);
+                } else {
+                    clip.setLookAt(blockCenter);
+                }
+                return true;
             }
         }
+        return false;
     }
     
     /**

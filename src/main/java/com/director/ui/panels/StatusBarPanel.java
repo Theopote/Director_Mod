@@ -122,46 +122,61 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
     private void renderContent(float barHeight) {
         updateFPS();
 
-        float textHeight = ImGui.getTextLineHeight();
-        ImGui.setCursorPosY((barHeight - textHeight) * 0.5f);
-        ImGui.setCursorPosX(ImGui.getStyle().getFramePadding().x);
-
-        if (PersistenceSaveStatus.hasSaveFailure()) {
-            renderSaveFailure();
-            separator();
-        }
-
+        float y = (barHeight - ImGui.getTextLineHeight()) * 0.5f;
+        float padding = ImGui.getStyle().getFramePadding().x;
+        float gap = UITheme.Spacing.LARGE;
+        String fpsText = DirectorI18n.translate(Status.FPS, fps);
         int fpsColor = fps >= 60 ? UITheme.Semantic.SUCCESS
                 : fps >= 30 ? UITheme.Semantic.WARNING : UITheme.Semantic.DANGER;
-        UITheme.label(DirectorI18n.translate(Status.FPS, fps), fpsColor);
-        separator();
+        String failureText = PersistenceSaveStatus.hasSaveFailure()
+                ? Icons.WARNING + " " + DirectorI18n.translate(Status.SAVE_FAILED) : null;
 
+        float available = ImGui.getWindowWidth() - 2f * padding;
+        float fpsWidth = ImGui.calcTextSize(fpsText).x;
+        boolean compactFailure = failureText != null && ImGui.calcTextSize(failureText).x + gap + fpsWidth > available;
+        String failureLabel = compactFailure ? Icons.WARNING : failureText;
+        float failureWidth = failureLabel == null ? 0f : ImGui.calcTextSize(failureLabel).x;
+        boolean showFps = failureLabel == null || failureWidth + gap + fpsWidth <= available;
+        float rightWidth = failureWidth + (showFps ? fpsWidth : 0f)
+                + (failureLabel != null && showFps ? gap : 0f);
+        float rightX = Math.max(padding, ImGui.getWindowWidth() - padding - rightWidth);
+        float leftLimit = rightX - gap;
+
+        ImGui.setCursorPos(padding, y);
+        renderLeftStatus(leftLimit);
+
+        ImGui.setCursorPos(rightX, y);
+        if (failureLabel != null) {
+            renderSaveFailure(failureLabel, compactFailure);
+            if (showFps) separator();
+        }
+        if (showFps) {
+            UITheme.label(fpsText, fpsColor);
+        }
+    }
+
+    private void renderLeftStatus(float limit) {
         if (commands != null && commands.playback() != null) {
             var playback = commands.playback();
             boolean playing = playback.isPlaying();
             String icon = playing ? Icons.PLAY : Icons.PAUSE;
-            UITheme.label(icon + " " + DirectorI18n.translate(playing ? Status.PLAYING : Status.PAUSED),
+            segment(limit, icon + " " + DirectorI18n.translate(playing ? Status.PLAYING : Status.PAUSED),
                     playing ? UITheme.Semantic.SUCCESS : UITheme.DarkTheme.TEXT);
-            separator();
 
             float total = playback.getTotalDuration();
             String timeKey = total < 60f ? Status.TIME_PRECISE : Status.TIME_ROUNDED;
-            UITheme.label(DirectorI18n.translate(timeKey, playback.getCurrentTime(), total), UITheme.DarkTheme.TEXT);
-            separator();
+            segment(limit, DirectorI18n.translate(timeKey, playback.getCurrentTime(), total), UITheme.DarkTheme.TEXT);
 
             if (playback.hasInPoint() || playback.hasOutPoint()) {
-                UITheme.label(DirectorI18n.translate(Status.RANGE, playback.getInPoint(), playback.getOutPoint()),
+                segment(limit, DirectorI18n.translate(Status.RANGE, playback.getInPoint(), playback.getOutPoint()),
                         UITheme.Semantic.INFO);
-                separator();
             }
             float speed = playback.getPlaybackSpeed();
             if (Math.abs(speed - 1f) > 0.01f) {
-                UITheme.label(DirectorI18n.translate(Status.SPEED, speed), UITheme.DarkTheme.TEXT);
-                separator();
+                segment(limit, DirectorI18n.translate(Status.SPEED, speed), UITheme.DarkTheme.TEXT);
             }
             if (playback.isLooping()) {
-                UITheme.label(Icons.LOOP + " " + DirectorI18n.translate(Status.LOOP), UITheme.Semantic.INFO);
-                separator();
+                segment(limit, Icons.LOOP + " " + DirectorI18n.translate(Status.LOOP), UITheme.Semantic.INFO);
             }
         }
 
@@ -169,8 +184,7 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
         if (ContainerVisibilityFeedback.hasMessage()) {
             String visibilityMessage = ContainerVisibilityFeedback.getStatusMessage();
             if (visibilityMessage != null && !visibilityMessage.isBlank()) {
-                UITheme.label(Icons.REFRESH + " " + visibilityMessage, UITheme.Semantic.WARNING);
-                separator();
+                segment(limit, Icons.REFRESH + " " + visibilityMessage, UITheme.Semantic.WARNING);
             }
         }
 
@@ -178,8 +192,7 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
         if (ContainerStatusFeedback.hasMessage()) {
             String advisory = ContainerStatusFeedback.getMessage();
             if (advisory != null && !advisory.isBlank()) {
-                UITheme.label(Icons.WARNING + " " + advisory, UITheme.Semantic.WARNING);
-                separator();
+                segment(limit, Icons.WARNING + " " + advisory, UITheme.Semantic.WARNING);
             }
         }
 
@@ -191,23 +204,29 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
                 total++;
                 if (p.isVisible()) visible++;
             }
-            UITheme.label(
+            segment(limit,
                     DirectorI18n.translate(Status.PANELS, visible, total),
                     UITheme.DarkTheme.TEXT_DISABLED
             );
-            separator();
         }
 
         // 7. Containers
         try {
             ContainerManager cm = DirectorServices.get().containers();
             if (cm.getContainerCount() > 0) {
-                UITheme.label(
+                segment(limit,
                         DirectorI18n.translate(Status.CONTAINERS, cm.getContainerCount()),
                         UITheme.DarkTheme.TEXT_DISABLED
                 );
             }
         } catch (Exception ignored) {}
+    }
+
+    private void segment(float limit, String text, int color) {
+        if (ImGui.getCursorPosX() + ImGui.calcTextSize(text).x <= limit) {
+            UITheme.label(text, color);
+            separator();
+        }
     }
 
     // ==================== Helpers ====================
@@ -223,7 +242,7 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
         }
     }
 
-    private void renderSaveFailure() {
+    private void renderSaveFailure(String label, boolean compact) {
         String popup = "##saveFailureDetails";
         float[] danger = UITheme.toFloatArrayPublic(UITheme.Semantic.DANGER);
         ImGui.pushStyleColor(ImGuiCol.Text, danger[0], danger[1], danger[2], danger[3]);
@@ -231,10 +250,13 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 0f, 0f);
         boolean clicked;
         try {
-            clicked = ImGui.smallButton(Icons.WARNING + " " + DirectorI18n.translate(Status.SAVE_FAILED));
+            clicked = ImGui.smallButton(label + "###saveFailure");
         } finally {
             ImGui.popStyleVar();
             ImGui.popStyleColor(2);
+        }
+        if (compact && ImGui.isItemHovered()) {
+            ImGui.setTooltip(DirectorI18n.translate(Status.SAVE_FAILED));
         }
         if (clicked) {
             ImGui.openPopup(popup);

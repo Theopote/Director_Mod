@@ -19,6 +19,7 @@ public final class Vec3Field {
         float[] axis = new float[1];
         boolean changed = false;
 
+        ImGui.beginGroup();
         ImGui.pushID(id);
         try {
             for (int i = 0; i < AXES.length; i++) {
@@ -37,6 +38,7 @@ public final class Vec3Field {
             }
         } finally {
             ImGui.popID();
+            ImGui.endGroup();
         }
         return changed ? new Vec3d(components[0], components[1], components[2]) : value;
     }

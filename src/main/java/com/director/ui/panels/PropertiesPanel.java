@@ -18,6 +18,7 @@ import com.director.ui.commands.UICommandFacade;
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.TimelineSelectionProperties;
 import com.director.ui.properties.adapters.ActorProjectPropertyAdapter;
+import com.director.ui.properties.adapters.OrbitPathClipPropertyAdapter;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
@@ -112,6 +113,7 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
     private static final DateTimeFormatter SAVE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private UICommandFacade commands;
+    private OrbitPathClipPropertyAdapter orbitInspector;
 
     @Override
     public void setCommands(UICommandFacade commands) {
@@ -195,6 +197,18 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
 
     @Override
     protected void doRender() {
+        OrbitPathClipPropertyAdapter previous = orbitInspector;
+        orbitInspector = null;
+        try {
+            renderInspector();
+        } finally {
+            if (previous != null && previous != orbitInspector) {
+                previous.finishEditing();
+            }
+        }
+    }
+
+    private void renderInspector() {
         // 定期检查选择变化（备用机制）
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastUpdateTime > UPDATE_INTERVAL) {
@@ -271,6 +285,9 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
                 } else if (!(target instanceof com.director.timeline.model.TimelineTrack track
                         && track.getType() == com.director.timeline.model.TrackType.ACTOR)) {
                     renderObjectTypeHeader();
+                }
+                if ((IPropertyAdapter<?>) ad instanceof OrbitPathClipPropertyAdapter orbit) {
+                    orbitInspector = orbit;
                 }
                 boolean modified = ad.renderProperties(target, adapterCtx);
                 if (modified) {
@@ -519,17 +536,26 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
     
     @Override
     protected void onContentUnavailable() {
+        finishOrbitInspector();
         com.director.ui.lighting.PointLightParameterEditing.finish();
         // Shared actor drafts remain valid in the timeline inspector.
     }
 
     @Override
     public void dispose() {
+        finishOrbitInspector();
         com.director.ui.lighting.PointLightParameterEditing.finish();
         // Shared actor drafts remain valid in the timeline inspector.
         // 移除监听器
         DirectorServices.get().uiSelection().removeSelectionChangedListener(this::onSelectionChanged);
         super.dispose();
         LOGGER.debug("[PropertiesPanel] 已销毁");
+    }
+
+    private void finishOrbitInspector() {
+        if (orbitInspector != null) {
+            orbitInspector.finishEditing();
+            orbitInspector = null;
+        }
     }
 }
