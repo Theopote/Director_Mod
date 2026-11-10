@@ -4,6 +4,8 @@ import com.director.core.DirectorServices;
 import com.director.i18n.DirectorLang;
 import com.director.i18n.TimelinePropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
@@ -101,15 +103,13 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
         
         try {
             // ========== 基础信息 ==========
-            if (ImGui.collapsingHeader(Icons.INFO + " "
-                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_BASIC),
-                    ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("timeline_project.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_BASIC))) {
                 // 项目名称
                 String currentName = PropertyReflection.getString(project, "name", "getName",
                         TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.DEFAULT_NAME));
                 ImString nameBuffer = new ImString(currentName, 256);
-                if (ImGui.inputText(
-                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.PROJECT_NAME),
+                PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.PROJECT_NAME));
+                if (ImGui.inputText("##timeline_project_project_name",
                         nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
                     if (PropertyReflection.setString(project, "name", "setName", nameBuffer.get())) {
                         modifiedRef[0] = true;
@@ -124,8 +124,8 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 // 作者
                 String currentAuthor = PropertyReflection.getString(project, "author", "getAuthor", "");
                 ImString authorBuffer = new ImString(currentAuthor, 256);
-                if (ImGui.inputText(
-                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.AUTHOR),
+                PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.AUTHOR));
+                if (ImGui.inputText("##timeline_project_author",
                         authorBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
                     if (PropertyReflection.setString(project, "author", "setAuthor", authorBuffer.get())) {
                         modifiedRef[0] = true;
@@ -140,9 +140,9 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 // 描述（多行文本）
                 String currentDesc = PropertyReflection.getString(project, "description", "getDescription", "");
                 ImString descBuffer = new ImString(currentDesc, 1024);
-                if (ImGui.inputTextMultiline(
-                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.DESCRIPTION),
-                        descBuffer, 200, 60, ImGuiInputTextFlags.None)) {
+                PropertyRow.label(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.DESCRIPTION));
+                if (ImGui.inputTextMultiline("##timeline_project_description",
+                        descBuffer, -1f, 60f, ImGuiInputTextFlags.None)) {
                     if (PropertyReflection.setString(project, "description", "setDescription", descBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineProjectPropertyAdapter] 描述已更新");
@@ -170,14 +170,12 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             }
             
             // ========== 全局设置 ==========
-            if (ImGui.collapsingHeader(Icons.SETTINGS + " "
-                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_GLOBAL),
-                    ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("timeline_project.section_global", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_GLOBAL))) {
                 // 帧率
                 float currentFPS = PropertyReflection.getFloat(project, "frameRate", "getFrameRate", 30.0f);
                 float[] fps = {currentFPS};
-                if (ImGui.dragFloat(
-                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.FRAME_RATE),
+                PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.FRAME_RATE));
+                if (ImGui.dragFloat("##timeline_project_frame_rate",
                         fps, 1.0f, 1.0f, 240.0f, "%.0f")) {
                     if (PropertyReflection.setFloat(project, "fps", "setFps", fps[0])) {
                         modifiedRef[0] = true;
@@ -193,8 +191,8 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 int currentTimeUnit = PropertyReflection.getInt(project, "timeUnit", "getTimeUnit", 0);
                 ImInt timeUnitIdx = new ImInt(currentTimeUnit);
                 String[] timeUnits = TimelinePropertyAdapterI18n.projectTimeUnits();
-                if (ImGui.combo(
-                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.TIME_UNIT),
+                PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.TIME_UNIT));
+                if (ImGui.combo("##timeline_project_time_unit",
                         timeUnitIdx, timeUnits)) {
                     if (PropertyReflection.setInt(project, "timeUnit", "setTimeUnit", timeUnitIdx.get())) {
                         modifiedRef[0] = true;
@@ -210,8 +208,8 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 // 自动保存
                 boolean currentAutoSave = PropertyReflection.getBoolean(project, "autoSaveEnabled", "isAutoSaveEnabled", false);
                 ImBoolean autoSave = new ImBoolean(currentAutoSave);
-                if (ImGui.checkbox(
-                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.AUTO_SAVE),
+                PropertyRow.label(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.AUTO_SAVE));
+                if (ImGui.checkbox("##timeline_project_auto_save",
                         autoSave)) {
                     if (PropertyReflection.setBoolean(project, "autoSaveEnabled", "setAutoSaveEnabled", autoSave.get())) {
                         modifiedRef[0] = true;
@@ -226,8 +224,8 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 // 循环所有序列
                 boolean currentLoopAll = PropertyReflection.getBoolean(project, "loopAll", "isLoopAll", false);
                 ImBoolean loopAll = new ImBoolean(currentLoopAll);
-                if (ImGui.checkbox(
-                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.LOOP_ALL),
+                PropertyRow.label(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.LOOP_ALL));
+                if (ImGui.checkbox("##timeline_project_loop_all",
                         loopAll)) {
                     if (PropertyReflection.setBoolean(project, "loopAll", "setLoopAll", loopAll.get())) {
                         modifiedRef[0] = true;
@@ -241,9 +239,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             }
             
             // ========== 序列管理 ==========
-            if (ImGui.collapsingHeader(Icons.FILM + " "
-                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_SEQUENCES),
-                    ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("timeline_project.section_sequences", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_SEQUENCES))) {
                 // 获取序列列表
                 Object sequencesObj = PropertyReflection.readProperty(project, "sequences", "getSequences");
                 
@@ -387,14 +383,13 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             }
             
             // ========== 导出设置 ==========
-            if (ImGui.collapsingHeader(Icons.EXPORT + " "
-                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_EXPORT))) {
+            if (Section.header("timeline_project.section_export", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_EXPORT), false)) {
                 // 导出格式
                 int currentFormat = PropertyReflection.getInt(project, "exportFormat", "getExportFormat", 0);
                 ImInt formatIdx = new ImInt(currentFormat);
                 String[] exportFormats = TimelinePropertyAdapterI18n.projectExportFormats();
-                if (ImGui.combo(
-                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.EXPORT_FORMAT),
+                PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.EXPORT_FORMAT));
+                if (ImGui.combo("##timeline_project_export_format",
                         formatIdx, exportFormats)) {
                     if (PropertyReflection.setInt(project, "exportFormat", "setExportFormat", formatIdx.get())) {
                         modifiedRef[0] = true;
@@ -410,8 +405,8 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 // 导出路径
                 String currentPath = PropertyReflection.getString(project, "exportPath", "getExportPath", "");
                 ImString pathBuffer = new ImString(currentPath, 512);
-                if (ImGui.inputText(
-                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.EXPORT_PATH),
+                PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.EXPORT_PATH));
+                if (ImGui.inputText("##timeline_project_export_path",
                         pathBuffer, ImGuiInputTextFlags.None)) {
                     if (PropertyReflection.setString(project, "exportPath", "setExportPath", pathBuffer.get())) {
                         modifiedRef[0] = true;
@@ -449,9 +444,8 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 
                 boolean includeResources = PropertyReflection.getBoolean(project, "includeResources", "isIncludeResources", true);
                 ImBoolean includeRes = new ImBoolean(includeResources);
-                if (ImGui.checkbox(
-                        TimelinePropertyAdapterI18n.tr(
-                                DirectorLang.Properties.AdapterTimelineProject.INCLUDE_RESOURCES),
+                PropertyRow.label(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.INCLUDE_RESOURCES));
+                if (ImGui.checkbox("##timeline_project_include_resources",
                         includeRes)) {
                     if (PropertyReflection.setBoolean(project, "includeResources", "setIncludeResources", includeRes.get())) {
                         modifiedRef[0] = true;
@@ -460,9 +454,8 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 
                 boolean compress = PropertyReflection.getBoolean(project, "compress", "isCompress", false);
                 ImBoolean compressBool = new ImBoolean(compress);
-                if (ImGui.checkbox(
-                        TimelinePropertyAdapterI18n.tr(
-                                DirectorLang.Properties.AdapterTimelineProject.COMPRESS_EXPORT),
+                PropertyRow.label(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.COMPRESS_EXPORT));
+                if (ImGui.checkbox("##timeline_project_compress_export",
                         compressBool)) {
                     if (PropertyReflection.setBoolean(project, "compress", "setCompress", compressBool.get())) {
                         modifiedRef[0] = true;
@@ -471,8 +464,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             }
             
             // ========== 统计信息 ==========
-            if (ImGui.collapsingHeader(Icons.STATS + " "
-                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_STATS))) {
+            if (Section.header("timeline_project.section_stats", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_STATS), false)) {
                 // 序列统计
                 Object sequencesObj = PropertyReflection.readProperty(project, "sequences", "getSequences");
                 int sequenceCount = 0;

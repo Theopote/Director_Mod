@@ -6,12 +6,12 @@ import com.director.core.container.Container;
 import com.director.i18n.DirectorLang;
 import com.director.i18n.TimelinePropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.Section;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineTrack;
 import com.director.ui.theme.Icons;
 import com.director.timeline.model.TrackType;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,33 +88,21 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         final float oldStartTime = clip.getStartTime();
         final float oldEndTime = clip.getEndTime();
 
-        if (ImGui.collapsingHeader(Icons.SETTINGS + " "
-                + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_BASIC),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("timeline_clip.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_BASIC))) {
             modified |= propertyUi.renderBasicProperties(clip, TimelineClipUiVariant.CONTAINER);
-            ImGui.unindent();
         }
 
         boolean sequenceModified = false;
         boolean animationModified = false;
 
-        if (!clip.getAnimationConfig().isWholeContainer() && ImGui.collapsingHeader(Icons.LAYERS + " "
-                + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_SEQUENCE),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (!clip.getAnimationConfig().isWholeContainer() && Section.header("timeline_clip.section_sequence", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_SEQUENCE))) {
             sequenceModified = propertyUi.renderSequenceBehavior(clip, TimelineClipUiVariant.CONTAINER);
             modified |= sequenceModified;
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.ANIMATION + " "
-                + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_ANIMATION),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("timeline_clip.section_animation", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_ANIMATION))) {
             animationModified = propertyUi.renderAnimationSettings(clip, TimelineClipUiVariant.CONTAINER);
             modified |= animationModified;
-            ImGui.unindent();
         }
 
         List<EffectInstance> effects = clip.getAnimationConfig() != null ? clip.getAnimationConfig().getEffects()
@@ -123,10 +111,8 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
                 + (clip.getAnimationConfig().isWholeContainer() || effects.isEmpty()
                 ? TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER)
                 : TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER_COUNT, effects.size()));
-        if (ImGui.collapsingHeader(effectsHeader + "###ClipEffects", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("timeline_clip.effects", effectsHeader)) {
             modified |= propertyUi.renderEffectsSection(clip);
-            ImGui.unindent();
         }
 
         TimelineTrack parent = clip.getParentTrack();

@@ -8,12 +8,13 @@ import com.director.core.container.AnimationMode;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import com.director.ui.util.UIUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImString;
 import imgui.type.ImInt;
 import imgui.type.ImBoolean;
@@ -118,34 +119,24 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         boolean modified = false;
         UITheme.title(Icons.FOLDER + " " + tr(DirectorLang.Properties.AdapterContainer.GROUP_TITLE));
 
-        if (ImGui.collapsingHeader(Icons.CLIPBOARD + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_BASIC), ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("container.group.section_basic", tr(DirectorLang.Properties.AdapterContainer.SECTION_BASIC))) {
             modified |= renderNameAndTypeSection(container, false);
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.VISIBLE + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_DISPLAY), ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("container.group.section_display", tr(DirectorLang.Properties.AdapterContainer.SECTION_DISPLAY))) {
             modified |= renderVisibilityAndLockSection(container);
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.CHART + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_CONTENT_STATS), ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("container.group.section_content_stats", tr(DirectorLang.Properties.AdapterContainer.SECTION_CONTENT_STATS))) {
             renderGroupContentStatistics(container);
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.PARENT + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_HIERARCHY), ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("container.group.section_hierarchy", tr(DirectorLang.Properties.AdapterContainer.SECTION_HIERARCHY))) {
             renderHierarchySection(container);
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.CALENDAR + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_METADATA))) {
-            ImGui.indent();
+        if (Section.header("container.group.section_metadata", tr(DirectorLang.Properties.AdapterContainer.SECTION_METADATA), false)) {
             renderMetadataSection(container);
-            ImGui.unindent();
         }
 
         return modified;
@@ -155,18 +146,16 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         boolean modified = false;
         UITheme.title(Icons.CONTAINER + " " + tr(DirectorLang.Properties.AdapterContainer.CONTAINER_TITLE));
 
-        if (ImGui.collapsingHeader(Icons.CLIPBOARD + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_BASIC), ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("container.section_basic", tr(DirectorLang.Properties.AdapterContainer.SECTION_BASIC))) {
             modified |= renderNameAndTypeSection(container, true);
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.VISIBLE + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_VISUAL), ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("container.section_visual", tr(DirectorLang.Properties.AdapterContainer.SECTION_VISUAL))) {
             modified |= renderVisibilityAndLockSection(container);
 
             float[] opacity = {container.getOpacity()};
-            if (ImGui.sliderFloat(tr(DirectorLang.Properties.AdapterContainer.OPACITY), opacity, 0.0f, 1.0f, "%.2f")) {
+            PropertyRow.field(tr(DirectorLang.Properties.AdapterContainer.OPACITY));
+            if (ImGui.sliderFloat("##container_opacity", opacity, 0.0f, 1.0f, "%.2f")) {
                 container.setOpacity(opacity[0]);
                 modified = true;
                 LOGGER.debug("[ContainerPropertyAdapter] 不透明度已更新: {}", opacity[0]);
@@ -187,7 +176,8 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
                 ((color >> 24) & 0xFF) / 255.0f
             };
 
-            if (ImGui.colorEdit4(tr(DirectorLang.Properties.AdapterContainer.MARKER_COLOR), colorRGBA)) {
+            PropertyRow.field(tr(DirectorLang.Properties.AdapterContainer.MARKER_COLOR));
+            if (ImGui.colorEdit4("##container_marker_color", colorRGBA)) {
                 int newColor = ((int)(colorRGBA[3] * 255) << 24) |
                                ((int)(colorRGBA[0] * 255) << 16) |
                                ((int)(colorRGBA[1] * 255) << 8) |
@@ -199,44 +189,33 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.MARKER_COLOR_TOOLTIP));
             }
-            ImGui.unindent();
         }
 
         // 默认动画预设仅作新建片段种子，时间线占用时仍可编辑。
         if (timelineControlled) {
             ImGui.endDisabled();
         }
-        if (ImGui.collapsingHeader(Icons.ANIMATION + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_ANIMATION))) {
-            ImGui.indent();
+        if (Section.header("container.section_animation", tr(DirectorLang.Properties.AdapterContainer.SECTION_ANIMATION), false)) {
             modified |= renderAnimationSection(container);
-            ImGui.unindent();
         }
         if (timelineControlled) {
             ImGui.beginDisabled();
         }
 
-        if (ImGui.collapsingHeader(Icons.RULER + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_BOUNDS))) {
-            ImGui.indent();
+        if (Section.header("container.section_bounds", tr(DirectorLang.Properties.AdapterContainer.SECTION_BOUNDS), false)) {
             renderBoundingBoxSection(container);
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.CHART + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_STATS))) {
-            ImGui.indent();
+        if (Section.header("container.section_stats", tr(DirectorLang.Properties.AdapterContainer.SECTION_STATS), false)) {
             renderStatisticsSection(container);
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.PARENT + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_HIERARCHY), ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("container.section_hierarchy", tr(DirectorLang.Properties.AdapterContainer.SECTION_HIERARCHY))) {
             renderHierarchySection(container);
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.CALENDAR + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_METADATA))) {
-            ImGui.indent();
+        if (Section.header("container.section_metadata", tr(DirectorLang.Properties.AdapterContainer.SECTION_METADATA), false)) {
             renderMetadataSection(container);
-            ImGui.unindent();
         }
 
         UITheme.separator();
@@ -249,7 +228,8 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         boolean modified = false;
         syncNameBufferIfNeeded(container);
 
-        boolean nameEnterPressed = ImGui.inputText(tr(DirectorLang.Properties.AdapterContainer.NAME), nameBuffer,
+        PropertyRow.field(tr(DirectorLang.Properties.AdapterContainer.NAME));
+        boolean nameEnterPressed = ImGui.inputText("##container_name", nameBuffer,
                 ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
         if (nameEnterPressed || ImGui.isItemDeactivatedAfterEdit()) {
             String cleanedName = UIUtils.cleanString(nameBuffer.get());
@@ -280,7 +260,8 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
                 typeNames[i] = availableTypes.get(i).toString();
             }
 
-            if (ImGui.combo(tr(DirectorLang.Properties.AdapterContainer.CONTAINER_TYPE), selectedIdx, typeNames)) {
+            PropertyRow.field(tr(DirectorLang.Properties.AdapterContainer.CONTAINER_TYPE));
+            if (ImGui.combo("##container_container_type", selectedIdx, typeNames)) {
                 container.setType(availableTypes.get(selectedIdx.get()));
                 modified = true;
                 LOGGER.debug("[ContainerPropertyAdapter] 容器类型已更新: {}", availableTypes.get(selectedIdx.get()).getDisplayName());
@@ -316,7 +297,8 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         // 使用容器状态（ContainerState）而不是旧的 visible 属性
         boolean isVisible = container.getState() == com.director.core.container.ContainerState.VISIBLE;
         ImBoolean visible = new ImBoolean(isVisible);
-        if (ImGui.checkbox(tr(DirectorLang.Properties.AdapterContainer.VISIBLE), visible)) {
+        PropertyRow.label(tr(DirectorLang.Properties.AdapterContainer.VISIBLE));
+        if (ImGui.checkbox("##container_visible", visible)) {
             container.toggleState();
             modified = true;
             LOGGER.debug("[ContainerPropertyAdapter] 容器状态已更新: {}", container.getState());
@@ -326,7 +308,8 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         }
 
         ImBoolean locked = new ImBoolean(container.isLocked());
-        if (ImGui.checkbox(tr(DirectorLang.Properties.AdapterContainer.LOCKED), locked)) {
+        PropertyRow.label(tr(DirectorLang.Properties.AdapterContainer.LOCKED));
+        if (ImGui.checkbox("##container_locked", locked)) {
             container.setLocked(locked.get());
             modified = true;
             LOGGER.debug("[ContainerPropertyAdapter] 锁定状态已更新: {}", locked.get());
@@ -446,7 +429,8 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             }
         }
 
-        if (ImGui.combo(tr(DirectorLang.Properties.AdapterContainer.DEFAULT_ANIMATION), selectedIdx, modeNames)) {
+        PropertyRow.field(tr(DirectorLang.Properties.AdapterContainer.DEFAULT_ANIMATION));
+        if (ImGui.combo("##container_default_animation", selectedIdx, modeNames)) {
             int idx = Math.max(0, Math.min(selectedIdx.get(), modes.length - 1));
             ContainerAnimationPreset updated = preset != null ? preset.copy() : ContainerAnimationPreset.defaultPreset();
             updated.setMode(modes[idx]);
@@ -513,7 +497,8 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
 
         float[] duration;
         duration = new float[]{preset.getSuggestedDuration()};
-        if (ImGui.dragFloat(tr(DirectorLang.Properties.AdapterContainer.SUGGESTED_DURATION), duration, 0.05f,
+        PropertyRow.field(tr(DirectorLang.Properties.AdapterContainer.SUGGESTED_DURATION));
+        if (ImGui.dragFloat("##container_suggested_duration", duration, 0.05f,
                 ContainerAnimationPreset.MIN_SUGGESTED_DURATION,
                 ContainerAnimationPreset.MAX_SUGGESTED_DURATION, "%.2fs")) {
             ContainerAnimationPreset updated;
@@ -528,7 +513,8 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
 
         float[] delay;
         delay = new float[]{preset.getDelay()};
-        if (ImGui.dragFloat(tr(DirectorLang.Properties.AdapterContainer.DEFAULT_DELAY), delay, 0.05f, 0.0f, 30.0f, "%.2fs")) {
+        PropertyRow.field(tr(DirectorLang.Properties.AdapterContainer.DEFAULT_DELAY));
+        if (ImGui.dragFloat("##container_default_delay", delay, 0.05f, 0.0f, 30.0f, "%.2fs")) {
             ContainerAnimationPreset updated;
             updated = preset.copy();
             updated.setDelay(delay[0]);

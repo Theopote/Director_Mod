@@ -6,7 +6,6 @@ import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.Section;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
-import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.season.SeasonKeyframe;

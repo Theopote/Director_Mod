@@ -5,10 +5,10 @@ import com.director.core.animation.effect.EffectInstance;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.Section;
 import com.director.timeline.model.TimelineClip;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
-import imgui.flag.ImGuiTreeNodeFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,27 +79,21 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         final float oldStartTime = clip.getStartTime();
         final float oldEndTime = clip.getEndTime();
 
-        if (ImGui.collapsingHeader(Icons.SETTINGS + " 基础设置", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("erase_timeline_clip.basic", "基础设置")) {
             modified |= propertyUi.renderBasicProperties(clip, TimelineClipUiVariant.DEMOLITION);
-            ImGui.unindent();
         }
 
         boolean sequenceModified = false;
         boolean animationModified = false;
 
-        if (!clip.getAnimationConfig().isWholeContainer() && ImGui.collapsingHeader(Icons.LAYERS + " 序列行为", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (!clip.getAnimationConfig().isWholeContainer() && Section.header("erase_timeline_clip.sequence", "序列行为")) {
             sequenceModified = propertyUi.renderSequenceBehavior(clip, TimelineClipUiVariant.DEMOLITION);
             modified |= sequenceModified;
-            ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.ANIMATION + " 动画设置", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("erase_timeline_clip.animation", "动画设置")) {
             animationModified = propertyUi.renderAnimationSettings(clip, TimelineClipUiVariant.DEMOLITION);
             modified |= animationModified;
-            ImGui.unindent();
         }
 
         List<EffectInstance> effects = clip.getAnimationConfig() != null
@@ -108,10 +102,8 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         if (!clip.getAnimationConfig().isWholeContainer() && !effects.isEmpty()) {
             effectsHeader += " (" + effects.size() + ")";
         }
-        if (ImGui.collapsingHeader(effectsHeader + "###ClipEffects", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.indent();
+        if (Section.header("erase_timeline_clip.effects", effectsHeader)) {
             modified |= propertyUi.renderEffectsSection(clip);
-            ImGui.unindent();
         }
 
         propertyUi.queueSoundRefresh(clip, sequenceModified || animationModified);

@@ -4,6 +4,8 @@ import com.director.core.DirectorServices;
 import com.director.i18n.DirectorLang;
 import com.director.i18n.TimelinePropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Section;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
@@ -85,15 +87,13 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
         
         try {
             // ========== 基础信息 ==========
-            if (ImGui.collapsingHeader("📋 "
-                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_BASIC),
-                    ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("timeline_sequence.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_BASIC))) {
                 // 序列名称
                 String currentName = PropertyReflection.getString(sequence, "name", "getName",
                         TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.DEFAULT_NAME));
                 ImString nameBuffer = new ImString(currentName, 256);
-                if (ImGui.inputText(
-                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SEQUENCE_NAME),
+                PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SEQUENCE_NAME));
+                if (ImGui.inputText("##timeline_sequence_sequence_name",
                         nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
                     if (PropertyReflection.setString(sequence, "name", "setName", nameBuffer.get())) {
                         modifiedRef[0] = true;
@@ -108,8 +108,8 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 // 总时长
                 float currentDuration = PropertyReflection.getFloat(sequence, "duration", "getDuration", 10.0f);
                 float[] duration = {currentDuration};
-                if (ImGui.dragFloat(
-                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.TOTAL_DURATION),
+                PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.TOTAL_DURATION));
+                if (ImGui.dragFloat("##timeline_sequence_total_duration",
                         duration, 0.1f, 0.1f, 600.0f)) {
                     if (PropertyReflection.setFloat(sequence, "duration", "setDuration", duration[0])) {
                         modifiedRef[0] = true;
@@ -124,8 +124,8 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 // 时间缩放
                 float currentTimeScale = PropertyReflection.getFloat(sequence, "timeScale", "getTimeScale", 1.0f);
                 float[] timeScale = {currentTimeScale};
-                if (ImGui.dragFloat(
-                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.TIME_SCALE),
+                PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.TIME_SCALE));
+                if (ImGui.dragFloat("##timeline_sequence_time_scale",
                         timeScale, 0.01f, 0.1f, 10.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(sequence, "timeScale", "setTimeScale", timeScale[0])) {
                         modifiedRef[0] = true;
@@ -148,14 +148,12 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             }
             
             // ========== 播放控制 ==========
-            if (ImGui.collapsingHeader("⚙️ "
-                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_PLAYBACK),
-                    ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("timeline_sequence.section_playback", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_PLAYBACK))) {
                 // 循环播放
                 boolean currentLoop = PropertyReflection.getBoolean(sequence, "loop", "isLoop", false);
                 ImBoolean loop = new ImBoolean(currentLoop);
-                if (ImGui.checkbox(
-                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.LOOP_PLAYBACK),
+                PropertyRow.label(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.LOOP_PLAYBACK));
+                if (ImGui.checkbox("##timeline_sequence_loop_playback",
                         loop)) {
                     if (PropertyReflection.setBoolean(sequence, "loop", "setLoop", loop.get())) {
                         modifiedRef[0] = true;
@@ -172,8 +170,8 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 if (currentPlayMode >= 0) {
                     String[] playModes = TimelinePropertyAdapterI18n.sequencePlayModes();
                     imgui.type.ImInt playModeIdx = new imgui.type.ImInt(currentPlayMode);
-                    if (ImGui.combo(
-                            TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.PLAY_MODE),
+                    PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.PLAY_MODE));
+                    if (ImGui.combo("##timeline_sequence_play_mode",
                             playModeIdx, playModes)) {
                         if (PropertyReflection.setInt(sequence, "playMode", "setPlayMode", playModeIdx.get())) {
                             modifiedRef[0] = true;
@@ -206,9 +204,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             }
             
             // ========== 轨道管理 ==========
-            if (ImGui.collapsingHeader(Icons.FILM + " "
-                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_TRACKS),
-                    ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (Section.header("timeline_sequence.section_tracks", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_TRACKS))) {
                 // 获取轨道列表
                 Object tracksObj = PropertyReflection.readProperty(sequence, "tracks", "getTracks");
                 
@@ -338,8 +334,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             }
             
             // ========== 统计信息 ==========
-            if (ImGui.collapsingHeader("📊 "
-                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_STATS))) {
+            if (Section.header("timeline_sequence.section_stats", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_STATS), false)) {
                 // 轨道统计
                 Object tracksObj = PropertyReflection.readProperty(sequence, "tracks", "getTracks");
                 int trackCount = 0;

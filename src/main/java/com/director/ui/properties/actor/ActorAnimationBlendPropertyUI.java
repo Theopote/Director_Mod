@@ -36,7 +36,7 @@ public final class ActorAnimationBlendPropertyUI {
             }
             var data=com.director.actor.animation.AnimationLibrary.getInstance().get(animation.getAnimationId()).orElseThrow();
             String parts=rig.bones().stream().filter(b -> data.controlledBones().contains(b.id()))
-                    .map(b -> b.displayName()).collect(java.util.stream.Collectors.joining("、"));
+                    .map(BoneDefinition::displayName).collect(java.util.stream.Collectors.joining("、"));
             ImGui.textWrapped("动作默认影响："+(parts.isEmpty()?"无":parts)+"（旋转）。部位选择只会缩小此范围，其他通道保留。");
         }
         if(source instanceof com.director.timeline.model.entity.EntitySpawnClip spawn && spawn.getBoneAnimationId()==null)

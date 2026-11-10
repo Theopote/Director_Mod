@@ -28,14 +28,19 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
             entityUuid.set(source.getTargetEntityUuid() == null ? "" : source.getTargetEntityUuid().toString());
         var draft = gesture.begin(source);
         if (!(draft instanceof EntityLookAtClip clip)) { gesture.end(); return false; }
-        if (uuidFrame != ImGui.getFrameCount() - 1 || uuidSource != source || !Objects.equals(cachedTarget, source.getTargetEntityUuid())) {
-            uuidSource = source; cachedTarget = source.getTargetEntityUuid();
+        if (source != null && (uuidFrame != ImGui.getFrameCount() - 1 || uuidSource != source || !Objects.equals(cachedTarget, source.getTargetEntityUuid()))) {
+            uuidSource = source;
+            cachedTarget = source.getTargetEntityUuid();
             entityUuid.set(cachedTarget == null ? "" : cachedTarget.toString());
         }
         uuidFrame = ImGui.getFrameCount();
         UITheme.title(Icons.SMILE + " " + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.TITLE));
-        ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.START_FMT, source.getStartTime()));
-        ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.END_FMT, source.getEndTime()));
+        if (source != null) {
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.START_FMT, source.getStartTime()));
+        }
+        if (source != null) {
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.END_FMT, source.getEndTime()));
+        }
         if (Section.header("entity_look_at_clip.section_target_mode", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_TARGET_MODE))) {
             var modes = EntityLookAtClip.TargetMode.values(); var index = new ImInt(clip.getMode().ordinal());
             PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.TARGET_MODE));
