@@ -217,7 +217,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 .filter(actor -> (actor.getName() + " (" + ActorPropertyAdapterI18n.actorTypeLabel(actor.getType()) + ")")
                         .toLowerCase(java.util.Locale.ROOT).contains(query)).toList();
         if (filtered.isEmpty()) { ImGui.textDisabled("没有匹配的演员"); return false; }
-        ImGui.beginChild("##actorBrowserRows", 0, Math.min(320f, Math.max(100f, ImGui.getContentRegionAvailY() * .6f)), true);
+        ImGui.beginChild("##actorBrowserRows", 0, Math.clamp(ImGui.getContentRegionAvailY() * .6f, 100f, 320f), true);
         try {
             imgui.ImGuiListClipper.forEach(filtered.size(), new imgui.callback.ImListClipperCallback() {
                 @Override public void accept(int index) {

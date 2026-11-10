@@ -794,7 +794,8 @@ public class DirectorUIManager {
                                 // 没有自定义布局，应用默认布局
                                 LOGGER.info("[Director] 世界 {} 未找到保存的布局，应用默认布局", 
                                     com.director.util.WorldIdentifier.getCurrentWorldId());
-                                com.director.ui.layout.DockSpaceLayoutBuilder.buildDefaultLayout(dockspaceId);
+                                com.director.ui.layout.DockSpaceLayoutBuilder.buildDefaultLayout(
+                                        dockspaceId, panelRegistry.getPanel(ToolbarPanel.class));
                             } else {
                                 LOGGER.info("[Director] 已加载世界 {} 的保存布局", 
                                     com.director.util.WorldIdentifier.getCurrentWorldId());
@@ -812,6 +813,7 @@ public class DirectorUIManager {
                             DirectorServices.get().imgui().checkAndUpdateIniPath();
                             // 重置布局标志，以便在新世界中检查是否需要应用默认布局
                             isFirstLayout = true;
+                            com.director.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
                             com.director.core.container.persistence.ContainerPersistence.loadForCurrentWorld(
                                 DirectorServices.get().containers());
 

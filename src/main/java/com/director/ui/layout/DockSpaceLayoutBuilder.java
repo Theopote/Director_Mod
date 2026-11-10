@@ -1,6 +1,7 @@
 package com.director.ui.layout;
 
 import com.director.ui.PanelWindows;
+import com.director.ui.panels.ToolbarPanel;
 import imgui.ImGui;
 import imgui.flag.ImGuiDir;
 import imgui.type.ImInt;
@@ -14,7 +15,7 @@ import org.slf4j.LoggerFactory;
  * 布局说明：
  * <ul>
  *   <li>左侧：容器面板（含容器属性），宽度与右侧属性列相同</li>
- *   <li>右侧：上方为工具栏（与属性同宽，高度约 4 排按钮），下方为属性面板</li>
+ *   <li>右侧：上方为工具栏（与属性同宽，初始高度按内容计算），下方为属性面板</li>
  *   <li>底部：时间线面板 (20% 高度)</li>
  *   <li>中央：Minecraft 游戏视图 (保持透明)</li>
  * </ul>
@@ -33,11 +34,7 @@ public class DockSpaceLayoutBuilder {
     private static final float SIDE_PANEL_RATIO = 0.20f;
     /** 底部时间线占 20% 高度 */
     private static final float BOTTOM_PANEL_RATIO = 0.20f;
-    /**
-     * 右侧列内：工具栏占上方的比例，约能显示 4 排按钮
-     * （4*BUTTON_HEIGHT + 3*ELEMENT_SPACING + 标题与边距 ≈ 20% 在常见分辨率下）
-     */
-    private static final float TOOLBAR_IN_RIGHT_COLUMN_RATIO = 0.20f;
+    private static final float MIN_PROPERTIES_HEIGHT = 96f;
 
     // 标记是否已经初始化过布局
     private static boolean layoutInitialized = false;
@@ -46,8 +43,9 @@ public class DockSpaceLayoutBuilder {
      * 构建默认的DockSpace布局
      *
      * @param dockspaceId DockSpace的ID
+     * @param toolbar 工具栏实例，用于计算默认停靠高度
      */
-    public static void buildDefaultLayout(int dockspaceId) {
+    public static void buildDefaultLayout(int dockspaceId, ToolbarPanel toolbar) {
         if (layoutInitialized) {
             LOGGER.debug("[LayoutBuilder] 布局已初始化，跳过");
             return;
@@ -82,11 +80,18 @@ public class DockSpaceLayoutBuilder {
                 dockIdMainRef.get(), ImGuiDir.Right, SIDE_PANEL_RATIO, dockIdRightCol, dockIdMainRef
             );
 
-            // 4. 在右侧列内：上部分割出工具栏（约 4 排按钮高度），下为属性
+            // Size the default split once. Saved layouts and manual splitter adjustments are owned by ImGui.
+            var rightColumn = imgui.internal.ImGui.dockBuilderGetNode(dockIdRightCol.get());
+            float rightHeight = Math.max(1f, rightColumn.getSizeY());
+            float preferredHeight = toolbar == null ? ImGui.getFrameHeight()
+                    : toolbar.preferredDockHeight(rightColumn.getSizeX());
+            float maxToolbarHeight = Math.max(rightHeight * 0.5f, rightHeight - MIN_PROPERTIES_HEIGHT);
+            // DockBuilder subtracts its splitter before applying the ratio and rounds to whole pixels.
+            float toolbarRatio = Math.min((float) Math.ceil(preferredHeight) + 2f, maxToolbarHeight) / rightHeight;
             ImInt dockIdToolbar = new ImInt();
             ImInt dockIdProps = new ImInt();
             imgui.internal.ImGui.dockBuilderSplitNode(
-                dockIdRightCol.get(), ImGuiDir.Up, TOOLBAR_IN_RIGHT_COLUMN_RATIO, dockIdToolbar, dockIdProps
+                dockIdRightCol.get(), ImGuiDir.Up, toolbarRatio, dockIdToolbar, dockIdProps
             );
 
             // 5. 将窗口停靠到对应节点
@@ -116,21 +121,5 @@ public class DockSpaceLayoutBuilder {
         LOGGER.info("[LayoutBuilder] 布局状态已重置");
     }
 
-    /**
-     * 应用布局（如果需要）
-     * <p>
-     * 检查是否需要应用默认布局，如果需要则构建
-     * 
-     * @param dockspaceId DockSpace的ID
-     * @param hasCustomLayout 是否已有自定义布局
-     */
-    public static void applyLayoutIfNeeded(int dockspaceId, boolean hasCustomLayout) {
-        // 总是在第一次渲染时构建默认布局（忽略hasCustomLayout）
-        // 这确保面板能够正确停靠
-        if (!layoutInitialized) {
-            LOGGER.info("[LayoutBuilder] 应用默认DockSpace布局（首次打开）");
-            buildDefaultLayout(dockspaceId);
-        }
-    }
 }
 

@@ -4,6 +4,10 @@ import com.director.core.DirectorServices;
 import com.director.core.container.visibility.ContainerVisibilityFeedback;
 import com.director.core.container.ContainerStatusFeedback;
 import com.director.persistence.PersistenceSaveStatus;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang.Status;
+import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 
@@ -100,14 +104,13 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowRounding, 0.0f);
 
         try {
-            if (ImGui.begin(getWindowName(), flags)) {
-                try {
+            boolean visible = ImGui.begin(getWindowName(), flags);
+            try {
+                if (visible) {
                     renderContent(barHeight);
-                } catch (Exception e) {
-                    logger.error("[StatusBar] Render error", e);
-                } finally {
-                    ImGui.end();
                 }
+            } finally {
+                ImGui.end();
             }
         } finally {
             ImGui.popStyleVar(2);
@@ -123,64 +126,41 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
         ImGui.setCursorPosY((barHeight - textHeight) * 0.5f);
         ImGui.setCursorPosX(ImGui.getStyle().getFramePadding().x);
 
-        // 1. FPS
-        int fpsColor = fps >= 60
-                ? rgba(51, 204, 51)
-                : fps >= 30
-                    ? rgba(255, 204, 51)
-                    : rgba(255, 102, 102);
+        if (PersistenceSaveStatus.hasSaveFailure()) {
+            renderSaveFailure();
+            separator();
+        }
 
-        UITheme.label(String.format("FPS: %.0f", fps), fpsColor);
+        int fpsColor = fps >= 60 ? UITheme.Semantic.SUCCESS
+                : fps >= 30 ? UITheme.Semantic.WARNING : UITheme.Semantic.DANGER;
+        UITheme.label(DirectorI18n.translate(Status.FPS, fps), fpsColor);
         separator();
 
-        // 2. Playback state
         if (commands != null && commands.playback() != null) {
-            boolean playing = commands.playback().isPlaying();
-            boolean looping = commands.playback().isLooping();
-            float speed = commands.playback().getPlaybackSpeed();
-
-            String playText = playing
-                    ? Icons.PLAY + " Playing"
-                    : Icons.PAUSE + " Paused";
-
-            UITheme.label(playText,
-                    playing ? rgba(51, 204, 51) : UITheme.DarkTheme.TEXT);
+            var playback = commands.playback();
+            boolean playing = playback.isPlaying();
+            String icon = playing ? Icons.PLAY : Icons.PAUSE;
+            UITheme.label(icon + " " + DirectorI18n.translate(playing ? Status.PLAYING : Status.PAUSED),
+                    playing ? UITheme.Semantic.SUCCESS : UITheme.DarkTheme.TEXT);
             separator();
 
-            // 3. Timeline time
-            float current = commands.playback().getCurrentTime();
-            float total = commands.playback().getTotalDuration();
-            boolean hasIn = commands.playback().hasInPoint();
-            boolean hasOut = commands.playback().hasOutPoint();
-            float inPoint = commands.playback().getInPoint();
-            float outPoint = commands.playback().getOutPoint();
-
-            String timeFmt = total < 60.0f ? "%.2fs / %.2fs" : "%.0fs / %.0fs";
-            UITheme.label(
-                    String.format("Time: " + timeFmt, current, total),
-                    UITheme.DarkTheme.TEXT
-            );
+            float total = playback.getTotalDuration();
+            String timeKey = total < 60f ? Status.TIME_PRECISE : Status.TIME_ROUNDED;
+            UITheme.label(DirectorI18n.translate(timeKey, playback.getCurrentTime(), total), UITheme.DarkTheme.TEXT);
             separator();
 
-                // 3.5. Playback range (In/Out)
-                if (hasIn || hasOut) {
-                UITheme.label(
-                    String.format("Range: %.2fs - %.2fs", inPoint, outPoint),
-                    rgba(93, 173, 226)
-                );
-                separator();
-                }
-
-            // 4. Speed
-            if (Math.abs(speed - 1.0f) > 0.01f) {
-                UITheme.label(String.format("Speed: %.2fx", speed),
-                        UITheme.DarkTheme.TEXT);
+            if (playback.hasInPoint() || playback.hasOutPoint()) {
+                UITheme.label(DirectorI18n.translate(Status.RANGE, playback.getInPoint(), playback.getOutPoint()),
+                        UITheme.Semantic.INFO);
                 separator();
             }
-
-            // 5. Loop
-            if (looping) {
-                UITheme.label(Icons.LOOP + " Loop", rgba(61, 133, 224));
+            float speed = playback.getPlaybackSpeed();
+            if (Math.abs(speed - 1f) > 0.01f) {
+                UITheme.label(DirectorI18n.translate(Status.SPEED, speed), UITheme.DarkTheme.TEXT);
+                separator();
+            }
+            if (playback.isLooping()) {
+                UITheme.label(Icons.LOOP + " " + DirectorI18n.translate(Status.LOOP), UITheme.Semantic.INFO);
                 separator();
             }
         }
@@ -189,7 +169,7 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
         if (ContainerVisibilityFeedback.hasMessage()) {
             String visibilityMessage = ContainerVisibilityFeedback.getStatusMessage();
             if (visibilityMessage != null && !visibilityMessage.isBlank()) {
-                UITheme.label(Icons.REFRESH + " " + visibilityMessage, rgba(255, 204, 51));
+                UITheme.label(Icons.REFRESH + " " + visibilityMessage, UITheme.Semantic.WARNING);
                 separator();
             }
         }
@@ -198,21 +178,9 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
         if (ContainerStatusFeedback.hasMessage()) {
             String advisory = ContainerStatusFeedback.getMessage();
             if (advisory != null && !advisory.isBlank()) {
-                UITheme.label(Icons.WARNING + " " + advisory, rgba(255, 153, 51));
+                UITheme.label(Icons.WARNING + " " + advisory, UITheme.Semantic.WARNING);
                 separator();
             }
-        }
-
-        // 7. Save status
-        if (PersistenceSaveStatus.hasSaveFailure()) {
-            UITheme.label(Icons.WARNING + " 上次保存失败", rgba(255, 153, 51));
-            if (ImGui.isItemHovered()) {
-                String reason = PersistenceSaveStatus.getLastFailureReason();
-                ImGui.setTooltip(
-                        reason != null ? reason : "请检查磁盘空间与存档目录权限"
-                );
-            }
-            separator();
         }
 
         // 7. Panels
@@ -224,7 +192,7 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
                 if (p.isVisible()) visible++;
             }
             UITheme.label(
-                    String.format("Panels: %d/%d", visible, total),
+                    DirectorI18n.translate(Status.PANELS, visible, total),
                     UITheme.DarkTheme.TEXT_DISABLED
             );
             separator();
@@ -235,7 +203,7 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
             ContainerManager cm = DirectorServices.get().containers();
             if (cm.getContainerCount() > 0) {
                 UITheme.label(
-                        "Containers: " + cm.getContainerCount(),
+                        DirectorI18n.translate(Status.CONTAINERS, cm.getContainerCount()),
                         UITheme.DarkTheme.TEXT_DISABLED
                 );
             }
@@ -255,13 +223,35 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
         }
     }
 
-    private void separator() {
-        ImGui.sameLine();
-        ImGui.text("|");
-        ImGui.sameLine();
+    private void renderSaveFailure() {
+        String popup = "##saveFailureDetails";
+        float[] danger = UITheme.toFloatArrayPublic(UITheme.Semantic.DANGER);
+        ImGui.pushStyleColor(ImGuiCol.Text, danger[0], danger[1], danger[2], danger[3]);
+        ImGui.pushStyleColor(ImGuiCol.Button, 0);
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 0f, 0f);
+        boolean clicked;
+        try {
+            clicked = ImGui.smallButton(Icons.WARNING + " " + DirectorI18n.translate(Status.SAVE_FAILED));
+        } finally {
+            ImGui.popStyleVar();
+            ImGui.popStyleColor(2);
+        }
+        if (clicked) {
+            ImGui.openPopup(popup);
+        }
+        if (ImGui.beginPopup(popup)) {
+            try {
+                for (String key : PersistenceSaveStatus.getFailureReasonKeys()) {
+                    ImGui.textUnformatted(DirectorI18n.translate(key));
+                }
+                ImGui.textDisabled(DirectorI18n.translate(Status.SAVE_FAILED_HINT));
+            } finally {
+                ImGui.endPopup();
+            }
+        }
     }
 
-    private static int rgba(int r, int g, int b) {
-        return (r << 24) | (g << 16) | (b << 8) | 255;
+    private void separator() {
+        ImGui.sameLine(0, UITheme.Spacing.LARGE);
     }
 }

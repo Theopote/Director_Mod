@@ -17,12 +17,12 @@ public final class PersistenceUserNotifier {
         if (client == null || client.player == null || !PersistenceSaveStatus.hasSaveFailure()) {
             return;
         }
-        String reason = PersistenceSaveStatus.getLastFailureReason();
-        if (reason == null || reason.isBlank()) {
-            reason = DirectorI18n.translate(DirectorLang.Status.SAVE_FAILED_ADVISORY, "unknown");
-        } else {
-            reason = DirectorI18n.translate(DirectorLang.Status.SAVE_FAILED_ADVISORY, reason);
+        var reasons = PersistenceSaveStatus.getFailureReasonKeys().stream()
+                .map(DirectorI18n::translate)
+                .toList();
+        if (!reasons.isEmpty()) {
+            String message = DirectorI18n.translate(DirectorLang.Status.SAVE_FAILED_ADVISORY, String.join(" ", reasons));
+            client.player.sendMessage(net.minecraft.text.Text.literal(message), false);
         }
-        client.player.sendMessage(net.minecraft.text.Text.literal(reason), false);
     }
 }

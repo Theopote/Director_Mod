@@ -21,6 +21,15 @@ public class UITheme {
     // ==================== 颜色主题 ====================
     
     /** 深色主题（默认）：底色更深、控件面更亮，对比清晰；无边框描边依赖底色差分轮廓。 */
+    public static final class Semantic {
+        public static final int SUCCESS = DarkTheme.RENDER_ENABLED;
+        public static final int WARNING = DarkTheme.TEXT_WARNING;
+        public static final int DANGER = rgba(255, 102, 102, 255);
+        public static final int INFO = DarkTheme.CHECK_MARK;
+
+        private Semantic() {}
+    }
+
     public static class DarkTheme {
         // 背景色（窗口最暗，子区域逐级提亮）
         public static final int WINDOW_BG = rgba(16, 16, 18, 220);           // 主窗口背景（更透明）

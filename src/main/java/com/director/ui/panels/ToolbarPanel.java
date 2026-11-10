@@ -17,8 +17,6 @@ import com.director.ui.tools.ToolGroup;
 import com.director.ui.tools.ToolRegistry;
 import com.director.ui.commands.UICommandFacade;
 
-import java.util.List;
-
 /**
  * Director Toolbar - Facade-based implementation
  * <p>
@@ -46,19 +44,17 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
     private UICommandFacade commands;
 
     /**
-     * 工具按钮是否显示文字（默认：图标 + 文字，更易读）
+     * 工具按钮是否显示文字（默认只显示图标）
      *
      * <p>说明：这里先用静态字段做会话级别开关；如果你希望跨存档/跨会话持久化，
      * 后续可以把它接入 UI 配置系统或布局持久化。</p>
      */
-    private static boolean SHOW_TOOL_TEXT = true;
+    private static boolean SHOW_TOOL_TEXT = false;
 
-    /**
-     * 工具分组“图标列”的固定宽度。
-     *
-     * <p>用于解决窄窗口时不同组图标字符宽度不一致导致的缩进对齐问题。</p>
-     */
-    private static final float GROUP_ICON_COLUMN_WIDTH = UITheme.Spacing.BUTTON_HEIGHT; // 24px：与按钮高度一致，视觉统一
+    private static final float BUTTON_SIZE = 32f;
+    private static final ToolGroup[] GROUPS = {ToolGroup.SELECTION, ToolGroup.ACTOR, ToolGroup.WORLD, ToolGroup.TIMELINE};
+    private static final String[] ACTOR_TOOL_IDS = {"actor_move", "actor_rotate", "actor_scale", "actor_look_at"};
+    private static final String[] ACTOR_TOOL_LABELS = {"move", "rotate", "scale", "look"};
 
     private static String tr(String key) {
         return DirectorI18n.translate(key);
@@ -99,217 +95,188 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
     @Override
     protected void doRender() {
-        // 统一入口：确保 ToolRegistry 已初始化且存在默认工具（避免 UI “无工具”状态漂移）
         toolRegistry.initializeIfNeeded();
         toolRegistry.ensureDefaultTool("click");
 
-        // 使用统一的元素间距；图标模式用更小的 FramePadding，使图标在按钮内尽量占满并居中（ButtonTextAlign 在 DirectorStyleScope 中全局为 0.5,0.5）
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, UITheme.Spacing.ELEMENT_SPACING, UITheme.Spacing.ELEMENT_SPACING);
-        if (SHOW_TOOL_TEXT) {
-            ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, UITheme.Spacing.BUTTON_PADDING_X, UITheme.Spacing.BUTTON_PADDING_Y);
-        } else {
-            ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, UITheme.Spacing.ICON_BUTTON_PADDING_X, UITheme.Spacing.ICON_BUTTON_PADDING_Y);
+        try {
+            float width = ImGui.getContentRegionAvailX();
+            layoutTools(toolRegistry, width, true);
+            layoutActorModes(toolRegistry, width, true);
+        } finally {
+            ImGui.popStyleVar();
         }
-
-        // 工具按钮组（组级换行优先，组内再换行）
-        renderSelectionToolButtons();
-        renderActorModes();
-
-        // 工具栏主体只保留工具区；属性/过滤/历史由 Window → Toggle Panels 控制
-        // FPS/关闭已迁移到 MenuBarPanel 右侧（全局状态/窗口级操作）
-
-        // 移除集成的面板渲染，现在使用独立面板
-        // 这些面板现在通过Window菜单的Toggle Panels来管理
-        // 或者通过工具栏按钮打开独立面板
-
-        // 快捷键处理已迁移到 ShortcutDispatcher（统一入口）
-        // 不再在此处处理快捷键输入
-
-        ImGui.popStyleVar(2);
     }
 
-    /** Explicit submodes for whole-actor editing; Pose and Path keep their own controls. */
-    private void renderActorModes() {
-        if (!ToolRegistry.ACTOR_SELECT_TOOL_ID.equals(toolRegistry.getActiveNonSelectionToolId())) return;
-        ImGui.separator();
-        ImGui.text(tr("gui.director.actor.tools.whole"));
-        var mode=com.director.ui.actor.gizmo.ActorGizmoController.getInstance().getPreferredMode();
-        String[] ids={"actor_move","actor_rotate","actor_scale","actor_look_at"};
-        String[] names={"move","rotate","scale","look"};
-        for(int i=0;i<ids.length;i++) {
-            String label=tr("gui.director.actor.tools."+names[i]);
-            float width=ImGui.calcTextSize(label).x+ImGui.getStyle().getFramePadding().x*2;
-            if(i>0) { ImGui.sameLine(); if(ImGui.getContentRegionAvailX()<width) ImGui.newLine(); }
-            boolean selected=mode==switch(i) {
-                case 1 -> com.director.client.gizmo.GizmoMode.ROTATE;
-                case 2 -> com.director.client.gizmo.GizmoMode.SCALE;
-                case 3 -> com.director.client.gizmo.GizmoMode.LOOK_AT;
-                default -> com.director.client.gizmo.GizmoMode.TRANSLATE;
-            };
-            if(selected) {
-                float[] color=UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
-                ImGui.pushStyleColor(ImGuiCol.Button,color[0],color[1],color[2],color[3]);
-            }
-            if(ImGui.button(label+"##actorMode"+i) && commands!=null && commands.tools()!=null)
-                commands.tools().activateTool(ids[i]);
-            if(selected) ImGui.popStyleColor();
-        }
-        ImGui.textWrapped(tr("gui.director.actor.tools."+(switch(mode) { case LOOK_AT -> "look_hint"; case ROTATE -> "rotate_hint"; case SCALE -> "scale_hint"; default -> "transform_hint"; })));
+    /** Calculates the initial height for the default dock node using the rendered row layout. */
+    public float preferredDockHeight(float dockWidth) {
+        ToolRegistry registry = toolRegistry;
+        registry.initializeIfNeeded();
+        float padding = UITheme.Spacing.PANEL_PADDING * 2;
+        float width = Math.max(1f, dockWidth - padding);
+        return ImGui.getFrameHeight() + padding
+                + layoutTools(registry, width, false) + layoutActorModes(registry, width, false);
     }
 
-    /* ---------- 选择工具按钮 ---------- */
-    private void renderSelectionToolButtons() {
-        // 组级换行优先：先决定“下一组是否换行”，再进入组内渲染并对工具按钮进行换行
-        boolean firstGroup;
-
-        firstGroup = renderToolGroupWrapped(ToolGroup.SELECTION, Icons.TOOLS, true);
-        firstGroup = renderToolGroupWrapped(ToolGroup.ACTOR, Icons.ANIMATION, firstGroup);
-        firstGroup = renderToolGroupWrapped(ToolGroup.WORLD, Icons.CONTAINER, firstGroup);
-        firstGroup = renderToolGroupWrapped(ToolGroup.TIMELINE, Icons.TIMELINE, firstGroup);
-
-        // “图标/文字切换”也视为一个小组：窄时允许它整体换行
-        renderToolTextToggleWrapped(firstGroup);
+    private float layoutTools(ToolRegistry registry, float width, boolean render) {
+        // Snapshot the mode so a toggle applies consistently from the next frame.
+        boolean showText = SHOW_TOOL_TEXT;
+        ButtonRows rows = new ButtonRows(width);
+        for (ToolGroup group : GROUPS) {
+            boolean firstInGroup = true;
+            for (EditorTool tool : registry.getToolsByGroup(group)) {
+                if (tool == null || ToolRegistry.isPlaceholderToolId(tool.id())) {
+                    continue;
+                }
+                String label = showText ? tool.icon() + " " + tool.getDisplayName() : tool.icon();
+                float buttonWidth = showText ? textButtonWidth(label) : BUTTON_SIZE;
+                float gap = rows.place(buttonWidth, firstInGroup);
+                if (render) {
+                    placeButton(gap, firstInGroup);
+                    renderToolButton(tool, group, label, Math.min(buttonWidth, rows.width));
+                }
+                firstInGroup = false;
+            }
+        }
+        float gap = rows.place(BUTTON_SIZE, true);
+        if (render) {
+            placeButton(gap, true);
+            renderToolTextToggleButton(Math.min(BUTTON_SIZE, rows.width));
+        }
+        return rows.height();
     }
 
-    /** 当前 ItemSpacing.x，用于换行时预留间距 */
-    private static float getItemSpacingX() {
-        return ImGui.getStyle().getItemSpacing().x;
-    }
-
-    /**
-     * 组级换行优先：
-     * - 先 sameLine 到上一项末尾，再根据「剩余宽度」决定是否换行，确保组/按钮随面板宽度自动换行
-     * - 进入组内后，对每个工具按钮：若当前行放不下则换行并对齐到 buttonsStartX
-     *
-     * @return false 表示已经渲染过至少一个组；true 表示仍然是第一个组（通常只会发生在 group 为空时）
-     */
-    private boolean renderToolGroupWrapped(ToolGroup group, String groupIcon, boolean firstGroup) {
-        List<EditorTool> tools = toolRegistry.getToolsByGroup(group).stream()
-                .filter(tool -> tool != null && !ToolRegistry.isPlaceholderToolId(tool.id()))
-                .toList();
-        if (tools.isEmpty()) {
-            return firstGroup;
+    private float layoutActorModes(ToolRegistry registry, float width, boolean render) {
+        if (!ToolRegistry.ACTOR_SELECT_TOOL_ID.equals(registry.getActiveNonSelectionToolId())) {
+            return 0f;
         }
-
-        float minGroupWidth = estimateMinGroupWidth(tools.getFirst());
-        float spx = getItemSpacingX();
-
-        if (!firstGroup) {
-            ImGui.sameLine(); // 先回到上一项末尾，才能用 getContentRegionAvailX 得到当前行剩余宽度
-            if (minGroupWidth + spx > ImGui.getContentRegionAvailX()) {
-                ImGui.newLine();
-            }
+        var mode = com.director.ui.actor.gizmo.ActorGizmoController.getInstance().getPreferredMode();
+        String hint = tr("gui.director.actor.tools." + switch (mode) {
+            case LOOK_AT -> "look_hint";
+            case ROTATE -> "rotate_hint";
+            case SCALE -> "scale_hint";
+            default -> "transform_hint";
+        });
+        ButtonRows rows = new ButtonRows(width);
+        if (render) {
+            ImGui.separator();
+            ImGui.textUnformatted(tr("gui.director.actor.tools.whole"));
         }
-
-        // 组图标（只绘制一次），并使用“固定图标列宽”保证所有组按钮起始 X 一致
-        float groupStartX = ImGui.getCursorPosX();
-        UITheme.label(groupIcon, UITheme.DarkTheme.TEXT_SELECTED);
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(group.getDisplayName());
-        }
-        ImGui.sameLine();
-        ImGui.setCursorPosX(groupStartX + GROUP_ICON_COLUMN_WIDTH);
-        float buttonsStartX = ImGui.getCursorPosX();
-
-        for (int i = 0; i < tools.size(); i++) {
-            EditorTool tool = tools.get(i);
-            if (tool == null) continue;
-
-            float buttonW = getToolButtonWidth(tool);
-            float avail = ImGui.getContentRegionAvailX();
-
-            // 组内换行：当前行放不下则换行，并对齐到 buttonsStartX；下一项间距由下一项判断时处理
-            if (buttonW > avail) {
-                ImGui.newLine();
-                ImGui.setCursorPosX(buttonsStartX);
-            }
-
-            // 状态显示：只读查询，不缓存
-            boolean active = commands != null && commands.tools() != null
-                    ? commands.tools().isToolActive(tool.id())
-                    : tool.isActive();
-            boolean enabled = tool.isEnabled();
-
-            if (active) {
-                float[] highlightColor = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
-                ImGui.pushStyleColor(ImGuiCol.Button, highlightColor[0], highlightColor[1], highlightColor[2], highlightColor[3]);
-            }
-            if (!enabled) {
-                ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.45f);
-            }
-
-            String label = getToolButtonLabel(tool);
-            String buttonId = "ToolbarPanel_tool_" + tool.id();
-            float drawW = SHOW_TOOL_TEXT ? 0 : UITheme.Spacing.BUTTON_HEIGHT;
-            if (ImGui.button(label + "##" + buttonId, drawW, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (enabled && commands != null && commands.tools() != null) {
-                    logger.info("[ToolbarPanel] 工具按钮点击: {} (ID: {})", tool.getDisplayName(), tool.id());
-                    commands.tools().activateTool(tool.id());
+        for (int i = 0; i < ACTOR_TOOL_IDS.length; i++) {
+            String label = tr("gui.director.actor.tools." + ACTOR_TOOL_LABELS[i]);
+            float buttonWidth = textButtonWidth(label);
+            float gap = rows.place(buttonWidth, false);
+            if (render) {
+                placeButton(gap, false);
+                boolean selected = mode == switch (i) {
+                    case 1 -> com.director.client.gizmo.GizmoMode.ROTATE;
+                    case 2 -> com.director.client.gizmo.GizmoMode.SCALE;
+                    case 3 -> com.director.client.gizmo.GizmoMode.LOOK_AT;
+                    default -> com.director.client.gizmo.GizmoMode.TRANSLATE;
+                };
+                if (toolButton(label + "##" + ACTOR_TOOL_IDS[i], Math.min(buttonWidth, rows.width), selected, true)) {
+                    activateTool(ACTOR_TOOL_IDS[i]);
                 }
             }
+        }
+        if (render) {
+            ImGui.textWrapped(hint);
+        }
+        return rows.height() + ImGui.getTextLineHeight() + ImGui.calcTextSize(hint, false, rows.width).y
+                + 4 * UITheme.Spacing.ELEMENT_SPACING + 1f;
+    }
 
+    private static float textButtonWidth(String label) {
+        return Math.max(BUTTON_SIZE, ImGui.calcTextSize(label).x + 2 * UITheme.Spacing.BUTTON_PADDING_X);
+    }
+
+    private static void placeButton(float gap, boolean groupStart) {
+        if (gap <= 0) {
+            return;
+        }
+        ImGui.sameLine(0, gap);
+        if (groupStart) {
+            float x = ImGui.getCursorScreenPosX() - gap * 0.5f;
+            float y = ImGui.getCursorScreenPosY();
+            ImGui.getWindowDrawList().addLine(x, y + 4f, x, y + BUTTON_SIZE - 4f,
+                    ImGui.getColorU32(ImGuiCol.Separator), 0.5f);
+        }
+    }
+
+    private void renderToolButton(EditorTool tool, ToolGroup group, String label, float width) {
+        boolean active = commands != null && commands.tools() != null
+                ? commands.tools().isToolActive(tool.id()) : tool.isActive();
+        if (toolButton(label + "##ToolbarPanel_tool_" + tool.id(), width, active, tool.isEnabled())) {
+            activateTool(tool.id());
+        }
+        if (ImGui.isItemHovered()) {
+            renderToolTooltip(tool, group);
+        }
+    }
+
+    private static boolean toolButton(String label, float width, boolean active, boolean enabled) {
+        if (active) {
+            float[] fill = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
+            float[] border = UITheme.toFloatArrayPublic(UITheme.Semantic.INFO);
+            ImGui.pushStyleColor(ImGuiCol.Button, fill[0], fill[1], fill[2], fill[3]);
+            ImGui.pushStyleColor(ImGuiCol.Border, border[0], border[1], border[2], border[3]);
+            ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
+        }
+        if (!enabled) {
+            ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.45f);
+        }
+        try {
+            return ImGui.button(label, width, BUTTON_SIZE) && enabled;
+        } finally {
             if (!enabled) {
                 ImGui.popStyleVar();
             }
             if (active) {
-                ImGui.popStyleColor();
-            }
-            if (ImGui.isItemHovered()) {
-                renderToolTooltip(tool);
-            }
-
-            // 有下一个按钮则 sameLine，换行由下一次循环开头的「放不下则 newLine」统一处理
-            if (i < tools.size() - 1) {
-                ImGui.sameLine();
+                ImGui.popStyleVar();
+                ImGui.popStyleColor(2);
             }
         }
-
-        return false;
     }
 
-    private void renderToolTextToggleWrapped(boolean firstGroup) {
-        float toggleW = UITheme.Spacing.BUTTON_HEIGHT;
-        float minW = toggleW + getItemSpacingX();
+    private void activateTool(String id) {
+        if (commands != null && commands.tools() != null) {
+            commands.tools().activateTool(id);
+        }
+    }
 
-        if (!firstGroup) {
-            ImGui.sameLine();
-            if (minW > ImGui.getContentRegionAvailX()) {
-                ImGui.newLine();
+    private static final class ButtonRows {
+        private final float width;
+        private int count;
+        private float usedWidth;
+
+        private ButtonRows(float width) {
+            this.width = Math.max(1f, width);
+        }
+
+        private float place(float desiredWidth, boolean groupStart) {
+            float buttonWidth = Math.min(desiredWidth, width);
+            float spacing = UITheme.Spacing.ELEMENT_SPACING;
+            float gap = groupStart ? 2 * spacing : spacing;
+            if (count == 0 || usedWidth + gap + buttonWidth > width) {
+                count++;
+                usedWidth = buttonWidth;
+                return 0f;
             }
+            usedWidth += gap + buttonWidth;
+            return gap;
         }
 
-        renderToolTextToggleButton();
-    }
-
-    private float estimateMinGroupWidth(EditorTool firstTool) {
-        // 使用固定图标列宽（不要用 calcTextSize，否则不同图标宽度会导致对齐漂移）
-        float minBtnW = firstTool != null ? getToolButtonWidth(firstTool) : UITheme.Spacing.BUTTON_HEIGHT;
-        return GROUP_ICON_COLUMN_WIDTH + UITheme.Spacing.ELEMENT_SPACING + minBtnW;
-    }
-
-    private float getToolButtonWidth(EditorTool tool) {
-        if (tool == null) return UITheme.Spacing.BUTTON_HEIGHT;
-        if (!SHOW_TOOL_TEXT) {
-            return UITheme.Spacing.BUTTON_HEIGHT;
+        private float height() {
+            return count * BUTTON_SIZE + Math.max(0, count - 1) * UITheme.Spacing.ELEMENT_SPACING;
         }
-        String label = getToolButtonLabel(tool);
-        float textW = ImGui.calcTextSize(label).x;
-        float paddingX = ImGui.getStyle().getFramePadding().x * 2.0f;
-        return textW + paddingX;
     }
 
-    private String getToolButtonLabel(EditorTool tool) {
-        if (tool == null) return Icons.TOOLS;
-        String icon = tool.icon();
-        return SHOW_TOOL_TEXT ? (icon + " " + tool.getDisplayName()) : icon;
-    }
-
-    private void renderToolTextToggleButton() {
+    private void renderToolTextToggleButton(float width) {
         String icon = SHOW_TOOL_TEXT ? Icons.TOOLS : Icons.TAG;
         String label = icon + "##toggleToolText";
 
         // 这里也用方形按钮，保持一致
-        if (ImGui.button(label, UITheme.Spacing.BUTTON_HEIGHT, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (ImGui.button(label, width, BUTTON_SIZE)) {
             SHOW_TOOL_TEXT = !SHOW_TOOL_TEXT;
         }
 
@@ -325,10 +292,11 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         }
     }
 
-    private void renderToolTooltip(EditorTool tool) {
+    private void renderToolTooltip(EditorTool tool, ToolGroup group) {
         if (tool == null) return;
         ImGui.beginTooltip();
-        ImGui.text(tool.getDisplayName());
+        ImGui.textUnformatted(tool.getDisplayName());
+        ImGui.textDisabled(group.getDisplayName());
         ImGui.separator();
         String usage = simplifyUsage(tool.getDescription());
         if (!usage.isBlank()) {
@@ -339,7 +307,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         String shortcut = com.director.ui.input.ShortcutBindings.getToolShortcutText(tool.id());
         if (shortcut != null && !shortcut.isBlank()) {
             ImGui.separator();
-            ImGui.text(DirectorI18n.translate(DirectorLang.Toolbar.SHORTCUT, shortcut));
+            ImGui.textDisabled(DirectorI18n.translate(DirectorLang.Toolbar.SHORTCUT, shortcut));
         }
         ImGui.endTooltip();
     }

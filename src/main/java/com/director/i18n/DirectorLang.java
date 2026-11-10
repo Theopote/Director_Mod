@@ -2184,6 +2184,21 @@ public final class DirectorLang {
     }
 
     public static final class Status {
+        public static final String FPS = "gui.director.status.fps";
+        public static final String PLAYING = "gui.director.status.playing";
+        public static final String PAUSED = "gui.director.status.paused";
+        public static final String TIME_PRECISE = "gui.director.status.time_precise";
+        public static final String TIME_ROUNDED = "gui.director.status.time_rounded";
+        public static final String RANGE = "gui.director.status.range";
+        public static final String SPEED = "gui.director.status.speed";
+        public static final String LOOP = "gui.director.status.loop";
+        public static final String PANELS = "gui.director.status.panels";
+        public static final String CONTAINERS = "gui.director.status.containers";
+        public static final String SAVE_FAILED = "gui.director.status.save_failed";
+        public static final String SAVE_FAILED_HINT = "gui.director.status.save_failed_hint";
+        public static final String SAVE_TIMELINE_FAILED = "gui.director.status.save_timeline_failed";
+        public static final String SAVE_ACTOR_FAILED = "gui.director.status.save_actor_failed";
+        public static final String SAVE_CONTAINER_FAILED = "gui.director.status.save_container_failed";
         public static final String VISIBILITY_PROGRESS = "gui.director.status.visibility_progress";
         public static final String VISIBILITY_COMPLETE = "gui.director.status.visibility_complete";
         public static final String LARGE_CONTAINER_ADVISORY = "gui.director.status.large_container_advisory";

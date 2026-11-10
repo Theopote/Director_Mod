@@ -1,15 +1,14 @@
 package com.director.persistence;
 
-import org.jetbrains.annotations.Nullable;
+import com.director.i18n.DirectorLang.Status;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 工程持久化保存结果的全局状态，供状态栏等 UI 读取。
  */
 public final class PersistenceSaveStatus {
-
-    public static final String TIMELINE_FAILURE = "时间线数据未能写入存档";
-    public static final String ACTOR_FAILURE = "Actor 数据未能写入存档";
-    public static final String CONTAINER_FAILURE = "容器数据未能写入存档";
 
     private static volatile boolean timelineFailed;
     private static volatile boolean actorFailed;
@@ -34,26 +33,17 @@ public final class PersistenceSaveStatus {
         return timelineFailed || actorFailed || containerFailed;
     }
 
-    public static @Nullable String getLastFailureReason() {
-        if (!hasSaveFailure()) {
-            return null;
-        }
-        StringBuilder reason = new StringBuilder();
+    public static List<String> getFailureReasonKeys() {
+        List<String> reasons = new ArrayList<>(3);
         if (timelineFailed) {
-            reason.append(TIMELINE_FAILURE);
+            reasons.add(Status.SAVE_TIMELINE_FAILED);
         }
         if (actorFailed) {
-            if (!reason.isEmpty()) {
-                reason.append('；');
-            }
-            reason.append(ACTOR_FAILURE);
+            reasons.add(Status.SAVE_ACTOR_FAILED);
         }
         if (containerFailed) {
-            if (!reason.isEmpty()) {
-                reason.append('；');
-            }
-            reason.append(CONTAINER_FAILURE);
+            reasons.add(Status.SAVE_CONTAINER_FAILED);
         }
-        return reason.toString();
+        return reasons;
     }
 }
