@@ -75,7 +75,6 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
                 if (nameDraft.get().isBlank()) error = com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.track.empty_group");
                 else { commit(group, com.director.ui.actor.ActorProjectEditing.GroupState.capture(group).withName(nameDraft.get())); changed = true; }
             }
-            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.ID_FMT, group.getGroupId()));
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.MEMBER_COUNT_FMT, group.size()));
         }
 

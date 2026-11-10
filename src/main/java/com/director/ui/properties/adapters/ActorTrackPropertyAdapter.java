@@ -51,12 +51,17 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
         var payload = track.getActorTrackPayload();
         var actor = payload == null || payload.getActorRef() == null ? null
                 : com.director.actor.ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
-        if (actor == null) return false;
+        if (actor == null) {
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr(payload == null || payload.getActorRef() == null
+                    ? "gui.director.actor.track.unbound" : "gui.director.actor.track.missing_actor"));
+            return false;
+        }
+        ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.track.bound_actor", actor.getName()));
         if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.track.inspect"))) {
             com.director.ui.actor.selection.ActorSelectionHub.selectWholeActor(actor.getActorId());
         }
         ImGui.separator();
-        ImGui.textWrapped(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_HINT));
+        ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.track.create_at_playhead"));
         ImGui.beginDisabled(track.isLocked() || track.isMuted() || model.isPlaying() || model.isScrubbing());
         for (var kind : ActorTrackClipKind.values()) renderActorClipButton(track, kind);
         ImGui.endDisabled();
@@ -93,7 +98,7 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
                 break;
         }
 
-        if (ImGui.button(label + "##actorTrackCreate" + kind, 92, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (ImGui.button(label + "##actorTrackCreate" + kind, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             var action = ActionBrushState.get();
             var clip = ActorTrackClipAuthoringService.getInstance().createClip(track, kind, action);
             return clip != null;

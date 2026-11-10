@@ -1,5 +1,7 @@
 package com.director.ui.properties.adapters;
 
+import com.director.actor.animation.AnimationData;
+import com.director.actor.animation.asset.AnimationAsset;
 import com.director.timeline.model.TimelineClip;
 
 import com.director.core.DirectorServices;
@@ -15,8 +17,6 @@ import com.director.actor.skin.ActorSkinStorage;
 import com.director.actor.skin.ActorSkinTextureManager;
 import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.query.ActorUsageQuery;
-import com.director.actor.rig.ActorRigProfile;
-import com.director.actor.rig.RigProfileStyle;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.actor.group.ActorGroupTimelineCommandService;
@@ -24,15 +24,13 @@ import com.director.ui.actor.model.BbModelAssetEditing;
 import com.director.ui.actor.model.CustomModelCuboidPropertyUI;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.properties.IPropertyAdapter;
-import com.director.ui.properties.actor.RigProfileStylePropertyUI;
-import com.director.ui.selection.SelectionManager;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
+import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.model.entity.EntitySpawnClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
-import com.director.timeline.model.entity.ActorTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImFloat;
@@ -329,8 +327,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                         if (ImGui.selectable(entry.name() + " · " + entry.rigName() + "##" + entry.id(), entry.equals(selected))) {
                             groupPresetId = entry.id();
                             groupPresetLoop.set(false);
-                            float duration = assets.find(entry.id()).map(a -> a.duration())
-                                    .orElseGet(() -> builtins.get(entry.id()).map(a -> a.getDuration()).orElse(2f));
+                            float duration = assets.find(entry.id()).map(AnimationAsset::duration)
+                                    .orElseGet(() -> builtins.get(entry.id()).map(AnimationData::getDuration).orElse(2f));
                             groupPresetDuration.set(Math.clamp(duration, .05f, 60f));
                         }
                     }
@@ -619,13 +617,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ImGui.endDisabled();
         if (!typeEditable) ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.identity.pause_to_change"));
         ImGui.textWrapped(com.director.actor.rig.ActorRigCompatibility.explanation(actor));
-        var capabilities=com.director.actor.ActorCapabilities.of(actor);
-        ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.capabilities.summary",
-                capabilities.actions().size(),capabilities.editableBones()
-                    ? net.minecraft.client.resource.language.I18n.translate("gui.director.actor.capabilities.available")
-                    : net.minecraft.client.resource.language.I18n.translate("gui.director.actor.capabilities.unavailable"),
-                capabilities.propSlots().size()));
-
         // ---- Custom rig binding (only relevant for ActorType.CUSTOM) ----
         if (actor.getType() == ActorType.CUSTOM) {
             modified |= renderCustomActorAssets(actor);
@@ -634,13 +625,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ImGui.spacing();
         
         // ---- Actions ----
-        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.FOCUS_IN_WORLD))) {
-            ActorSelectionHub.selectActor(actor.getActorId());
-            LOGGER.debug("[ActorProjectPropertyAdapter] Focus actor in world: {}", actor.getActorId());
-        }
-        
-        ImGui.sameLine();
-        
         if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PLACE_AT_CAMERA))) {
             placeActorAtCamera(actor);
             LOGGER.debug("[ActorProjectPropertyAdapter] Place actor at camera: {}", actor.getActorId());
@@ -654,8 +638,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         String placementFailure=com.director.ui.actor.placement.ActorPlacementEditing.failure(actor.getActorId());
         if(!placementFailure.isBlank()) ImGui.textWrapped(placementFailure);
-        // 提示信息
-        ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PLACE_TIP));
         
         ImGui.spacing();
         
@@ -674,17 +656,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
 
         ImGui.spacing();
         
-        // ---- Performance Style (风格滑条) ----
-        ActorRigProfile rigProfile = actor.getRigProfile();
-        if (rigProfile != null) {
-            RigProfileStyle style = rigProfile.getStyle();
-            if (style != null) {
-                modified |= RigProfileStylePropertyUI.render(actor);
-            }
-        }
-
-        ImGui.spacing();
-
         // ---- Skin / Appearance ----
         modified |= renderActorSkinSection(actor);
 
@@ -1195,102 +1166,36 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
      * @param actor Actor 实例
      */
     private void renderActorUsage(Actor actor) {
-        if (actor == null) {
-            return;
-        }
-        
-        UITheme.separator();
-        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.USED_IN), UITheme.DarkTheme.TEXT);
-
         TimelineModel timeline = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (timeline == null) {
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NO_TIMELINE));
-            return;
-        }
-        
-        // 查询使用该 Actor 的所有 ActorTrack
-        List<ActorTrack> actorTracks = ActorUsageQuery.findTracksUsingActor(
-                timeline,
-                actor.getActorId()
-        );
-        
-        if (actorTracks.isEmpty()) {
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NOT_USED_IN_TIMELINE));
-            ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.binding.hint"));
+        if (timeline == null) return;
+        UITheme.separator();
+        UITheme.label(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.tracks"), UITheme.DarkTheme.TEXT);
+        var tracks = ActorUsageQuery.findTimelineTracksUsingActor(timeline, actor.getActorId());
+        if (tracks.isEmpty()) {
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.no_track"));
             ImGui.beginDisabled(timeline.isPlaying() || timeline.isScrubbing());
-            if(ImGui.smallButton(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.binding.create"))) {
+            if (ImGui.smallButton(ActorPropertyAdapterI18n.tr("gui.director.actor.binding.create"))) {
                 try {
-                    com.director.ui.actor.ActorTrackBindingEditing.create(timeline,actor);
-                    ActorSelectionHub.selectActor(actor.getActorId());
-                } catch(IllegalStateException | IllegalArgumentException failure) {
-                    LOGGER.warn("Cannot bind actor track: {}",failure.getMessage());
+                    var created = com.director.ui.actor.ActorTrackBindingEditing.create(timeline, actor);
+                    focusTrack(timeline, created);
+                } catch (IllegalStateException | IllegalArgumentException failure) {
+                    LOGGER.warn("Cannot bind actor track: {}", failure.getMessage());
                 }
             }
             ImGui.endDisabled();
-            ImGui.sameLine();
-            if (ImGui.smallButton(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_ACTOR) + "##unused")) {
-                openDeleteConfirm(actor.getActorId());
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_UNUSED_TOOLTIP));
-            }
             return;
         }
-        
-        // 查询对应的 TimelineTrack（用于 Focus Track 功能）
-        List<TimelineTrack> timelineTracks = ActorUsageQuery.findTimelineTracksUsingActor(
-                timeline,
-                actor.getActorId()
-        );
-        
-        // 显示 Timeline 名称（目前只有一个 Timeline，未来可扩展）
-        String timelineName = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CURRENT_TIMELINE);
-
-        ImGui.bulletText(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.TIMELINE_FMT, timelineName));
-        
-        // 显示每个 Track
-        ImGui.indent();
-        for (int i = 0; i < actorTracks.size(); i++) {
-            ActorTrack actorTrack = actorTracks.get(i);
-            TimelineTrack timelineTrack = i < timelineTracks.size() ? timelineTracks.get(i) : null;
-            
-            String trackDisplayName = actorTrack.getDisplayName();
-            if (trackDisplayName == null || trackDisplayName.isBlank()) {
-                trackDisplayName = timelineTrack != null && timelineTrack.getName() != null
-                        ? timelineTrack.getName()
-                        : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DEFAULT_TRACK_NAME);
-            }
-
-            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.TRACK_FMT, trackDisplayName));
-
-            if (timelineTrack != null) {
-                String buttonId = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.FOCUS_TRACK) + "##" + timelineTrack.hashCode();
-                if (ImGui.smallButton(buttonId)) {
-                    focusTrack(timelineTrack);
-                }
-            }
+        for (int index = 0; index < tracks.size(); index++) {
+            var track = tracks.get(index);
+            if (ImGui.selectable(track.getName() + "##actorTrack" + index)) focusTrack(timeline, track);
         }
-        ImGui.unindent();
     }
-    
-    /**
-     * 聚焦到指定的 Track
-     * <p>选中该 Track，并切换到 Track 面板
-     *
-     * @param track TimelineTrack 实例
-     */
-    private void focusTrack(TimelineTrack track) {
-        if (track == null) {
-            return;
-        }
-        
-        // 使用 SelectionManager 选中 Track
-        SelectionManager selectionManager = DirectorServices.get().uiSelection();
-        selectionManager.selectTrack(track);
-        
-        LOGGER.debug("[ActorProjectPropertyAdapter] Focused track: {}", track.getName());
+
+    private void focusTrack(TimelineModel timeline, TimelineTrack track) {
+        timeline.selectItem(track, false);
+        DirectorServices.get().uiSelection().selectTrack(track);
     }
-    
+
     // =========================================================
     // Place Actor at Camera
     // =========================================================
@@ -1427,7 +1332,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
      * <p>导演在这里选择当前绘制动作（RUN / DANCE / CARRY 等）
      */
     private void renderActionBrushSelector(Actor actor) {
-        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTION_BRUSH), UITheme.DarkTheme.TEXT);
 
         ActorActionType currentBrush = ActionBrushState.get();
         if (currentBrush != null && !com.director.actor.ActorCapabilities.of(actor).supports(currentBrush))

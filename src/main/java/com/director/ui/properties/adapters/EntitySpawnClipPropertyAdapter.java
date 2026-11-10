@@ -15,7 +15,6 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         var draft = gesture.begin(source);
         if (!(draft instanceof EntitySpawnClip clip)) { gesture.end(); return false; }
         ImGui.text(tr("title"));
-        ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.range",clip.getStartTime(),clip.getEndTime()));
         float[] range = {clip.getStartTime(), clip.getEndTime()};
         boolean changed = ImGui.inputFloat2(tr("time_range")+"##spawnRange", range);
         if (changed) {
@@ -45,6 +44,7 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         }
         gesture.observe("scale", changed);
         ImGui.endDisabled();
+        if (!source.getKeyframes().isEmpty()) ImGui.textWrapped(tr("keyed_hint"));
         changed = ImGui.checkbox(tr("visible")+"##spawnVisible",clip.isVisibleOnSpawn());
         if (changed) clip.setVisibleOnSpawn(!clip.isVisibleOnSpawn()); gesture.observe("visible",changed);
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.render(source,clip,gesture);

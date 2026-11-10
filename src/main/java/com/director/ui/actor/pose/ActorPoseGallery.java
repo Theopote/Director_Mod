@@ -29,8 +29,7 @@ public final class ActorPoseGallery {
     private ActorSavedPoseLibrary.Saved editing;
     private boolean deleting;
 
-    public void render(TimelineModel model,UUID id) { render(model,id,null); }
-    public void render(TimelineModel model,UUID id,EntitySpawnClip expectedSpawn) {
+    public void render(TimelineModel model, UUID id) {
         if(model==null || id==null) return;
         var actor=ActorRegistryManager.getInstance().getActor(id).orElse(null);
         var nextRig=actor==null?null:ActorRigCompatibility.resolveRig(actor).orElse(null);
@@ -48,17 +47,15 @@ public final class ActorPoseGallery {
             try { owner=ActorPoseGalleryEditing.owner(model,id); }
             catch(IllegalArgumentException failure) {ImGui.textWrapped(failure.getMessage());return;}
             var spawn=ActorEmbeddedAnimation.target(model,owner);
-            boolean wrongTarget=expectedSpawn!=null && spawn!=expectedSpawn;
             var context=ActorAnimationEditContext.resolve(model,id);
-            boolean blocked=model.isPlaying() || model.isScrubbing() || owner.isLocked() || owner.isMuted() || wrongTarget
+            boolean blocked=model.isPlaying() || model.isScrubbing() || owner.isLocked() || owner.isMuted()
                     || ActorBoneGizmoController.getInstance().hasPendingDraft() || ActorBoneGizmoController.getInstance().isDragging()
                     || ActorBonePropertiesPanel.hasNumericDraft() || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
                     || com.director.export.video.VideoExportManager.getInstance().isExporting();
             boolean poseReady=!blocked && (context!=null?context.isCurrent():spawn!=null && spawn.getBoneAnimationId()==null);
             ImGui.textWrapped("编辑演员："+actor.getName()+" · 当前时间 "+String.format(Locale.ROOT,"%.2fs",model.getCurrentTime()));
             ImGui.textWrapped("应用姿态：当前时间的旋转关键帧；绑定动作：当前演员片段。位置与路径继续由原设置控制。");
-            if(wrongTarget) ImGui.textWrapped("播放头不在此演员片段内，请先移动到该片段。");
-            else if(blocked) ImGui.textWrapped("请先暂停播放、解除轨道锁定，或应用／取消正在编辑的草稿。");
+            if(blocked) ImGui.textWrapped("请先暂停播放、解除轨道锁定，或应用／取消正在编辑的草稿。");
             else if(!poseReady && spawn==null) ImGui.textWrapped("请把播放头移到可编辑的演员片段内。");
             if(context!=null) {
                 ImGui.textWrapped("姿态写入："+context.asset().name());

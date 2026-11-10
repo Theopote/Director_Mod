@@ -11,7 +11,6 @@ import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.properties.PropertyContext;
 import com.director.ui.properties.PropertyContextService;
 import com.director.ui.selection.SelectionManager;
-import com.director.timeline.container.ContainerTimelineService;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
@@ -248,7 +247,12 @@ public class PropertiesPanel extends AbstractPanel {
             currentAdapter = ad;
             var adapterCtx = PropertyAdapterContext.of(1f, false);
             try {
-                renderObjectTypeHeader();
+                if (target instanceof com.director.timeline.model.entity.EntityClip actorClip) {
+                    if (renderActorClipContext(actorClip)) return;
+                } else if (!(target instanceof com.director.timeline.model.TimelineTrack track
+                        && track.getType() == com.director.timeline.model.TrackType.ACTOR)) {
+                    renderObjectTypeHeader();
+                }
                 boolean modified = ad.renderProperties(target, adapterCtx);
                 if (modified) {
                     var timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
@@ -335,6 +339,34 @@ public class PropertiesPanel extends AbstractPanel {
     /**
      * 渲染对象类型标题
      */
+    private boolean renderActorClipContext(com.director.timeline.model.entity.EntityClip clip) {
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        var wrapper = clip.getTimelineClip();
+        var track = wrapper == null ? null : wrapper.getParentTrack();
+        if (model == null || track == null || !model.getAllTracks().contains(track)
+                || !track.getClips().contains(wrapper)) return false;
+
+        UITheme.title(clip.getName());
+        if (ImGui.smallButton(tr("gui.director.actor.clip_inspector.open_track", track.getName()))) {
+            model.selectItem(track, false);
+            DirectorServices.get().uiSelection().selectTrack(track);
+            return true;
+        }
+
+        ImGui.beginDisabled(track.isLocked() || model.isPlaying() || model.isScrubbing()
+                || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
+                || com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging());
+        if (ImGui.checkbox(tr("gui.director.actor.clip_inspector.mute_clip"), clip.isMuted())) {
+            boolean before = clip.isMuted();
+            com.director.ui.timeline.commands.TimelineCommandBridge.execute(
+                    new com.director.ui.timeline.commands.StateChangeCommand(model,
+                            tr("gui.director.actor.clip_inspector.mute_clip"),
+                            () -> clip.setMuted(before), () -> clip.setMuted(!before)));
+        }
+        ImGui.endDisabled();
+        return false;
+    }
+
     private void renderObjectTypeHeader() {
         if (currentAdapter != null) {
             // 适配器名称（带图标）

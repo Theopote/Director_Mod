@@ -1,5 +1,6 @@
 package com.director.ui.properties.actor;
 
+import com.director.actor.animation.AnimationData;
 import com.director.actor.runtime.*;
 import com.director.core.DirectorServices;
 import com.director.timeline.model.*;
@@ -19,18 +20,23 @@ public final class ActorCoordinationPanel {
     private ActorCoordinationPanel() {}
     public static Navigation render(EntitySpawnClip source) {
         if(source==null) return null;
-        if(!ImGui.collapsingHeader(tr("title")+"##actorCoordination")) return null;
         var model=DirectorServices.get().containerTimeline().getTimelineModel();
         var wrapper=source.getTimelineClip();var owner=wrapper==null?null:wrapper.getParentTrack();
         var payload=owner==null?null:owner.getActorTrackPayload();
-        if(model==null || payload==null || payload.getActorRef()==null) {ImGui.textDisabled(tr("no_actor"));return null;}
-        float time=model.getCurrentTime();
+        boolean bound = model != null && payload != null && payload.getActorRef() != null;
+        float time = bound ? model.getCurrentTime() : Float.NaN;
+        boolean outside = bound && (time < source.getStartTime() || time > source.getEndTime());
+        boolean active = bound && !outside && !owner.isMuted() && payload.isEnabled()
+                && payload.findSpawnClipAt(time) == source
+                && !payload.hasCompletedDespawn(time, source, EntityDespawnClip.DespawnMode.REMOVE);
+        String summary = !bound ? "no_actor" : outside ? "summary_outside" : active ? "summary_active" : "summary_inactive";
+        if (!ImGui.collapsingHeader(tr("title") + " · " + tr(summary) + "###actorCoordination")) return null;
+        if (!bound) return null;
         ImGui.text(tr("clip_range",source.getName(),source.getStartTime(),source.getEndTime(),time));
         if(time<source.getStartTime() || time>source.getEndTime()) {
             ImGui.textWrapped(tr("outside_clip"));return null;
         }
-        var active = payload.findSpawnClipAt(time);
-        if(active!=source) {
+        if (!active) {
             ImGui.textWrapped(tr("inactive_clip"));return null;
         }
         var feedback=ActorRuntimeController.getInstance().poseFeedback(model,payload.getActorRef().getActorId());
@@ -53,7 +59,7 @@ public final class ActorCoordinationPanel {
             if(kind==ActorPoseStage.Kind.PRESET && coordination.presetId()!=null) {
                 String id=coordination.presetId();
                 var asset=com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(id).orElse(null);
-                String name=asset==null?com.director.actor.animation.AnimationLibrary.getInstance().get(id).map(a->a.getName()).orElse(id):asset.name();
+                String name=asset==null?com.director.actor.animation.AnimationLibrary.getInstance().get(id).map(AnimationData::getName).orElse(id):asset.name();
                 ImGui.textWrapped(name+" · "+tr(coordination.distanceClock()?"distance_clock":"local_clock"));
             }
             ImGui.textWrapped(stage.detailCode()==ActorPoseStage.Detail.DIAGNOSTIC?stage.detail():

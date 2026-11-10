@@ -10,8 +10,6 @@ import java.util.UUID;
 /** Bone hierarchy plus explicit, undoable asset-local pose editing. */
 public final class ActorBonePropertiesPanel {
     private static final ActorBonePropertiesPanel PROPERTIES = new ActorBonePropertiesPanel();
-    private static final ActorBonePropertiesPanel TIMELINE = new ActorBonePropertiesPanel();
-    private static final ActorPoseGallery TIMELINE_GALLERY = new ActorPoseGallery();
     private static final BoneTransformDraft draft = new BoneTransformDraft();
     private static NumericContext numericContext;
     private String message = "";
@@ -59,16 +57,6 @@ public final class ActorBonePropertiesPanel {
 
     public static void render(TimelineModel model, UUID actorId) {
         PROPERTIES.renderContents(model, actorId);
-    }
-
-    public static void renderInTimeline(TimelineModel model, UUID actorId) {
-        ActorBoneDraftPanel.render();
-        renderGalleryInTimeline(model,actorId);
-        TIMELINE.renderContents(model, actorId);
-    }
-
-    public static void renderGalleryInTimeline(TimelineModel model,UUID actorId) {
-        TIMELINE_GALLERY.render(model,actorId);
     }
 
     private void renderContents(TimelineModel model, UUID actorId) {
