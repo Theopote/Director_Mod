@@ -1837,6 +1837,8 @@ public final class DirectorLang {
     }
 
     public static final class ContainerPanel {
+        public static final String SEARCH = "gui.director.container_panel.search";
+        public static final String SEARCH_EMPTY = "gui.director.container_panel.search_empty";
         public static final String HEADER_TITLE = "gui.director.container.header.title";
         public static final String HEADER_COUNT = "gui.director.container.header.count";
         public static final String PROPERTIES_COLLAPSED = "gui.director.container.header.properties_collapsed";

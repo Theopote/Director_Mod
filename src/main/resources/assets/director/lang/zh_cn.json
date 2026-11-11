@@ -1,4 +1,7 @@
 {
+  "gui.director.container_panel.search": "搜索容器",
+  "gui.director.container_panel.search_empty": "没有匹配的容器",
+
   "gui.director.camera.projection_unsupported": "当前版本不支持自定义近远裁剪面；已有参数保留。",
   "gui.director.camera.dof_unsupported": "当前版本尚未实现景深渲染；已有参数保留。",
   "gui.director.light.animation_hint": "此片段由参数关键帧驱动。点击时间线上的关键帧，或在下面选择一帧，修改该帧参数；播放时自动过渡。",

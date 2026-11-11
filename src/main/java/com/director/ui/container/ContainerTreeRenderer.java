@@ -83,12 +83,34 @@ class ContainerTreeRenderer {
         this.inlineRenamer = inlineRenamer;
     }
 
-    void renderTree(List<Container> roots) {
+    private final java.util.Set<java.util.UUID> searchMatches = new java.util.HashSet<>();
+    private boolean searching;
+
+    private boolean collectMatches(Container container, String query) {
+        boolean matches = container.getName().toLowerCase(java.util.Locale.ROOT).contains(query);
+        for (Container child : container.getChildren()) {
+            matches |= collectMatches(child, query);
+        }
+        if (matches) searchMatches.add(container.getId());
+        return matches;
+    }
+
+    void renderTree(List<Container> roots, String search) {
+        String query = search.strip().toLowerCase(java.util.Locale.ROOT);
+        searching = !query.isEmpty();
+        searchMatches.clear();
+        if (searching && roots != null) {
+            for (Container root : roots) collectMatches(root, query);
+        }
         float spacingX = ImGui.getStyle().getItemSpacing().x;
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, spacingX, ROW_SPACING);
         try {
             if (roots == null || roots.isEmpty()) {
                 ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.EMPTY));
+                return;
+            }
+            if (searching && searchMatches.isEmpty()) {
+                ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.SEARCH_EMPTY));
                 return;
             }
             for (Container container : roots) {
@@ -100,6 +122,7 @@ class ContainerTreeRenderer {
     }
 
     private void renderContainerNode(Container container) {
+        if (searching && !searchMatches.contains(container.getId())) return;
         // 内联重命名优先，直接占位这一行
         if (inlineRenamer.isRenaming(container)) {
             inlineRenamer.render(container);
@@ -129,7 +152,7 @@ class ContainerTreeRenderer {
             String label = iconText + " " + nameText;
             
             // 强制根据 state 控制展开/折叠（DefaultOpen 只影响首次出现，需 setNextItemOpen 每帧生效）
-            boolean shouldBeOpen = state.isNodeExpanded(container.getId());
+            boolean shouldBeOpen = searching || state.isNodeExpanded(container.getId());
             ImGui.setNextItemOpen(shouldBeOpen, imgui.flag.ImGuiCond.Always);
 
             // 记录展开前的状态，用于检测状态变化
@@ -181,7 +204,7 @@ class ContainerTreeRenderer {
             ImGui.popStyleVar();
 
             // 同步展开状态到 state（用户点击箭头或双击时）
-            if (nodeOpen != wasExpanded) {
+            if (!searching && nodeOpen != wasExpanded) {
                 // ✅ 新增：如果节点被折叠，且正在编辑的对象在这个子树里，安全取消会话
                 if (!nodeOpen) {
                     inlineRenamer.cancelIfEditingInSubtree(container);

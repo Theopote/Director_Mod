@@ -2,6 +2,9 @@ package com.director.ui.container;
 
 import com.director.core.container.Container;
 import imgui.ImGui;
+import imgui.type.ImString;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +18,7 @@ public class ContainerTreeView {
     private final ContainerPanelController controller;
     private final ContainerTreeInteractionHandler interactionHandler;
     private final ContainerTreeRenderer renderer;
+    private final ImString search = new ImString(256);
 
     public ContainerTreeView(ContainerPanelController controller, ContainerPanelState state) {
         this.controller = controller;
@@ -24,6 +28,9 @@ public class ContainerTreeView {
     }
 
     public void render() {
+        ImGui.setNextItemWidth(-1f);
+        ImGui.inputTextWithHint("##containerSearch",
+                DirectorI18n.translate(DirectorLang.ContainerPanel.SEARCH), search);
         if (!ImGui.beginChild("ContainerTree", 0, 0, true)) {
             ImGui.endChild();
             return;
@@ -31,7 +38,7 @@ public class ContainerTreeView {
 
         interactionHandler.beginFrame();
         List<Container> roots = new ArrayList<>(controller.getRootContainers());
-        renderer.renderTree(roots);
+        renderer.renderTree(roots, search.get());
         interactionHandler.handleRootDropArea();
         interactionHandler.handleCanvasContextMenu();
         ImGui.endChild();
