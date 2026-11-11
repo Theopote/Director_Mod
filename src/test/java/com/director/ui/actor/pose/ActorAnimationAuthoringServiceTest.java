@@ -33,11 +33,11 @@ class ActorAnimationAuthoringServiceTest {
         assertEquals(ease, channel.findAt(2f).orElseThrow().ease());
     }
 
-    @Test void handleDragKeepsTheOtherHandleAndClampsBeyondThePlot() {
+    @Test void handleDragKeepsTheOtherHandleAndClampsOnlyTime() {
         var ease = new BezierEase(.25f, .25f, .75f, .75f);
         assertEquals(ease, ActorBezierHandleEditor.offsetHandle(ease, true, 0f, 0f));
         var first = ActorBezierHandleEditor.offsetHandle(ease, true, -.5f, 1f);
-        assertEquals(new BezierEase(0f, 1f, .75f, .75f), first);
+        assertEquals(new BezierEase(0f, 1.25f, .75f, .75f), first);
         var second = ActorBezierHandleEditor.offsetHandle(ease, false, .5f, -.5f);
         assertEquals(new BezierEase(.25f, .25f, 1f, .25f), second);
     }

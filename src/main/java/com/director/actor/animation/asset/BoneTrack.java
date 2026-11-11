@@ -9,7 +9,7 @@ import org.joml.Vector3f;
 public final class BoneTrack {
     private final KeyframeTrack<Vector3f> translation = new KeyframeTrack<>(ChannelValueAdapters.VECTOR3);
     private final KeyframeTrack<Quaternionf> rotation = new KeyframeTrack<>(ChannelValueAdapters.QUATERNION);
-    private final KeyframeTrack<Vector3f> scale = new KeyframeTrack<>(ChannelValueAdapters.VECTOR3);
+    private final KeyframeTrack<Vector3f> scale = new KeyframeTrack<>(ChannelValueAdapters.SCALE);
 
     public KeyframeTrack<Vector3f> translation() { return translation; }
     public KeyframeTrack<Quaternionf> rotation() { return rotation; }

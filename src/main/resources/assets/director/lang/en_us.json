@@ -2565,7 +2565,7 @@
   "gui.director.actor.keys.mode.smooth": "Smooth",
   "gui.director.actor.keys.mode.bezier": "Bézier",
   "gui.director.actor.keys.bezier_drag": "Time runs horizontally and interpolation progress vertically. Drag a handle and release to apply, or press Esc to cancel.",
-  "gui.director.actor.keys.bezier_hint": "X controls time and Y controls interpolation progress, both from 0 to 1. Press Enter to apply.",
+  "gui.director.actor.keys.bezier_hint": "X controls time from 0 to 1. Y controls progress and may exceed the endpoints. Press Enter to apply.",
   "gui.director.actor.keys.edit_interpolation": "Selected key interpolation",
   "gui.director.actor.keys.interpolation_hint": "Changes the transition from each selected key to the next. Key times and pose values stay unchanged. All shared references update.",
   "gui.director.actor.keys.absolute_time": "Asset time (s)",

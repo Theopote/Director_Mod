@@ -19,5 +19,17 @@ public final class ChannelValueAdapters {
         }
     };
 
+    public static final ChannelValueAdapter<Vector3f> SCALE = new ChannelValueAdapter<>() {
+        @Override public Vector3f copy(Vector3f value) { return new Vector3f(value); }
+        @Override public Vector3f interpolate(Vector3f from, Vector3f to, float amount) {
+            Vector3f result = VECTOR3.interpolate(from, to, amount);
+            // Positive authored scales must not turn inside out during an overshoot.
+            if (from.x > 0 && to.x > 0) result.x = Math.max(0.0001f, result.x);
+            if (from.y > 0 && to.y > 0) result.y = Math.max(0.0001f, result.y);
+            if (from.z > 0 && to.z > 0) result.z = Math.max(0.0001f, result.z);
+            return result;
+        }
+    };
+
     private ChannelValueAdapters() {}
 }

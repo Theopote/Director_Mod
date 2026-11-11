@@ -2565,7 +2565,7 @@
   "gui.director.actor.keys.mode.smooth": "平滑",
   "gui.director.actor.keys.mode.bezier": "贝塞尔",
   "gui.director.actor.keys.bezier_drag": "横轴为时间进度，纵轴为插值进度。拖动圆点调整缓动，松手应用，Esc 取消。",
-  "gui.director.actor.keys.bezier_hint": "缓动手柄 X 为时间进度，Y 为插值进度，范围 0–1。输入后按 Enter 应用。",
+  "gui.director.actor.keys.bezier_hint": "缓动手柄 X 为时间进度，范围 0–1。Y 为插值进度，可超出端点产生预备动作或回弹。输入后按 Enter 应用。",
   "gui.director.actor.keys.edit_interpolation": "选中键插值",
   "gui.director.actor.keys.interpolation_hint": "修改选中键到下一键的过渡。关键帧时间和姿态值保持原样，共享引用同步变化。",
   "gui.director.actor.keys.absolute_time": "资产时间（秒）",

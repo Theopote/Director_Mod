@@ -4,6 +4,7 @@ import com.director.actor.animation.asset.*;
 import com.director.actor.rig.skeleton.*;
 import com.director.timeline.model.TimelineModel;
 import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Vec3Field;
 import imgui.ImGui;
 import java.util.List;
 import java.util.UUID;
@@ -137,20 +138,20 @@ public final class ActorBonePropertiesPanel {
         int changed = 0;
         if (bone.capabilities().translation()) {
             PropertyRow.field("位置");
-            if (ImGui.inputFloat3("##boneT", draft.translation, "%.3f")) {
+            if (Vec3Field.drag("boneT", draft.translation, 0.01f, "%.3f")) {
                 changed |= RigPose.TRANSLATION;
             }
         }
         boolean joint = ActorJointBend.isJoint(boneId);
         if (joint) {
-            if(!draft.isDirty()) {
-                var angles=LimbBendTransform.angles(value.rotation());
-                draft.rotation[0]=(float)Math.toDegrees(angles.x);
-                draft.rotation[1]=(float)Math.toDegrees(angles.y);
-                draft.rotation[2]=0;
+            if (!draft.isDirty()) {
+                var angles = LimbBendTransform.angles(value.rotation());
+                draft.rotation[0] = (float) Math.toDegrees(angles.x);
+                draft.rotation[1] = (float) Math.toDegrees(angles.y);
+                draft.rotation[2] = 0;
             }
             ActorLimbAppearanceUI.render(model, actor);
-            float maxBend=160f;
+            float maxBend = 160f;
             float[] bend = {ActorJointBend.degrees(boneId, draft.rotation[0])};
             ImGui.textDisabled("局部关节弯曲；修改后点击应用并打帧。");
             if (bend[0] < 0 || bend[0] > maxBend)
@@ -164,28 +165,33 @@ public final class ActorBonePropertiesPanel {
                 ActorJointBend.set(boneId, 0f, draft.rotation);
                 changed |= RigPose.ROTATION;
             }
-            float[] twist={draft.rotation[1]};
+            float[] twist = {draft.rotation[1]};
             PropertyRow.field("弯曲方向 Y");
             if (ImGui.sliderFloat("##jointTwist", twist, -90f, 90f, "%.1f°")) {
-                draft.rotation[1]=twist[0]; draft.rotation[2]=0; changed |= RigPose.ROTATION;
+                draft.rotation[1] = twist[0];
+                draft.rotation[2] = 0;
+                changed |= RigPose.ROTATION;
             }
             ImGui.textDisabled("X 控制弯曲角度，Y 改变弯曲平面，不扭转皮肤。");
         } else if (bone.capabilities().rotation() && !(HumanoidTopology.matches(asset.rig()) && HumanoidRig.ROOT.equals(boneId))) {
             PropertyRow.field("旋转");
-            if (ImGui.inputFloat3("##boneR", draft.rotation, "%.2f°")) {
+            if (Vec3Field.drag("boneR", draft.rotation, 0.5f, "%.2f°")) {
                 changed |= RigPose.ROTATION;
             }
         }
         if (bone.capabilities().scale()) {
             PropertyRow.field("缩放");
-            if (ImGui.inputFloat3("##boneS", draft.scale, "%.3f")) {
+            if (Vec3Field.drag("boneS", draft.scale, 0.01f, "%.3f")) {
                 changed |= RigPose.SCALE;
             }
         }
         if (changed != 0) {
             com.director.ui.timeline.render.ActorBoneTimelineRows.cancelAllKeyInteractions();
-            ActorAnimationDopeSheet.cancelKeyInteraction(); ActorKeyframeTimePanel.cancelAll();
-            draft.markChannelsChanged(changed); message = ""; }
+            ActorAnimationDopeSheet.cancelKeyInteraction();
+            ActorKeyframeTimePanel.cancelAll();
+            draft.markChannelsChanged(changed);
+            message = "";
+        }
         var mode = ActorAnimationAuthoringSettings.getInstance().getInterpolation();
         if (draft.isDirty()) {
             if (draft.isValid()) com.director.actor.runtime.ActorRuntimeController.getInstance().refreshPosePreview(actorId);

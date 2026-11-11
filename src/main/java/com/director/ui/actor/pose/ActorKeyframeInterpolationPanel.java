@@ -81,7 +81,7 @@ public final class ActorKeyframeInterpolationPanel {
             var input = new imgui.type.ImFloat(points[i]);
             if (ImGui.inputFloat(labels[i] + "##actorEase", input, 0f, 0f, "%.3f",
                     imgui.flag.ImGuiInputTextFlags.EnterReturnsTrue) && Float.isFinite(input.get())) {
-                points[i] = Math.clamp(input.get(), 0f, 1f);
+                points[i] = i % 2 == 0 ? Math.clamp(input.get(), 0f, 1f) : input.get();
                 submitted = true;
             }
         }

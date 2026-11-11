@@ -1,12 +1,12 @@
 package com.director.actor.animation.asset;
 
-/** Two normalized control points for an outgoing segment's timing curve. */
+/** Time control points stay normalized; progress control points allow anticipation and overshoot. */
 public record BezierEase(float x1, float y1, float x2, float y2) {
     public static final BezierEase DEFAULT = new BezierEase(1f / 3f, 0f, 2f / 3f, 1f);
 
     public BezierEase {
-        if (!unit(x1) || !unit(y1) || !unit(x2) || !unit(y2))
-            throw new IllegalArgumentException("Bézier control points must be in [0, 1]");
+        if (!unit(x1) || !unit(x2) || !Float.isFinite(y1) || !Float.isFinite(y2))
+            throw new IllegalArgumentException("Bézier X must be in [0, 1] and Y must be finite");
     }
 
     private static boolean unit(float value) {

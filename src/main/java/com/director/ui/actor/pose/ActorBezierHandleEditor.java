@@ -12,9 +12,9 @@ final class ActorBezierHandleEditor {
     private static final float PADDING = 12f;
     private static final float HIT_RADIUS = 9f;
 
-    private record Plot(float left, float top, float width, float height) {
+    private record Plot(float left, float top, float width, float height, float minimum, float maximum) {
         float x(float value) { return left + value * width; }
-        float y(float value) { return top + (1f - value) * height; }
+        float y(float value) { return top + (maximum - value) / (maximum - minimum) * height; }
     }
 
     private record Drag(ActorAnimationEditContext context, ActorAnimationAuthoringService.Key key,
@@ -31,7 +31,9 @@ final class ActorBezierHandleEditor {
         float width = Math.max(2 * PADDING + 1, Math.min(240f, ImGui.getContentRegionAvailX()));
         float height = 132f;
         float x = ImGui.getCursorScreenPosX(), y = ImGui.getCursorScreenPosY();
-        var plot = new Plot(x + PADDING, y + PADDING, width - 2 * PADDING, height - 2 * PADDING);
+        float minimum = Math.min(0f, Math.min(source.ease().y1(), source.ease().y2()));
+        float maximum = Math.max(1f, Math.max(source.ease().y1(), source.ease().y2()));
+        var plot = new Plot(x + PADDING, y + PADDING, width - 2 * PADDING, height - 2 * PADDING, minimum, maximum);
         ImGui.invisibleButton("##actorBezierHandles", width, height);
         boolean released = ImGui.isMouseReleased(ImGuiMouseButton.Left) && ImGui.isItemDeactivated();
         if (drag != null && (!enabled || !drag.context().equals(context) || !drag.key().equals(key)
@@ -48,7 +50,7 @@ final class ActorBezierHandleEditor {
         }
         if (drag != null)
             ease = offsetHandle(ease, drag.first(), (mouseX - drag.mouseX()) / plot.width(),
-                    (drag.mouseY() - mouseY) / plot.height());
+                    (drag.mouseY() - mouseY) / plot.height() * (plot.maximum() - plot.minimum()));
         draw(plot, ease);
         if (drag == null || !released) return false;
 
@@ -58,9 +60,11 @@ final class ActorBezierHandleEditor {
 
     static BezierEase offsetHandle(BezierEase ease, boolean first, float dx, float dy) {
         if (!Float.isFinite(dx) || !Float.isFinite(dy)) return ease;
+        float nextY = (first ? ease.y1() : ease.y2()) + dy;
+        if (!Float.isFinite(nextY)) return ease;
         return first
-                ? new BezierEase(Math.clamp(ease.x1() + dx, 0f, 1f), Math.clamp(ease.y1() + dy, 0f, 1f), ease.x2(), ease.y2())
-                : new BezierEase(ease.x1(), ease.y1(), Math.clamp(ease.x2() + dx, 0f, 1f), Math.clamp(ease.y2() + dy, 0f, 1f));
+                ? new BezierEase(Math.clamp(ease.x1() + dx, 0f, 1f), nextY, ease.x2(), ease.y2())
+                : new BezierEase(ease.x1(), ease.y1(), Math.clamp(ease.x2() + dx, 0f, 1f), nextY);
     }
 
     private static float distance(float x, float y, float handleX, float handleY) {
@@ -69,7 +73,7 @@ final class ActorBezierHandleEditor {
 
     private static void draw(Plot plot, BezierEase ease) {
         var draw = ImGui.getWindowDrawList();
-        draw.addRectFilled(plot.left(), plot.top(), plot.x(1), plot.y(0), TimelineColors.rgba(24, 27, 32, 255));
+        draw.addRectFilled(plot.left(), plot.top(), plot.x(1), plot.top() + plot.height(), TimelineColors.rgba(24, 27, 32, 255));
         int guide = TimelineColors.rgba(110, 117, 130, 255);
         draw.addLine(plot.x(0), plot.y(0), plot.x(ease.x1()), plot.y(ease.y1()), guide);
         draw.addLine(plot.x(1), plot.y(1), plot.x(ease.x2()), plot.y(ease.y2()), guide);
