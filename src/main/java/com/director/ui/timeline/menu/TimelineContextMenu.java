@@ -2,8 +2,6 @@ package com.director.ui.timeline.menu;
 
 import com.director.ui.timeline.commands.TimelineCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
-import com.director.timeline.model.TimelineClip;
-import com.director.timeline.model.TimelineTrack;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
@@ -13,7 +11,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 /**
  * Timeline 上下文菜单系统
@@ -411,72 +408,5 @@ public class TimelineContextMenu {
      */
     public void addSubmenu(String label, TimelineContextMenu submenu) {
         menuItems.add(new MenuItem(label, null, true, null, false, false, false, false, null, submenu));
-    }
-
-    /**
-     * 创建片段上下文菜单
-     * @deprecated 请使用 {@link TimelineContextMenuFactory#createClipMenu(TimelineClip, TimelineTrack)}
-     */
-    @Deprecated(forRemoval = true)
-    public static TimelineContextMenu createClipMenu(TimelineCommandHistory commandHistory, 
-                                                    Object clip, 
-                                                    Consumer<Object> onDelete,
-                                                    Consumer<Object> onDuplicate) {
-        TimelineContextMenu menu = new TimelineContextMenu(commandHistory);
-        menu.setPopupId("ClipContextMenu");
-        
-        menu.addItem("复制", () -> {
-            // TODO: 实现复制
-            LOGGER.debug("复制片段");
-        }, "Ctrl+C");
-        
-        menu.addItem("粘贴", () -> {
-            // TODO: 实现粘贴
-            LOGGER.debug("粘贴片段");
-        }, "Ctrl+V");
-        
-        menu.addItem("复制片段", () -> {
-            if (onDuplicate != null) {
-                onDuplicate.accept(clip);
-            }
-        }, "Ctrl+D");
-        
-        menu.addSeparator();
-        
-        menu.addItem("删除", () -> {
-            if (onDelete != null) {
-                onDelete.accept(clip);
-            }
-        }, "Del");
-        
-        return menu;
-    }
-    
-    /**
-     * 创建关键帧上下文菜单
-     * @deprecated 请使用 {@link TimelineContextMenuFactory#createKeyframeMenu(TimelineClip, float)}
-     */
-    @Deprecated(forRemoval = true)
-    public static TimelineContextMenu createKeyframeMenu(TimelineCommandHistory commandHistory,
-                                                        float keyframeTime,
-                                                        Consumer<Float> onDelete) {
-        TimelineContextMenu menu = new TimelineContextMenu(commandHistory);
-        menu.setPopupId("KeyframeContextMenu");
-        
-        menu.addItem("删除关键帧", () -> {
-            if (onDelete != null) {
-                onDelete.accept(keyframeTime);
-            }
-        }, "Del");
-        
-        menu.addSeparator();
-        
-        menu.addItem("线性插值", () -> LOGGER.debug("设置线性插值"));
-        
-        menu.addItem("平滑插值", () -> LOGGER.debug("设置平滑插值"));
-        
-        menu.addItem("阶梯插值", () -> LOGGER.debug("设置阶梯插值"));
-        
-        return menu;
     }
 }

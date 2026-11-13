@@ -28,7 +28,7 @@ final class TimelineClipAnimationControls {
         var params = config.getParams();
         var retained = new HashMap<String, Object>();
         for (String key : new String[]{"enterSoundTiming", "exitSoundTiming", "enterSoundOffsetSeconds",
-                "exitSoundOffsetSeconds", "_legacyAdvancedParamsMigratedV1"})
+                "exitSoundOffsetSeconds"})
             if (params.containsKey(key)) retained.put(key, params.get(key));
         boolean fade = Boolean.TRUE.equals(params.get("opacityFade"))
                 || params.get("opacityFade") instanceof String value && Boolean.parseBoolean(value);

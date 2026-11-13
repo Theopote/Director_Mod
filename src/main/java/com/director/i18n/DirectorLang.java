@@ -439,9 +439,7 @@ public final class DirectorLang {
             public static final String DEFAULT_ANIMATION = "gui.director.properties.adapter.container.default_animation";
             public static final String ANIMATION_DEMOLITION_TOOLTIP = "gui.director.properties.adapter.container.animation_demolition_tooltip";
             public static final String ANIMATION_BUILD_TOOLTIP = "gui.director.properties.adapter.container.animation_build_tooltip";
-            public static final String LEGACY_MODE_SUFFIX = "gui.director.properties.adapter.container.legacy_mode_suffix";
             public static final String FRAGMENT_SCATTER = "gui.director.properties.adapter.container.fragment_scatter";
-            public static final String LEGACY_MODE_HINT = "gui.director.properties.adapter.container.legacy_mode_hint";
             public static final String ANIMATION_PARAMS = "gui.director.properties.adapter.container.animation_params";
             public static final String RENDER_ERROR = "gui.director.properties.adapter.container.render_error";
             public static final String SUGGESTED_DURATION = "gui.director.properties.adapter.container.suggested_duration";

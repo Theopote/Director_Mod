@@ -101,17 +101,6 @@ public final class TimelineSeasonController extends AbstractModelTimelinePlaybac
         }
     }
 
-    @Deprecated
-    public synchronized void update() {
-        if (!enabled || timelineModel == null || !isValidTrack(activeTrack)) {
-            return;
-        }
-        if (!timelineModel.isPlaying() && !timelineModel.isScrubbing()) {
-            return;
-        }
-        onTimelineTick(currentTimelineTime());
-    }
-
     public synchronized void onTimelineTick(float timelineTime) {
         previewTime = null;
         if (!enabled || timelineModel == null) {
@@ -138,11 +127,6 @@ public final class TimelineSeasonController extends AbstractModelTimelinePlaybac
         }
         setCurrentSample(sample);
         propagateToWorld();
-    }
-
-    @Deprecated
-    public synchronized void update(float currentTime) {
-        onTimelineTick(currentTime);
     }
 
     @Override
@@ -198,11 +182,6 @@ public final class TimelineSeasonController extends AbstractModelTimelinePlaybac
             currentSample = SeasonSample.disabled();
         }
         return currentSample;
-    }
-
-    @Deprecated
-    public synchronized SeasonSample current() {
-        return getCurrentSample();
     }
 
     @Override

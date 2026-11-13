@@ -120,50 +120,6 @@ public final class SelectionRenderer {
     }
 
     // ================================
-    // 兼容层：将旧 setter 统一转发到 RenderSettings
-    // ================================
-    @Deprecated
-    public void setOutlineWidth(float width) {
-        if (width > 0) {
-            RenderSettings.get().selection_outlineWidth = width;
-        }
-    }
-
-    @Deprecated
-    public void setOutlineColor(float[] color) {
-        if (color != null && color.length >= 4) {
-            RenderSettings.get().selection_outlineColor = color.clone();
-        }
-    }
-
-    @Deprecated
-    public void setSelectionColor(float[] color) {
-        if (color != null && color.length >= 4) {
-            RenderSettings.get().selection_fillColor = color.clone();
-        }
-    }
-
-    @Deprecated
-    public void setHighlightIntensity(float intensity) {
-        RenderSettings.get().selection_highlightIntensity = intensity;
-    }
-
-    @Deprecated
-    public void setEnableGreedyMeshing(boolean enable) {
-        RenderSettings.get().selection_enableGreedy = enable;
-    }
-
-    @Deprecated
-    public void setGreedyMeshingThreshold(int threshold) {
-        RenderSettings.get().selection_greedyThreshold = Math.max(1, threshold);
-    }
-
-    @Deprecated
-    public void setMaxRenderDistance(int distance) {
-        RenderSettings.get().selection_maxRenderDistance = Math.max(1, distance);
-    }
-
-    // ================================
     // Outline Pass (AFTER_ENTITIES)
     // ================================
     

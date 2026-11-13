@@ -375,9 +375,6 @@ public class TimelineDragAndDropHandler {
                 preset.getOrdering()
             );
 
-            // ✅ 兼容旧预设：把“随机/螺旋/切片/波浪/扩散/向下生长”等迁移到 SequenceParameters
-            com.director.core.animation.LegacyAnimationModeMigrator.migrateIfNeeded(config);
-            
             // 复制预设中的额外参数
             if (!preset.getParams().isEmpty()) {
                 config.getParams().putAll(preset.getParams());

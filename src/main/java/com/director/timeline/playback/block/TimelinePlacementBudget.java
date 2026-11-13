@@ -42,12 +42,6 @@ public final class TimelinePlacementBudget {
         return scrubbing || instantWorld || isCatchUp();
     }
 
-    /** @deprecated 使用 {@link #isPlacementAccelerated()} */
-    @Deprecated
-    public static boolean isAccelerated() {
-        return isPlacementAccelerated();
-    }
-
     public static int getPlaybackGlobalPerFrame() {
         return getConfigInt("timelineWorldPlacementsPerFrame", 128);
     }

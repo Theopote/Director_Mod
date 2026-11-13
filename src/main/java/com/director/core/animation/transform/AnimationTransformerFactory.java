@@ -55,9 +55,7 @@ public class AnimationTransformerFactory {
         register(AnimationMode.GRAVITY_FALL, new GravityFallTransformer());
         register(AnimationMode.FLY_OUT, new FlyOutTransformer());
 
-        // ✅ 旧版排序策略模式：映射到 InstantTransformer
-        // 这些模式的"排序策略"已由 LegacyAnimationModeMigrator 迁移到 SequenceParameters，
-        // 此处仅提供 Transformer 回退，避免未迁移的旧存档静默使用无效变换。
+        // 旧排序策略模式仅保留 InstantTransformer 回退（Sequence Behavior 才是正式排序入口）
         IAnimationTransformer instant = registry.get(AnimationMode.INSTANT);
         register(AnimationMode.GROW_DOWN, instant);
         register(AnimationMode.SLICE, instant);

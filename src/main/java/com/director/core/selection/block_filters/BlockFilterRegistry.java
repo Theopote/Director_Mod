@@ -12,7 +12,7 @@ import java.util.*;
  * 🎯 方块过滤器注册表
  * <p>
  * 统一管理所有方块过滤器；filterId 以 {@link FilterIds} 与 {@code docs/selection-filter-ids.md} 为唯一合法来源。
- * - 正式注册仅用规范 id（exclude_air、solid_only 等）；旧 id 通过 LEGACY_ALIASES 在 getFilter/hasFilter 中解析，不写入注册表。
+ * - 正式注册仅用规范 id（exclude_air、solid_only 等）。
  * - 禁止将编辑器概念（容器/锁定/面板）纳入；带参数规则用 {@link #createFilter(String)} 取得新实例。
  *
  * @author Director Team
@@ -35,17 +35,6 @@ public class BlockFilterRegistry {
 
     /** 可见性元数据 */
     private static final Map<String, Visibility> visibilityRegistry = new HashMap<>();
-
-    /** 旧 id → 规范表 id，仅用于 getFilter / hasFilter 解析，不写入 reverseRegistry */
-    private static final Map<String, String> LEGACY_ALIASES = Map.of(
-            "non_air", FilterIds.EXCLUDE_AIR,
-            "not_water", FilterIds.EXCLUDE_WATER,
-            "not_lava", FilterIds.EXCLUDE_LAVA,
-            "solid", FilterIds.SOLID_ONLY,
-            "plant", FilterIds.PLANT_ONLY,
-            "replaceable", FilterIds.REPLACEABLE_ONLY,
-            "transparent", FilterIds.TRANSPARENT_ONLY
-    );
 
     static {
         initializeDefaultFilters();
@@ -90,14 +79,9 @@ public class BlockFilterRegistry {
         registerFilter(id, BlockFilters.all(), Visibility.INTERNAL_HIDDEN);
     }
 
-    private static String resolveId(String id) {
-        if (id == null) return null;
-        return LEGACY_ALIASES.getOrDefault(id, id);
-    }
-
-    /** 解析为规范 id（legacy 映射），供 Commands 等做 pipeline 查找/删除。 */
+    /** 规范化 filter id（当前为恒等；供 Commands 等做 pipeline 查找/删除）。 */
     public static String resolveFilterId(String id) {
-        return resolveId(id);
+        return id;
     }
 
     /**
@@ -128,15 +112,14 @@ public class BlockFilterRegistry {
     }
 
     /**
-     * 获取过滤器；旧 id（如 non_air、not_water）会解析为规范 id 再查找。
+     * 获取过滤器。
      * 无状态规则返回共享实例；带参数的规则应使用 {@link #createFilter(String)} 获得独立实例。
      */
     public static BlockFilter getFilter(String id) {
-        String canonical = resolveId(id);
-        if (canonical == null) return null;
-        BlockFilter filter = registeredFilters.get(canonical);
+        if (id == null) return null;
+        BlockFilter filter = registeredFilters.get(id);
         if (filter == null) {
-            LOGGER.warn("[BlockFilterRegistry] 未找到过滤器: {} (resolved: {})", id, canonical);
+            LOGGER.warn("[BlockFilterRegistry] 未找到过滤器: {}", id);
         }
         return filter;
     }
@@ -147,7 +130,7 @@ public class BlockFilterRegistry {
      * 参见 docs/selection-filter-ids.md 中「参数化」标注的 filterId。
      */
     public static BlockFilter createFilter(String id) {
-        if (isParameterizedId(resolveId(id))) {
+        if (isParameterizedId(id)) {
             // 预留：参数化规则在此 factory 或子类中 new 实例
             LOGGER.debug("[BlockFilterRegistry] createFilter 参数化 id 尚未实现，回退 getFilter: {}", id);
         }
@@ -160,11 +143,10 @@ public class BlockFilterRegistry {
     }
 
     /**
-     * 检查过滤器是否存在；旧 id 会解析为规范 id。
+     * 检查过滤器是否存在。
      */
     public static boolean hasFilter(String id) {
-        String canonical = resolveId(id);
-        return canonical != null && registeredFilters.containsKey(canonical);
+        return id != null && registeredFilters.containsKey(id);
     }
     
     /**
@@ -191,11 +173,10 @@ public class BlockFilterRegistry {
      * 判断指定过滤器是否对普通 UI 可见。
      */
     public static boolean isUserVisible(String id) {
-        String canonical = resolveId(id);
-        if (canonical == null) {
+        if (id == null) {
             return false;
         }
-        return visibilityRegistry.getOrDefault(canonical, Visibility.USER_VISIBLE) == Visibility.USER_VISIBLE;
+        return visibilityRegistry.getOrDefault(id, Visibility.USER_VISIBLE) == Visibility.USER_VISIBLE;
     }
     
     /**

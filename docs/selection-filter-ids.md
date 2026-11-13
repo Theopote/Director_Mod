@@ -130,20 +130,6 @@ Preset 不是新能力，只是 **filterId 的组合**。
 2. **禁止运行时随意注册未知 ID**：新增 ID 须先入表、入常量、再注册。
 3. **注册即校验合法性**：id 非空、符合前缀/语义规范。
 
-### 向后兼容（Legacy 别名）
-
-为兼容旧配置与旧代码，`BlockFilterRegistry.getFilter` / `resolveFilterId` 及 Commands 内部对以下旧 id 做映射后再查找，**新代码不得再使用**：
-
-| 旧 id | 规范 id |
-|-------|---------|
-| `non_air` | `exclude_air` |
-| `not_water` | `exclude_water` |
-| `not_lava` | `exclude_lava` |
-| `solid` | `solid_only` |
-| `plant` | `plant_only` |
-| `replaceable` | `replaceable_only` |
-| `transparent` | `transparent_only` |
-
 ### createFilter 与参数化规则
 
 - 无参数规则：`getFilter(id)` 返回共享实例即可。

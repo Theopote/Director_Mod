@@ -592,10 +592,6 @@ public class TimelineClipBlockController {
                                 clip.getLabel());
                     }
                 }
-                // ✅ 兼容旧模式：把“随机/螺旋/切片/波浪/扩散/向下生长”等迁移到 SequenceParameters
-                com.director.core.animation.LegacyAnimationModeMigrator.migrateIfNeeded(config);
-                // ✅ 兼容旧高级参数：例如 flashWhite -> EffectInstance
-                com.director.core.animation.LegacyAdvancedParamsMigrator.migrateIfNeeded(config);
                 currentFrameConfigs.put(containerId, config);
 
                 // ◆ 根据播放头位置和片段配置计算应该显示的方块

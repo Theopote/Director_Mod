@@ -83,20 +83,6 @@ public class SeasonTrackSampler {
     }
 
     /**
-     * 设置关键帧列表（向后兼容）。
-     * 
-     * @deprecated 使用 {@link #setFromTrack(com.director.timeline.model.TimelineTrack)} 代替
-     */
-    @Deprecated
-    public void setKeyframes(List<SeasonKeyframe> keyframes) {
-        this.keyframes.clear();
-        if (keyframes != null) {
-            this.keyframes.addAll(keyframes);
-            this.keyframes.sort(Comparator.comparingDouble(SeasonKeyframe::getTime).thenComparing(SeasonKeyframe::getId));
-        }
-    }
-
-    /**
      * 在给定时间采样。
      * 如果没有任何关键帧，返回 disabled()。
      */
@@ -205,21 +191,6 @@ public class SeasonTrackSampler {
         );
 
         return sanitized(out);
-    }
-
-    /**
-     * 在给定时间采样（向后兼容方法名）。
-     * 
-     * @deprecated 使用 {@link #sampleAt(float)} 代替
-     */
-    @Deprecated
-    public java.util.Optional<SeasonSample> sample(float timeSeconds) {
-        SeasonSample result = sampleAt(timeSeconds);
-        if (result.enabled) {
-            return java.util.Optional.of(result);
-        } else {
-            return java.util.Optional.empty();
-        }
     }
 
     /**

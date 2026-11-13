@@ -336,36 +336,6 @@ public class TimelineContextMenuFactory {
 
         return builder.build();  // ⭐⭐ 修复：使用 build() 而不是 open()，由 openContextMenuForHit 统一打开
     }
-    
-    /**
-     * @deprecated 使用 createClipKeyframeMenu(ClipKeyframe, Clip, Track) 代替
-     */
-    @Deprecated
-    public TimelineContextMenu createKeyframeMenu(TimelineClip clip, float keyframeTime) {
-        TimelineTrack track = model.findTrackForClip(clip);
-        if (track == null || clip == null) {
-            LOGGER.warn("[Timeline] 创建 Keyframe 菜单失败：track 或 clip 为 null");
-            return TimelineContextMenuBuilder
-                    .forKeyframe(commandHistory)
-                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.NO_KEYFRAME))
-                    .build();
-        }
-
-        final float EPS = 0.001f;
-        com.director.timeline.model.clip.ClipKeyframe kf =
-                clip.findKeyframeAt(keyframeTime, EPS);
-
-        if (kf == null) {
-            LOGGER.warn("[Timeline] 未找到时间 {:.3f}s 对应的 ClipKeyframe", keyframeTime);
-            return TimelineContextMenuBuilder
-                    .forKeyframe(commandHistory)
-                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.KEYFRAME_AT_NOT_FOUND, keyframeTime))
-                    .build();
-        }
-
-        // 委托给新方法
-        return createClipKeyframeMenu(kf, clip, track);
-    }
 
     /**
      * 创建自动化关键帧的右键菜单（摄像机关键帧、天气关键帧等）

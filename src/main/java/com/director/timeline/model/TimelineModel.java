@@ -669,55 +669,6 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         return tracks;
     }
     
-    // ========== 向后兼容的旧 API（已废弃）==========
-    
-    /**
-     * @deprecated 请使用 {@link #isSnappingEnabled()} 和 {@link #getSnapSettings()}
-     */
-    @Deprecated
-    public boolean isSnapEnabled() {
-        return snapSettings.isEnabled();
-    }
-    
-    /**
-     * @deprecated 请使用 {@link #setSnappingEnabled(boolean)} 或 {@link #getSnapSettings()}
-     */
-    @Deprecated
-    public void setSnapEnabled(boolean enabled) {
-        setSnappingEnabled(enabled);
-    }
-    
-    /**
-     * @deprecated 请使用 {@link TimelineSnapSettings#getGridInterval()}
-     */
-    @Deprecated
-    public float getSnapInterval() {
-        return snapSettings.getGridInterval();
-    }
-    
-    /**
-     * @deprecated 请使用 {@link TimelineSnapSettings#setGridInterval(float)}
-     */
-    @Deprecated
-    public void setSnapInterval(float interval) {
-        float oldValue = snapSettings.getGridInterval();
-        snapSettings.setGridInterval(interval);
-        if (Math.abs(oldValue - snapSettings.getGridInterval()) >= 0.0001f) {
-            markDirty();
-        }
-    }
-    
-    /**
-     * @deprecated 请使用 {@link #snapToGrid(float)} + {@link TimelineSnapping}
-     */
-    @Deprecated
-    public float snapToInterval(float time) {
-        if (!snapSettings.isEnabled() || !snapSettings.isSnapToGrid()) {
-            return time;
-        }
-        return snapToGrid(time);
-    }
-    
     // ========== 轨道管理 ==========
     
     public void addTrack(TimelineTrack track) {
@@ -1039,11 +990,6 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
                 // 音频事件（音频轨道）
                 if (track instanceof com.director.timeline.model.audio.AudioTrack at) {
                     for (com.director.timeline.model.audio.AudioEvent e : at.getEvents()) {
-                        if (e == null) continue;
-                        maxEndTime = Math.max(maxEndTime, e.getStartTime());
-                    }
-                } else {
-                    for (com.director.timeline.model.audio.AudioEvent e : track.getLegacyAudioEventsForMigration()) {
                         if (e == null) continue;
                         maxEndTime = Math.max(maxEndTime, e.getStartTime());
                     }

@@ -104,17 +104,7 @@ public final class FilterIds {
      */
     public static String getFilterDisplayName(String filterId) {
         if (filterId == null) return "";
-        String canonical = switch (filterId) {
-            case "non_air" -> EXCLUDE_AIR;
-            case "not_water" -> EXCLUDE_WATER;
-            case "not_lava" -> EXCLUDE_LAVA;
-            case "solid" -> SOLID_ONLY;
-            case "plant" -> PLANT_ONLY;
-            case "replaceable" -> REPLACEABLE_ONLY;
-            case "transparent" -> TRANSPARENT_ONLY;
-            default -> filterId;
-        };
-        return switch (canonical) {
+        return switch (filterId) {
             case EXCLUDE_AIR -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_EXCLUDE_AIR);
             case EXCLUDE_WATER -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_EXCLUDE_WATER);
             case EXCLUDE_LAVA -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_EXCLUDE_LAVA);
@@ -139,7 +129,7 @@ public final class FilterIds {
             case LUMINOUS -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_LUMINOUS);
             case LUMINOUS_5 -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_LUMINOUS_5);
             case LUMINOUS_10 -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_LUMINOUS_10);
-            default -> canonical;
+            default -> filterId;
         };
     }
 }

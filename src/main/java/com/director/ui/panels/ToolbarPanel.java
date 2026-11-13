@@ -53,7 +53,12 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
     private static final float BUTTON_SIZE = 32f;
     private static final ToolGroup[] GROUPS = {ToolGroup.SELECTION, ToolGroup.ACTOR, ToolGroup.WORLD, ToolGroup.TIMELINE};
-    private static final String[] ACTOR_TOOL_IDS = {"actor_move", "actor_rotate", "actor_scale", "actor_look_at"};
+    private static final com.director.client.gizmo.GizmoMode[] ACTOR_GIZMO_MODES = {
+            com.director.client.gizmo.GizmoMode.TRANSLATE,
+            com.director.client.gizmo.GizmoMode.ROTATE,
+            com.director.client.gizmo.GizmoMode.SCALE,
+            com.director.client.gizmo.GizmoMode.LOOK_AT
+    };
     private static final String[] ACTOR_TOOL_LABELS = {"move", "rotate", "scale", "look"};
 
     private static String tr(String key) {
@@ -162,20 +167,16 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
             ImGui.separator();
             ImGui.textUnformatted(tr("gui.director.actor.tools.whole"));
         }
-        for (int i = 0; i < ACTOR_TOOL_IDS.length; i++) {
+        for (int i = 0; i < ACTOR_GIZMO_MODES.length; i++) {
             String label = tr("gui.director.actor.tools." + ACTOR_TOOL_LABELS[i]);
             float buttonWidth = textButtonWidth(label);
             float gap = rows.place(buttonWidth, false);
             if (render) {
                 placeButton(gap, false);
-                boolean selected = mode == switch (i) {
-                    case 1 -> com.director.client.gizmo.GizmoMode.ROTATE;
-                    case 2 -> com.director.client.gizmo.GizmoMode.SCALE;
-                    case 3 -> com.director.client.gizmo.GizmoMode.LOOK_AT;
-                    default -> com.director.client.gizmo.GizmoMode.TRANSLATE;
-                };
-                if (toolButton(label + "##" + ACTOR_TOOL_IDS[i], Math.min(buttonWidth, rows.width), selected, true)) {
-                    activateTool(ACTOR_TOOL_IDS[i]);
+                com.director.client.gizmo.GizmoMode buttonMode = ACTOR_GIZMO_MODES[i];
+                boolean selected = mode == buttonMode;
+                if (toolButton(label + "##actor_gizmo_" + buttonMode.name(), Math.min(buttonWidth, rows.width), selected, true)) {
+                    activateActorGizmoMode(buttonMode);
                 }
             }
         }
@@ -242,6 +243,11 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         if (commands != null && commands.tools() != null) {
             commands.tools().activateTool(id);
         }
+    }
+
+    private void activateActorGizmoMode(com.director.client.gizmo.GizmoMode mode) {
+        activateTool(ToolRegistry.ACTOR_SELECT_TOOL_ID);
+        com.director.ui.actor.gizmo.ActorGizmoController.getInstance().setPreferredMode(mode);
     }
 
     private static final class ButtonRows {

@@ -1,11 +1,9 @@
 package com.director.ui.tools;
 
-import com.director.client.gizmo.GizmoMode;
 import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionTool;
 import com.director.i18n.ToolI18n;
-import com.director.ui.actor.gizmo.ActorGizmoController;
 import com.director.ui.theme.Icons;
 import com.director.ui.tools.impl.ActorPathTool;
 import com.director.ui.tools.impl.ActorPoseTool;
@@ -42,12 +40,6 @@ public final class ToolRegistry {
     public static final String ACTOR_SELECT_TOOL_ID = "actor_select";
     public static final String ACTOR_POSE_TOOL_ID = ActorPoseTool.ID;
     public static final String ACTOR_PATH_TOOL_ID = "actor_path";
-
-    /** 已并入 {@link #ACTOR_SELECT_TOOL_ID} 的旧工具 ID（快捷键/配置兼容）。 */
-    private static final String LEGACY_ACTOR_MOVE_ID = "actor_move";
-    private static final String LEGACY_ACTOR_ROTATE_ID = "actor_rotate";
-    private static final String LEGACY_ACTOR_SCALE_ID = "actor_scale";
-    private static final String LEGACY_ACTOR_LOOK_AT_ID = "actor_look_at";
 
     private final List<EditorTool> selectionTools = new ArrayList<>();
     private final List<EditorTool> extraTools = new ArrayList<>();
@@ -147,11 +139,7 @@ public final class ToolRegistry {
     }
 
     public static boolean isActorTransformGizmoToolId(String toolId) {
-        return Objects.equals(toolId, ACTOR_SELECT_TOOL_ID)
-                || Objects.equals(toolId, LEGACY_ACTOR_MOVE_ID)
-                || Objects.equals(toolId, LEGACY_ACTOR_ROTATE_ID)
-                || Objects.equals(toolId, LEGACY_ACTOR_SCALE_ID)
-                || Objects.equals(toolId, LEGACY_ACTOR_LOOK_AT_ID);
+        return Objects.equals(toolId, ACTOR_SELECT_TOOL_ID);
     }
 
     public static boolean isActorToolId(String toolId) {
@@ -169,34 +157,6 @@ public final class ToolRegistry {
     public static boolean isPlaceholderToolId(String toolId) {
         return Objects.equals(toolId, WORLD_PLACEHOLDER_ID)
                 || Objects.equals(toolId, TIMELINE_PLACEHOLDER_ID);
-    }
-
-    /** 将已废弃的变换/朝向工具 ID 映射到 actor_select。 */
-    public static String normalizeActorToolId(String toolId) {
-        if (Objects.equals(toolId, LEGACY_ACTOR_MOVE_ID)
-                || Objects.equals(toolId, LEGACY_ACTOR_ROTATE_ID)
-                || Objects.equals(toolId, LEGACY_ACTOR_SCALE_ID)
-                || Objects.equals(toolId, LEGACY_ACTOR_LOOK_AT_ID)) {
-            return ACTOR_SELECT_TOOL_ID;
-        }
-        return toolId;
-    }
-
-    /** 废弃工具 ID 对应的 Gizmo 模式（激活 actor_select 后应用）。 */
-    public static GizmoMode deprecatedActorGizmoMode(String toolId) {
-        if (Objects.equals(toolId, LEGACY_ACTOR_MOVE_ID)) {
-            return GizmoMode.TRANSLATE;
-        }
-        if (Objects.equals(toolId, LEGACY_ACTOR_ROTATE_ID)) {
-            return GizmoMode.ROTATE;
-        }
-        if (Objects.equals(toolId, LEGACY_ACTOR_SCALE_ID)) {
-            return GizmoMode.SCALE;
-        }
-        if (Objects.equals(toolId, LEGACY_ACTOR_LOOK_AT_ID)) {
-            return GizmoMode.LOOK_AT;
-        }
-        return null;
     }
 
     public synchronized void initializeIfNeeded() {
@@ -310,18 +270,12 @@ public final class ToolRegistry {
     public boolean activate(String toolId) {
         if (toolId == null || toolId.isBlank()) return false;
         com.director.ui.lighting.PointLightController.get().stop();
-        GizmoMode deprecatedGizmoMode = deprecatedActorGizmoMode(toolId);
-        toolId = normalizeActorToolId(toolId);
         SelectionManager selectionManager = selectionManager();
 
         // 优先：如果是 extra 工具，走 editor-level 激活
         EditorTool extra = findExtraTool(toolId);
         if (extra != null) {
-            boolean activated = activateNonSelection(extra);
-            if (activated && deprecatedGizmoMode != null) {
-                ActorGizmoController.getInstance().setPreferredMode(deprecatedGizmoMode);
-            }
-            return activated;
+            return activateNonSelection(extra);
         }
 
         World world = MinecraftClient.getInstance().world;
@@ -352,7 +306,6 @@ public final class ToolRegistry {
 
     private EditorTool findExtraTool(String toolId) {
         if (toolId == null) return null;
-        toolId = normalizeActorToolId(toolId);
         for (EditorTool t : extraTools) {
             if (t != null && Objects.equals(toolId, t.id())) {
                 return t;

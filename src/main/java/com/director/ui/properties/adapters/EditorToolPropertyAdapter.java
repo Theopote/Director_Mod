@@ -149,9 +149,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         } else if (Objects.equals(tool.id(), ToolRegistry.ACTOR_PATH_TOOL_ID)) {
             renderActorPathToolProperties(actor);
         } else if (ToolRegistry.isActorTransformGizmoToolId(tool.id())) {
-            // Look-at is a gizmo mode on actor_select (legacy tool id maps via deprecatedActorGizmoMode).
-            var mode = ToolRegistry.deprecatedActorGizmoMode(tool.id());
-            if (mode == null) mode = ActorGizmoController.getInstance().getPreferredMode();
+            var mode = ActorGizmoController.getInstance().getPreferredMode();
             if (mode == GizmoMode.LOOK_AT) renderLookAtAuthoring(actor);
             if (actor != null) {
                 ActorLiveTransformPropertyUI.render(actor.getActorId());

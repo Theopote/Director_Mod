@@ -396,16 +396,19 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         // 拆除容器（DEMOLITION）默认用于擦除轨道：更合理只暴露 EXIT 类动画。
         boolean isDemolition = container.getType() == ContainerType.DEMOLITION;
 
-        AnimationMode[] baseModes = isDemolition
+        AnimationMode[] modes = isDemolition
                 ? new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_OUT, AnimationMode.EXPLODE, AnimationMode.IMPLODE, AnimationMode.SHRINK_OUT, AnimationMode.GRAVITY_FALL, AnimationMode.FLY_OUT}
                 : new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_IN, AnimationMode.GROW_UP, AnimationMode.ASSEMBLE, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.POP_IN, AnimationMode.SHAKER};
 
-        // 当前预设可能来自旧版本（例如 RANDOM/SLICE/WAVE/SPIRAL/GROW_DOWN/EXPAND），为了不“看不见”，把它临时塞回列表
-        java.util.List<AnimationMode> modeList = new java.util.ArrayList<>(java.util.List.of(baseModes));
-        if (currentMode != null && !modeList.contains(currentMode)) {
-            modeList.addFirst(currentMode);
+        // 未知/不在白名单的旧模式回落到默认合法模式
+        if (currentMode == null || !java.util.List.of(modes).contains(currentMode)) {
+            currentMode = AnimationMode.INSTANT;
+            ContainerAnimationPreset updated = preset != null ? preset.copy() : ContainerAnimationPreset.defaultPreset();
+            updated.setMode(currentMode);
+            container.setDefaultAnimationPreset(updated);
+            preset = updated;
+            modified = true;
         }
-        AnimationMode[] modes = modeList.toArray(new AnimationMode[0]);
 
         int currentIdx = 0;
         for (int i = 0; i < modes.length; i++) {
@@ -419,10 +422,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         String[] modeNames = new String[modes.length];
         for (int i = 0; i < modes.length; i++) {
             AnimationMode m = modes[i];
-            // 旧模式提示
-            if (i == 0 && m == currentMode && !java.util.List.of(baseModes).contains(m)) {
-                modeNames[i] = m.getDisplayName() + tr(DirectorLang.Properties.AdapterContainer.LEGACY_MODE_SUFFIX);
-            } else if (isDemolition && m == AnimationMode.ASSEMBLE) {
+            if (isDemolition && m == AnimationMode.ASSEMBLE) {
                 modeNames[i] = tr(DirectorLang.Properties.AdapterContainer.FRAGMENT_SCATTER);
             } else {
                 modeNames[i] = m.getDisplayName();
@@ -447,10 +447,6 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         UITheme.spacingSmall();
         if (preset != null) {
             UITheme.label(preset.getMode().getDescription(), UITheme.DarkTheme.TEXT_DISABLED);
-        }
-        if (!java.util.List.of(baseModes).contains(currentMode)) {
-            UITheme.spacingSmall();
-            UITheme.label(tr(DirectorLang.Properties.AdapterContainer.LEGACY_MODE_HINT), UITheme.DarkTheme.TEXT_DISABLED);
         }
 
         UITheme.separator();

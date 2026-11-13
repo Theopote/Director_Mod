@@ -12,12 +12,11 @@ class TimelineClipAnimationControlsTest {
         params.put("enterSoundTiming", "PRE_LAND"); params.put("exitSoundTiming", "START");
         params.put("enterSoundOffsetSeconds", -0.25f); params.put("exitSoundOffsetSeconds", 0.5f);
         params.put("opacityFade", "true"); params.put("opacityFadeIntensity", 0.75f);
-        params.put("_legacyAdvancedParamsMigratedV1", true); params.put("oldActionDistance", 9);
+        params.put("oldActionDistance", 9);
         TimelineClipAnimationControls.applyActionDefaults(config, Map.of("initialScale", 0.2f), false);
         assertEquals("PRE_LAND", params.get("enterSoundTiming")); assertEquals("START", params.get("exitSoundTiming"));
         assertEquals(-0.25f, params.get("enterSoundOffsetSeconds")); assertEquals(0.5f, params.get("exitSoundOffsetSeconds"));
         assertEquals(true, params.get("opacityFade")); assertEquals(0.75f, params.get("opacityFadeIntensity"));
-        assertEquals(true, params.get("_legacyAdvancedParamsMigratedV1"));
         assertFalse(params.containsKey("oldActionDistance")); assertEquals(0.2f, params.get("initialScale"));
     }
     @Test void resetActionPreservesAudioAndSequenceAndResetsOnlyActionModifiers() {

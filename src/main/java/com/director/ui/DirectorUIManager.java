@@ -104,7 +104,6 @@ import imgui.ImGui;
  *
  * <h3>⚠️ 重要说明：</h3>
  * <ul>
- *   <li><strong>默认构造函数已移除</strong> - 使用 {@code new DirectorUIManager()} 会抛出 {@code UnsupportedOperationException}</li>
  *   <li><strong>强制依赖注入</strong> - 所有面板必须通过构造函数注入，确保类型安全和完整性</li>
  *   <li><strong>推荐使用UIConfiguration</strong> - 自动处理面板创建、配置和依赖关系</li>
  *   <li><strong>面板注册表O(1)查找</strong> - 移除私有字段缓存，直接使用 {@code panelRegistry.getPanel(Class)}</li>
@@ -306,18 +305,6 @@ public class DirectorUIManager {
      * @see #DirectorUIManager(List) 推荐的依赖注入构造函数
      * @see UIConfiguration 面板配置创建器
      */
-    @Deprecated(since = "2.0", forRemoval = true)
-    public DirectorUIManager() {
-        throw new UnsupportedOperationException(
-                """
-                        默认构造函数已被移除。请使用依赖注入构造函数：
-                        1. UIConfiguration config = new UIConfiguration(minecraftClient);
-                        2. DirectorUIManager uiManager = config.createUIManagerWithRegistry();
-                        或：DirectorUIManager uiManager = new DirectorUIManager(config.getPanels());"""
-        );
-    }
-
-
     /**
      * 依赖注入构造函数 - 推荐使用
      * @param panels 面板列表

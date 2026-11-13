@@ -8,7 +8,6 @@ import net.minecraft.block.FluidBlock;
 import net.minecraft.block.LeavesBlock;
 import net.minecraft.block.PlantBlock;
 import net.minecraft.block.SnowBlock;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -296,20 +295,6 @@ public class SeasonSnowManager {
         if (!snowMap.isEmpty()) {
             animateSnowLayers(world);
         }
-    }
-
-    /**
-     * 每 tick 调用（向后兼容，自动获取玩家位置）。
-     * 
-     * @deprecated 使用 {@link #tick(ClientWorld, Vec3d)} 代替
-     */
-    @Deprecated
-    public void tick() {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.world == null || mc.player == null) {
-            return;
-        }
-        tick(mc.world, mc.player.getEntityPos());
     }
 
     // ====================================================

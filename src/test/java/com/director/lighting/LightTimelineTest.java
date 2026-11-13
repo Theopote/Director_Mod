@@ -156,13 +156,12 @@ class LightTimelineTest {
         assertEquals(1,copied.getClipKeyframes().size());assertEquals(key.value(),((LightKeyframe)copied.getClipKeyframes().getFirst()).value());
         assertEquals(TimelineInterpolation.SMOOTH,copied.getClipKeyframes().getFirst().getInterpolation());assertEquals(LightTimelineSampler.sample(m,4),LightTimelineSampler.sample(restored,4));
     }
-    @Test void legacyPointLightFormatMigratesOnceAndDoesNotResurrectDeletedSchedules() {
+    @Test void barePointLightsWithoutSchedulesAreClearedOnLoad() {
         var l=point();var g=new Gson();String lightJson=g.toJson(l);var obj=com.google.gson.JsonParser.parseString(lightJson).getAsJsonObject();
         for(String k:List.of("type","anchors","width","height","yaw","pitch")) obj.remove(k);
         var dto=g.fromJson("{\"duration\":12,\"tracks\":[],\"pointLights\":["+obj+"]}",TimelineModelPersistence.TimelineDTO.class);
-        var m=model();TimelineModelPersistence.fromDTO(dto,m,null);assertEquals(LightType.POINT,m.getPointLights().getFirst().type());assertEquals(List.of(l),LightTimelineSampler.sample(m,1));
-        var saved=TimelineModelPersistence.toDTO(m,null);var restored=model();TimelineModelPersistence.fromDTO(saved,restored,null);assertEquals(1,restored.getTracks().size());
-        restored.getTracks().getFirst().removeClip(restored.getTracks().getFirst().getClips().getFirst());
-        var again=model();TimelineModelPersistence.fromDTO(TimelineModelPersistence.toDTO(restored,null),again,null);assertTrue(LightTimelineSampler.sample(again,1).isEmpty());
+        var m=model();TimelineModelPersistence.fromDTO(dto,m,null);
+        assertTrue(m.getPointLights().isEmpty());
+        assertTrue(LightTimelineSampler.sample(m,1).isEmpty());
     }
 }

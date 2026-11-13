@@ -350,9 +350,6 @@ public class TimelineClipPropertyUi {
             return false;
         }
 
-        com.director.core.animation.LegacyAnimationModeMigrator.migrateIfNeeded(config);
-        com.director.core.animation.LegacyAdvancedParamsMigrator.migrateIfNeeded(config);
-
         AnimationMode currentMode = config.getMode();
         if (currentMode == null) {
             currentMode = AnimationMode.INSTANT;
@@ -1564,9 +1561,6 @@ public class TimelineClipPropertyUi {
             ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_CONFIG_EMPTY));
             return false;
         }
-
-        // ✅ 旧高级参数迁移（保证旧片段“闪白光”等效果不会丢）
-        com.director.core.animation.LegacyAdvancedParamsMigrator.migrateIfNeeded(config);
 
         // ========== 1. 快捷添加 (Quick Add / Shortcuts) ==========
         UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_QUICK_ADD_HEADER), UITheme.DarkTheme.TEXT_SELECTED);

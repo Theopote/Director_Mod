@@ -1258,16 +1258,8 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         audioTrack.setCollapsed(track.isCollapsed());
         audioTrack.setZOrder(track.getZOrder());
         
-        // 迁移事件：先转换为 AudioTrack，然后使用新方法
-        // 如果 track 不是 AudioTrack，先转换为 AudioTrack 以访问新方法
         if (track instanceof AudioTrack sourceTrack) {
             for (AudioEvent event : sourceTrack.getEvents()) {
-                audioTrack.addEvent(event);
-            }
-        } else {
-            // 对于旧的 TimelineTrack，使用迁移方法读取事件（旧存储位于 TimelineTrack.audioEvents）
-            List<AudioEvent> oldEvents = track.getLegacyAudioEventsForMigration();
-            for (AudioEvent event : oldEvents) {
                 audioTrack.addEvent(event);
             }
         }

@@ -43,7 +43,6 @@ import java.time.Instant;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -52,9 +51,18 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * TimelineModel 持久化管理器
- * 负责保存和加载时间线轨道数据
- * 
+ * TimelineModel 持久化管理器：将时间线工程序列化到当前世界
+ * {@code saves/<world>/director/timeline_model.json}。
+ *
+ * <p><b>权威数据源</b>：内存中的 {@link TimelineModel}（及可选 {@link TimelineViewportState}）；
+ * 磁盘文件仅作会话间快照。</p>
+ *
+ * <p><b>当前行为</b>：{@link #toDTO}/{@link #fromDTO} 做 Gson 往返；
+ * {@link #saveToFile}/{@link #loadFromFile} 按世界目录读写；加载后调用
+ * {@code LightLifecycle.cleanLoadedProject} 清理灯光一致性。</p>
+ *
+ * <p><b>限制</b>：无旧路径/旧 schema 迁移；未知枚举值（如已删除的 AnimationSource）会被忽略并保留默认。</p>
+ *
  * @author Director Team
  * @version 1.0
  */
@@ -62,8 +70,6 @@ public class TimelineModelPersistence {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineModelPersistence.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
-    // 配置文件路径
-    private static final Path CONFIG_DIR = Paths.get("config", "director");
     private static final Set<String> RESERVED_SEQUENCE_KEYS = Set.of(
         "layerStep", "floodSeedMode", "concurrencyMode", "batchSize", "batchInterval",
         "timeMappingStrategy", "perBlockDuration", "globalDelay",
@@ -91,17 +97,6 @@ public class TimelineModelPersistence {
             return worldDir.resolve("timeline_model.json");
         }
         return null;
-    }
-
-    /**
-     * 旧版（config/director/timelines）路径：用于迁移。
-     */
-    private static Path getLegacyTimelineFile() {
-        String worldId = WorldIdentifier.getCurrentWorldId();
-        if (worldId == null || worldId.isEmpty() || "default".equals(worldId)) {
-            return null;
-        }
-        return CONFIG_DIR.resolve("timelines").resolve(worldId + "_timeline_model.json");
     }
 
     /**
@@ -1390,8 +1385,7 @@ public class TimelineModelPersistence {
         }
         }
 
-        if(dto.lightingVersion==0) com.director.lighting.LightTimelineSampler.migrateLegacy(model);
-        else com.director.lighting.LightLifecycle.cleanLoadedProject(model);
+        com.director.lighting.LightLifecycle.cleanLoadedProject(model);
         model.clearInOut();
         if (dto.inPoint != null) {
             model.setInPoint(dto.inPoint);
@@ -1911,13 +1905,7 @@ public class TimelineModelPersistence {
         TrackType type = null;
         if (trackDTO.typeName != null) {
             try {
-                // ✅ 向后兼容：将旧的 ERASE 轨道类型自动转换为 CONTAINER
-                if ("ERASE".equals(trackDTO.typeName)) {
-                    LOGGER.info("[TimelineModelPersistence] 检测到旧的 ERASE 轨道类型，自动转换为 CONTAINER: {}", trackDTO.name);
-                    type = TrackType.CONTAINER;
-                } else {
-                    type = TrackType.valueOf(trackDTO.typeName);
-                }
+                type = TrackType.valueOf(trackDTO.typeName);
             } catch (IllegalArgumentException e) {
                 LOGGER.warn("[TimelineModelPersistence] 未知的轨道类型: {}", trackDTO.typeName);
             }
@@ -2021,25 +2009,11 @@ public class TimelineModelPersistence {
     public static Instant loadFromFile(TimelineModel model, TimelineViewportState viewportState) {
         try {
             Path timelineFile = getTimelineFile();
-            Path legacy = getLegacyTimelineFile();
             if (timelineFile == null) {
                 LOGGER.debug("[TimelineModelPersistence] 当前无活动存档目录，跳过加载");
                 return null;
             }
 
-            // 自动迁移：优先使用世界目录；若世界目录没有但旧 config 存在，则迁移一次
-            if (!Files.exists(timelineFile) && legacy != null && Files.exists(legacy) && !legacy.equals(timelineFile)) {
-                try {
-                    if (!Files.exists(timelineFile.getParent())) {
-                        Files.createDirectories(timelineFile.getParent());
-                    }
-                    Files.copy(legacy, timelineFile);
-                    LOGGER.info("[TimelineModelPersistence] 已迁移时间线存档到世界目录: {} -> {}", legacy, timelineFile);
-                } catch (Exception e) {
-                    LOGGER.warn("[TimelineModelPersistence] 迁移时间线存档失败: {}", e.getMessage());
-                }
-            }
-            
             if (Files.exists(timelineFile)) {
                 String json = Files.readString(timelineFile);
                 TimelineDTO dto = GSON.fromJson(json, TimelineDTO.class);
@@ -2073,12 +2047,7 @@ public class TimelineModelPersistence {
      */
     public static boolean hasSavedData() {
         Path primary = getTimelineFile();
-        if (primary != null && Files.exists(primary)) {
-            return true;
-        }
-        // 兼容旧位置（用于升级迁移的首次启动）
-        Path legacy = getLegacyTimelineFile();
-        return legacy != null && Files.exists(legacy);
+        return primary != null && Files.exists(primary);
     }
 
     private static String getWorldFingerprint() {
@@ -2110,13 +2079,6 @@ public class TimelineModelPersistence {
                 Files.delete(file);
                 LOGGER.info("[TimelineModelPersistence] 已删除世界 {} 的时间线存档: {}",
                         WorldIdentifier.getCurrentWorldId(), file);
-            }
-
-            // 兼容：同时删除旧位置的存档，避免“新建动画”后旧文件又被迁移回来
-            Path legacy = getLegacyTimelineFile();
-            if (legacy != null && Files.exists(legacy) && !legacy.equals(file)) {
-                Files.delete(legacy);
-                LOGGER.info("[TimelineModelPersistence] 已删除旧位置时间线存档: {}", legacy);
             }
         } catch (IOException e) {
             LOGGER.warn("[TimelineModelPersistence] 删除时间线存档失败: {}", e.getMessage(), e);

@@ -42,11 +42,6 @@ public final class TimelineWeatherController extends AbstractTrackTimelinePlayba
         return TrackType.WEATHER;
     }
 
-    @Deprecated
-    public void setActiveWeatherTrack(TimelineTrack track) {
-        bindActiveTrack(track);
-    }
-
     public TimelineTrack getActiveWeatherTrack() {
         return getActiveTrack();
     }
@@ -143,11 +138,6 @@ public final class TimelineWeatherController extends AbstractTrackTimelinePlayba
             logger.debug("[WeatherController] 无法更新事件子系统", e);
         }
         publishRenderSnapshot();
-    }
-
-    @Deprecated
-    public void init(com.director.timeline.model.TimelineModel model) {
-        logger.debug("[WeatherController] init() 已弃用，请使用 bindActiveTrack()");
     }
 
     /** Compatibility entry point; render overrides leave server weather untouched. */

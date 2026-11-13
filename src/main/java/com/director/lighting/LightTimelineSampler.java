@@ -21,12 +21,4 @@ public final class LightTimelineSampler {
         }
         return List.copyOf(result);
     }
-    public static void migrateLegacy(TimelineModel model) {
-        for(var light:model.getPointLights()) {
-            if(model.getTracks().stream().flatMap(t -> t.getClips().stream())
-                    .anyMatch(c -> c instanceof LightTimelineClip clip && clip.lightId().equals(light.id()))) continue;
-            var track=new TimelineTrack(light.name(),TrackType.LIGHT);
-            track.addClip(new LightTimelineClip(light.name(),0,Math.max(.05f,model.getDuration()),light.id()));model.addTrack(track);
-        }
-    }
 }

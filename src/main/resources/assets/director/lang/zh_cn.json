@@ -511,9 +511,7 @@
   "gui.director.properties.adapter.container.default_animation": "默认动画效果",
   "gui.director.properties.adapter.container.animation_demolition_tooltip": "拆除容器：作为“擦除片段”的默认退出动画（方块会在退出动画结束后被清除）",
   "gui.director.properties.adapter.container.animation_build_tooltip": "作为新建片段初始值的默认入场动画（排序请在片段的“序列行为”里设置）",
-  "gui.director.properties.adapter.container.legacy_mode_suffix": "（旧/将迁移为序列）",
   "gui.director.properties.adapter.container.fragment_scatter": "碎片散射",
-  "gui.director.properties.adapter.container.legacy_mode_hint": "提示：该模式属于旧版本的\"排序策略\"，拖到时间线后会自动迁移到「序列行为」面板。",
   "gui.director.properties.adapter.container.animation_params": "动画细节参数",
   "gui.director.properties.adapter.container.render_error": "错误: %s",
   "gui.director.properties.adapter.container.suggested_duration": "建议时长",
@@ -2143,26 +2141,6 @@
   "gui.director.tool.actor_select.desc": "选择演员，通过明确的移动、旋转、缩放或注视模式编辑整体与目标。",
   "gui.director.tool.actor_select.tip.1": "点击演员选择；在下方模式按钮中选择操作，再拖动对应手柄",
   "gui.director.tool.actor_select.tip.2": "G/R/S/T：移动/旋转/缩放/注视；Esc 取消拖动，松开提交",
-
-  "gui.director.tool.actor_move.name": "演员移动",
-  "gui.director.tool.actor_move.desc": "移动所选演员并写入变换片段。",
-  "gui.director.tool.actor_move.tip.1": "移动所选演员",
-  "gui.director.tool.actor_move.tip.2": "先点击演员，再拖动 Gizmo 箭头",
-
-  "gui.director.tool.actor_rotate.name": "演员旋转",
-  "gui.director.tool.actor_rotate.desc": "旋转所选演员并写入变换片段。",
-  "gui.director.tool.actor_rotate.tip.1": "旋转所选演员",
-  "gui.director.tool.actor_rotate.tip.2": "先点击演员，再拖动旋转 Gizmo",
-
-  "gui.director.tool.actor_scale.name": "演员缩放",
-  "gui.director.tool.actor_scale.desc": "缩放所选演员并写入变换片段。",
-  "gui.director.tool.actor_scale.tip.1": "缩放所选演员",
-  "gui.director.tool.actor_scale.tip.2": "先点击演员，再拖动缩放 Gizmo",
-
-  "gui.director.tool.actor_look_at.name": "演员朝向",
-  "gui.director.tool.actor_look_at.desc": "设置所选演员在当前时间的注视目标。",
-  "gui.director.tool.actor_look_at.tip.1": "让所选演员注视目标",
-  "gui.director.tool.actor_look_at.tip.2": "点击世界中的点以创建或更新看向片段",
 
   "gui.director.tool.actor_pose.name": "演员姿态",
   "gui.director.tool.actor_pose.desc": "选择演员的可控制部位，编辑局部姿态与动画关键帧。",

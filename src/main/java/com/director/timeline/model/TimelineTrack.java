@@ -4,7 +4,6 @@ import com.director.core.DirectorServices;
 import com.director.timeline.audio.TimelineClipSoundCollector;
 import com.director.timeline.layout.TimelineClipLayoutResolver;
 import com.director.timeline.model.TrackType;
-import com.director.timeline.model.audio.AudioEvent;
 import com.director.timeline.model.camera.CameraViewportProfile;
 import com.director.timeline.model.camera.CameraKeyframe;
 import com.director.timeline.model.camera.path.CameraPathClip;
@@ -56,9 +55,6 @@ public class TimelineTrack {
 
     /** ActorTrack payload（仅对演员轨道有效，用于存储 EntityClip 系统） */
     private com.director.timeline.model.entity.ActorTrack actorTrackPayload;
-    
-    // ========== 音频事件（仅对音频轨道有效）==========
-    private final List<AudioEvent> audioEvents = new ArrayList<>();
     
     // ========== 摄像机属性（仅对摄像机轨道有效）==========
     /** 摄像机视口配置（画幅比例、安全区、预览分辨率等） */
@@ -292,21 +288,6 @@ public class TimelineTrack {
         this.boundContainerId = (boundContainerId == null || boundContainerId.isBlank())
             ? null
             : boundContainerId.trim();
-    }
-
-    /**
-     * 获取旧版 TimelineTrack 内部维护的音频事件列表（仅用于数据迁移/向后兼容）。
-     *
-     * <p>注意：当轨道为 {@code AudioTrack} 时，应使用 {@code AudioTrack.getEvents()}。
-     * 此方法仅用于在"尚未转换为 AudioTrack"的旧数据上读取事件。
-     *
-     * @return 不可修改的旧音频事件列表
-     */
-    public List<AudioEvent> getLegacyAudioEventsForMigration() {
-        if (this instanceof com.director.timeline.model.audio.AudioTrack at) {
-            return at.getEvents();
-        }
-        return Collections.unmodifiableList(audioEvents);
     }
 
     // ========== ActorTrack payload getter/setter（仅对演员轨道有效）==========

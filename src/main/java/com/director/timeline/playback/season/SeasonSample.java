@@ -66,26 +66,6 @@ public class SeasonSample {
     }
 
     /**
-     * 返回默认采样（无季节偏移）。
-     * 
-     * @deprecated 使用 {@link #disabled()} 代替
-     */
-    @Deprecated
-    public static SeasonSample defaultSample() {
-        return disabled();
-    }
-
-    /**
-     * 返回默认采样（无季节偏移）。
-     * 
-     * @deprecated 使用 {@link #disabled()} 代替
-     */
-    @Deprecated
-    public static SeasonSample neutral() {
-        return disabled();
-    }
-
-    /**
      * 检查所有 tint 是否全部为零（用于快速判断是否有颜色覆盖）。
      */
     public boolean hasNonZeroTint() {

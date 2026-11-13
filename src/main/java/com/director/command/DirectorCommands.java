@@ -74,11 +74,6 @@ public class DirectorCommands {
                 .executes(DirectorCommands::showHelp))
             .executes(DirectorCommands::showHelp));
         
-        // 快捷命令：/cb
-        dispatcher.register(CommandManager.literal("cb")
-            .requires(source -> source.hasPermissionLevel(2))
-            .executes(DirectorCommands::showHelp));
-        
         LOGGER.debug("[Director] 命令已注册");
     }
     
@@ -280,11 +275,9 @@ public class DirectorCommands {
                 Text.literal("/director compatibility-report - 显示详细兼容性报告").formatted(Formatting.WHITE), false);
             context.getSource().sendFeedback(() -> 
                 Text.literal("/director version - 显示版本信息").formatted(Formatting.WHITE), false);
-            context.getSource().sendFeedback(() -> 
+            context.getSource().sendFeedback(() ->
                 Text.literal("/director help - 显示此帮助信息").formatted(Formatting.WHITE), false);
-            context.getSource().sendFeedback(() -> 
-                Text.literal("快捷命令: /cb").formatted(Formatting.GRAY), false);
-            
+
             LOGGER.info("[Director] 帮助信息已通过命令显示");
             return 1;
         } catch (Exception e) {

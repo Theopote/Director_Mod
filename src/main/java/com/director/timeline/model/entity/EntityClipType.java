@@ -60,12 +60,7 @@ public enum EntityClipType {
      * 
      * <p>控制"演什么动作"，而不是"怎么动"。
      * 
-     * <p>支持的动画源：
-     * <ul>
-     *   <li>VANILLA - Minecraft 原版动画</li>
-     *   <li>GECKOLIB - GeckoLib 动画</li>
-     *   <li>CUSTOM - 自定义动画</li>
-     * </ul>
+     * <p>支持的动画源：{@code BUILT_IN}、{@code CUSTOM}。
      */
     ANIMATION("动画", "控制实体的动画播放"),
 

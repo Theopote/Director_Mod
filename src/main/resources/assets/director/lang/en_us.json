@@ -511,9 +511,7 @@
   "gui.director.properties.adapter.container.default_animation": "Default Animation",
   "gui.director.properties.adapter.container.animation_demolition_tooltip": "Demolition container: default exit animation for erase clips (blocks are cleared after the exit animation)",
   "gui.director.properties.adapter.container.animation_build_tooltip": "Default entrance animation for new clips (ordering is set in clip Sequence Behavior)",
-  "gui.director.properties.adapter.container.legacy_mode_suffix": " (legacy / will migrate to sequence)",
   "gui.director.properties.adapter.container.fragment_scatter": "Fragment scatter",
-  "gui.director.properties.adapter.container.legacy_mode_hint": "This mode is a legacy ordering strategy; it will migrate to Sequence Behavior when dragged to the timeline.",
   "gui.director.properties.adapter.container.animation_params": "Animation Parameters",
   "gui.director.properties.adapter.container.render_error": "Error: %s",
   "gui.director.properties.adapter.container.suggested_duration": "Suggested Duration",
@@ -2143,26 +2141,6 @@
   "gui.director.tool.actor_select.desc": "Select an actor and choose Move, Rotate, Scale, or Look at to edit its transform or target.",
   "gui.director.tool.actor_select.tip.1": "Click an actor, choose a mode below, then drag its handles",
   "gui.director.tool.actor_select.tip.2": "G/R/S/T: move/rotate/scale/look at; Esc cancels, release commits",
-
-  "gui.director.tool.actor_move.name": "Actor Move",
-  "gui.director.tool.actor_move.desc": "Move the selected actor and write a Transform clip.",
-  "gui.director.tool.actor_move.tip.1": "Move the selected actor",
-  "gui.director.tool.actor_move.tip.2": "Click an actor first, then drag the Gizmo arrows",
-
-  "gui.director.tool.actor_rotate.name": "Actor Rotate",
-  "gui.director.tool.actor_rotate.desc": "Rotate the selected actor and write a Transform clip.",
-  "gui.director.tool.actor_rotate.tip.1": "Rotate the selected actor",
-  "gui.director.tool.actor_rotate.tip.2": "Click an actor first, then drag the rotation Gizmo",
-
-  "gui.director.tool.actor_scale.name": "Actor Scale",
-  "gui.director.tool.actor_scale.desc": "Scale the selected actor and write a Transform clip.",
-  "gui.director.tool.actor_scale.tip.1": "Scale the selected actor",
-  "gui.director.tool.actor_scale.tip.2": "Click an actor first, then drag the scale Gizmo",
-
-  "gui.director.tool.actor_look_at.name": "Actor Look At",
-  "gui.director.tool.actor_look_at.desc": "Set where the selected actor looks at the current time.",
-  "gui.director.tool.actor_look_at.tip.1": "Make the selected actor look at a target",
-  "gui.director.tool.actor_look_at.tip.2": "Click a world point to create or update a LookAt clip",
 
   "gui.director.tool.actor_pose.name": "Actor Pose",
   "gui.director.tool.actor_pose.desc": "Select controllable actor parts to edit local poses and animation keyframes.",
