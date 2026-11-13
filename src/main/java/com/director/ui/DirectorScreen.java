@@ -233,8 +233,11 @@ public class DirectorScreen extends Screen {
                 LOGGER.trace("[Director] Display size updated");
             }
 
-            // 开始新的ImGui帧
-            imGuiRenderer.beginFrame();
+            // 开始新的ImGui帧；失败时绝不能继续 ImGui.begin()（会触发 WithinFrameScope assert）
+            if (!imGuiRenderer.beginFrame()) {
+                LOGGER.warn("[Director] ImGui frame failed to start, skipping UI render this frame");
+                return;
+            }
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[Director] ImGui frame started");
             }

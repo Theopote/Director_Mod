@@ -30,6 +30,11 @@ public class ImGuiRenderer {
 
     private ImGuiImplGlfw imGuiGlfw;
     private ImGuiImplGl3 imGuiGl3;
+    /**
+     * Owned ImGui context wrapper. imgui-java's {@link ImGui#createContext()} /
+     * {@link ImGui#getCurrentContext()} mutate a shared static wrapper; we copy the
+     * native pointer into our own instance so other ImGui mods cannot overwrite it.
+     */
     private ImGuiContext directorContext;
     private final DetachedDirectorWindow detachedDirectorWindow = new DetachedDirectorWindow();
     private long windowHandle;
@@ -121,10 +126,14 @@ public class ImGuiRenderer {
             }
 
             // 初始化 ImGui - 始终创建并设置上下文（无 Treefactory 时 getCurrentContext 为 null，必须创建）
-            directorContext = ImGui.createContext();
-            if (directorContext == null) {
+            // CRITICAL: imgui-java returns a mutable static wrapper; copy the native ptr into an owned
+            // instance so other ImGui mods calling createContext()/getCurrentContext() cannot overwrite it.
+            // Otherwise newFrame reads the wrong context viewport (PlatformHandle=0 -> NPE in glfwGetWindowAttrib).
+            ImGuiContext sharedWrapper = ImGui.createContext();
+            if (sharedWrapper == null || sharedWrapper.ptr == 0L) {
                 throw new RuntimeException("[Director] ImGui.createContext() 返回 null");
             }
+            directorContext = new ImGuiContext(sharedWrapper.ptr);
             ImGui.setCurrentContext(directorContext);
 
             // 配置 ImGui IO
@@ -223,16 +232,20 @@ public class ImGuiRenderer {
         io.setConfigFlags(flags);
     }
 
-    public void beginFrame() {
+    /**
+     * @return true if a new ImGui frame was started; false if callers must skip UI rendering
+     */
+    public boolean beginFrame() {
         synchronized (LOCK) {
             if (!initialized || frameInProgress) {
                 LOGGER.debug("[Director] Skipping beginFrame - initialized: {}, frameInProgress: {}", initialized, frameInProgress);
-                return;
+                return frameInProgress;
             }
 
             try {
                 LOGGER.debug("[Director] Beginning ImGui frame...");
                 activateDirectorContext();
+                ensurePlatformBackendForNewFrame();
 
                 // 检查并更新INI文件路径（如果世界已切换）
                 checkAndUpdateIniPath();
@@ -250,10 +263,17 @@ public class ImGuiRenderer {
 
                 frameInProgress = true;
                 LOGGER.debug("[Director] ImGui frame started successfully");
+                return true;
             } catch (Exception e) {
                 LOGGER.error("[Director] Failed to begin frame", e);
                 frameInProgress = false;
-                reinitialize();
+                try {
+                    reinitialize();
+                } catch (Exception reinitError) {
+                    LOGGER.error("[Director] ImGui reinitialize after beginFrame failure also failed", reinitError);
+                }
+                // Do not start UI rendering on this frame — WithinFrameScope would assert.
+                return false;
             }
         }
     }
@@ -298,9 +318,71 @@ public class ImGuiRenderer {
     }
 
     private void activateDirectorContext() {
-        if (directorContext != null) {
+        if (directorContext != null && directorContext.isValidPtr()) {
             ImGui.setCurrentContext(directorContext);
         }
+    }
+
+    /**
+     * ImGuiImplGlfw.updateMousePosAndButtons() calls glfwGetWindowAttrib on every
+     * viewport's PlatformHandle. If the handle is 0 (wrong context / cleared backend),
+     * LWJGL throws NPE. Re-bind before newFrame as a hard guard.
+     */
+    private void ensurePlatformBackendForNewFrame() {
+        if (imGuiGlfw == null) {
+            throw new IllegalStateException("ImGui GLFW backend is not initialized");
+        }
+
+        long handle = resolveActiveWindowHandle();
+        if (handle == 0L) {
+            throw new IllegalStateException("No valid GLFW window handle for ImGui");
+        }
+
+        imgui.ImGuiViewport mainViewport = ImGui.getMainViewport();
+        if (mainViewport.getPlatformHandle() != handle) {
+            LOGGER.warn("[Director] Main viewport PlatformHandle mismatch (was={}, expected={}); rebinding",
+                    mainViewport.getPlatformHandle(), handle);
+            mainViewport.setPlatformHandle(handle);
+        }
+
+        // Orphan secondary viewports with null handles also crash ImGuiImplGlfw.
+        imgui.ImGuiPlatformIO platformIO = ImGui.getPlatformIO();
+        int viewportCount = platformIO.getViewportsSize();
+        for (int i = 0; i < viewportCount; i++) {
+            imgui.ImGuiViewport viewport = platformIO.getViewports(i);
+            if (viewport != null && viewport.getPlatformHandle() == 0L) {
+                LOGGER.warn("[Director] Viewport[{}] had null PlatformHandle; binding to {}", i, handle);
+                viewport.setPlatformHandle(handle);
+            }
+        }
+    }
+
+    private long resolveActiveWindowHandle() {
+        if (detachedDirectorWindow.isOpen()) {
+            long detached = detachedDirectorWindow.getWindowHandle();
+            if (detached != 0L) {
+                return detached;
+            }
+        }
+
+        if (backendWindowHandle != 0L) {
+            return backendWindowHandle;
+        }
+
+        if (windowHandle != 0L) {
+            return windowHandle;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null && client.getWindow() != null) {
+            long current = client.getWindow().getHandle();
+            if (current != 0L) {
+                windowHandle = current;
+                backendWindowHandle = current;
+                return current;
+            }
+        }
+        return 0L;
     }
 
     // updateInput 已废弃：输入由 ImGuiImplGlfw 维护，手动覆盖易导致 1.21.x 坐标/缩放不一致问题。
@@ -504,6 +586,9 @@ public class ImGuiRenderer {
                     endFrame();
                 }
 
+                // Close detached window while platform backend is still valid.
+                detachedDirectorWindow.cleanup();
+
                 if (imGuiGl3 != null) {
                     imGuiGl3.dispose();
                     imGuiGl3 = null;
@@ -514,12 +599,20 @@ public class ImGuiRenderer {
                     imGuiGlfw = null;
                 }
 
+                if (directorContext != null && directorContext.isValidPtr()) {
+                    try {
+                        activateDirectorContext();
+                        ImGui.destroyContext(directorContext);
+                    } catch (Exception e) {
+                        LOGGER.warn("[Director] Failed to destroy ImGui context: {}", e.toString());
+                    }
+                }
                 directorContext = null;
                 initialized = false;
                 frameInProgress = false;
+                drawDataReady = false;
                 windowHandle = 0;
                 backendWindowHandle = 0;
-                detachedDirectorWindow.cleanup();
                 LOGGER.info("[Director] ImGui resources cleaned up");
             } catch (Exception e) {
                 LOGGER.error("[Director] Error cleaning up ImGui resources", e);

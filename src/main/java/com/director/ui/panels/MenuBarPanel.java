@@ -123,7 +123,10 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         ImGui.sameLine(Math.max(ImGui.getCursorPosX(), rightX));
 
         if (ImGui.button(Icons.CLOSE + "##closeDirector")) {
-            MinecraftClient.getInstance().setScreen(null);
+            // Defer close until after the current ImGui frame finishes Begin/End pairing.
+            // Closing mid-frame via setScreen(null) leaves DockSpace on the call stack.
+            final MinecraftClient client = MinecraftClient.getInstance();
+            client.execute(() -> client.setScreen(null));
         }
     }
 

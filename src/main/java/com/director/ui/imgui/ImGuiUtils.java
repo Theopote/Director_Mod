@@ -87,10 +87,12 @@ public final class ImGuiUtils {
      * @return 窗口资源管理器，如果窗口未能开始则返回null
      */
     public static ImGuiWindow beginWindow(String name, int flags) {
-        boolean started = ImGui.begin(name, flags);
-        if (started) {
+        boolean visible = ImGui.begin(name, flags);
+        if (visible) {
             return ImGui::end;
         }
+        // Dear ImGui requires End() even when Begin() returns false (collapsed/clipped).
+        ImGui.end();
         return null;
     }
 
