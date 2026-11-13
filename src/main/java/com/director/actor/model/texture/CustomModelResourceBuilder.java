@@ -149,7 +149,7 @@ public final class CustomModelResourceBuilder {
     }
 
     private static float clampPixel(float value) {
-        return Math.max(MIN_PIXEL, Math.min(MAX_PIXEL, value));
+        return Math.clamp(value, MIN_PIXEL, MAX_PIXEL);
     }
 
     private static void recordCornerClamp(List<String> warnings, String boneId, String corner, Vector3f vector) {

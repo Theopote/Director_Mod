@@ -1186,19 +1186,20 @@ public class TimelinePanel extends AbstractPanel
             return;
         }
 
-        Float existingKf = clip.getKeyframeAt(clickTime, KEYFRAME_TOLERANCE);
+        com.director.timeline.model.clip.ClipKeyframe existingKf =
+                clip.findKeyframeAt(clickTime, KEYFRAME_TOLERANCE);
 
         if (existingKf != null) {
-            RemoveKeyframeCommand cmd = new RemoveKeyframeCommand(model, clip, existingKf);
+            RemoveKeyframeCommand cmd = new RemoveKeyframeCommand(model, clip, existingKf.getTime());
             commandHistory.executeCommand(cmd);
             markDataChanged();
-            LOGGER.debug("[TimelinePanel] ???????????????at {}s (??????: {})",
-                    String.format("%.2f", existingKf), clip.getLabel());
+            LOGGER.debug("[TimelinePanel] 删除关键帧 at {}s (片段: {})",
+                    String.format("%.2f", existingKf.getTime()), clip.getLabel());
         } else {
             AddKeyframeCommand cmd = new AddKeyframeCommand(model, clip, clickTime);
             commandHistory.executeCommand(cmd);
             markDataChanged();
-            LOGGER.debug("[TimelinePanel] ???????????????at {}s (??????: {})",
+            LOGGER.debug("[TimelinePanel] 添加关键帧 at {}s (片段: {})",
                     String.format("%.2f", clickTime), clip.getLabel());
         }
     }

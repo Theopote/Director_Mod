@@ -96,12 +96,6 @@ public final class TimelineSnapping {
             }
             if (model.snapToKeyframes() && clip != excluded) {
                 for (var key : clip.getClipKeyframes()) if (key != excluded) best.offer(key.getTime(), 3);
-                for (Float time : clip.getKeyframeTimes()) {
-                    if (time == null) continue;
-                    if (excluded instanceof com.director.timeline.model.clip.ClipKeyframe key
-                            && clip.getClipKeyframes().contains(key) && Math.abs(time - key.getTime()) < 0.0001f) continue;
-                    best.offer(time, 3);
-                }
             }
         }
         if (model.snapToKeyframes())

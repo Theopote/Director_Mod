@@ -351,9 +351,7 @@ public class TimelineModelPersistence {
         public float startTime;
         public float endTime;
         public int color;
-        /** 旧版（向后兼容）：仅保存关键帧时间点 */
-        public List<Float> keyframes = new ArrayList<>();
-        /** 新版：ClipKeyframe 对象（支持插值/选择/属性面板/UndoRedo） */
+        /** ClipKeyframe 对象（支持插值/选择/属性面板/UndoRedo） */
         public List<ClipKeyframeDTO> clipKeyframes = new ArrayList<>();
         /** 可见性关键帧（淡入淡出/隐藏显示等） */
         public List<VisibilityKeyframeDTO> visibilityKeyframes = new ArrayList<>();
@@ -702,10 +700,7 @@ public class TimelineModelPersistence {
                 clipDTO.startTime = clip.getStartTime();
                 clipDTO.endTime = clip.getEndTime();
                 clipDTO.color = clip.getColor();
-                // 旧版：float 时间点关键帧（向后兼容）
-                clipDTO.keyframes.addAll(clip.getKeyframes());
-
-                // 新版：ClipKeyframe 对象关键帧
+                // ClipKeyframe 对象关键帧
                 for (ClipKeyframe ckf : clip.getClipKeyframes()) {
                     if (ckf == null) continue;
                     ClipKeyframeDTO ckfdto = new ClipKeyframeDTO();
@@ -1198,12 +1193,7 @@ public class TimelineModelPersistence {
                 }
                 clip.setBoundContainerName(clipDTO.boundContainerName);
                 
-                // 恢复关键帧
-                if(track.getType()!=TrackType.LIGHT && clipDTO.keyframes!=null) for (Float keyframe : clipDTO.keyframes) {
-                    clip.addKeyframe(keyframe);
-                }
-
-                // 恢复新版 ClipKeyframe
+                // 恢复 ClipKeyframe
                 if (clipDTO.clipKeyframes != null) {
                     for (ClipKeyframeDTO ckfdto : clipDTO.clipKeyframes) {
                         if (ckfdto == null) continue;

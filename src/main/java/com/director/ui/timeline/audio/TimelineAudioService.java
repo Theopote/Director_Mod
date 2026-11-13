@@ -1126,10 +1126,11 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         }
         float audioOldStart = audioClip.getStartTime();
         float audioOldEnd = audioClip.getEndTime();
-        audioClip.setTimeRange(newStartTime, com.director.core.animation.PerBlockAnimationTiming.completionLimit(containerClip.getAnimationConfig(), newStartTime, newEndTime));
-        float actualStart = audioClip.getStartTime();
-        float actualEnd = audioClip.getEndTime();
-        updateAudioClipKeyframes(audioClip, audioOldStart, audioOldEnd, actualStart, actualEnd);
+        float audioNewEnd = com.director.core.animation.PerBlockAnimationTiming.completionLimit(
+                containerClip.getAnimationConfig(), newStartTime, newEndTime);
+        // Remap key times into the new range before setTimeRange prunes orphans.
+        updateAudioClipKeyframes(audioClip, audioOldStart, audioOldEnd, newStartTime, audioNewEnd);
+        audioClip.setTimeRange(newStartTime, audioNewEnd);
     }
 
     private void updateAudioClipKeyframes(TimelineClip audioClip,
@@ -1155,8 +1156,8 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
             float t = kf.getTime();
             float u = (t - oldStartTime) / oldLen;
             u = Math.clamp(u, 0f, 1f);
-            float newTime = newStartTime + u * newLen;
-            audioClip.moveKeyframe(kf, newTime);
+            // setTime directly: moveKeyframe would clamp against the still-old clip range.
+            kf.setTime(newStartTime + u * newLen);
         }
     }
 

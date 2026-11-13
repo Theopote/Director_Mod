@@ -193,67 +193,34 @@ public class TimelineRenderHitTest {
             return TimelineHitResult.none();
         }
         
-        List<Float> keyframeTimes = clip.getKeyframeTimes();
-        if (keyframeTimes == null || keyframeTimes.isEmpty()) {
+        if (clip instanceof com.director.timeline.model.entity.EntityTimelineClip) {
             return TimelineHitResult.none();
         }
-        
+        java.util.List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = clip.getClipKeyframes();
+        if (clipKeyframes == null || clipKeyframes.isEmpty()) {
+            return TimelineHitResult.none();
+        }
+
         // ★ 性能优化：获取可见时间范围，只检查可见区域内的关键帧
         float[] visibleTimeRange = math.getVisibleTimeRange();
         float visibleStart = visibleTimeRange[0] - (KEYFRAME_HIT_RADIUS / math.getPixelsPerSecond());
         float visibleEnd = visibleTimeRange[1] + (KEYFRAME_HIT_RADIUS / math.getPixelsPerSecond());
-        
-        // ⭐⭐ 修复：优先使用 ClipKeyframe 对象列表
-        java.util.List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = 
-                clip instanceof com.director.timeline.model.entity.EntityTimelineClip ? java.util.List.of() : clip.getClipKeyframes();
-        if (clipKeyframes != null && !clipKeyframes.isEmpty()) {
-            for (com.director.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
-                if (kf == null) continue;
-                
-                float kfTime = kf.getTime();
-                // ★ 优化：早期跳过不可见的关键帧
-                if (kfTime < visibleStart || kfTime > visibleEnd) {
-                    continue;
-                }
-                
-                float keyX = math.timeToX(kfTime);
-                // ★ 优化：使用平方距离比较，避免开方运算
-                float dx = mouseX - keyX;
-                if (Math.abs(dx) <= KEYFRAME_HIT_RADIUS) {
-                    return TimelineHitResult.keyframe(track, clip, kf, trackIndex);
-                }
-            }
-        }
-        
-        // 回退到旧的 Float 关键帧系统（向后兼容）
-        int keyframeIdx = 0;
-        for (Float kfTime : keyframeTimes) {
-            if (kfTime == null) continue;
-            
-            // ★ 优化：早期跳过不可见的关键帧
+
+        for (com.director.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
+            if (kf == null) continue;
+
+            float kfTime = kf.getTime();
             if (kfTime < visibleStart || kfTime > visibleEnd) {
-                keyframeIdx++;
                 continue;
             }
-            
+
             float keyX = math.timeToX(kfTime);
-            // ★ 优化：使用平方距离比较，避免开方运算
             float dx = mouseX - keyX;
             if (Math.abs(dx) <= KEYFRAME_HIT_RADIUS) {
-                // 尝试在 ClipKeyframe 列表中查找匹配的对象
-                final float EPS = 0.001f;
-                com.director.timeline.model.clip.ClipKeyframe found = clip.findKeyframeAt(kfTime, EPS);
-                if (found != null) {
-                    return TimelineHitResult.keyframe(track, clip, found, trackIndex);
-                }
-                // 如果没有找到，创建一个临时对象（向后兼容）
-                com.director.timeline.model.clip.ClipKeyframe temp = 
-                        new com.director.timeline.model.clip.ClipKeyframe(kfTime);
-                return TimelineHitResult.keyframe(track, clip, temp, trackIndex);
+                return TimelineHitResult.keyframe(track, clip, kf, trackIndex);
             }
-            keyframeIdx++;
         }
-        
+
         return TimelineHitResult.none();
     }
     

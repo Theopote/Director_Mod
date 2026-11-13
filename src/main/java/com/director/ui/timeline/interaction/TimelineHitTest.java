@@ -223,44 +223,19 @@ public final class TimelineHitTest {
         float bestDistSq = Float.MAX_VALUE;
         TimelineClip bestClip = null;
         com.director.timeline.model.clip.ClipKeyframe bestClipKeyframe = null;
-        float bestTime = -1f;
 
         for (TimelineClip clip : clips) {
             float centerY = trackTop + (TimelineRenderer.getTrackHeight() / 2.0f);
 
-            List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = clip instanceof com.director.timeline.model.entity.EntityTimelineClip ? java.util.List.of() : clip.getClipKeyframes();
-            if (clipKeyframes != null && !clipKeyframes.isEmpty()) {
-                for (com.director.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
-                    if (kf == null) {
-                        continue;
-                    }
-                    float kfTime = kf.getTime();
-                    float kx = contentX + (kfTime * pps) - scrollX;
-                    float dx = mouseX - kx;
-                    float dy = mouseY - centerY;
-                    float distSq = dx * dx + dy * dy;
-
-                    float r = TimelineRenderer.getKeyframeHitRadius();
-                    if (distSq <= r * r && distSq < bestDistSq) {
-                        bestDistSq = distSq;
-                        bestClip = clip;
-                        bestTime = kfTime;
-                        bestClipKeyframe = kf;
-                    }
-                }
+            if (clip instanceof com.director.timeline.model.entity.EntityTimelineClip) {
                 continue;
             }
-
-            if (clip.getKeyframes().isEmpty()) {
-                continue;
-            }
-
-            for (Float kf : clip.getKeyframes()) {
+            for (com.director.timeline.model.clip.ClipKeyframe kf : clip.getClipKeyframes()) {
                 if (kf == null) {
-                        continue;
+                    continue;
                 }
-
-                float kx = contentX + (kf * pps) - scrollX;
+                float kfTime = kf.getTime();
+                float kx = contentX + (kfTime * pps) - scrollX;
                 float dx = mouseX - kx;
                 float dy = mouseY - centerY;
                 float distSq = dx * dx + dy * dy;
@@ -269,26 +244,13 @@ public final class TimelineHitTest {
                 if (distSq <= r * r && distSq < bestDistSq) {
                     bestDistSq = distSq;
                     bestClip = clip;
-                    bestTime = kf;
-                    bestClipKeyframe = null;
+                    bestClipKeyframe = kf;
                 }
             }
         }
 
-        if (bestClip != null) {
-            if (bestClipKeyframe != null) {
-                return TimelineHitResult.keyframe(track, bestClip, bestClipKeyframe, trackIndex);
-            }
-            if (bestTime >= 0f) {
-                final float EPS = 0.001f;
-                com.director.timeline.model.clip.ClipKeyframe clipKeyframe =
-                        bestClip.findKeyframeAt(bestTime, EPS);
-                if (clipKeyframe != null) {
-                    return TimelineHitResult.keyframe(track, bestClip, clipKeyframe, trackIndex);
-                }
-                clipKeyframe = new com.director.timeline.model.clip.ClipKeyframe(bestTime);
-                return TimelineHitResult.keyframe(track, bestClip, clipKeyframe, trackIndex);
-            }
+        if (bestClip != null && bestClipKeyframe != null) {
+            return TimelineHitResult.keyframe(track, bestClip, bestClipKeyframe, trackIndex);
         }
 
         return TimelineHitResult.none();

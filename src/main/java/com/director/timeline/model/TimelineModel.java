@@ -1018,10 +1018,6 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
                         if (kf == null) continue;
                         maxEndTime = Math.max(maxEndTime, kf.getTime());
                     }
-                    for (Float t : clip.getKeyframes()) {
-                        if (t == null) continue;
-                        maxEndTime = Math.max(maxEndTime, t);
-                    }
                 }
             }
         }

@@ -1,6 +1,5 @@
 package com.director.core.animation;
 
-import com.director.core.animation.sequence.BlockSequenceEntry;
 import com.director.core.container.visibility.BlockVisualStateManager;
 import com.director.core.visual.BlockRenderMode;
 import com.director.timeline.model.TimelineClip;
@@ -50,75 +49,6 @@ public class BlockAnimationRenderer {
             Identifier.ofVanilla("textures/atlas/blocks.png");
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BlockAnimationRenderer.class);
-
-    /**
-     * 主入口：基于 Context 直接渲染一个动画方块
-     * （这条路径一般用于“单方块调试 / 非时间线用例”，时间线走 RenderEntry 管线）
-     */
-    public static void renderBlock(
-            @NotNull ClientWorld world,
-            @NotNull MatrixStack matrices,
-            @NotNull VertexConsumerProvider consumers,
-            @NotNull BlockPos pos,
-            @NotNull BlockSequenceEntry seqEntry,
-            @NotNull TimelineClip clip,
-            double globalTimeSec) {
-        // 性能敏感：renderBlock 可能在调试时被高频调用，避免 info 刷屏。
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("[BlockAnimationRenderer] renderBlock called for pos={} time={}", pos, globalTimeSec);
-        }
-        try {
-            // ========== Layer 1: 构建动画上下文 ==========
-            ClipAnimationConfig config = clip.getAnimationConfig();
-            if (config == null) {
-                LOGGER.warn("BlockAnimationRenderer.renderBlock: animation config is null, skip render");
-                return;
-            }
-
-            BlockAnimationContext ctx = BlockAnimationContext.build(
-                    world, pos, clip, config, seqEntry, globalTimeSec);
-            if (ctx == null) {
-                // 动画还没开始，或者已经结束
-                return;
-            }
-
-            // ========== Layer 2: 查询可见性状态 ==========
-            BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
-            BlockVisualStateManager.BlockVisualState visualState = visualStateManager.getBlockState(pos);
-
-            if (visualState.isHidden()) {
-                return;
-            }
-
-            // ========== Layer 3: 采样动画快照 ==========
-            BlockAnimationSnapshot snapshot = BlockAnimationEngine.sample(
-                    ctx.getPos(),
-                    world.getBlockState(ctx.getPos()),
-                    ctx.getConfig(),
-                    ctx.getSequenceEntry(),
-                    ctx.getClip().getStartTime(),
-                    ctx.getClip().getStartTime() + ctx.getClip().getLength(),
-                    (float) ctx.getGlobalTimeSec(),
-                    ctx.getSequenceEntry().getPos().asLong());
-
-            if (!snapshot.isVisible() || snapshot.getAlpha() <= 0.0f) {
-                return;
-            }
-
-            // ========== Layer 4+5: 渲染本体（内部处理透明度合并） ==========
-            renderAnimatedBlockWithVisualState(
-                    matrices,
-                    consumers,
-                    world,
-                    pos,
-                    snapshot,
-                    visualState,
-                    world.getBlockState(pos), null);
-
-        } catch (Exception e) {
-            LOGGER.error("渲染动画方块时出错: {}", e.getMessage(), e);
-        }
-    }
 
 
     /**

@@ -14,7 +14,7 @@ import java.util.UUID;
  * 表示轨道上的一个可编辑区域，包含关键帧。
  * 此版本针对性能、健壮性和封装性进行了优化。
  * <ul>
- *   <li>使用 {@link TreeSet} 管理关键帧，实现 O(log n) 的高效添加和查找。</li>
+ *   <li>使用有序 {@link com.director.timeline.model.clip.ClipKeyframe} 列表管理关键帧。</li>
  *   <li>在构造函数和 Setter 中添加了验证，防止无效的时间状态 (startTime > endTime)。</li>
  *   <li>通过返回不可修改的集合视图，增强了封装性。</li>
  *   <li>自动裁剪越界关键帧，确保数据一致性。</li>
@@ -33,10 +33,7 @@ public class TimelineClip {
     private float startTime;
     private float endTime;
     private int color;
-    // 使用 TreeSet 替代 ArrayList 以获得高效的排序和查找
-    private final NavigableSet<Float> keyframes = new TreeSet<>(); // ⚠️ 保留用于向后兼容
-    
-    // ⭐ 新增：ClipKeyframe 对象列表（新架构）
+    /** Clip 内关键帧（唯一数据源）。 */
     private final java.util.List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = new java.util.ArrayList<>();
 
     // ========== 额外属性 ==========
@@ -85,7 +82,6 @@ public class TimelineClip {
         this.startTime = other.startTime;
         this.endTime = other.endTime;
         this.color = other.color;
-        this.keyframes.addAll(other.keyframes);
         for (com.director.timeline.model.clip.ClipKeyframe kf : other.clipKeyframes) {
             if (kf != null) {
                 this.clipKeyframes.add(kf.copy());
@@ -139,187 +135,70 @@ public class TimelineClip {
         this.startTime += delta;
         this.endTime += delta;
 
-        // 使用 Stream API 转换关键帧，代码更简洁且具表达力
-        NavigableSet<Float> movedKeyframes = this.keyframes.stream()
-                .map(kf -> kf + delta)
-                .collect(java.util.stream.Collectors.toCollection(TreeSet::new));
-        
-        this.keyframes.clear();
-        this.keyframes.addAll(movedKeyframes);
-
-        if (!this.clipKeyframes.isEmpty()) {
-            for (com.director.timeline.model.clip.ClipKeyframe kf : this.clipKeyframes) {
-                if (kf != null) {
-                    kf.setTime(kf.getTime() + delta);
-                }
+        for (com.director.timeline.model.clip.ClipKeyframe kf : this.clipKeyframes) {
+            if (kf != null) {
+                kf.setTime(kf.getTime() + delta);
             }
-            this.clipKeyframes.sort(java.util.Comparator.comparing(com.director.timeline.model.clip.ClipKeyframe::getTime));
         }
+        this.clipKeyframes.sort(java.util.Comparator.comparing(com.director.timeline.model.clip.ClipKeyframe::getTime));
     }
 
     public boolean containsTime(float time) {
         return time >= startTime && time <= endTime;
     }
 
-    // ========== 关键帧管理 (基于 TreeSet 优化) ==========
+    // ========== 关键帧管理（ClipKeyframe 为唯一数据源）==========
 
     /**
-     * 将 legacy 的 Float keyframes 同步为 ClipKeyframe 对象（只做一次）。
-     * <p>
-     * 说明：历史代码仍可能通过 {@link #addKeyframe(float)} 写入 TreeSet<Float>，
-     * 但交互系统（点击/框选/右键菜单/属性面板）需要稳定的对象（ClipKeyframe）来做 selection/undo/redo。
+     * 添加一个关键帧（按时间）。内部创建 {@link com.director.timeline.model.clip.ClipKeyframe}。
      */
-    private void ensureClipKeyframesFromLegacy() {
-        if (!clipKeyframes.isEmpty()) {
+    public void addKeyframe(float time) {
+        if (!containsTime(time)) {
             return;
         }
-        if (keyframes.isEmpty()) {
+        final float EPS = 0.0001f;
+        if (findKeyframeAt(time, EPS) != null) {
             return;
         }
-        for (Float t : keyframes) {
-            if (t == null) continue;
-            clipKeyframes.add(new com.director.timeline.model.clip.ClipKeyframe(t));
-        }
+        clipKeyframes.add(new com.director.timeline.model.clip.ClipKeyframe(time));
         clipKeyframes.sort(java.util.Comparator.comparing(com.director.timeline.model.clip.ClipKeyframe::getTime));
     }
 
     /**
-     * 添加一个关键帧。操作是 O(log n) 复杂度。
-     * @param time 关键帧的时间点
-     */
-    public void addKeyframe(float time) {
-        // 确保关键帧在片段范围内
-        if (containsTime(time)) {
-            keyframes.add(time);
-            // 同步到对象关键帧列表，保证 selection 可用
-            ensureClipKeyframesFromLegacy();
-            final float EPS = 0.0001f;
-            boolean exists = false;
-            for (com.director.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
-                if (kf != null && Math.abs(kf.getTime() - time) <= EPS) {
-                    exists = true;
-                    break;
-                }
-            }
-            if (!exists) {
-                clipKeyframes.add(new com.director.timeline.model.clip.ClipKeyframe(time));
-                clipKeyframes.sort(java.util.Comparator.comparing(com.director.timeline.model.clip.ClipKeyframe::getTime));
-            }
-        }
-    }
-    
-    /**
-     * 更新指定索引的关键帧时间（用于拖动关键帧）
-     * 
-     * <p>此方法会移除旧的关键帧并添加新的关键帧，确保关键帧在片段范围内。
-     * 由于 keyframes 是 TreeSet，我们需要先转换为列表来获取索引对应的值。
-     * 
-     * @param index 关键帧索引（基于排序后的列表）
-     * @param newTime 新的时间点
-     * @return 如果成功更新返回 true
-     */
-    public boolean updateKeyframeTime(int index, float newTime) {
-        if (index < 0 || index >= keyframes.size()) {
-            return false;
-        }
-        
-        // 确保新时间在片段范围内
-        if (!containsTime(newTime)) {
-            newTime = Math.max(getStartTime(), Math.min(getEndTime(), newTime));
-        }
-        
-        // 由于 keyframes 是 TreeSet，需要转换为列表来获取索引对应的值
-        List<Float> keyframeList = new ArrayList<>(keyframes);
-        float oldTime = keyframeList.get(index);
-        
-        // 如果新时间和旧时间相同，不需要更新
-        if (Math.abs(newTime - oldTime) < 0.0001f) {
-            return true;
-        }
-        
-        // 移除旧的关键帧
-        keyframes.remove(oldTime);
-        
-        // 添加新的关键帧
-        keyframes.add(newTime);
-        
-        return true;
-    }
-
-    /**
-     * 移除一个关键帧。操作是 O(log n) 复杂度。
-     * @param time 关键帧的时间点
-     * @return 如果成功移除返回 true
+     * 移除一个关键帧（按时间近似匹配）。
      */
     public boolean removeKeyframe(float time) {
-        boolean removed = keyframes.remove(time);
-        // 同步删除对象关键帧（按时间近似匹配）
-        if (removed) {
-            ensureClipKeyframesFromLegacy();
-            final float EPS = 0.0001f;
-            clipKeyframes.removeIf(kf -> kf != null && Math.abs(kf.getTime() - time) <= EPS);
+        final float EPS = 0.0001f;
+        com.director.timeline.model.clip.ClipKeyframe found = findKeyframeAt(time, EPS);
+        if (found == null) {
+            return false;
         }
-        return removed;
-    }
-
-    /**
-     * 查找在指定时间点附近的第一个关键帧。
-     * 利用 TreeSet 的 floor 和 ceiling 方法实现高效查找 O(log n)。
-     *
-     * @param time      目标时间点
-     * @param tolerance 允许的误差范围
-     * @return 如果找到则返回关键帧的 {@link Float} 对象，否则返回 null。
-     */
-    public Float getKeyframeAt(float time, float tolerance) {
-        // 查找时间点之前最近的关键帧
-        Float prev = keyframes.floor(time);
-        if (prev != null && (time - prev) <= tolerance) {
-            return prev;
-        }
-
-        // 查找时间点之后最近的关键帧
-        Float next = keyframes.ceiling(time);
-        if (next != null && (next - time) <= tolerance) {
-            return next;
-        }
-
-        return null;
+        return clipKeyframes.remove(found);
     }
 
     public boolean hasKeyframeAt(float time, float tolerance) {
-        return getKeyframeAt(time, tolerance) != null;
+        return findKeyframeAt(time, tolerance) != null;
     }
 
     public void clearKeyframes() {
-        keyframes.clear();
         clipKeyframes.clear();
     }
 
-    /**
-     * 获取指定时间范围内的关键帧。
-     * @return 一个包含范围内关键帧的新列表
-     */
-    public List<Float> getKeyframesInRange(float start, float end) {
-        return new ArrayList<>(keyframes.subSet(start, true, end, true));
-    }
-
-    // ========== Getters & Setters (增强版) ==========
+    // ========== Getters & Setters ==========
 
     public String getLabel() { return label; }
     public void setLabel(String label) { this.label = Objects.requireNonNull(label); }
 
     public float getStartTime() { return startTime; }
     public void setStartTime(float startTime) {
-        // 验证：确保 new startTime 不会超过 endTime
         this.startTime = Math.min(startTime, this.endTime - MINIMUM_LENGTH);
-        pruneOrphanedKeyframes(); // 确保关键帧在范围内
+        pruneOrphanedKeyframes();
     }
 
     public float getEndTime() { return endTime; }
     public void setEndTime(float endTime) {
-        // 验证：确保 new endTime 不会小于 startTime
         this.endTime = Math.max(endTime, this.startTime + MINIMUM_LENGTH);
-        pruneOrphanedKeyframes(); // 确保关键帧在范围内
+        pruneOrphanedKeyframes();
         invalidateRestoreTimeCache();
     }
 
@@ -339,39 +218,7 @@ public class TimelineClip {
         setBoundContainerName(containerName);
     }
 
-    /**
-     * 返回一个关键帧集合的不可修改视图，以保护内部状态。
-     * @return 一个不可修改的 {@link NavigableSet}
-     */
-    public NavigableSet<Float> getKeyframes() {
-        return Collections.unmodifiableNavigableSet(keyframes);
-    }
-
-    /**
-     * 获取关键帧时间列表（语义方法，Director 风格）
-     * 
-     * <p>返回所有关键帧的时间点列表，按时间排序。
-     * 用于需要列表形式的场景（如序列化、遍历等）。
-     * 
-     * @return 关键帧时间列表（按时间排序）
-     */
-    public List<Float> getKeyframeTimes() {
-        return new ArrayList<>(keyframes);
-    }
-
-    /**
-     * 移除指定时间点的关键帧（语义方法，Director 风格）
-     * 
-     * <p>这是 removeKeyframe 的语义化包装，提供更清晰的 API。
-     * 
-     * @param time 关键帧时间点
-     * @return 如果成功移除返回 true
-     */
-    public boolean removeKeyframeAt(float time) {
-        return removeKeyframe(time);
-    }
-
-    // ========== ClipKeyframe 对象管理（新架构）==========
+    // ========== ClipKeyframe 对象管理 ==========
 
     /**
      * 获取所有 ClipKeyframe 对象列表（只读）
@@ -379,7 +226,6 @@ public class TimelineClip {
      * @return 关键帧对象列表（按时间排序）
      */
     public java.util.List<com.director.timeline.model.clip.ClipKeyframe> getClipKeyframes() {
-        ensureClipKeyframesFromLegacy();
         return java.util.Collections.unmodifiableList(clipKeyframes);
     }
 
@@ -416,7 +262,6 @@ public class TimelineClip {
      * @return 找到的关键帧对象，否则返回 null
      */
     public com.director.timeline.model.clip.ClipKeyframe findKeyframeAt(float time, float epsilon) {
-        ensureClipKeyframesFromLegacy();
         for (com.director.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
             if (Math.abs(kf.getTime() - time) <= epsilon) {
                 return kf;
@@ -464,7 +309,6 @@ public class TimelineClip {
         copy.postAnimationFadeEnabled = this.postAnimationFadeEnabled;
         copy.postAnimationFadeEnd = this.postAnimationFadeEnd;
         // 复制关键帧
-        copy.keyframes.addAll(this.keyframes);
         for (com.director.timeline.model.clip.ClipKeyframe kf : this.clipKeyframes) {
             if (kf != null) {
                 copy.clipKeyframes.add(kf.copy());
@@ -755,15 +599,11 @@ public class TimelineClip {
     // ========== 私有辅助方法 ==========
 
     /**
-     * 移除所有落在当前 startTime 和 endTime 之外的关键帧。
-     * 确保数据模型的内部一致性，防止"孤儿"关键帧的出现。
-     * 
-     * 使用 TreeSet.subSet() 获取范围视图，然后 retainAll() 只保留该范围内的元素。
-     * 这是一个高效的 O(log n) 操作。
+     * 移除所有落在当前 startTime 和 endTime 之外的关键帧，
+     * 确保数据模型的内部一致性。
      */
     private void pruneOrphanedKeyframes() {
-        // subSet 创建一个指定范围的视图（包含边界）
-        // retainAll 只保留该视图中存在的元素，从而移除所有范围外的元素
-        keyframes.retainAll(keyframes.subSet(this.startTime, true, this.endTime, true));
+        clipKeyframes.removeIf(kf -> kf == null || !containsTime(kf.getTime()));
+        clipKeyframes.sort(java.util.Comparator.comparing(com.director.timeline.model.clip.ClipKeyframe::getTime));
     }
 }

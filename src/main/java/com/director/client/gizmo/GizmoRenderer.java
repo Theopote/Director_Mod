@@ -233,42 +233,6 @@ public class GizmoRenderer {
     }
 
     /**
-     * ✅ v4.8.1: 绘制 Gizmo 中心点（白色立方体）
-     * ✅ v4.9: 添加动态大小支持
-     */
-    private void drawPivotCube(Matrix4f matrix, VertexConsumerProvider vcp, Vec3d pivot, double pivotSize) {
-        float half = (float)(pivotSize / 2.0);
-        float x = (float)pivot.x;
-        float y = (float)pivot.y;
-        float z = (float)pivot.z;
-
-        // ✅ 使用自定义的 RenderLayer，禁用深度写入但仍然测试深度
-        // 这样 Gizmo 可以在半透明物体后面显示，但仍然有正确的前后关系
-        VertexConsumer buffer = vcp.getBuffer(RenderLayer.getLines());
-
-        float r = 1.0f, g = 1.0f, b = 1.0f, a = 1.0f;
-
-        // 绘制立方体的边框（12条边）
-        // 底面4条边
-        drawLineToBuffer(buffer, matrix, new Vec3d(x-half, y-half, z-half), new Vec3d(x+half, y-half, z-half), new float[]{r,g,b,a});
-        drawLineToBuffer(buffer, matrix, new Vec3d(x+half, y-half, z-half), new Vec3d(x+half, y-half, z+half), new float[]{r,g,b,a});
-        drawLineToBuffer(buffer, matrix, new Vec3d(x+half, y-half, z+half), new Vec3d(x-half, y-half, z+half), new float[]{r,g,b,a});
-        drawLineToBuffer(buffer, matrix, new Vec3d(x-half, y-half, z+half), new Vec3d(x-half, y-half, z-half), new float[]{r,g,b,a});
-        
-        // 顶面4条边
-        drawLineToBuffer(buffer, matrix, new Vec3d(x-half, y+half, z-half), new Vec3d(x+half, y+half, z-half), new float[]{r,g,b,a});
-        drawLineToBuffer(buffer, matrix, new Vec3d(x+half, y+half, z-half), new Vec3d(x+half, y+half, z+half), new float[]{r,g,b,a});
-        drawLineToBuffer(buffer, matrix, new Vec3d(x+half, y+half, z+half), new Vec3d(x-half, y+half, z+half), new float[]{r,g,b,a});
-        drawLineToBuffer(buffer, matrix, new Vec3d(x-half, y+half, z+half), new Vec3d(x-half, y+half, z-half), new float[]{r,g,b,a});
-        
-        // 竖直4条边
-        drawLineToBuffer(buffer, matrix, new Vec3d(x-half, y-half, z-half), new Vec3d(x-half, y+half, z-half), new float[]{r,g,b,a});
-        drawLineToBuffer(buffer, matrix, new Vec3d(x+half, y-half, z-half), new Vec3d(x+half, y+half, z-half), new float[]{r,g,b,a});
-        drawLineToBuffer(buffer, matrix, new Vec3d(x+half, y-half, z+half), new Vec3d(x+half, y+half, z+half), new float[]{r,g,b,a});
-        drawLineToBuffer(buffer, matrix, new Vec3d(x-half, y-half, z+half), new Vec3d(x-half, y+half, z+half), new float[]{r,g,b,a});
-    }
-
-    /**
      * ✅ v4.9: 获取距离缩放系数
      * 根据摄像机距离动态调整 Gizmo 大小，确保远距离时仍然可见
      *

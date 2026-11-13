@@ -72,8 +72,6 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
             for (com.director.timeline.model.TimelineClip clip : new java.util.ArrayList<>(track.getClips())) {
                 restoreAudio.add(com.director.ui.timeline.audio.TimelineAudioService.getInstance().captureRemovalState(clip));
                 com.director.ui.timeline.audio.TimelineAudioService.getInstance().onClipRemoved(clip);
-                restoreAudio.add(ChangeKeyframeInterpolationCommand.captureInterpolations(clip));
-                ChangeKeyframeInterpolationCommand.clearInterpolationsForClip(clip);
             }
             if (trackList == model.getTracks()) model.removeTrack(track);
             else trackList.remove(removedIndex);

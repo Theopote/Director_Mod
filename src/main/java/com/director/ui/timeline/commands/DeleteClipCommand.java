@@ -27,7 +27,6 @@ public class DeleteClipCommand extends BaseTimelineCommand {
     private final List<TimelineClip> clipList;
     private int removedIndex = -1;
     private Runnable restoreAudio = () -> {};
-    private Runnable restoreInterpolations = () -> {};
     private TimelineTrack ownerTrack;
     private List<com.director.lighting.PointLight> removedLights=List.of();
     private EntityClip linkedEntityClip;
@@ -83,9 +82,6 @@ public class DeleteClipCommand extends BaseTimelineCommand {
             if(clip instanceof com.director.lighting.LightTimelineClip light)
                 removedLights=com.director.lighting.LightLifecycle.removeUnreferenced(model,List.of(light.lightId()));
             // Clip deletion removes animation data, not the project actor instance.
-            // 清理插值映射，避免内存泄漏
-            restoreInterpolations = ChangeKeyframeInterpolationCommand.captureInterpolations(clip);
-            ChangeKeyframeInterpolationCommand.clearInterpolationsForClip(clip);
             LOGGER.debug("[Timeline] 删除片段，索引: {}", removedIndex);
             
             // ★ 功能：删除片段后，如果这是该容器的最后一个片段，允许容器显示
@@ -129,7 +125,6 @@ public class DeleteClipCommand extends BaseTimelineCommand {
                 linkedActorTrack.addClip(linkedEntityClip);
             }
             restoreAudio.run();
-            restoreInterpolations.run();
             LOGGER.debug("[Timeline] 恢复片段到索引: {}", removedIndex);
         }
     }

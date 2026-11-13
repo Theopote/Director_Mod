@@ -32,8 +32,6 @@ public class RemoveKeyframeCommand extends BaseTimelineCommand {
         }
         removed = clip.removeKeyframe(time);
         if (removed) {
-            // 清理该关键帧的插值信息
-            ChangeKeyframeInterpolationCommand.removeKeyframeInterpolation(clip, time);
             LOGGER.debug("[Timeline] 删除关键帧 {:.2f}", time);
         } else {
             LOGGER.debug("[Timeline] 关键帧不存在，跳过删除: {:.2f}", time);

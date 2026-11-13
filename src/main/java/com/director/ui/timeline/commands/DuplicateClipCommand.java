@@ -47,21 +47,9 @@ public class DuplicateClipCommand extends BaseTimelineCommand {
         duplicatedClip = com.director.timeline.model.TimelineClipCopies.copy(originalClip);
         duplicatedClip.setLabel(originalClip.getLabel() + " (副本)");
 
-        // 偏移时间以避免重叠
+        // 偏移时间以避免重叠（ClipKeyframe 插值已随 copy 带走）
         float offset = originalClip.getLength() + DUPLICATE_OFFSET;
         duplicatedClip.offsetTime(offset);
-
-        // 复制关键帧的插值信息
-        for (float keyframeTime : originalClip.getKeyframes()) {
-            com.director.timeline.model.TimelineInterpolation interpolation = 
-                ChangeKeyframeInterpolationCommand.getKeyframeInterpolation(originalClip, keyframeTime);
-            if (interpolation != null && interpolation != com.director.timeline.model.TimelineInterpolation.LINEAR) {
-                // 计算新位置的关键帧时间
-                float newKeyframeTime = keyframeTime + offset;
-                ChangeKeyframeInterpolationCommand.setKeyframeInterpolationDirectly(
-                    duplicatedClip, newKeyframeTime, interpolation);
-            }
-        }
 
         // 添加到轨道
         insertion = new InsertClipCommand(model, track, duplicatedClip,

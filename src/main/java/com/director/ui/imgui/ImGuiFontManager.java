@@ -4,7 +4,6 @@ import com.director.ui.theme.UITheme;
 import imgui.ImFont;
 import imgui.ImFontAtlas;
 import imgui.ImFontConfig;
-import imgui.ImGui;
 import imgui.ImGuiIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,25 +37,6 @@ public class ImGuiFontManager {
     private static final String FONT_PATH_PREFIX = "/assets/director/fonts/";
     private static final String CHINESE_FONT = "NotoSansSC-Regular.ttf";
     private static final String ICON_FONT = "director.ttf";
-    
-    private static void verifyDefaultFontHasIcons() {
-        try {
-            ImFont current = ImGui.getFont();
-            if (current == null) return;
-
-            // Icons.SELECT = U+F070, Icons.BLOCK = U+F087
-            boolean hasSelect = current.findGlyphNoFallback(0xF070) != null;
-            boolean hasBlock = current.findGlyphNoFallback(0xF087) != null;
-
-            if (!hasSelect || !hasBlock) {
-                LOGGER.warn("{} Default font missing icon glyphs: SELECT={} BLOCK={}. Toolbar buttons may appear blank.",
-                        LOG_PREFIX, hasSelect, hasBlock);
-            }
-        } catch (Throwable t) {
-            // ImGui 字体图集为 JNI 绑定，clear/verify 可能抛出非 RuntimeException
-            LOGGER.debug("{} Icon glyph verification failed: {}", LOG_PREFIX, t.getMessage());
-        }
-    }
 
     /**
      * 初始化所有字体

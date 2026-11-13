@@ -286,40 +286,11 @@ public final class TimelineClipRenderer {
                 float kxAligned = (float) Math.floor(kx) + 0.5f;
 
                 boolean hovering = isMouseHoveringCircle(kxAligned, centerY);
-                boolean selectedKey=keyframe instanceof com.director.lighting.LightKeyframe && model.getSelectedItems().contains(keyframe);
-                int kfCol = selectedKey ? TimelineColors.COLOR_KEYFRAME_SELECTED : hovering ? TimelineColors.COLOR_KEYFRAME_HOVER : TimelineColors.COLOR_KEYFRAME;
-
-                // ✅ 像素级对齐：不要用粗线 addLine（会出现“看起来偏左/偏右”的抗锯齿错觉）
-                // 改为明确宽度的填充矩形：1px 主线 + 3px 阴影，中心都严格对齐 kxAligned。
-                float lineTop = y + 4;
-                float lineBottom = y + trackH - 4;
-                drawList.addRectFilled(kxAligned - 1.5f, lineTop, kxAligned + 1.5f, lineBottom, TimelineColors.rgba(0, 0, 0, 80));
-                drawList.addRectFilled(kxAligned - 0.5f, lineTop, kxAligned + 0.5f, lineBottom, kfCol);
-                drawList.addCircleFilled(kxAligned, centerY, KEYFRAME_RADIUS + 1.0f, TimelineColors.rgba(0, 0, 0, 180));
-                drawList.addCircleFilled(kxAligned, centerY, KEYFRAME_RADIUS, kfCol);
-            }
-        } else {
-            for (Float keyframe : clip.getKeyframes()) {
-                if (keyframe == null) continue;
-
-                float keyTime = keyframe;
-                if (dragStateQuery != null) {
-                    float draggedTime = dragStateQuery.getDraggedClipKeyframeTime(clip, keyTime);
-                    if (draggedTime >= 0) {
-                        keyTime = draggedTime;
-                    }
-                }
-
-                if (keyTime < visibleStart || keyTime > visibleEnd) {
-                    continue;
-                }
-
-                float kx = math.timeToX(keyTime);
-                if (kx < contentX || kx > contentX + contentW) continue;
-                float kxAligned = (float) Math.floor(kx) + 0.5f;
-
-                boolean hovering = isMouseHoveringCircle(kxAligned, centerY);
-                int kfCol = hovering ? TimelineColors.COLOR_KEYFRAME_HOVER : TimelineColors.COLOR_KEYFRAME;
+                boolean selectedKey = keyframe instanceof com.director.lighting.LightKeyframe
+                        && model.getSelectedItems().contains(keyframe);
+                int kfCol = selectedKey ? TimelineColors.COLOR_KEYFRAME_SELECTED
+                        : hovering ? TimelineColors.COLOR_KEYFRAME_HOVER
+                        : TimelineColors.COLOR_KEYFRAME;
 
                 // ✅ 同上：用矩形绘制竖线，保证与圆点严格同心
                 float lineTop = y + 4;
