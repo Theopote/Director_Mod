@@ -298,17 +298,6 @@ public class DirectorUIManager {
     private static final String DOCKSPACE_ID = DOCKSPACE_WINDOW_NAME;
 
     /**
-     * 默认构造函数 - 已移除
-     * <p>
-     * <strong>⚠️ 此构造函数已被移除，请使用依赖注入构造函数！</strong><br>
-     * 使用 {@link UIConfiguration} 创建面板列表，然后调用 {@link #DirectorUIManager(List)} 构造函数。
-     *
-     * @deprecated 此构造函数已被移除，请使用依赖注入构造函数
-     * @throws UnsupportedOperationException 始终抛出，强制使用依赖注入
-     * @see #DirectorUIManager(List) 推荐的依赖注入构造函数
-     * @see UIConfiguration 面板配置创建器
-     */
-    /**
      * 依赖注入构造函数 - 推荐使用
      * @param panels 面板列表
      * @throws IllegalArgumentException 如果面板列表为null或包含null元素
