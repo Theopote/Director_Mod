@@ -327,10 +327,6 @@ public class BlockAnimationRenderer {
         }
     }
 
-    static RenderLayer finalWorldLayer(BlockState state, float alpha) {
-        return finalWorldLayer(RenderLayers.getBlockLayer(state), alpha);
-    }
-
     static RenderLayer finalWorldLayer(BlockRenderLayer type, float alpha) {
         return finalWorldLayer(type, alpha, true);
     }

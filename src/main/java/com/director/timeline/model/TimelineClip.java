@@ -2,7 +2,6 @@ package com.director.timeline.model;
 
 import com.director.core.animation.ClipAnimationConfig;
 import com.director.core.container.ContainerAnimationPreset;
-import com.director.timeline.model.VisibilityKeyframe;
 import com.director.ui.util.UIUtils;
 
 import java.util.*;

@@ -75,12 +75,17 @@ public final class ProjectCommandsImpl implements ProjectCommands {
             }
 
             MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.currentScreen instanceof DirectorScreen screen) {
-                screen.close();
-                client.setScreen(null);
-                LOGGER.info("[Project] Director 窗口已关闭");
+            if (client != null && client.currentScreen instanceof DirectorScreen) {
+                // Defer so ImGui DockSpace Begin/End can finish on the current frame.
+                client.execute(() -> {
+                    if (client.currentScreen instanceof DirectorScreen screen) {
+                        screen.close();
+                        client.setScreen(null);
+                        LOGGER.info("[Project] Director 窗口已关闭");
+                    }
+                });
             } else if (client != null) {
-                client.setScreen(null);
+                client.execute(() -> client.setScreen(null));
             }
         } catch (Exception e) {
             LOGGER.error("[Project] 退出应用失败: {}", e.getMessage(), e);
