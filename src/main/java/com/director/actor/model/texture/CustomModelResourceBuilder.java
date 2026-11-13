@@ -81,21 +81,6 @@ public final class CustomModelResourceBuilder {
         return contentKey.substring(0, 16);
     }
 
-    /** @deprecated Prefer {@link #contentKey} + {@link #pieceKeyFromContentKey} for cache-aware dedup. */
-    @Deprecated
-    public static String pieceKey(BoneCuboid cuboid, String modelId, String textureKey) {
-        CuboidFaceUvs faces = cuboid.faceUvs();
-        String payload = modelId + "|" + textureKey + "|"
-                + cuboid.boneId() + "|" + vector(cuboid.offset()) + "|" + vector(cuboid.size()) + "|"
-                + face(faces == null ? null : faces.north()) + "|"
-                + face(faces == null ? null : faces.south()) + "|"
-                + face(faces == null ? null : faces.east()) + "|"
-                + face(faces == null ? null : faces.west()) + "|"
-                + face(faces == null ? null : faces.up()) + "|"
-                + face(faces == null ? null : faces.down());
-        return sha256(payload).substring(0, 16);
-    }
-
     static String buildModelJson(BoneCuboid cuboid, String texturePath, int atlasWidth, int atlasHeight) {
         JsonObject root = new JsonObject();
         JsonObject textures = new JsonObject();

@@ -252,23 +252,5 @@ public class ImGuiFontManager {
             return null;
         }
     }
-    
-    /**
-     * 获取默认字体大小
-     * @deprecated 建议直接使用 UITheme.FontSize.DEFAULT
-     */
-    @Deprecated
-    public static float getDefaultFontSize() {
-        return UITheme.FontSize.DEFAULT;
-    }
-    
-    /**
-     * 获取图标字体大小
-     * @deprecated 建议直接使用 UITheme.FontSize.ICON
-     */
-    @Deprecated
-    public static float getIconFontSize() {
-        return UITheme.FontSize.ICON;
-    }
 }
 

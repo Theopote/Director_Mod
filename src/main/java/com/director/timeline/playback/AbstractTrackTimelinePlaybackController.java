@@ -142,11 +142,6 @@ public abstract class AbstractTrackTimelinePlaybackController<TSample>
         updateForPlayback(timelineTimeSeconds);
     }
 
-    @Deprecated
-    public void onTimelineTick(float timelineTime) {
-        updateForPlayback(timelineTime);
-    }
-
     @Override
     protected void activeTrackCleared() {
         activeTrack = null;

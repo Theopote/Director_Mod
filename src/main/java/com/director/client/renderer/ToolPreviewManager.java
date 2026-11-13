@@ -1373,21 +1373,6 @@ public class ToolPreviewManager {
         LOGGER.info("[ToolPreviewManager] 预览管理器{}", enabled ? "启用" : "禁用");
     }
 
-    // 兼容层：统一改写到 RenderSettings（过时）
-    @Deprecated
-    public float[] getPreviewOutlineColor() {
-        return settings != null && settings.tool_outlineColor != null
-            ? settings.tool_outlineColor.clone()
-            : DEFAULT_PREVIEW_OUTLINE_COLOR.clone();
-    }
-    
-    @Deprecated
-    public void setPreviewOutlineColor(float[] color) {
-        if (settings != null && color != null && color.length >= 4) {
-            settings.tool_outlineColor = color.clone();
-        }
-    }
-
     public void setPreviewBox(Box box) {
         if (box == null) {
             clearPreview();

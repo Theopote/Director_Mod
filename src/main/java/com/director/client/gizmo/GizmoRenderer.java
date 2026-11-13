@@ -553,20 +553,7 @@ public class GizmoRenderer {
     }
 
     /**
-     * 绘制立方体（中心手柄）
-     * ✅ 修复：添加size参数，支持动态大小
-     * @deprecated 使用带size参数的版本以获得正确的距离缩放
-     */
-    @Deprecated
-    @SuppressWarnings("unused") // 保留用于向后兼容
-    private void drawCube(VertexConsumer consumer, Matrix4f posMat, Vec3d center, float[] color) {
-        // 默认使用BASE_CENTER_RADIUS（保持向后兼容）
-        drawCube(consumer, posMat, center, color, BASE_CENTER_RADIUS);
-    }
-    
-    /**
      * 绘制立方体（中心手柄）- 带大小参数
-     * ✅ 修复：支持动态大小
      */
     private void drawCube(VertexConsumer consumer, Matrix4f posMat, Vec3d center, float[] color, double size) {
         double halfSize = size / 2.0;

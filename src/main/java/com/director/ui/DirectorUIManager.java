@@ -64,9 +64,12 @@ import imgui.ImGui;
  *
  * <h3>现代化IoC使用示例（推荐方式）：</h3>
  * <pre>{@code
- * // 方式1：使用UIConfiguration创建（强烈推荐）
- * UIConfiguration config = new UIConfiguration(minecraftClient);
- * DirectorUIManager uiManager = config.createUIManagerWithRegistry();
+ * // 方式1：使用 UIConfigurationBuilder 创建（强烈推荐）
+ * UIConfiguration config = UIConfigurationBuilder.builder()
+ *     .withMinecraftClient(minecraftClient)
+ *     .withDefaultPanels()
+ *     .build();
+ * DirectorUIManager uiManager = config.createUIManager();
  *
  * // 方式2：直接使用面板注册表（高级用法）
  * IPanelRegistry registry = new PanelRegistry(panels);

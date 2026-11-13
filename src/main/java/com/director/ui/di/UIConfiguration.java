@@ -1,7 +1,7 @@
 package com.director.ui.di;
 
 import com.director.ui.DirectorUIManager;
-import com.director.ui.panels.*;
+import com.director.ui.panels.IPanel;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,9 +46,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *     .withDefaultPanels()
  *     .build();
  * 
- * // 传统方式（向后兼容）
- * UIConfiguration config = new UIConfiguration(minecraftClient);
- * 
  * // 创建UI管理器
  * DirectorUIManager uiManager = config.createUIManager();
  * 
@@ -71,18 +68,6 @@ public class UIConfiguration {
     private final IPanelFactory panelFactory;
     private final MinecraftClient minecraftClient;
     
-    /**
-     * 传统构造函数（向后兼容）
-     * @param minecraftClient Minecraft客户端实例
-     * @deprecated 推荐使用 UIConfigurationBuilder.builder() 创建配置
-     */
-    @Deprecated
-    public UIConfiguration(MinecraftClient minecraftClient) {
-        this.minecraftClient = minecraftClient;
-        this.panelFactory = new PanelFactory();
-        this.panels = new CopyOnWriteArrayList<>();
-        initializePanels();
-    }
     
     /**
      * 新的构造函数（支持依赖注入）
@@ -101,41 +86,6 @@ public class UIConfiguration {
         LOGGER.info("[Director] 已初始化 {} 个面板（使用依赖注入）", panels.size());
     }
     
-    /**
-     * 初始化所有面板（传统方式）
-     */
-    private void initializePanels() {
-        LOGGER.info("[Director] 初始化UI面板依赖注入配置（传统方式）");
-        
-        // 使用面板工厂创建面板实例
-        try {
-            panels.add(panelFactory.createPanel(MenuBarPanel.class, minecraftClient));
-            panels.add(panelFactory.createPanel(ToolbarPanel.class, minecraftClient));
-            panels.add(panelFactory.createPanel(ContainerPanel.class, minecraftClient));
-            panels.add(panelFactory.createPanel(ActorsPanel.class, minecraftClient));
-            panels.add(panelFactory.createPanel(LightsPanel.class, minecraftClient));
-            panels.add(panelFactory.createPanel(PropertiesPanel.class, minecraftClient));
-            panels.add(panelFactory.createPanel(TimelinePanel.class, minecraftClient));
-            
-            // 注册新的选择系统面板
-            panels.add(panelFactory.createPanel(SelectionFilterPanel.class, minecraftClient));
-            
-            // 注册模块化的独立面板（ToolPropertiesPanel 已并入 PropertiesPanel，通过 PropertyContext 仲裁）
-            panels.add(panelFactory.createPanel(RenderSettingsPanel.class, minecraftClient));
-            panels.add(panelFactory.createPanel(SelectionHistoryPanel.class, minecraftClient));
-            
-            // 注册状态栏面板
-            panels.add(panelFactory.createPanel(StatusBarPanel.class, minecraftClient));
-            
-            // 按优先级排序
-            panels.sort(Comparator.comparingInt(IPanel::getPriority));
-            
-            LOGGER.info("[Director] 已初始化 {} 个面板（传统方式）", panels.size());
-        } catch (Exception e) {
-            LOGGER.error("[Director] 初始化面板失败", e);
-            throw new RuntimeException("初始化面板失败", e);
-        }
-    }
     
     /**
      * 创建UI管理器实例
@@ -183,11 +133,10 @@ public class UIConfiguration {
     }
 
     /**
-     * 检查是否使用了依赖注入
-     * @return true如果使用了依赖注入，false如果使用传统方式
+     * 是否使用依赖注入装配（现仅 Builder/DI 路径）。
      */
     public boolean isUsingDependencyInjection() {
-        return panelFactory != null;
+        return true;
     }
     
     /**

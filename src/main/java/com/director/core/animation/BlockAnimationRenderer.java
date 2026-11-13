@@ -120,24 +120,6 @@ public class BlockAnimationRenderer {
         }
     }
 
-    /**
-     * 向后兼容的旧版本方法（使用 float elapsedTime）
-     *
-     * @deprecated 请使用 renderBlock(world, matrices, consumers, pos, seqEntry, clip,
-     *             double)
-     */
-    @Deprecated
-    public static void renderBlock(
-            @NotNull ClientWorld world,
-            @NotNull MatrixStack matrices,
-            @NotNull VertexConsumerProvider consumers,
-            @NotNull BlockPos pos,
-            @NotNull BlockSequenceEntry seqEntry,
-            @NotNull TimelineClip clip,
-            float elapsedTime) {
-        double globalTimeSec = clip.getStartTime() + elapsedTime;
-        renderBlock(world, matrices, consumers, pos, seqEntry, clip, globalTimeSec);
-    }
 
     /**
      * 批量渲染当前帧所有"需要覆盖层渲染"的条目（时间线主通路）

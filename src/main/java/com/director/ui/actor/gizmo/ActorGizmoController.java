@@ -247,20 +247,6 @@ public final class ActorGizmoController {
         updateGizmoPosition(preview);
     }
 
-    /**
-     * @deprecated 模式由工具/快捷键 {@link #setPreferredMode} 驱动，不再从 Gizmo 上下文反向读取
-     */
-    @Deprecated
-    private void updateCurrentMode() {
-        GizmoManager gm = GizmoManager.get();
-        if (gm != null && gm.isActive() && gm.getContext() != null) {
-            GizmoMode mode = gm.getContext().getMode();
-            if (mode != null) {
-                currentMode = mode;
-            }
-        }
-    }
-
     // =========================================================
     // Gizmo Position Update
     // =========================================================

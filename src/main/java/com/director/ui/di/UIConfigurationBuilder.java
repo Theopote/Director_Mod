@@ -445,7 +445,6 @@ public class UIConfigurationBuilder {
                 LOGGER.warn("[UIConfigurationBuilder] ToolPropertiesPanel 已弃用，配置项将被忽略: {}", typeName);
                 yield null;
             }
-            case "SelectionRenderSettingsPanel" -> RenderSettingsPanel.class; // 向后兼容旧名称
             case "RenderSettingsPanel" -> RenderSettingsPanel.class;
             case "SelectionFilterPanel" -> SelectionFilterPanel.class;
             case "SelectionHistoryPanel" -> SelectionHistoryPanel.class;

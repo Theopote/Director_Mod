@@ -123,14 +123,14 @@ public class PanelFactory implements IPanelFactory {
             return new SelectionFilterPanel();
         });
         
-        // 注册ToolPropertiesPanel创建器（现在包含SelectionRenderSettingsPanel的功能）
+        // 注册ToolPropertiesPanel创建器（功能已并入 PropertiesPanel）
         registerPanelCreator(ToolPropertiesPanel.class, minecraftClient -> {
             LOGGER.debug("[PanelFactory] 创建ToolPropertiesPanel (MinecraftClient: {})", 
                 minecraftClient != null ? "已注入" : "未注入");
             return new ToolPropertiesPanel();
         });
         
-        // 注册RenderSettingsPanel创建器（原 SelectionRenderSettingsPanel）
+        // 注册RenderSettingsPanel创建器
         registerPanelCreator(RenderSettingsPanel.class, minecraftClient -> {
             LOGGER.debug("[PanelFactory] 创建RenderSettingsPanel (MinecraftClient: {})", 
                 minecraftClient != null ? "已注入" : "未注入");

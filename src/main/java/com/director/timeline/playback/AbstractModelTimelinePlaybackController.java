@@ -56,11 +56,6 @@ public abstract class AbstractModelTimelinePlaybackController<TSample>
         onModelAttached(model);
     }
 
-    @Deprecated
-    public synchronized void setTimelineModel(TimelineModel model) {
-        init(model);
-    }
-
     public synchronized TimelineTrack getActiveTrack() {
         return activeTrack;
     }
