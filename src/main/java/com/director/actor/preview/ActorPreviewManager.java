@@ -6,7 +6,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
-import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.mob.MobEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -245,10 +244,7 @@ public final class ActorPreviewManager {
                 return null;
             }
 
-            Entity entity = actor.getType()==ActorType.PLAYER ? new PreviewPlayerActorEntity(world,actor)
-                    : type == EntityType.ARMOR_STAND
-                    ? new PreviewActorEntity(EntityType.ARMOR_STAND, world)
-                    : type.create(world, SpawnReason.COMMAND);
+            Entity entity = createActorEntity(actor, world);
             if (entity == null) {
                 LOGGER.warn("[ActorPreviewManager] 创建预览实体失败: {}", actor.getType());
                 return null;
@@ -284,6 +280,15 @@ public final class ActorPreviewManager {
             LOGGER.error("[ActorPreviewManager] 创建预览实体失败: {}", actor.getName(), e);
             return null;
         }
+    }
+
+    /** Player and custom actors keep their dedicated previews. Vanilla roles use a posed subclass of the real mob. */
+    private static Entity createActorEntity(Actor actor, ClientWorld world) {
+        return switch (actor.getType()) {
+            case PLAYER -> new PreviewPlayerActorEntity(world, actor);
+            case CUSTOM -> new PreviewActorEntity(EntityType.ARMOR_STAND, world);
+            case ZOMBIE, SKELETON, VILLAGER, COW, SHEEP -> NativeMobActorEntities.create(actor.getType(), world);
+        };
     }
 
     /** Shared preview entity type for creation and entity-independent standing collision dimensions. */
