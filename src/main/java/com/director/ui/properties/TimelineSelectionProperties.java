@@ -1,5 +1,6 @@
 package com.director.ui.properties;
 
+import com.director.core.DirectorServices;
 import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang.Properties;
@@ -9,6 +10,7 @@ import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.camera.CameraKeyframe;
+import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.selection.TimelineKeyframeMultiSelection;
 import com.director.ui.theme.UITheme;
@@ -57,10 +59,32 @@ public final class TimelineSelectionProperties {
 
         if (selected.stream().allMatch(CameraKeyframe.class::isInstance)) {
             renderCameraFields(model, selected.stream().map(CameraKeyframe.class::cast).toList());
-        } else {
-            ImGui.textWrapped(DirectorI18n.translate(Properties.Overview.NO_BATCH_FIELDS));
+            return true;
         }
-        return true;
+        ImGui.textWrapped(DirectorI18n.translate(Properties.Overview.NO_BATCH_FIELDS));
+        ImGui.textWrapped(DirectorI18n.translate("gui.director.properties.overview.primary_hint"));
+        if (ImGui.button(DirectorI18n.translate("gui.director.properties.overview.keep_primary"))) {
+            keepPrimary(model, target);
+        }
+        return false;
+    }
+
+    private static void keepPrimary(TimelineModel model, Object target) {
+        Object primary = null;
+        for (Object item : model.getSelectedItems()) {
+            if (represents(item, target)) {
+                primary = item;
+                break;
+            }
+        }
+        if (primary == null) return;
+        model.selectItem(primary, false);
+        Object resolved = primary instanceof EntityTimelineClip wrapper ? wrapper.getEntityClip() : primary;
+        var ui = DirectorServices.get().uiSelection();
+        if (resolved instanceof EntityClip clip) ui.selectClip(clip);
+        else if (resolved instanceof TimelineTrack track) ui.selectTrack(track);
+        else ui.setCurrentSelection(resolved);
+        PropertyContextService.get().onTimelineSelectionChanged(ui.getSelectionPayload());
     }
 
     private static boolean represents(Object item, Object target) {

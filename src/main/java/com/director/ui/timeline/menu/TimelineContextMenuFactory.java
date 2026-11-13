@@ -38,9 +38,9 @@ import com.director.timeline.model.entity.EntityAnimationClip;
 import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntityDespawnClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
+import com.director.ui.actor.track.ActorTrackClipAuthoringService;
+import com.director.ui.actor.track.ActorTrackClipKind;
 import com.director.timeline.model.entity.EntitySpawnClip;
-import com.director.timeline.model.entity.EntityStateClip;
-import com.director.timeline.model.entity.EntityTransformClip;
 import com.director.timeline.model.weather.WeatherKeyframe;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import org.jetbrains.annotations.NotNull;
@@ -685,13 +685,8 @@ public class TimelineContextMenuFactory {
                                         currentTime + EntitySpawnClip.DEFAULT_DURATION_SECONDS);
                                 addEntityClip(track, clip);
                             })
-                            .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_TRANSFORM), () -> {
-                                float currentTime = model.getCurrentTime();
-                                EntityTransformClip clip =
-                                    new EntityTransformClip(
-                                        tr(DirectorLang.Timeline.DefaultNames.ENTITY_TRANSFORM), currentTime, currentTime + 2.0f);
-                                addEntityClip(track, clip);
-                            })
+                            .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_TRANSFORM), () ->
+                                    createAuthoredActorClip(track, ActorTrackClipKind.TRANSFORM))
                             .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_ANIMATION), () -> {
                                 float currentTime = model.getCurrentTime();
                                 EntityAnimationClip clip =
@@ -707,13 +702,8 @@ public class TimelineContextMenuFactory {
                                         tr(DirectorLang.Timeline.DefaultNames.ENTITY_ACTION), currentTime, currentTime + 0.5f);
                                 addEntityClip(track, clip);
                             })
-                            .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_STATE), () -> {
-                                float currentTime = model.getCurrentTime();
-                                EntityStateClip clip =
-                                    new EntityStateClip(
-                                        tr(DirectorLang.Timeline.DefaultNames.ENTITY_STATE), currentTime, currentTime + 2.0f);
-                                addEntityClip(track, clip);
-                            })
+                            .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_STATE), () ->
+                                    createAuthoredActorClip(track, ActorTrackClipKind.STATE))
                             .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_LOOK_AT), () -> {
                                 float currentTime = model.getCurrentTime();
                                 EntityLookAtClip clip =
@@ -839,6 +829,13 @@ public class TimelineContextMenuFactory {
         }
 
         return clip;
+    }
+
+    private void createAuthoredActorClip(TimelineTrack track, ActorTrackClipKind kind) {
+        var service = ActorTrackClipAuthoringService.getInstance();
+        if (service.createClip(model, track, kind, null) == null) {
+            LOGGER.warn("[TimelineContextMenuFactory] 未创建演员片段 {}: {}", kind, service.lastRefusal());
+        }
     }
 
     private void addEntityClip(TimelineTrack track, EntityClip clip) {

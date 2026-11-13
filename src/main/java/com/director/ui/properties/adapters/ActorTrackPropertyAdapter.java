@@ -10,6 +10,7 @@ import com.director.ui.actor.track.ActorTrackClipAuthoringService;
 import com.director.ui.actor.track.ActorTrackClipKind;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.actor.ActorPathMovementPropertyUI;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.commands.RenameTrackCommand;
 import com.director.ui.timeline.commands.TimelineCommandBridge;
@@ -21,6 +22,8 @@ import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImString;
 
 public final class ActorTrackPropertyAdapter implements IPropertyAdapter<TimelineTrack> {
+    private String createError = "";
+    private TimelineTrack createErrorTrack;
     @Override
     public Class<TimelineTrack> getTargetType() {
         return TimelineTrack.class;
@@ -33,6 +36,10 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
 
     @Override
     public boolean renderProperties(TimelineTrack track) {
+        if (createErrorTrack != track) {
+            createError = "";
+            createErrorTrack = track;
+        }
         var model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) return false;
         UITheme.title(ActorPropertyAdapterI18n.tr("gui.director.actor.track.title"));
@@ -62,13 +69,18 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
         }
         ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.track.bound_actor", actor.getName()));
         if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.track.inspect"))) {
-            com.director.ui.actor.selection.ActorSelectionHub.selectWholeActor(actor.getActorId());
+            com.director.ui.actor.selection.ActorSelectionHub.selectActor(actor.getActorId());
+            com.director.ui.properties.PropertyContextService.get().inspectActorObject(actor);
         }
         ImGui.separator();
         ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.track.create_at_playhead"));
+        ImGui.textDisabled(ActorPropertyAdapterI18n.tr("gui.director.actor.track.current_brush",
+                ActorPropertyAdapterI18n.actionSemanticLabel(ActionBrushState.get())));
         ImGui.beginDisabled(track.isLocked() || track.isMuted() || model.isPlaying() || model.isScrubbing());
         for (var kind : ActorTrackClipKind.values()) renderActorClipButton(track, kind);
         ImGui.endDisabled();
+        if (!createError.isEmpty()) ImGui.textWrapped(createError);
+        ActorPathMovementPropertyUI.render(actor.getActorId());
         return false;
     }
 
@@ -103,13 +115,21 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
         }
 
         if (ImGui.button(label + "##actorTrackCreate" + kind, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            var action = ActionBrushState.get();
-            var clip = ActorTrackClipAuthoringService.getInstance().createClip(track, kind, action);
+            var service = ActorTrackClipAuthoringService.getInstance();
+            var clip = service.createClip(track, kind, ActionBrushState.get());
+            createError = clip == null ? refusalText(service.lastRefusal()) : "";
             return clip != null;
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(tooltip);
         }
         return false;
+    }
+
+    private static String refusalText(String key) {
+        if (key == null || key.isBlank()) return ActorPropertyAdapterI18n.tr("gui.director.actor.track.create_rejected");
+        String text = ActorPropertyAdapterI18n.tr(key);
+        return text == null || text.isBlank() || text.equals(key)
+                ? ActorPropertyAdapterI18n.tr("gui.director.actor.track.create_rejected") : text;
     }
 }

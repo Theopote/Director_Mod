@@ -16,6 +16,8 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
     private com.director.ui.actor.path.ActorRoutePropertyEditSession session;
     private int lastFrame = -1;
     private String error = "";
+    private String durationError = "";
+    private ActorRouteClip durationErrorClip;
     private String activeWidget;
     private boolean activeWidgetRendered, released;
     private boolean cancelledUntilRelease;
@@ -42,6 +44,10 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
         if (source == null) {
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NO_CLIP));
             return false;
+        }
+        if (durationErrorClip != source) {
+            durationError = "";
+            durationErrorClip = source;
         }
 
         var routeOwner = source.getTimelineClip() == null ? null : source.getTimelineClip().getParentTrack();
@@ -78,12 +84,22 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
                 session = new com.director.ui.actor.path.ActorRoutePropertyEditSession(model,
                         source.getTimelineClip() == null ? null : source.getTimelineClip().getParentTrack(), source);
             } catch (RuntimeException failure) {
-                ImGui.textWrapped("只读：" + (failure.getMessage() == null ? "路线当前不可编辑" : failure.getMessage()));
-                ImGui.text(String.format("时间 %.3f – %.3f 秒 · 速度 %.3f",source.getStartTime(),source.getEndTime(),source.getSpeed()));
-                ImGui.text("循环："+source.getLoopMode()+" · 沿路朝向："+source.isAlignRotationToRoute());
-                ImGui.text("平滑行进："+source.isSmoothTravel()+" · 端点转身："+source.getEndpointTurnDuration()+" 秒");
-                ImGui.text("跳跃："+source.getJumpStart()+" / "+source.getJumpDuration()+" 秒 · 高度 "+source.getJumpHeight());
-                int index=0;for(var point:source.getWaypoints()) ImGui.text((++index)+" · "+point);
+                ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.unavailable"));
+                ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.range", source.getStartTime(), source.getEndTime()));
+                ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.route.readonly_speed", source.getSpeed()));
+                ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.route.readonly_loop",
+                        ActorPropertyAdapterI18n.routeLoopLabel(source.getLoopMode())));
+                ImGui.text(ActorPropertyAdapterI18n.tr(source.isAlignRotationToRoute()
+                        ? "gui.director.actor.route.align_on" : "gui.director.actor.route.align_off"));
+                ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.route.readonly_smooth",
+                        ActorPropertyAdapterI18n.tr(source.isSmoothTravel()
+                                ? "gui.director.actor.state_edit.on" : "gui.director.actor.state_edit.off")));
+                ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.route.readonly_turn", source.getEndpointTurnDuration()));
+                ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.route.readonly_jump",
+                        source.getJumpStart(), source.getJumpDuration(), source.getJumpHeight()));
+                int index = 0;
+                for (var point : source.getWaypoints())
+                    ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.WAYPOINT_FMT, ++index) + " · " + point);
                 return false;
             }
         }
@@ -99,9 +115,13 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
                 if (Float.isFinite(duration.get()) && duration.get() >= .1f
                         && Float.isFinite(clip.getStartTime() + duration.get())) {
                     clip.setTimeRange(clip.getStartTime(), clip.getStartTime() + duration.get());
+                    durationError = "";
+                } else {
+                    durationError = ActorPropertyAdapterI18n.tr("gui.director.actor.route.invalid_duration");
                 }
             }
             observe("duration");
+            if (!durationError.isEmpty()) ImGui.textWrapped(durationError);
             ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.duration_hint"));
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.WAYPOINT_COUNT_FMT,
                     clip.getWaypoints().size()));
@@ -150,17 +170,17 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
             observe("loop");
             if(clip.getLoopMode()==ActorRouteClip.LoopMode.PING_PONG) {
                 boolean stopTurn=clip.getEndpointTurnDuration()>0;
-                PropertyRow.label("端点停下转身");
+                PropertyRow.label(ActorPropertyAdapterI18n.tr("gui.director.actor.route.stop_turn"));
                 if(ImGui.checkbox("##routeStopTurn",stopTurn)) clip.setEndpointTurnDuration(stopTurn?0:.35f);
                 observe("stopTurn");
                 if(clip.getEndpointTurnDuration()>0) {
                     float[] seconds={clip.getEndpointTurnDuration()};
-                    PropertyRow.field("转身时长");
+                    PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.route.turn_duration"));
                     if (ImGui.sliderFloat("##routeTurnDuration", seconds, .1f, 2f, "%.2f s")) clip.setEndpointTurnDuration(seconds[0]);
                     observe("turnDuration");
-                    ImGui.textWrapped("每段行进先加速再减速，到端点原地转身；速度为行进段平均速度，每次折返增加转身时间。步态相位在转身期间暂停。");
-                    ImGui.textWrapped("玩家转身时交替抬脚；手工姿态优先。其他生物暂只调整整体朝向。");
-                    if(!clip.isAlignRotationToRoute()) ImGui.textWrapped("沿路朝向已关闭：会停顿折返，整体旋转继续由用户控制。");
+                    ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.turn_motion"));
+                    ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.turn_actor"));
+                    if(!clip.isAlignRotationToRoute()) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.turn_align_off"));
                 }
             }
             boolean align = clip.isAlignRotationToRoute();

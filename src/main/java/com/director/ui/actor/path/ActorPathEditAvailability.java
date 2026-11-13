@@ -8,11 +8,24 @@ final class ActorPathEditAvailability {
     private ActorPathEditAvailability() {}
 
     static String reason(TimelineModel model, ActorPathDefinition path) {
-        if (model == null) return "请先打开时间线工程";
-        if (model.isPlaying()) return "请先暂停播放再修改路径";
-        if (model.isScrubbing()) return "请先结束拖动播放头再修改路径";
-        if (!Float.isFinite(model.getCurrentTime()) || model.getCurrentTime() < 0) return "当前时间无效，请重置播放头";
-        if (path != null && path.isLocked()) return "路径已锁定，请先解锁再重命名或删除";
+        if (model == null) return text("gui.director.actor.path.need_project", "Open a timeline project before editing paths.");
+        if (model.isPlaying()) return text("gui.director.actor.path.pause", "Pause playback before editing paths.");
+        if (model.isScrubbing()) return text("gui.director.actor.path.finish_scrub", "Finish dragging the playhead before editing paths.");
+        if (!Float.isFinite(model.getCurrentTime()) || model.getCurrentTime() < 0)
+            return text("gui.director.actor.path.bad_time", "The playhead time is invalid. Reset it before editing paths.");
+        if (path != null && path.isLocked())
+            return text("gui.director.actor.path.locked_edit", "This path is locked. Unlock it before renaming or deleting.");
         return "";
+    }
+
+    /** Uses the loaded language, and a stable fallback when unit tests have no language. */
+    static String text(String key, String fallback) {
+        try {
+            String value = net.minecraft.util.Language.getInstance().get(key, fallback);
+            if (value == null || value.isBlank() || value.equals(key)) return fallback;
+            return value;
+        } catch (Throwable ignored) {
+            return fallback;
+        }
     }
 }

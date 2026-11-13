@@ -19,14 +19,6 @@ public class EntityStateClipPropertyAdapter implements IPropertyAdapter<EntitySt
         ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.ADAPTER_NAME));
         ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.range",clip.getStartTime(),clip.getEndTime()));
         ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.state_edit.runtime_hint"));
-        ImGui.beginDisabled();
-        PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.SNEAKING));
-        ImGui.checkbox("##entity_state_clip_sneaking",clip.isSneaking());
-        PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.SPRINTING));
-        ImGui.checkbox("##entity_state_clip_sprinting",clip.isSprinting());
-        PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.INVULNERABLE));
-        ImGui.checkbox("##entity_state_clip_invulnerable",clip.isInvulnerable());
-        ImGui.endDisabled();
         var glow = new ImInt(clip.getGlowingOverride() == null ? 0 : clip.isGlowing() ? 1 : 2);
         PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.GLOWING));
         boolean changed = ImGui.combo("##stateGlowing",

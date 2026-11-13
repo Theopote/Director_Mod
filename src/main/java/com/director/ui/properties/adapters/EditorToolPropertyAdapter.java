@@ -468,7 +468,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
                 clip.setLeftArmPitch((float)Math.toRadians(poseLeftArmDeg.get()));clip.setRightArmPitch((float)Math.toRadians(poseRightArmDeg.get()));
                 clip.setLeftLegPitch((float)Math.toRadians(poseLeftLegDeg.get()));clip.setRightLegPitch((float)Math.toRadians(poseRightLegDeg.get()));
             });
-            actionCreationError=created==null?"当前不可创建局部姿态，请暂停并检查演员能力与轨道锁定。":"";
+            actionCreationError=created==null?refusal(com.director.ui.actor.track.ActorTrackClipAuthoringService.getInstance().lastRefusal()):"";
         } catch(RuntimeException failure){actionCreationError=failure.getMessage();}
     }
 
@@ -479,8 +479,15 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         try {
             var owner=com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model,actor.getActorId());
             var created=com.director.ui.actor.track.ActorTrackClipAuthoringService.getInstance().createAction(model,owner,action,actionDuration.get(),actionIntensity.get(),actionLoop.get());
-            actionCreationError=created==null?"当前不可创建：请暂停、解锁轨道并检查动作重叠。":"";
+            actionCreationError=created==null?refusal(com.director.ui.actor.track.ActorTrackClipAuthoringService.getInstance().lastRefusal()):"";
         } catch(RuntimeException failure) {actionCreationError=failure.getMessage();}
+    }
+
+    private static String refusal(String key) {
+        if (key == null || key.isBlank()) return tr("gui.director.actor.track.create_rejected");
+        String text = tr(key);
+        return text == null || text.isBlank() || text.equals(key)
+                ? tr("gui.director.actor.track.create_rejected") : text;
     }
 
     private static String tr(String key) {

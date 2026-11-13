@@ -309,7 +309,11 @@ public final class ActorPathController {
 
     public void applyPathToSelectedActor() {
         cancelAnchorDrag();
-        if (isEditingLocked() || pathPoints.size() < 2) { lastError = "请先准备至少两个锚点，并选择可编辑的目标"; return; }
+        if (isEditingLocked() || pathPoints.size() < 2) {
+            lastError = ActorPathEditAvailability.text("gui.director.actor.path.need_anchors",
+                    "Prepare at least two anchors and an editable target.");
+            return;
+        }
         var model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) return;
         try {

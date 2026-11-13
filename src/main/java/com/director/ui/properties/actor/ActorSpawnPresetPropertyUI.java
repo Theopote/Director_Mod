@@ -18,11 +18,18 @@ public final class ActorSpawnPresetPropertyUI {
     private static final com.director.ui.actor.pose.ActorAnimationCatalog.Cache catalogCache=new com.director.ui.actor.pose.ActorAnimationCatalog.Cache();
     private static final com.director.ui.actor.pose.ActorInspectorPlayback playbackQuery=new com.director.ui.actor.pose.ActorInspectorPlayback();
     /** Called after the inspector draft commits, so duplication never races a pending property edit. */
+    private static String independentError = "";
+    private static EntitySpawnClip independentErrorOwner;
+
     public static void renderIndependentAction(EntitySpawnClip source) {
-        if(source.getPreset()==null) return;
+        if (independentErrorOwner != source) {
+            independentError = "";
+            independentErrorOwner = source;
+        }
+        if(source == null || source.getPreset()==null) return;
         var library=AnimationAssetLibrary.getInstance();
         var asset=library.find(source.getPreset().animationId()).orElse(null);
-        if(asset==null) return; // Built-in fixed Pose actions are read-only references, not editable rig assets.
+        if(asset==null) { independentError = ""; return; } // Built-in fixed Pose actions are read-only references, not editable rig assets.
         var model=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
         var wrapper=source.getTimelineClip();var track=wrapper==null?null:wrapper.getParentTrack();
         boolean blocked=track==null || track.isLocked() || track.isMuted() || source.isMuted() || model.isPlaying()
@@ -33,10 +40,14 @@ public final class ActorSpawnPresetPropertyUI {
             try {
                 com.director.ui.actor.pose.ActorAnimationAssetEditing.makePresetIndependent(model,library,track,source,
                         "project:preset_"+UUID.randomUUID(),presetText("copy_name", asset.name()));
-            } catch(IllegalArgumentException failure) { ImGui.setTooltip(failure.getMessage()); }
+                independentError = "";
+            } catch(IllegalArgumentException failure) {
+                independentError = failure.getMessage() == null ? "" : failure.getMessage();
+            }
         }
         ImGui.endDisabled();
-        if(ImGui.isItemHovered()) ImGui.setTooltip(presetText("independent_hint"));
+        if (!independentError.isEmpty()) ImGui.textWrapped(independentError);
+        else if(ImGui.isItemHovered()) ImGui.setTooltip(presetText("independent_hint"));
     }
     private static ActorPresetBinding renderScopeButtons(ActorPresetBinding binding,RigDefinition rig,ActorClipInspectorGesture gesture) {
         var result=binding;
@@ -77,7 +88,7 @@ public final class ActorSpawnPresetPropertyUI {
             var actor=payload==null || payload.getActorRef()==null?null:
                     ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
             var catalog=catalogCache.entries(AnimationAssetLibrary.getInstance(),AnimationLibrary.getInstance(),actor);
-            renderSecondary(draft, gesture, catalog, ActorRigCompatibility.resolveRig(actor).orElse(null));
+            var rig=ActorRigCompatibility.resolveRig(actor).orElse(null);
             var binding=draft.getPreset();
             String current = presetText("none");
             if(binding!=null) {
@@ -96,18 +107,22 @@ public final class ActorSpawnPresetPropertyUI {
                     for (var entry : catalog) {
                         if (entry.isPose() || !entry.compatible() || entry.id().equals(draft.getBoneAnimationId())) continue;
                         boolean selected = binding != null && entry.id().equals(binding.animationId());
-                        ImGui.beginDisabled(secondary != null && secondary.fullyOverridesSameAction(entry.id()));
+                        boolean blocked = secondary != null && secondary.fullyOverridesSameAction(entry.id());
+                        ImGui.beginDisabled(blocked);
                         if (ImGui.selectable(entry.name() + " · " + entry.rigName() + "##" + entry.id(), selected) && !selected) {
                             binding = ActorPresetBinding.select(entry.id(), binding);
                             gesture.requestCommit();
                         }
                         ImGui.endDisabled();
+                        if (blocked && ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled))
+                            ImGui.setTooltip(presetText("primary_blocked"));
                     }
                 } finally {
                     ImGui.endCombo();
                 }
             }
             draft.setPreset(binding);
+            renderSecondary(draft, gesture, catalog, rig);
             if(binding==null) {playbackQuery.clear();return;}
             boolean changed;
             var model=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
@@ -144,7 +159,6 @@ public final class ActorSpawnPresetPropertyUI {
                 }
                 ImGui.treePop();
             }
-            var rig=ActorRigCompatibility.resolveRig(actor).orElse(null);
             ImGui.text(presetText("scope"));
             var scopeInput=new ActorPresetBinding(binding.animationId(),loop,speed[0],
                     new PoseBlendSettings(PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,

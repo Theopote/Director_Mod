@@ -229,7 +229,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             float rowWidth = Math.max(30, ImGui.getContentRegionAvailX() - buttonWidth - ImGui.getStyle().getItemSpacingX());
             if (ImGui.selectable(label + "###actorRow", actor.getActorId().equals(selectedActorId), 0, rowWidth, 0)) selectActor(actor);
             if (ImGui.beginPopupContextItem("ActorContextMenu")) {
-                if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.EDIT))) selectActor(actor);
+                if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.EDIT))) editActor(actor);
                 if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.PLACE))) ActorSelectionHub.beginPlace(actor);
                 if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DELETE))) {
                     deletingActorId = actor.getActorId();
@@ -945,23 +945,37 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     // =========================================================
     
     /**
-     * 在演员面板中选中演员，并同步场景和时间线选择
-     * <p>通过 ActorSelectionHub.selectActor() 共享选择状态
-     *
-     * @param actor Actor 实例
+     * 名单点击只切换当前演员。已打开姿态工具时保留工具和同一演员的草稿。
      */
     private void selectActor(Actor actor) {
         if (actor == null) {
             selectedActorId = null;
             return;
         }
-        
-        // 所有编辑入口指向同一个演员。
-        ActorSelectionHub.selectWholeActor(actor.getActorId());
+        ActorSelectionHub.selectActor(actor.getActorId());
+        this.selectedActorId = actor.getActorId();
+        focusTrackUnlessTool(actor);
+        LOGGER.debug("[ActorProjectPropertyAdapter] Selected actor in panel: {}", actor.getActorId());
+    }
+
+    /** 身份卡只从「编辑」、新建演员或轨道页「查看演员」进入。 */
+    private void editActor(Actor actor) {
+        if (actor == null) {
+            selectedActorId = null;
+            return;
+        }
+        ActorSelectionHub.selectActor(actor.getActorId());
         this.selectedActorId = actor.getActorId();
         com.director.ui.properties.PropertyContextService.get().inspectActorObject(actor);
+    }
 
-        LOGGER.debug("[ActorProjectPropertyAdapter] Selected actor in panel: {}", actor.getActorId());
+    private void focusTrackUnlessTool(Actor actor) {
+        if (com.director.ui.tools.ToolRegistry.get().hasNonSelectionActiveTool()) return;
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        var track = com.director.ui.actor.selection.ActorSelectionTarget.resolve(model, actor.getActorId());
+        if (track == null) return;
+        if (model != null) model.selectItem(track, false);
+        DirectorServices.get().uiSelection().selectTrack(track);
     }
     
     // =========================================================
@@ -1133,8 +1147,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             // 3️⃣ Create TimelineTrack with ActorTrack payload
             if (timelineModel == null) {
                 LOGGER.warn("[ActorProjectPropertyAdapter] TimelineModel 未初始化，无法创建 Track");
-                // 即使没有 TimelineModel，也选中 Actor
-                selectActor(actor);
+                // 即使没有 TimelineModel，也打开新建演员的身份卡
+                editActor(actor);
                 return;
             }
 
@@ -1160,8 +1174,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             // 6️⃣ Mark model as dirty (trigger save)
             timelineModel.markDirty();
 
-            // 7️⃣ Select Actor（这会触发 PropertiesPanel 切换到 Actor 面板）
-            selectActor(actor);
+            // 新建演员后打开身份卡，而不是只高亮名单。
+            editActor(actor);
 
             LOGGER.info("[ActorProjectPropertyAdapter] 成功创建 Actor: {} ({}), ActorTrack 已添加到时间线",
                     actor.getName(), actorType);
@@ -1351,7 +1365,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
 
         ActorActionType currentBrush = ActionBrushState.get();
         if (currentBrush != null && !com.director.actor.ActorCapabilities.of(actor).supports(currentBrush))
-            ImGui.textWrapped("当前笔刷不适用于此演员，请选择下方支持的动作。");
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.track.brush_unsupported"));
         String currentLabel = currentBrush != null
                 ? ActorPropertyAdapterI18n.actionSemanticLabel(currentBrush)
                 : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NONE);

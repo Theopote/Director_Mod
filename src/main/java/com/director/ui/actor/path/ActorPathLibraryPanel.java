@@ -108,7 +108,8 @@ public final class ActorPathLibraryPanel {
         float nameWidth = wrapped ? Math.max(1, available) : Math.max(1, available - controlsWidth - spacing);
         if (ImGui.selectable(label, selected, 0, nameWidth, 0)) {
             selectedPathId = path.getId();
-            if (mutationReason(path).isEmpty()) ActorPathController.getInstance().loadPathForEditing(path.getId());
+            String reason = mutationReason(path);
+            lastError = reason.isEmpty() ? openLibraryPath(path.getId()) : reason;
         }
         if (ImGui.isItemHovered()) {
             String reason = mutationReason(path);
@@ -160,6 +161,24 @@ public final class ActorPathLibraryPanel {
 
     private String mutationReason(ActorPathDefinition path) {
         return ActorPathEditAvailability.reason(viewModel, path);
+    }
+
+    private String openLibraryPath(UUID pathId) {
+        var client = net.minecraft.client.MinecraftClient.getInstance();
+        if (client == null || client.world == null)
+            return ActorPropertyAdapterI18n.tr("gui.director.actor.path.tool_inactive");
+        var tools = com.director.ui.tools.ToolRegistry.get();
+        tools.initializeIfNeeded();
+        var controller = ActorPathController.getInstance();
+        if (!tools.activate(com.director.ui.tools.ToolRegistry.ACTOR_PATH_TOOL_ID) || !controller.isActive())
+            return ActorPropertyAdapterI18n.tr("gui.director.actor.path.tool_inactive");
+        controller.loadPathForEditing(pathId);
+        if (!pathId.equals(controller.getEditingLibraryPathId())) {
+            String reason = controller.getLastError();
+            return reason == null || reason.isEmpty()
+                    ? ActorPropertyAdapterI18n.tr("gui.director.actor.path_movement.missing") : reason;
+        }
+        return "";
     }
 
     private void disabledTooltip(ActorPathDefinition path, String action) {

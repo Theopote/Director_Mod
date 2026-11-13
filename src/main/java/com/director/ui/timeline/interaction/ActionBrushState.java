@@ -7,14 +7,8 @@ import com.director.actor.action.ActorActionType;
  *
  * <p>Action Brush 全局轻量状态（当前绘制动作）。
  *
- * <p>设计目标：
- * <ul>
- *   <li>导演在时间线上"拖一段"，就等于在说："这段时间他在 RUN / DANCE / CARRY"</li>
- *   <li>而不是：新建 Clip → 设开始 → 设结束 → 设动作</li>
- * </ul>
- *
- * <p>这个 Brush 是"当前绘制动作"，不是 Clip。
- * <p>导演选择动作（Brush），然后在 Timeline 中拖拽一段，系统自动创建 ActionClip。
+ * <p>这个 Brush 是当前语义动作，不是片段。
+ * <p>轨道页的「语义动作」按钮用它在播放头创建持续动作。时间线拖拽涂抹目前没有入口。
  *
  * <p>使用方式：
  * <pre>
