@@ -50,6 +50,7 @@ public class EntityStateClip extends EntityClip {
 
     public void setSneaking(Boolean sneaking) {
         this.sneaking = sneaking;
+        samplingChanged();
     }
 
     public boolean isSprinting() {
@@ -60,6 +61,7 @@ public class EntityStateClip extends EntityClip {
 
     public void setSprinting(Boolean sprinting) {
         this.sprinting = sprinting;
+        samplingChanged();
     }
 
     public boolean isGlowing() {
@@ -70,6 +72,7 @@ public class EntityStateClip extends EntityClip {
 
     public void setGlowing(Boolean glowing) {
         this.glowing = glowing;
+        samplingChanged();
     }
 
     public boolean isInvulnerable() {
@@ -80,6 +83,7 @@ public class EntityStateClip extends EntityClip {
 
     public void setInvulnerable(Boolean invulnerable) {
         this.invulnerable = invulnerable;
+        samplingChanged();
     }
 
     public float getVisibility() {
@@ -94,6 +98,7 @@ public class EntityStateClip extends EntityClip {
 
     public void setVisibilityOverride(Float visibility) {
         this.visibility = visibility == null ? null : Math.clamp(visibility, 0f, 1f);
+        samplingChanged();
     }
 }
 

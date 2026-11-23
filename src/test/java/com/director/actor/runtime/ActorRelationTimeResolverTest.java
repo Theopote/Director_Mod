@@ -34,8 +34,16 @@ class ActorRelationTimeResolverTest {
     }
     @Test void maintainGazeWritesWorldPointWithoutRewritingRootRotation() {
         var s=follower(b); s.relationMaintainLookAt=true; ActorRelationTimeResolver.resolveInto(a,s,1,(id,t)->base(0,0));
-        assertEquals("WORLD_POINT",s.lookAtMode); assertEquals(new Vector3f(0,1.6f,0),s.lookAtPoint);
+        assertEquals("WORLD_POINT",s.lookAtMode); assertEquals(new Vector3f(0,1.62f,0),s.lookAtPoint);
         assertEquals(0,s.rotation.x);assertEquals(0,s.rotation.y);
+    }
+    @Test void maintainGazeUsesStandingEyeHeightAndScale() {
+        var s=follower(b); s.relationMaintainLookAt=true;
+        var target=base(0,0); target.position.y=4; target.scale.y=2; target.standingEyeHeight=1.3f;
+        ActorRelationTimeResolver.resolveInto(a,s,1,(id,t)->target);
+        assertEquals(0f,s.lookAtPoint.x,1e-4f);
+        assertEquals(6.6f,s.lookAtPoint.y,1e-4f);
+        assertEquals(0f,s.lookAtPoint.z,1e-4f);
     }
     @Test void relativePositionDoesNotForceLookAt() {
         var s=follower(b); s.relationMaintainLookAt=true; s.relationType="RELATIVE_POSITION";

@@ -91,6 +91,7 @@ public final class ActorActionClip extends EntityClip {
         this.actionType = actionType != null
                 ? actionType
                 : ActorActionType.IDLE;
+        samplingChanged();
     }
 
     public float getIntensity() {
@@ -99,6 +100,7 @@ public final class ActorActionClip extends EntityClip {
 
     public void setIntensity(float intensity) {
         this.intensity = clamp(intensity, 0f, 1f);
+        samplingChanged();
     }
 
     public boolean isLoop() {
@@ -107,6 +109,7 @@ public final class ActorActionClip extends EntityClip {
 
     public void setLoop(boolean loop) {
         this.loop = loop;
+        samplingChanged();
     }
 
     private static float clamp(float v, float min, float max) {

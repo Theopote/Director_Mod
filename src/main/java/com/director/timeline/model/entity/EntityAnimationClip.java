@@ -24,7 +24,7 @@ import java.util.List;
 public class EntityAnimationClip extends EntityClip {
     private com.director.actor.rig.skeleton.PoseBlendSettings blendSettings = com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT;
     public com.director.actor.rig.skeleton.PoseBlendSettings getBlendSettings() { return blendSettings; }
-    public void setBlendSettings(com.director.actor.rig.skeleton.PoseBlendSettings settings) { blendSettings = java.util.Objects.requireNonNull(settings); }
+    public void setBlendSettings(com.director.actor.rig.skeleton.PoseBlendSettings settings) { blendSettings = java.util.Objects.requireNonNull(settings); samplingChanged(); }
 
 
     public enum AnimationSource {
@@ -71,6 +71,7 @@ public class EntityAnimationClip extends EntityClip {
 
     public void setSource(AnimationSource source) {
         this.source = source != null ? source : AnimationSource.BUILT_IN;
+        samplingChanged();
     }
 
     public String getAnimationId() {
@@ -79,6 +80,7 @@ public class EntityAnimationClip extends EntityClip {
 
     public void setAnimationId(String animationId) {
         this.animationId = animationId == null || animationId.isBlank() ? "" : animationId;
+        samplingChanged();
     }
 
     public boolean hasAnimation() { return !animationId.isEmpty(); }
@@ -89,6 +91,7 @@ public class EntityAnimationClip extends EntityClip {
 
     public void setLoop(boolean loop) {
         this.loop = loop;
+        samplingChanged();
     }
 
     public float getSpeed() {
@@ -97,6 +100,7 @@ public class EntityAnimationClip extends EntityClip {
 
     public void setSpeed(float speed) {
         this.speed = Math.clamp(Float.isFinite(speed)?speed:1f, 0.01f, 4.0f);
+        samplingChanged();
     }
 
     // ========== Animation Events ==========
@@ -117,9 +121,11 @@ public class EntityAnimationClip extends EntityClip {
      */
     public void addEvent(AnimationEvent event) {
         if (event != null) {
+            event.bindSamplingTouch(this::samplingChanged);
             events.add(event);
             // 按归一化时间排序
             events.sort((a, b) -> Float.compare(a.getNormalizedTime(), b.getNormalizedTime()));
+            samplingChanged();
         }
     }
 
@@ -130,14 +136,19 @@ public class EntityAnimationClip extends EntityClip {
      * @return 如果成功移除则返回 true
      */
     public boolean removeEvent(AnimationEvent event) {
-        return events.remove(event);
+        boolean removed = events.remove(event);
+        if (removed) samplingChanged();
+        return removed;
     }
 
     /**
      * 清空所有动画事件
      */
     public void clearEvents() {
-        events.clear();
+        if (!events.isEmpty()) {
+            events.clear();
+            samplingChanged();
+        }
     }
 
     /**

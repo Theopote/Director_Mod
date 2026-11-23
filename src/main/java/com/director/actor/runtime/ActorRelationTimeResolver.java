@@ -49,7 +49,11 @@ public final class ActorRelationTimeResolver {
             sample.position.set(position);
             if (sample.relationMaintainLookAt && type!=ActorRelationClip.RelationType.RELATIVE_POSITION) {
                 sample.lookAtEnabled=true; sample.lookAtMode="WORLD_POINT";
-                sample.lookAtPoint.set(target.position.x,target.position.y+1.6f,target.position.z);
+                float eye = target.standingEyeHeight;
+                float scaleY = target.scale.y;
+                if (!Float.isFinite(eye) || eye <= 0f) eye = com.director.actor.ActorEyeHeight.standing(null);
+                if (!Float.isFinite(scaleY) || scaleY <= 0f) scaleY = 1f;
+                sample.lookAtPoint.set(target.position.x, target.position.y + eye * scaleY, target.position.z);
                 sample.lookAtStrength=Math.max(.85f,sample.lookAtStrength);
             }
         } finally { visiting.remove(actor); }

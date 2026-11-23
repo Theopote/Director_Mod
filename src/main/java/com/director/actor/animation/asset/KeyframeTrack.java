@@ -11,6 +11,9 @@ public final class KeyframeTrack<T> {
     private static final float TIME_EPSILON = 1.0e-5f;
     private final ChannelValueAdapter<T> values;
     private final List<ChannelKeyframe<T>> keyframes = new ArrayList<>();
+    private Runnable changed = () -> {};
+
+    public void onChanged(Runnable listener) { changed = listener == null ? () -> {} : listener; }
 
     public KeyframeTrack(ChannelValueAdapter<T> values) {
         this.values = Objects.requireNonNull(values, "values");
@@ -27,15 +30,19 @@ public final class KeyframeTrack<T> {
         for (int i = 0; i < keyframes.size(); i++) {
             if (Math.abs(keyframes.get(i).time() - time) <= TIME_EPSILON) {
                 keyframes.set(i, inserted);
+                changed.run();
                 return;
             }
         }
         keyframes.add(inserted);
         keyframes.sort(Comparator.comparingDouble(ChannelKeyframe::time));
+        changed.run();
     }
 
     public boolean removeAt(float time) {
-        return keyframes.removeIf(frame -> Math.abs(frame.time() - time) <= TIME_EPSILON);
+        boolean removed = keyframes.removeIf(frame -> Math.abs(frame.time() - time) <= TIME_EPSILON);
+        if (removed) changed.run();
+        return removed;
     }
 
     public java.util.Optional<ChannelKeyframe<T>> findAt(float time) {

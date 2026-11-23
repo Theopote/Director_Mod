@@ -17,6 +17,11 @@ import java.util.UUID;
 public final class ActorPathLibrary {
 
     private final Map<UUID, ActorPathDefinition> byId = new LinkedHashMap<>();
+    private long geometryRevision;
+
+    public long geometryRevision() { return geometryRevision; }
+
+    void noteGeometry() { geometryRevision++; }
 
     public List<ActorPathDefinition> getAll() {
         return Collections.unmodifiableList(new ArrayList<>(byId.values()));
@@ -31,7 +36,10 @@ public final class ActorPathLibrary {
     }
 
     public void clear() {
+        if (byId.isEmpty()) return;
+        for (ActorPathDefinition path : byId.values()) path.attachLibrary(null);
         byId.clear();
+        geometryRevision++;
     }
 
     @Nullable
@@ -89,7 +97,9 @@ public final class ActorPathLibrary {
         if (!isNameAvailable(path.getName(), path.getId())) {
             path.setName(generateUniqueName(path.getName()));
         }
-        byId.put(path.getId(), path);
+        ActorPathDefinition previous = byId.put(path.getId(), path);
+        if (previous != null && previous != path) previous.attachLibrary(null);
+        path.attachLibrary(this);
         return path;
     }
 
@@ -107,11 +117,16 @@ public final class ActorPathLibrary {
     }
 
     public boolean remove(UUID id) {
-        return id != null && byId.remove(id) != null;
+        if (id == null) return false;
+        ActorPathDefinition removed = byId.remove(id);
+        if (removed == null) return false;
+        removed.attachLibrary(null);
+        geometryRevision++;
+        return true;
     }
 
     public void replaceAll(List<ActorPathDefinition> paths) {
-        byId.clear();
+        clear();
         if (paths == null) {
             return;
         }

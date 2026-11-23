@@ -27,6 +27,20 @@ public final class NativeMobPoseAngles {
         return new Euler(euler.x, euler.y, euler.z);
     }
 
+    /** Villager has one arm mesh. Equal magnitude keeps the right arm so a symmetric carry still shows. */
+    public static String dominantArm(RigPose pose) {
+        Euler left = local(pose, HumanoidRig.LEFT_ARM, false);
+        Euler right = local(pose, HumanoidRig.RIGHT_ARM, false);
+        if (left == null) return HumanoidRig.RIGHT_ARM;
+        if (right == null) return HumanoidRig.LEFT_ARM;
+        if (magnitude(left) > magnitude(right)) return HumanoidRig.LEFT_ARM;
+        return HumanoidRig.RIGHT_ARM;
+    }
+
+    private static float magnitude(Euler euler) {
+        return euler.pitch * euler.pitch + euler.yaw * euler.yaw + euler.roll * euler.roll;
+    }
+
     public static Euler average(RigPose pose, String left, String right, boolean followBody) {
         Euler a = local(pose, left, followBody);
         Euler b = local(pose, right, followBody);

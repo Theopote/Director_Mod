@@ -7,7 +7,6 @@ import com.director.ui.panels.ToolbarPanel;
 import com.director.ui.panels.TimelinePanel;
 import com.director.ui.panels.PropertiesPanel;
 import com.director.ui.panels.ContainerPanel;
-import com.director.ui.di.UIConfiguration;
 import com.director.ui.di.IPanelRegistry;
 import com.director.ui.di.PanelRegistry;
 import com.director.ui.layout.LayoutPersistenceManager;

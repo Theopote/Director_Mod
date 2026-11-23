@@ -54,6 +54,9 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
     private final transient Set<ActorTrack> owningTracks=Collections.newSetFromMap(new IdentityHashMap<>());
     void attachTrack(ActorTrack track) { owningTracks.add(track); }
     void detachTrack(ActorTrack track) { owningTracks.remove(track); }
+    protected final void samplingChanged() {
+        for (var track : owningTracks) track.bumpSamplingRevision();
+    }
 
     /** 关键帧列表（时间相对于 Clip 开始时间） */
     private final List<EntityClipKeyframe> keyframes = new ArrayList<>();
@@ -162,6 +165,7 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
         if(timingChanged) for(var track:owningTracks) track.clipTimingChanged(this);
         syncTimelineClip();
         if(translated && delta!=0f)syncKeyframesToTimelineClip();
+        if(timingChanged || (translated && delta!=0f)) samplingChanged();
     }
 
     /**
@@ -180,6 +184,7 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
      */
     public void setMuted(boolean muted) {
         this.muted = muted;
+        samplingChanged();
     }
 
     /**
@@ -198,6 +203,7 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
      */
     public void setWeight(float weight) {
         this.weight = Math.clamp(weight, 0.0f, 1.0f);
+        samplingChanged();
     }
 
     /**
@@ -267,11 +273,13 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
             keyframes.remove(existing);
         }
         
+        keyframe.bindSamplingTouch(this::samplingChanged);
         keyframes.add(keyframe);
         keyframes.sort(Comparator.comparing(EntityClipKeyframe::getTime));
         
         // 同步到 TimelineClip
         syncKeyframesToTimelineClip();
+        samplingChanged();
     }
 
     /**
@@ -284,6 +292,7 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
         boolean removed = keyframes.removeIf(kf -> kf.getId().equals(keyframeId));
         if (removed) {
             syncKeyframesToTimelineClip();
+            samplingChanged();
         }
         return removed;
     }

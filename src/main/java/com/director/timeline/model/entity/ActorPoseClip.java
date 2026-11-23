@@ -53,6 +53,7 @@ public final class ActorPoseClip extends EntityClip {
 
     public void setOverrideBody(boolean overrideBody) {
         this.overrideBody = overrideBody;
+        samplingChanged();
     }
 
     public boolean isOverrideHead() {
@@ -61,6 +62,7 @@ public final class ActorPoseClip extends EntityClip {
 
     public void setOverrideHead(boolean overrideHead) {
         this.overrideHead = overrideHead;
+        samplingChanged();
     }
 
     public boolean isOverrideArms() {
@@ -69,6 +71,7 @@ public final class ActorPoseClip extends EntityClip {
 
     public void setOverrideArms(boolean overrideArms) {
         this.overrideArms = overrideArms;
+        samplingChanged();
     }
 
     public boolean isOverrideLegs() {
@@ -77,6 +80,7 @@ public final class ActorPoseClip extends EntityClip {
 
     public void setOverrideLegs(boolean overrideLegs) {
         this.overrideLegs = overrideLegs;
+        samplingChanged();
     }
 
     public float getBodyPitch() {
@@ -85,6 +89,7 @@ public final class ActorPoseClip extends EntityClip {
 
     public void setBodyPitch(float bodyPitch) {
         this.bodyPitch = bodyPitch;
+        samplingChanged();
     }
 
     public float getBodyYaw() {
@@ -93,6 +98,7 @@ public final class ActorPoseClip extends EntityClip {
 
     public void setBodyYaw(float bodyYaw) {
         this.bodyYaw = bodyYaw;
+        samplingChanged();
     }
 
     public float getBodyRoll() {
@@ -101,6 +107,7 @@ public final class ActorPoseClip extends EntityClip {
 
     public void setBodyRoll(float bodyRoll) {
         this.bodyRoll = bodyRoll;
+        samplingChanged();
     }
 
     public float getHeadPitch() {
@@ -109,6 +116,7 @@ public final class ActorPoseClip extends EntityClip {
 
     public void setHeadPitch(float headPitch) {
         this.headPitch = headPitch;
+        samplingChanged();
     }
 
     public float getHeadYaw() {
@@ -117,6 +125,7 @@ public final class ActorPoseClip extends EntityClip {
 
     public void setHeadYaw(float headYaw) {
         this.headYaw = headYaw;
+        samplingChanged();
     }
 
     public float getLeftArmPitch() {
@@ -125,12 +134,13 @@ public final class ActorPoseClip extends EntityClip {
 
     public void setLeftArmPitch(float leftArmPitch) {
         this.leftArmPitch = leftArmPitch;
+        samplingChanged();
     }
 
     public float getLeftArmYaw() { return leftArmYaw; }
-    public void setLeftArmYaw(float value) { leftArmYaw = value; }
+    public void setLeftArmYaw(float value) { leftArmYaw = value; samplingChanged(); }
     public float getLeftArmRoll() { return leftArmRoll; }
-    public void setLeftArmRoll(float value) { leftArmRoll = value; }
+    public void setLeftArmRoll(float value) { leftArmRoll = value; samplingChanged(); }
 
     public float getRightArmPitch() {
         return rightArmPitch;
@@ -138,12 +148,13 @@ public final class ActorPoseClip extends EntityClip {
 
     public void setRightArmPitch(float rightArmPitch) {
         this.rightArmPitch = rightArmPitch;
+        samplingChanged();
     }
 
     public float getRightArmYaw() { return rightArmYaw; }
-    public void setRightArmYaw(float value) { rightArmYaw = value; }
+    public void setRightArmYaw(float value) { rightArmYaw = value; samplingChanged(); }
     public float getRightArmRoll() { return rightArmRoll; }
-    public void setRightArmRoll(float value) { rightArmRoll = value; }
+    public void setRightArmRoll(float value) { rightArmRoll = value; samplingChanged(); }
 
     public float getLeftLegPitch() {
         return leftLegPitch;
@@ -151,6 +162,7 @@ public final class ActorPoseClip extends EntityClip {
 
     public void setLeftLegPitch(float leftLegPitch) {
         this.leftLegPitch = leftLegPitch;
+        samplingChanged();
     }
 
     public float getRightLegPitch() {
@@ -159,5 +171,6 @@ public final class ActorPoseClip extends EntityClip {
 
     public void setRightLegPitch(float rightLegPitch) {
         this.rightLegPitch = rightLegPitch;
+        samplingChanged();
     }
 }

@@ -36,6 +36,9 @@ public class EntitySample {
     /** 实体缩放（X, Y, Z） */
     public final Vector3f scale = new Vector3f(1, 1, 1);
 
+    /** Standing eye height in blocks before scale. NaN selects the player height when a relation aims. */
+    public float standingEyeHeight = Float.NaN;
+
     /** 当前动作类型 */
     public EntityKeyframe.ActionType actionType = EntityKeyframe.ActionType.IDLE;
 
@@ -281,6 +284,7 @@ public class EntitySample {
         position.set(s.position);
         rotation.set(s.rotation);
         scale.set(s.scale);
+        standingEyeHeight = s.standingEyeHeight;
         actionType = s.actionType;
         actionSpeed = s.actionSpeed;
         actionLoop = s.actionLoop;

@@ -32,6 +32,8 @@ public final class AnimationEvent {
 
     /** 归一化时间（0.0 ~ 1.0） */
     private float normalizedTime;
+    private Runnable samplingTouch = () -> {};
+    void bindSamplingTouch(Runnable touch) { samplingTouch = touch == null ? () -> {} : touch; }
 
     /** 触发的 Action */
     private EntityActionEvent action;
@@ -59,6 +61,7 @@ public final class AnimationEvent {
 
     public void setNormalizedTime(float normalizedTime) {
         this.normalizedTime = Math.max(0.0f, Math.min(1.0f, normalizedTime));
+        samplingTouch.run();
     }
 
     public EntityActionEvent getAction() {
@@ -67,6 +70,7 @@ public final class AnimationEvent {
 
     public void setAction(EntityActionEvent action) {
         this.action = Objects.requireNonNull(action, "action cannot be null");
+        samplingTouch.run();
     }
 
     @Override

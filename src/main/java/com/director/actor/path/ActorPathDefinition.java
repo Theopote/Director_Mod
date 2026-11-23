@@ -20,6 +20,13 @@ public final class ActorPathDefinition {
     private ActorRouteClip.InterpolationMode interpolationMode = ActorRouteClip.InterpolationMode.CATMULL_ROM;
     private boolean locked = false;
     private boolean visible = true;
+    private transient ActorPathLibrary library;
+
+    void attachLibrary(ActorPathLibrary library) { this.library = library; }
+
+    private void geometryChanged() {
+        if (library != null) library.noteGeometry();
+    }
 
     public ActorPathDefinition(String name) {
         this(UUID.randomUUID(), name);
@@ -49,14 +56,14 @@ public final class ActorPathDefinition {
 
     public void setWaypoints(List<Vector3f> points) {
         waypoints.clear();
-        if (points == null) {
-            return;
-        }
-        for (Vector3f point : points) {
-            if (point != null) {
-                waypoints.add(new Vector3f(point));
+        if (points != null) {
+            for (Vector3f point : points) {
+                if (point != null) {
+                    waypoints.add(new Vector3f(point));
+                }
             }
         }
+        geometryChanged();
     }
 
     public ActorRouteClip.InterpolationMode getInterpolationMode() {
@@ -67,6 +74,7 @@ public final class ActorPathDefinition {
         this.interpolationMode = interpolationMode != null
                 ? interpolationMode
                 : ActorRouteClip.InterpolationMode.CATMULL_ROM;
+        geometryChanged();
     }
 
     public boolean isLocked() {

@@ -40,7 +40,13 @@ public final class AnimationAsset {
 
     public BoneTrack getOrCreateBoneTrack(String boneId) {
         rig.requireBoneIndex(boneId);
-        return boneTracks.computeIfAbsent(boneId, ignored -> new BoneTrack());
+        BoneTrack track = boneTracks.get(boneId);
+        if (track == null) {
+            track = new BoneTrack();
+            boneTracks.put(boneId, track);
+        }
+        track.onChanged(this::metadataChanged);
+        return track;
     }
 
     public Optional<BoneTrack> findBoneTrack(String boneId) { return Optional.ofNullable(boneTracks.get(boneId)); }
@@ -48,10 +54,20 @@ public final class AnimationAsset {
     /** Attach a detached authoring draft only when its transaction is committed. */
     public void attachBoneTrack(String boneId, BoneTrack track) {
         rig.requireBoneIndex(boneId);
-        boneTracks.put(boneId, Objects.requireNonNull(track));
+        BoneTrack next = Objects.requireNonNull(track, "track");
+        BoneTrack previous = boneTracks.put(boneId, next);
+        if (previous != null && previous != next) previous.onChanged(null);
+        next.onChanged(this::metadataChanged);
+        metadataChanged();
     }
 
-    public boolean removeBoneTrack(String boneId) { return boneTracks.remove(boneId) != null; }
+    public boolean removeBoneTrack(String boneId) {
+        BoneTrack removed = boneTracks.remove(boneId);
+        if (removed == null) return false;
+        removed.onChanged(null);
+        metadataChanged();
+        return true;
+    }
 
     public RigPose sample(float timelineTime) {
         return sample(timelineTime, loopMode);
@@ -93,6 +109,7 @@ public final class AnimationAsset {
         if (marker.time() > duration) throw new IllegalArgumentException("Marker lies beyond animation duration");
         markers.add(marker);
         markers.sort(java.util.Comparator.comparingDouble(AnimationMarker::time));
+        metadataChanged();
     }
 
     public int schemaVersion() { return CURRENT_SCHEMA_VERSION; }
@@ -112,10 +129,17 @@ public final class AnimationAsset {
     public float duration() { return duration; }
     public void setDuration(float duration) {
         if (!Float.isFinite(duration) || duration < 0f) throw new IllegalArgumentException("Duration must be finite and non-negative");
+        if (Float.compare(this.duration, duration) == 0) return;
         this.duration = duration;
+        metadataChanged();
     }
     public AnimationLoopMode loopMode() { return loopMode; }
-    public void setLoopMode(AnimationLoopMode loopMode) { this.loopMode = Objects.requireNonNull(loopMode, "loopMode"); }
+    public void setLoopMode(AnimationLoopMode loopMode) {
+        AnimationLoopMode next = Objects.requireNonNull(loopMode, "loopMode");
+        if (this.loopMode == next) return;
+        this.loopMode = next;
+        metadataChanged();
+    }
     public Map<String, BoneTrack> boneTracks() { return Collections.unmodifiableMap(boneTracks); }
     public List<AnimationMarker> markers() { return Collections.unmodifiableList(markers); }
 }

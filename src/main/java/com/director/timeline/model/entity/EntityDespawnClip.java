@@ -67,6 +67,7 @@ public class EntityDespawnClip extends EntityClip {
 
     public void setMode(DespawnMode mode) {
         this.mode = mode != null ? mode : DespawnMode.REMOVE;
+        samplingChanged();
     }
 }
 

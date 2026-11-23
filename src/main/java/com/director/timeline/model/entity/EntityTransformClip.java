@@ -69,6 +69,7 @@ public class EntityTransformClip extends EntityClip {
 
     public void setInterpolation(TimelineInterpolation interpolation) {
         this.interpolation = interpolation != null ? interpolation : TimelineInterpolation.SMOOTH;
+        samplingChanged();
     }
 
     public Vector3f getFromPos() {
@@ -81,10 +82,12 @@ public class EntityTransformClip extends EntityClip {
 
     public void setFromPos(float x, float y, float z) {
         fromPos.set(x, y, z);
+        samplingChanged();
     }
 
     public void setToPos(float x, float y, float z) {
         toPos.set(x, y, z);
+        samplingChanged();
     }
 
     public Vector3f getFromRot() {
@@ -97,10 +100,12 @@ public class EntityTransformClip extends EntityClip {
 
     public void setFromRot(float yaw, float pitch, float roll) {
         fromRot.set(yaw, pitch, roll);
+        samplingChanged();
     }
 
     public void setToRot(float yaw, float pitch, float roll) {
         toRot.set(yaw, pitch, roll);
+        samplingChanged();
     }
 
     public Vector3f getFromScale() {
@@ -113,10 +118,12 @@ public class EntityTransformClip extends EntityClip {
 
     public void setFromScale(float x, float y, float z) {
         fromScale.set(x, y, z);
+        samplingChanged();
     }
 
     public void setToScale(float x, float y, float z) {
         toScale.set(x, y, z);
+        samplingChanged();
     }
 
     public String getPathId() {
@@ -125,6 +132,7 @@ public class EntityTransformClip extends EntityClip {
 
     public void setPathId(String pathId) {
         this.pathId = pathId;
+        samplingChanged();
     }
 
     public boolean isFollowPath() {
@@ -133,6 +141,7 @@ public class EntityTransformClip extends EntityClip {
 
     public void setFollowPath(boolean followPath) {
         this.followPath = followPath;
+        samplingChanged();
     }
 }
 

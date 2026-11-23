@@ -24,7 +24,7 @@ public final class ActorRouteClip extends EntityClip {
 
     private java.util.UUID sourcePathId;
     public java.util.UUID getSourcePathId() { return sourcePathId; }
-    public void setSourcePathId(java.util.UUID id) { sourcePathId = id; }
+    public void setSourcePathId(java.util.UUID id) { sourcePathId = id; samplingChanged(); }
     private com.director.actor.path.ActorPathDefinition sourcePath() {
         return sourcePathId == null ? null : com.director.actor.path.ActorPathLibraryManager.getPath(sourcePathId);
     }
@@ -33,12 +33,13 @@ public final class ActorRouteClip extends EntityClip {
     private LoopMode loopMode = LoopMode.ONCE;
     private boolean smoothTravel;
     public boolean isSmoothTravel() { return smoothTravel; }
-    public void setSmoothTravel(boolean value) { smoothTravel = value; }
+    public void setSmoothTravel(boolean value) { smoothTravel = value; samplingChanged(); }
     private float endpointTurnDuration;
     public float getEndpointTurnDuration() { return endpointTurnDuration; }
     public void setEndpointTurnDuration(float value) {
         if(!Float.isFinite(value) || value<0 || value>2) throw new IllegalArgumentException("转身时长必须为 0–2 秒");
         endpointTurnDuration=value;
+        samplingChanged();
     }
     public boolean hasEndpointTurns() { return loopMode==LoopMode.PING_PONG && endpointTurnDuration>0; }
     private float speed = 2.0f;
@@ -50,11 +51,11 @@ public final class ActorRouteClip extends EntityClip {
     private String terrainWarning = "";
 
     public float getJumpStart() { return jumpStart; }
-    public void setJumpStart(float value) { jumpStart = Float.isFinite(value) ? Math.max(0, value) : 0; }
+    public void setJumpStart(float value) { jumpStart = Float.isFinite(value) ? Math.max(0, value) : 0; samplingChanged(); }
     public float getJumpDuration() { return jumpDuration; }
-    public void setJumpDuration(float value) { jumpDuration = Float.isFinite(value) ? Math.max(0.1f, Math.min(0.8f, value)) : 0.5f; }
+    public void setJumpDuration(float value) { jumpDuration = Float.isFinite(value) ? Math.max(0.1f, Math.min(0.8f, value)) : 0.5f; samplingChanged(); }
     public float getJumpHeight() { return jumpHeight; }
-    public void setJumpHeight(float value) { jumpHeight = Float.isFinite(value) ? Math.max(0, Math.min(1.25f, value)) : 0; }
+    public void setJumpHeight(float value) { jumpHeight = Float.isFinite(value) ? Math.max(0, Math.min(1.25f, value)) : 0; samplingChanged(); }
     public long getTerrainRevision() { return terrainRevision; }
     public void refreshTerrain() { terrainRevision++; terrainWarning = ""; }
     public String getTerrainWarning() { return terrainWarning; }
@@ -91,12 +92,14 @@ public final class ActorRouteClip extends EntityClip {
         refreshTerrain();
         waypoints.clear();
         waypoints.addAll(copy);
+        samplingChanged();
     }
 
     public void addWaypoint(float x, float y, float z) {
         if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)) return;
         refreshTerrain();
         waypoints.add(new Vector3f(x, y, z));
+        samplingChanged();
     }
 
     public void setWaypoint(int index, float x, float y, float z) {
@@ -106,12 +109,14 @@ public final class ActorRouteClip extends EntityClip {
         }
         waypoints.get(index).set(x, y, z);
         refreshTerrain();
+        samplingChanged();
     }
 
     public void removeWaypoint(int index) {
         if (index >= 0 && index < waypoints.size()) {
             waypoints.remove(index);
             refreshTerrain();
+            samplingChanged();
         }
     }
 
@@ -123,6 +128,7 @@ public final class ActorRouteClip extends EntityClip {
     public void setInterpolationMode(InterpolationMode interpolationMode) {
         refreshTerrain();
         this.interpolationMode = interpolationMode != null ? interpolationMode : InterpolationMode.LINEAR;
+        samplingChanged();
     }
 
     public LoopMode getLoopMode() {
@@ -131,6 +137,7 @@ public final class ActorRouteClip extends EntityClip {
 
     public void setLoopMode(LoopMode loopMode) {
         this.loopMode = loopMode != null ? loopMode : LoopMode.ONCE;
+        samplingChanged();
     }
 
     public float getSpeed() {
@@ -139,6 +146,7 @@ public final class ActorRouteClip extends EntityClip {
 
     public void setSpeed(float speed) {
         this.speed = Float.isFinite(speed) ? Math.max(0.05f, Math.min(20f, speed)) : 2f;
+        samplingChanged();
     }
 
     public boolean isAlignRotationToRoute() {
@@ -147,5 +155,6 @@ public final class ActorRouteClip extends EntityClip {
 
     public void setAlignRotationToRoute(boolean alignRotationToRoute) {
         this.alignRotationToRoute = alignRotationToRoute;
+        samplingChanged();
     }
 }

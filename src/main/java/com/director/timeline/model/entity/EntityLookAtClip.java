@@ -73,6 +73,7 @@ public class EntityLookAtClip extends EntityClip {
 
     public void setMode(TargetMode mode) {
         this.mode = mode != null ? mode : TargetMode.CAMERA;
+        samplingChanged();
     }
 
     public Vector3f getWorldPoint() {
@@ -81,6 +82,7 @@ public class EntityLookAtClip extends EntityClip {
 
     public void setWorldPoint(float x, float y, float z) {
         worldPoint.set(x, y, z);
+        samplingChanged();
     }
 
     public UUID getTargetEntityUuid() {
@@ -89,6 +91,7 @@ public class EntityLookAtClip extends EntityClip {
 
     public void setTargetEntityUuid(UUID targetEntityUuid) {
         this.targetEntityUuid = targetEntityUuid;
+        samplingChanged();
     }
 
     public float getStrength() {
@@ -97,6 +100,7 @@ public class EntityLookAtClip extends EntityClip {
 
     public void setStrength(float strength) {
         this.strength = Math.max(0f, Math.min(1f, strength));
+        samplingChanged();
     }
 }
 

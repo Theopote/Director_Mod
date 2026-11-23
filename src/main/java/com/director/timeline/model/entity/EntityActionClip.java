@@ -90,6 +90,7 @@ public class EntityActionClip extends EntityClip {
 
     public void setActionType(ActionType actionType) {
         this.actionType = actionType != null ? actionType : ActionType.INTERACT;
+        samplingChanged();
     }
 
     /**
@@ -114,6 +115,7 @@ public class EntityActionClip extends EntityClip {
             } else {
                 params.put(key, value);
             }
+            samplingChanged();
         }
     }
 
@@ -133,6 +135,7 @@ public class EntityActionClip extends EntityClip {
 
     public void setTriggerOnce(boolean triggerOnce) {
         this.triggerOnce = triggerOnce;
+        samplingChanged();
     }
 }
 

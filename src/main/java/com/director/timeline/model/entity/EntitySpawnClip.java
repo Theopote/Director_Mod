@@ -17,7 +17,11 @@ public class EntitySpawnClip extends EntityClip {
     public static final float DEFAULT_DURATION_SECONDS = 5f;
     private com.director.actor.rig.skeleton.PoseBlendSettings blendSettings = com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT;
     public com.director.actor.rig.skeleton.PoseBlendSettings getBlendSettings() { return blendSettings; }
-    public void setBlendSettings(com.director.actor.rig.skeleton.PoseBlendSettings settings) { blendSettings = java.util.Objects.requireNonNull(settings); syncBoneAnimation(); }
+    public void setBlendSettings(com.director.actor.rig.skeleton.PoseBlendSettings settings) {
+        blendSettings = java.util.Objects.requireNonNull(settings);
+        syncBoneAnimation();
+        samplingChanged();
+    }
 
 
     private ActorPresetBinding preset;
@@ -25,7 +29,7 @@ public class EntitySpawnClip extends EntityClip {
     private long presetRevision;
     public long getPresetRevision() { return presetRevision; }
     public void setPreset(ActorPresetBinding value) {
-        if(!java.util.Objects.equals(preset,value)) { preset=value; presetRevision++; }
+        if(!java.util.Objects.equals(preset,value)) { preset=value; presetRevision++; samplingChanged(); }
     }
     private ActorPresetBinding secondaryPreset;
     public ActorPresetBinding getSecondaryPreset() { return secondaryPreset; }
@@ -33,11 +37,12 @@ public class EntitySpawnClip extends EntityClip {
         if (!java.util.Objects.equals(secondaryPreset, value)) {
             secondaryPreset = value;
             presetRevision++;
+            samplingChanged();
         }
     }
     private boolean boneAnimationMuted;
     public boolean isBoneAnimationMuted() {return boneAnimationMuted;}
-    public void setBoneAnimationMuted(boolean value) {boneAnimationMuted=value;syncBoneAnimation();}
+    public void setBoneAnimationMuted(boolean value) {boneAnimationMuted=value;syncBoneAnimation();samplingChanged();}
     private String boneAnimationId;
     private EntityAnimationClip boneAnimation;
     public String getBoneAnimationId() {return boneAnimationId;}
@@ -49,6 +54,7 @@ public class EntitySpawnClip extends EntityClip {
             new EntityTimelineClip(boneAnimation,0);
         }
         syncBoneAnimation();
+        samplingChanged();
     }
     /** Pure read; derived state is synchronized when the owner changes. */
     public EntityAnimationClip getBoneAnimation() { return boneAnimationId==null?null:boneAnimation; }
@@ -97,6 +103,7 @@ public class EntitySpawnClip extends EntityClip {
 
     public void setPosition(float x, float y, float z) {
         this.position.set(x, y, z);
+        samplingChanged();
     }
 
     public float getYawDeg() {
@@ -104,7 +111,9 @@ public class EntitySpawnClip extends EntityClip {
     }
 
     public void setYawDeg(float yawDeg) {
+        if (!Float.isFinite(yawDeg)) return;
         this.yawDeg = yawDeg;
+        samplingChanged();
     }
 
     public float getPitchDeg() {
@@ -112,17 +121,21 @@ public class EntitySpawnClip extends EntityClip {
     }
 
     public void setPitchDeg(float pitchDeg) {
+        if (!Float.isFinite(pitchDeg)) return;
         this.pitchDeg = pitchDeg;
+        samplingChanged();
     }
 
     private float rollDeg;
     private final Vector3f scale = new Vector3f(1);
     public float getRollDeg() { return rollDeg; }
-    public void setRollDeg(float value) { if (Float.isFinite(value)) rollDeg = value; }
+    public void setRollDeg(float value) { if (Float.isFinite(value)) { rollDeg = value; samplingChanged(); } }
     public Vector3f getScale() { return scale; }
     public void setScale(float x, float y, float z) {
-        if (Float.isFinite(x) && Float.isFinite(y) && Float.isFinite(z) && x > 0 && y > 0 && z > 0)
+        if (Float.isFinite(x) && Float.isFinite(y) && Float.isFinite(z) && x > 0 && y > 0 && z > 0) {
             scale.set(x, y, z);
+            samplingChanged();
+        }
     }
 
     public boolean isVisibleOnSpawn() {
@@ -131,6 +144,7 @@ public class EntitySpawnClip extends EntityClip {
 
     public void setVisibleOnSpawn(boolean visibleOnSpawn) {
         this.visibleOnSpawn = visibleOnSpawn;
+        samplingChanged();
     }
 }
 

@@ -15,6 +15,12 @@ public final class BoneTrack {
     public KeyframeTrack<Quaternionf> rotation() { return rotation; }
     public KeyframeTrack<Vector3f> scale() { return scale; }
 
+    public void onChanged(Runnable listener) {
+        translation.onChanged(listener);
+        rotation.onChanged(listener);
+        scale.onChanged(listener);
+    }
+
     public boolean isEmpty() { return translation.isEmpty() && rotation.isEmpty() && scale.isEmpty(); }
 
     public int authoredChannels() {

@@ -26,7 +26,7 @@ public final class NativeMobModelPose {
         if (!humanoid(pose)) return;
         apply(body, pose, HumanoidRig.BODY, false);
         apply(head, pose, HumanoidRig.HEAD, true);
-        applyAverage(arms, pose, HumanoidRig.LEFT_ARM, HumanoidRig.RIGHT_ARM, true);
+        apply(arms, pose, NativeMobPoseAngles.dominantArm(pose), true);
         apply(rightLeg, pose, HumanoidRig.RIGHT_LEG, false);
         apply(leftLeg, pose, HumanoidRig.LEFT_LEG, false);
     }
@@ -54,15 +54,6 @@ public final class NativeMobModelPose {
         NativeMobPoseAngles.Euler euler = NativeMobPoseAngles.local(pose, bone, followBody);
         if (part == null || euler == null) return;
         write(part, pose, bone, euler);
-    }
-
-    private static void applyAverage(ModelPart part, RigPose pose, String left, String right, boolean followBody) {
-        NativeMobPoseAngles.Euler euler = NativeMobPoseAngles.average(pose, left, right, followBody);
-        if (part == null || euler == null) return;
-        part.resetTransform();
-        part.pitch += euler.pitch();
-        part.yaw += euler.yaw();
-        part.roll += euler.roll();
     }
 
     private static void write(ModelPart part, RigPose pose, String bone, NativeMobPoseAngles.Euler euler) {

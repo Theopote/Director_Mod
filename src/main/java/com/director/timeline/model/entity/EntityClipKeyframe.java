@@ -13,8 +13,13 @@ public class EntityClipKeyframe extends ClipKeyframe {
 
     public static final int POSITION = 1, ROTATION = 2, SCALE = 4, ALL = 7;
     private int channels = ALL;
+    private Runnable samplingTouch = () -> {};
+    void bindSamplingTouch(Runnable touch) { samplingTouch = touch == null ? () -> {} : touch; }
+    private void touched() { samplingTouch.run(); }
     public int getChannels() { return channels; }
-    public void setChannels(int channels) { this.channels = channels & ALL; }
+    public void setChannels(int channels) { this.channels = channels & ALL; touched(); }
+    @Override public void setTime(float time) { super.setTime(time); touched(); }
+    @Override public void setInterpolation(TimelineInterpolation interpolation) { super.setInterpolation(interpolation); touched(); }
     public boolean hasChannel(int channel) { return (channels & channel) != 0; }
 
     private final Vector3f position = new Vector3f();
@@ -55,6 +60,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
 
     public void setPosition(float x, float y, float z) {
         this.position.set(x, y, z);
+        touched();
     }
 
     public Vector3f getRotation() {
@@ -63,6 +69,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
 
     public void setRotation(float yaw, float pitch, float roll) {
         this.rotation.set(yaw, pitch, roll);
+        touched();
     }
 
     public Vector3f getScale() {
@@ -71,6 +78,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
 
     public void setScale(float x, float y, float z) {
         this.scale.set(x, y, z);
+        touched();
     }
 
     public EntityKeyframe.ActionType getActionType() {
@@ -79,6 +87,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
 
     public void setActionType(EntityKeyframe.ActionType actionType) {
         this.actionType = actionType != null ? actionType : EntityKeyframe.ActionType.IDLE;
+        touched();
     }
 
     public float getActionSpeed() {
@@ -87,6 +96,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
 
     public void setActionSpeed(float actionSpeed) {
         this.actionSpeed = Math.max(0.0f, Math.min(2.0f, actionSpeed));
+        touched();
     }
 
     public boolean isActionLoop() {
@@ -95,6 +105,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
 
     public void setActionLoop(boolean actionLoop) {
         this.actionLoop = actionLoop;
+        touched();
     }
 
     public float getVisibility() {
@@ -103,6 +114,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
 
     public void setVisibility(float visibility) {
         this.visibility = clamp01(visibility);
+        touched();
     }
 
     public boolean isActive() {
@@ -111,6 +123,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
 
     public void setActive(boolean active) {
         this.active = active;
+        touched();
     }
 
     public String getDisplayName() {
@@ -119,6 +132,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+        touched();
     }
 
     public boolean isShowNameTag() {
@@ -127,6 +141,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
 
     public void setShowNameTag(boolean showNameTag) {
         this.showNameTag = showNameTag;
+        touched();
     }
 
     public EntityKeyframe.EntityType getEntityType() {
@@ -135,6 +150,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
 
     public void setEntityType(EntityKeyframe.EntityType entityType) {
         this.entityType = entityType != null ? entityType : EntityKeyframe.EntityType.CUSTOM;
+        touched();
     }
 
     @Override

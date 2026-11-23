@@ -59,6 +59,13 @@ public class ActorTrack {
     private final Map<UUID,EntityClip> clips = new LinkedHashMap<>();
     private List<EntityClip> sortedClips = List.of();
     private boolean orderDirty;
+    private long samplingRevision;
+    private static long globalSamplingRevision;
+
+    public long samplingRevision() { return samplingRevision; }
+    /** Any actor clip edit. Committed poses bake other actors' relations, so they watch this too. */
+    public static long globalSamplingRevision() { return globalSamplingRevision; }
+    void bumpSamplingRevision() { samplingRevision++; globalSamplingRevision++; }
 
     void clipTimingChanged(EntityClip clip) {
         if(clips.get(clip.getId())==clip) orderDirty=true;
@@ -97,6 +104,7 @@ public class ActorTrack {
      */
     public void setActorRef(ActorRef actorRef) {
         this.actorRef = actorRef;
+        bumpSamplingRevision();
     }
 
     /**
@@ -160,6 +168,7 @@ public class ActorTrack {
      */
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+        bumpSamplingRevision();
     }
 
     /**
@@ -206,6 +215,7 @@ public class ActorTrack {
         if (clip != null && clips.putIfAbsent(clip.getId(),clip)==null) {
             clip.attachTrack(this);
             orderDirty=true;
+            bumpSamplingRevision();
         }
     }
 
@@ -223,6 +233,7 @@ public class ActorTrack {
         if(target==null) return false;
         target.detachTrack(this);
         orderDirty=true;
+        bumpSamplingRevision();
         return true;
     }
 
@@ -230,6 +241,7 @@ public class ActorTrack {
      * 清空所有片段
      */
     public void clearClips() {
+        if(!clips.isEmpty()) bumpSamplingRevision();
         for(var clip:clips.values()) clip.detachTrack(this);
         clips.clear();
         sortedClips=List.of();

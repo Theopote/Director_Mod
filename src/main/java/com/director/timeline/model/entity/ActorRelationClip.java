@@ -49,6 +49,7 @@ public class ActorRelationClip extends EntityClip {
 
     public void setTargetActorId(UUID targetActorId) {
         this.targetActorId = targetActorId;
+        samplingChanged();
     }
 
     public RelationType getRelationType() {
@@ -57,6 +58,7 @@ public class ActorRelationClip extends EntityClip {
 
     public void setRelationType(RelationType relationType) {
         this.relationType = relationType != null ? relationType : RelationType.FACE_TO_FACE;
+        samplingChanged();
     }
 
     public float getDistance() {
@@ -65,6 +67,7 @@ public class ActorRelationClip extends EntityClip {
 
     public void setDistance(float distance) {
         this.distance = Math.max(0.1f, distance);
+        samplingChanged();
     }
 
     public float getAngle() {
@@ -73,6 +76,7 @@ public class ActorRelationClip extends EntityClip {
 
     public void setAngle(float angle) {
         this.angle = angle;
+        samplingChanged();
     }
 
     public float getHeightOffset() {
@@ -81,6 +85,7 @@ public class ActorRelationClip extends EntityClip {
 
     public void setHeightOffset(float heightOffset) {
         this.heightOffset = heightOffset;
+        samplingChanged();
     }
 
     public boolean isMaintainLookAt() {
@@ -89,5 +94,6 @@ public class ActorRelationClip extends EntityClip {
 
     public void setMaintainLookAt(boolean maintainLookAt) {
         this.maintainLookAt = maintainLookAt;
+        samplingChanged();
     }
 }
