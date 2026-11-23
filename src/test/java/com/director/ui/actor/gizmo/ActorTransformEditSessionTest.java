@@ -250,6 +250,15 @@ class ActorTransformEditSessionTest {
         var other = new EntityTransformClip("Other", 3.25f, 5); track.getActorTrackPayload().addClip(other);
         assertSame(other, ActorTransformEditSession.resolveSource(track.getActorTrackPayload(), 4));
     }
+    @Test void coveringRequiresThePlayheadInsideAnUnmutedTransform() {
+        var clip = source();
+        var payload = track.getActorTrackPayload();
+        assertNull(ActorTransformEditSession.covering(payload, 4));
+        assertSame(clip, ActorTransformEditSession.covering(payload, 2));
+        clip.setMuted(true);
+        assertNull(ActorTransformEditSession.covering(payload, 2));
+        assertNull(ActorTransformEditSession.covering(null, 2));
+    }
     @Test void noMotionAtExtensionDoesNotExtendPersistentRange() {
         var clip = source(); model.setCurrentTime(3.5f); var edit = session(clip);
         edit.draft().setTimeRange(1, 4.5f); edit.arm(); assertNull(edit.commit());

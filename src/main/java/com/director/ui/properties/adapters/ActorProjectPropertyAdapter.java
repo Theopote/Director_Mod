@@ -429,8 +429,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             routeSources.remove(group);
             sourceActorId = null;
         }
-        String sourceName = sourceActorId == null ? "请选择路径源演员" : registry.getActor(sourceActorId).map(Actor::getName).orElse("");
-        PropertyRow.field("路径源演员");
+        String sourceName = sourceActorId == null
+                ? ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.choose_actor")
+                : registry.getActor(sourceActorId).map(Actor::getName).orElse("");
+        PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.source_actor"));
         if (ImGui.beginCombo("##routeSource" + group.getGroupId(), sourceName)) {
             for (Actor candidate : registry.getAllActors()) {
                 if (ImGui.selectable(candidate.getName() + "##" + candidate.getActorId(), candidate.getActorId().equals(sourceActorId))) {
@@ -683,7 +685,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         try {
             com.director.ui.actor.ActorAppearanceEditing.binding(DirectorServices.get().containerTimeline().getTimelineModel(),actor,
                     new com.director.ui.actor.ActorAppearanceEditing.Binding(rig,model));
-            bbModelImportMessage="已更新绑定，可撤销；原有动画引用保留，不兼容的引用可在动画面板修复。";
+            bbModelImportMessage=ActorPropertyAdapterI18n.tr("gui.director.actor.identity.binding_updated");
         } catch(RuntimeException error) {bbModelImportMessage=error.getMessage();}
     }
 
@@ -693,7 +695,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ImGui.beginDisabled(!com.director.ui.actor.ActorAppearanceEditing.editable(editingModel));
         var customRigs = com.director.actor.rig.skeleton.CustomRigLibrary.getInstance().all();
         String currentRigLabel = actor.getCustomRigId() == null ? com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.identity.unbound") : actor.getCustomRigId();
-        PropertyRow.field("自定义骨架");
+        PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.custom_rig"));
         if (ImGui.beginCombo("##customRig", currentRigLabel)) {
             if (ImGui.selectable(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.identity.unbound"), actor.getCustomRigId() == null)) {
                 editModelBinding(actor,null,null);
@@ -711,28 +713,29 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             }
             ImGui.endCombo();
         }
-        if (ImGui.button("导入 .bbmodel##importBbModel")) {
+        if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.import_bbmodel") + "##importBbModel")) {
             modified |= importBbModel(actor);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("从 Blockbench 工程文件导入自定义骨架与方块外观模型");
+            ImGui.setTooltip(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.import_bbmodel_tip"));
         }
 
-        PropertyRow.field("骨架 ID");
+        PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.rig_id"));
         ImGui.inputText("##bbModelRigId", bbModelRigId);
-        PropertyRow.field("模型 ID");
+        PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.model_id"));
         ImGui.inputText("##bbModelModelId", bbModelModelId);
 
         if (customRigs.isEmpty()) {
-            ImGui.textWrapped("项目中暂无自定义骨架，可通过 .bbmodel 导入，或使用内置示例骨架。");
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.no_custom_rig"));
         }
 
         if (actor.getCustomRigId() != null) {
             var models = com.director.actor.model.CustomModelLibrary.getInstance().forRig(actor.getCustomRigId());
-            String currentModelLabel = actor.getCustomModelId() == null ? "（无外观，仅骨架）" : actor.getCustomModelId();
-            PropertyRow.field("自定义模型外观");
+            String none = ActorPropertyAdapterI18n.tr("gui.director.actor.identity.model_none");
+            String currentModelLabel = actor.getCustomModelId() == null ? none : actor.getCustomModelId();
+            PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.custom_model"));
             if (ImGui.beginCombo("##customModel", currentModelLabel)) {
-                if (ImGui.selectable("（无外观，仅骨架）", actor.getCustomModelId() == null)) {
+                if (ImGui.selectable(none, actor.getCustomModelId() == null)) {
                     editModelBinding(actor,actor.getCustomRigId(),null);
                     modified = true;
                 }
@@ -749,7 +752,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 ImGui.endCombo();
             }
             if (models.isEmpty()) {
-                ImGui.textWrapped("该骨架暂无匹配的方块外观模型；非人形拓扑骨架需要绑定模型才能显示外观。");
+                ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.no_custom_model"));
             }
         }
 
@@ -770,7 +773,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     private boolean importBbModel(Actor actor) {
         TimelineModel timeline = DirectorServices.get().containerTimeline().getTimelineModel();
         if (timeline == null) {
-            bbModelImportMessage = "时间线未初始化，无法导入。";
+            bbModelImportMessage = ActorPropertyAdapterI18n.tr("gui.director.actor.identity.timeline_missing");
             return false;
         }
 
@@ -796,7 +799,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     actor);
             bbModelRigId.set(result.rig().id());
             bbModelModelId.set(result.model().id());
-            StringBuilder message = new StringBuilder("导入完成，可撤销。");
+            StringBuilder message = new StringBuilder(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.import_done"));
             if (!result.warnings().isEmpty()) {
                 message.append('\n').append(String.join("\n", result.warnings()));
             }
@@ -805,7 +808,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         } catch (IllegalArgumentException e) {
             bbModelImportMessage = e.getMessage();
         } catch (Exception e) {
-            bbModelImportMessage = "导入失败：" + e.getMessage();
+            bbModelImportMessage = ActorPropertyAdapterI18n.tr("gui.director.actor.identity.import_failed", e.getMessage());
             LOGGER.warn("[ActorProjectPropertyAdapter] bbmodel import failed", e);
         }
         return false;
@@ -816,7 +819,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             org.lwjgl.PointerBuffer filters = stack.mallocPointer(1);
             filters.put(stack.UTF8("*.bbmodel")).flip();
             return org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog(
-                    "导入 Blockbench 模型", "", filters, "Blockbench .bbmodel", false);
+                    ActorPropertyAdapterI18n.tr("gui.director.actor.identity.import_dialog"), "", filters, "Blockbench .bbmodel", false);
         } catch (Throwable t) {
             LOGGER.warn("[ActorProjectPropertyAdapter] 打开 .bbmodel 选择对话框失败: {}", t.getMessage());
             return null;
@@ -832,6 +835,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ImGui.beginDisabled(timeline == null || timeline.isPlaying() || timeline.isScrubbing());
         boolean modified = false;
         UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.SECTION), UITheme.DarkTheme.TEXT);
+        boolean skinPreview = actor.getType() == ActorType.PLAYER || actor.getType() == ActorType.CUSTOM;
+        if (!skinPreview) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.skin_unused"));
 
         if (actor.getType() == ActorType.PLAYER) {
             ImInt model = new ImInt(actor.getPlayerModel().ordinal());
@@ -845,18 +850,24 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             }
             ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.hint"));
             ImInt bendMode=new ImInt(actor.getLimbBendMode().ordinal());
-            PropertyRow.field("肘膝弯曲模式");
-            if(ImGui.combo("##actorLimbBend",bendMode,new String[]{"平滑弯曲","直接折弯"})) {
+            PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.limb_bend"));
+            if(ImGui.combo("##actorLimbBend",bendMode,new String[]{
+                    ActorPropertyAdapterI18n.tr("gui.director.actor.identity.limb_smooth"),
+                    ActorPropertyAdapterI18n.tr("gui.director.actor.identity.limb_direct")})) {
                 com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withBend(com.director.actor.rig.skeleton.LimbBendMode.values()[bendMode.get()]), () -> {});
                 modified=true;
             }
-            ImGui.textWrapped("两种模式共用关节关键帧，支持 0–160°。直接折弯保留刚性上下段，用局部折面连接；大角度时关节会适当向外撑开，避免内侧翻面。");
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.limb_hint"));
         }
 
+        if (!skinPreview && actor.getSkinFileName() == null) {
+            ImGui.endDisabled();
+            return modified;
+        }
         String current = actor.getSkinFileName();
         ImGui.textDisabled(current != null ? current : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.DEFAULT));
 
-        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.CHOOSE_PNG))) {
+        if (skinPreview && ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.CHOOSE_PNG))) {
             String chosen = openPngFileDialog();
             if (chosen != null && !chosen.isBlank()) {
                 try {
@@ -873,7 +884,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             }
         }
 
-        ImGui.sameLine();
+        if (skinPreview) ImGui.sameLine();
 
         boolean hasSkin = actor.getSkinFileName() != null;
         if (!hasSkin) {
@@ -1045,12 +1056,12 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CREATE))) {
                 String name = newActorName.get().strip();
                 if (name.isBlank()) {
-                    createError = "请输入演员名称。";
+                    createError = ActorPropertyAdapterI18n.tr("gui.director.actor.identity.name_required");
                 } else if (com.director.ui.actor.placement.ActorPlacementController.getInstance().startPlacement(name, newActorType)) {
                     ImGui.closeCurrentPopup();
                     createError = "";
                 } else {
-                    createError = "无法开始放置，请确认已进入世界并打开时间线。";
+                    createError = ActorPropertyAdapterI18n.tr("gui.director.actor.identity.placement_unavailable");
                 }
             }
 

@@ -20,17 +20,22 @@ public final class RigProfileStylePropertyUI {
             owner=actor;modelScope=model;before=current;
             values=new float[]{current.motion(),current.tempo(),current.lean(),current.arms(),current.legs()};message="";
         }
-        if(!ImGui.collapsingHeader("演员动作风格")) return false;
-        ImGui.textWrapped("影响整个演员的基础动作风格，不改变骨骼动画资产。修改后点击应用，可撤销。");
+        if(!ImGui.collapsingHeader(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.title"))) return false;
+        ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.hint"));
         ImGui.beginDisabled(!ActorAppearanceEditing.editable(model));
-        String[] labels={"动作幅度","动作节奏","身体前倾","手臂幅度","腿部幅度"};
+        String[] labels={
+                com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.motion"),
+                com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.tempo"),
+                com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.lean"),
+                com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.arms"),
+                com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.legs")};
         float[] min={.5f,.7f,.5f,.3f,.3f},max={1.5f,1.3f,1.5f,1.5f,1.5f};
-        for(int i=0;i<5;i++) {float[] value={values[i]};if(ImGui.sliderFloat(labels[i],value,min[i],max[i])) values[i]=value[0];}
-        if(ImGui.button("应用风格")) {
-            try {ActorAppearanceEditing.style(model,actor,before,new ActorAppearanceEditing.Style(values[0],values[1],values[2],values[3],values[4]));message="已应用，可撤销。";}
+        for(int i=0;i<5;i++) {float[] value={values[i]};if(ImGui.sliderFloat(labels[i]+"##style"+i,value,min[i],max[i])) values[i]=value[0];}
+        if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.apply"))) {
+            try {ActorAppearanceEditing.style(model,actor,before,new ActorAppearanceEditing.Style(values[0],values[1],values[2],values[3],values[4]));message=com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.applied");}
             catch(RuntimeException error){message=error.getMessage();}
         }
-        ImGui.sameLine();if(ImGui.button("取消风格修改")) before=null;
+        ImGui.sameLine();if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.cancel"))) before=null;
         ImGui.endDisabled();if(!message.isEmpty()) ImGui.textWrapped(message);
         return false;
     }

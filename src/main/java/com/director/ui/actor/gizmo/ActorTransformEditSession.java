@@ -104,6 +104,18 @@ public final class ActorTransformEditSession {
         return active == null ? nearest : active;
     }
 
+    /** Transform that contains this time. Selection and the nearest clip outside the interval do not count. */
+    public static EntityTransformClip covering(ActorTrack payload, float time) {
+        if (payload == null || !Float.isFinite(time)) return null;
+        EntityTransformClip active = null;
+        for (var clip : payload.getClips()) {
+            if (!(clip instanceof EntityTransformClip transform) || transform.isMuted()) continue;
+            if (time >= transform.getStartTime() && time <= transform.getEndTime()
+                    && (active == null || transform.getStartTime() >= active.getStartTime())) active = transform;
+        }
+        return active;
+    }
+
     public static EntitySpawnClip resolveInitialSpawn(ActorTrack payload, float time) {
         var active = payload.findSpawnClipAt(time);
         if (active != null) return active;

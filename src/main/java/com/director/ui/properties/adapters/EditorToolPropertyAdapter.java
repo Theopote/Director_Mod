@@ -219,16 +219,16 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
                 default -> com.director.client.gizmo.GizmoMode.ROTATE;
             });
         }
-        if (ImGui.isItemHovered()) ImGui.setTooltip("位移关键帧目前用于支持该通道的骨骼；标准人形首先开放 Root");
+        if (ImGui.isItemHovered()) ImGui.setTooltip(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.translate_tip"));
 
-        if(ImGui.treeNode("高级：新资产设置##actorNewAssetSettings")) {
+        if(ImGui.treeNode(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.new_asset") + "##actorNewAssetSettings")) {
             animationAssetId.set(settings.getAssetId());
-            PropertyRow.field("动画资产 ID");
+            PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.asset_id"));
             if (ImGui.inputText("##actorAnimationAssetId", animationAssetId)) {
                 settings.setAssetId(animationAssetId.get());
             }
             float[] duration = { settings.getNewAssetDuration() };
-            PropertyRow.field("新资产时长");
+            PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.new_duration"));
             if (ImGui.sliderFloat("##actorAnimationDuration", duration, 0.1f, 60f, "%.2fs")) {
                 settings.setNewAssetDuration(duration[0]);
             }
@@ -313,7 +313,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     }
 
     private void renderPoseAuthoring(Actor actor) {
-        if (!Section.header("editor_tool.pose_clip", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.POSE_CLIP))) {
+        if (!Section.header("editor_tool.semantic_action", ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.semantic_section"))) {
             return;
         }
 
@@ -376,10 +376,10 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
                 + "##createActorPoseClip")) {
             createActorActionClip(actor, actions[Math.max(0, Math.min(actionIndex.get(), actions.length - 1))]);
         }
-        if(!actionCreationError.isEmpty()) ImGui.textWrapped(actionCreationError);
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CREATE_POSE_TOOLTIP));
         }
+        if(!actionCreationError.isEmpty()) ImGui.textWrapped(actionCreationError);
     }
 
     private void renderActorPathToolProperties(Actor actor) {

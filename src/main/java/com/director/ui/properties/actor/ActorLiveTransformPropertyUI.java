@@ -110,32 +110,39 @@ public final class ActorLiveTransformPropertyUI {
             UITheme.endGroup();
 
             ImGui.endDisabled();
-            boolean scaleBlocked = routeProtected && com.director.ui.actor.gizmo.ActorTransformEditSession.resolveSource(model, target.timelineTrack()) != null;
+            var covering = target == null ? null : com.director.ui.actor.gizmo.ActorTransformEditSession.covering(target.actorTrack(), time);
+            boolean scaleBlocked = routeProtected && covering != null;
             ImGui.beginDisabled(scaleBlocked);
             UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SCALE));
             boolean scaleLocked = com.director.ui.actor.edit.ActorScaleEditing.isLocked(actorId);
-            if (ImGui.checkbox("等比锁定##actorScaleLock", scaleLocked))
+            if (ImGui.checkbox(ActorPropertyAdapterI18n.tr("gui.director.actor.live.scale_lock") + "##actorScaleLock", scaleLocked))
                 com.director.ui.actor.edit.ActorScaleEditing.setLocked(actorId, !scaleLocked);
             inputScale("X##actorLiveScaleX", scaleX, 0);
             inputScale("Y##actorLiveScaleY", scaleY, 1);
             inputScale("Z##actorLiveScaleZ", scaleZ, 2);
-            if (ImGui.button("恢复原比例##actorResetScale")) {
+            if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.live.scale_reset") + "##actorResetScale")) {
                 scaleX.set(1f); scaleY.set(1f); scaleZ.set(1f);
                 observe("resetScale", scaleKind(), true);
             }
             UITheme.endGroup(); ImGui.endDisabled();
             if (target != null) {
-                com.director.timeline.model.entity.EntityClip root = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveSource(model, target.timelineTrack());
-                if (root == null) root = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveInitialSpawn(target.actorTrack(), time);
-                if (routeProtected && root instanceof com.director.timeline.model.entity.EntitySpawnClip spawn) {
-                    ImGui.textWrapped("路径控制位置和朝向；缩放可单独设置关键帧。");
-                    boolean canKey = com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, target.timelineTrack(), spawn) && gesture == null;
-                    ImGui.beginDisabled(!canKey);
-                    if (ImGui.button("插入缩放关键帧##routeScaleKey"))
-                        com.director.ui.actor.pose.ActorRootKeyframeEditing.writeScale(model, target.timelineTrack(), spawn,
-                                new Vector3f(scaleX.get(), scaleY.get(), scaleZ.get()));
-                    ImGui.endDisabled();
-                } else if (root != null) ActorRootKeyframePropertyUI.render(root);
+                if (routeProtected && covering == null) {
+                    var spawn = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveInitialSpawn(target.actorTrack(), time);
+                    if (spawn != null) {
+                        ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.live.route_scale"));
+                        boolean canKey = com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, target.timelineTrack(), spawn) && gesture == null;
+                        ImGui.beginDisabled(!canKey);
+                        if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.live.route_scale_key") + "##routeScaleKey"))
+                            com.director.ui.actor.pose.ActorRootKeyframeEditing.writeScale(model, target.timelineTrack(), spawn,
+                                    new Vector3f(scaleX.get(), scaleY.get(), scaleZ.get()));
+                        ImGui.endDisabled();
+                    }
+                } else {
+                    com.director.timeline.model.entity.EntityClip root = routeProtected ? covering
+                            : com.director.ui.actor.gizmo.ActorTransformEditSession.resolveSource(model, target.timelineTrack());
+                    if (root == null) root = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveInitialSpawn(target.actorTrack(), time);
+                    if (root != null) ActorRootKeyframePropertyUI.render(root);
+                }
             }
         }
 
@@ -144,11 +151,11 @@ public final class ActorLiveTransformPropertyUI {
                 ImGuiTreeNodeFlags.DefaultOpen)) {
             var lookSource=target==null?null:com.director.ui.actor.lookat.ActorLookAtEditSession.resolveSource(model,target.timelineTrack());
             if(lookSource!=null) {
-                ImGui.textWrapped("当前注视编辑片段："+lookSource.getName());
+                ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.live.look_clip", lookSource.getName()));
                 if(time<lookSource.getStartTime() || time>lookSource.getEndTime())
-                    ImGui.textWrapped("此片段不在播放头范围内；修改影响该片段，不代表本帧生效的注视。");
+                    ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.live.look_outside"));
                 else if(com.director.ui.actor.lookat.ActorLookAtEditSession.active(target.actorTrack(),time)!=lookSource)
-                    ImGui.textWrapped("此片段当前被其他注视片段覆盖；修改的是所选片段。");
+                    ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.live.look_covered"));
             }
             ImGui.beginDisabled(lookSource!=null && lookSource.isMuted());
             EntityLookAtClip.TargetMode[] modes = {
@@ -163,8 +170,13 @@ public final class ActorLiveTransformPropertyUI {
                 if(!chooseEntityTarget) applyCurrentLookAt();
             }
             if(chooseEntityTarget || lookAtModeIndex.get()==2) {
-                if(ImGui.beginCombo("注视目标演员",lookSource==null || lookSource.getTargetEntityUuid()==null?"请选择目标":lookSource.getTargetEntityUuid().toString())) {
-                    for(var candidate:com.director.actor.ActorRegistryManager.getInstance().getAllActors()) {
+                var registry = com.director.actor.ActorRegistryManager.getInstance();
+                var targetId = lookSource == null ? null : lookSource.getTargetEntityUuid();
+                String preview = targetId == null
+                        ? ActorPropertyAdapterI18n.tr("gui.director.actor.look_at.choose_actor")
+                        : registry.getActor(targetId).map(com.director.actor.Actor::getName).orElse(targetId.toString());
+                if(ImGui.beginCombo(ActorPropertyAdapterI18n.tr("gui.director.actor.look_at.target_actor") + "##actorLiveLookActor", preview)) {
+                    for(var candidate:registry.getAllActors()) {
                         ImGui.beginDisabled(candidate.getActorId().equals(actorId));
                         if(ImGui.selectable(candidate.getName()+"##lookActor"+candidate.getActorId())) {
                             try {
@@ -261,7 +273,7 @@ public final class ActorLiveTransformPropertyUI {
         gesture = null; gestureWidget = null; cachedActorId = null; cancelledUntilRelease = true;
     }
     private static void failGesture(RuntimeException failure) {
-        cancelGesture(); error = failure.getMessage() == null ? "编辑已取消" : failure.getMessage();
+        cancelGesture(); error = failure.getMessage() == null ? ActorPropertyAdapterI18n.tr("gui.director.actor.live.edit_cancelled") : failure.getMessage();
     }
 
     private static void syncFromSample(UUID actorId, float time) {

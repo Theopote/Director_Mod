@@ -65,12 +65,12 @@ public final class ActorAnimationEventPanel {
         timeline.render(model, owner, clip, this::beginDraft);
         syncSource(model, owner, clip);
         boolean writable=ActorAnimationEventEditing.editable(model,owner,clip)&&ActorAnimationEventTimeline.canSeek(model);
-        if (showList) ImGui.textWrapped("片段进度只按片段触发；动画源进度跟随速度、循环与路径距离时钟，每次经过该相位都会触发。");
+        if (showList) ImGui.textWrapped(tr("clocks"));
         for(int i=0;showList && i<before.size();i++) {
             var event=before.get(i);
             if(ImGui.selectable(String.format("%.3f · %s · %s##event%d",event.getNormalizedTime(),tr(event.getTiming()==AnimationEvent.Timing.CLIP?"clip_clock":"asset_clock"),event.getAction().type().getDisplayName(),i),index==i)) {
                 index=i;load(event);
-                message=ActorAnimationEventTimeline.seek(model,owner,clip,event)?"":"当前无法定位此事件；请先暂停、结束草稿编辑，并检查片段中的事件时刻。";
+                message=ActorAnimationEventTimeline.seek(model,owner,clip,event)?"":tr("seek_failed");
             }
         }
         ImGui.beginDisabled(!writable);
@@ -116,12 +116,12 @@ public final class ActorAnimationEventPanel {
             if(ImGui.collapsingHeader(tr("advanced"))) params.forEach((key,value)->ImGui.textWrapped(key+"："+value));
             if(ImGui.button(tr("apply"))) {
                 try {
-                    if(!Float.isFinite(time.get())||time.get()<0||time.get()>1) throw new IllegalArgumentException("事件时间必须为 0–1");
+                    if(!Float.isFinite(time.get())||time.get()<0||time.get()>1) throw new IllegalArgumentException(tr("invalid_time"));
                     var next=new ArrayList<>(before);var event=new AnimationEvent(time.get(),new EntityActionEvent(type,params),timing);
                     if(index==next.size()) next.add(event);else next.set(index,event);
                     ActorAnimationEventEditing.replace(model,owner,clip,before,next);
                     before = ActorAnimationEventEditing.copy(clip.getEvents());
-                    index=-1;message="已应用，可撤销。";
+                    index=-1;message=tr("applied");
                 } catch(RuntimeException failure){message=failure.getMessage();}
             }
             if(index>=0&&index<before.size()) {ImGui.sameLine();if(ImGui.button(tr("delete"))) {

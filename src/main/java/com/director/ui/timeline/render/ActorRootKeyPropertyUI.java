@@ -44,21 +44,27 @@ public final class ActorRootKeyPropertyUI {
                 var v=List.of(key.getPosition(),key.getRotation(),key.getScale());
                 for(int i=0;i<3;i++){values[i][0]=v.get(i).x;values[i][1]=v.get(i).y;values[i][2]=v.get(i).z;}message="";
             }
-            ImGui.text(String.format("所选键：%.4f 秒",key.getTime()));
+            ImGui.text(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.selected_time", key.getTime()));
             int mask=s.mask()&key.getChannels();
             ImGui.beginDisabled(!writable);
-            String[] labels={"世界位置 XYZ","整体朝向（偏航、俯仰、翻滚）","整体缩放 XYZ"};
+            String[] labels={
+                    com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.world_position"),
+                    com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.body_rotation"),
+                    com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.body_scale")};
             boolean route=com.director.ui.actor.pose.ActorMovementSource.routeOwnsInterval(model,s.owner());
             for(int i=0;i<3;i++) if((mask&(1<<i))!=0) {ImGui.beginDisabled(route&&i<2);ImGui.inputFloat3(labels[i],values[i]);ImGui.endDisabled();}
+            if (route) ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.movement.route_protected"));
             ImGui.beginDisabled(mask!=key.getChannels());
-            var mode=new ImInt(interpolation);if(ImGui.combo(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.outgoing"),mode,java.util.Arrays.stream(TimelineInterpolation.values()).map(TimelineInterpolation::getDisplayName).toArray(String[]::new))) interpolation=mode.get();
+            var mode=new ImInt(interpolation);if(ImGui.combo(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.outgoing"),mode,java.util.Arrays.stream(TimelineInterpolation.values()).map(item -> com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.keys.mode." + item.name().toLowerCase(java.util.Locale.ROOT))).toArray(String[]::new))) interpolation=mode.get();
             ImGui.endDisabled();
             if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.root_apply"))) {
                 int allowed=route?mask&4:mask;
-                message=ActorRootKeyframeEditing.updateExisting(model,s.owner(),s.clip(),key,snapshot,allowed,new Vector3f(values[0]),new Vector3f(values[1]),new Vector3f(values[2]),TimelineInterpolation.values()[interpolation])?"已应用，可撤销。":"目标已变化或通道不可编辑。";
+                message=ActorRootKeyframeEditing.updateExisting(model,s.owner(),s.clip(),key,snapshot,allowed,new Vector3f(values[0]),new Vector3f(values[1]),new Vector3f(values[2]),TimelineInterpolation.values()[interpolation])
+                        ? com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.applied")
+                        : com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.rejected");
             }
             ImGui.endDisabled();
-        } else ImGui.textWrapped("整组时间调整可使用时间线拖动；数值编辑请明确选择单个键。");
+        } else ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.batch"));
         ImGui.beginDisabled(!writable);
         if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.root_delete"))) {
             ActorRootKeyframeEditing.deleteChannels(model,s.owner(),s.clip(),s.keys(),s.mask());ActorRootTimelineRows.leaveInspection();

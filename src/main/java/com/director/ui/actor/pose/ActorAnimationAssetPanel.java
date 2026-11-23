@@ -47,8 +47,12 @@ public final class ActorAnimationAssetPanel {
             message = "";
         }
         var actor = actorId == null ? null : com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
-        ImGui.inputTextWithHint("##assetSearch","搜索名称、ID 或骨架",search);
-        ImGui.combo("用途筛选##assetPurposeFilter",purposeFilter,new String[]{"全部用途","表演","循环步态","静态姿态"});
+        ImGui.inputTextWithHint("##assetSearch", I18n.translate("gui.director.actor.assets.search"), search);
+        ImGui.combo(I18n.translate("gui.director.actor.assets.purpose_filter") + "##assetPurposeFilter", purposeFilter, new String[]{
+                I18n.translate("gui.director.actor.assets.purpose_all"),
+                I18n.translate("gui.director.actor.assets.purpose_performance"),
+                I18n.translate("gui.director.actor.assets.purpose_locomotion"),
+                I18n.translate("gui.director.actor.assets.purpose_static_pose")});
         if(actorId!=null) ImGui.checkbox("仅显示兼容当前演员##assetCompatible",compatibleOnly);
         var catalog=catalogCache.entries(library,null,actor);
         var filterPurposes=com.director.actor.animation.AnimationData.Purpose.values();
@@ -87,7 +91,7 @@ public final class ActorAnimationAssetPanel {
         if(selected!=null) {
             var purposes=com.director.actor.animation.AnimationData.Purpose.values();
             var purpose=new imgui.type.ImInt(selected.purpose().ordinal());
-            if(ImGui.combo("资产用途##assetPurpose",purpose,java.util.Arrays.stream(purposes).map(AnimationData.Purpose::label).toArray(String[]::new)))
+            if(ImGui.combo(I18n.translate("gui.director.actor.assets.purpose") + "##assetPurpose",purpose,java.util.Arrays.stream(purposes).map(item -> I18n.translate("gui.director.actor.assets.purpose_" + item.name().toLowerCase(java.util.Locale.ROOT))).toArray(String[]::new)))
                 run(()->ActorAnimationAssetEditing.setPurpose(model,library,selected.id(),purposes[purpose.get()]));
             ImGui.textWrapped("静态姿态取资产起点的旋转，应用到当前帧。表演按片段时间播放，循环步态沿路径时按行进距离推进。");
         }

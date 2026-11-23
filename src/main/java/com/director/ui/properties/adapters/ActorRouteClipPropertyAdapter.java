@@ -95,8 +95,6 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
                         ActorPropertyAdapterI18n.tr(source.isSmoothTravel()
                                 ? "gui.director.actor.state_edit.on" : "gui.director.actor.state_edit.off")));
                 ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.route.readonly_turn", source.getEndpointTurnDuration()));
-                ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.route.readonly_jump",
-                        source.getJumpStart(), source.getJumpDuration(), source.getJumpHeight()));
                 int index = 0;
                 for (var point : source.getWaypoints())
                     ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.WAYPOINT_FMT, ++index) + " · " + point);
