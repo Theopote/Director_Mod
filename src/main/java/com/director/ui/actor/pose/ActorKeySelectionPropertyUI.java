@@ -24,6 +24,12 @@ public final class ActorKeySelectionPropertyUI {
         var context=ActorAnimationEditContext.capture(model,state.owner(),state.clip());
         ImGui.text(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.bone_title", state.keys().size()));
         ImGui.textWrapped(state.owner().getName()+" · "+state.asset().name());
+        var keyDetail = state.keys().size() == 1
+                ? List.of(state.keys().getFirst().boneId(), state.keys().getFirst().channel().name(),
+                    String.format(Locale.ROOT, "%.3fs", state.keys().getFirst().time()))
+                : List.of(state.keys().size() + " keys");
+        com.director.ui.properties.actor.ActorPropertyBreadcrumb.render(
+                state.owner(), state.clip(), state.asset().id(), keyDetail);
         ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.bone_hint"));
         if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.back"))) {
             var wrapper = ActorEmbeddedAnimation.visibleOwner(state.owner(), state.clip());

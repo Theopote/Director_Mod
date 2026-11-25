@@ -65,6 +65,8 @@ public final class ActorAnimationEventPanel {
         syncSource(model, owner, clip);
         timeline.render(model, owner, clip, this::beginDraft);
         syncSource(model, owner, clip);
+        if (showList) com.director.ui.properties.actor.ActorPropertyBreadcrumb.render(
+                owner, clip, clip.getAnimationId(), index >= 0 ? List.of("Event #" + (index + 1)) : List.of());
         boolean writable=ActorAnimationEventEditing.editable(model,owner,clip)&&ActorAnimationEventTimeline.canSeek(model);
         if (showList) ImGui.textWrapped(tr("clocks"));
         for(int i=0;showList && i<before.size();i++) {

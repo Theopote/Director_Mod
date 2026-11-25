@@ -27,6 +27,10 @@ public final class ActorRootKeyPropertyUI {
     }
     private static void render(TimelineModel model,Selection s) {
         ImGui.text(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.root_title", s.keys().size()));ImGui.textWrapped(s.owner().getName()+" · "+s.clip().getName());
+        com.director.ui.properties.actor.ActorPropertyBreadcrumb.render(s.owner(), s.clip(), null,
+                List.of("Root", s.keys().size() == 1
+                        ? String.format(java.util.Locale.ROOT, "%.3fs", s.keys().getFirst().getTime())
+                        : s.keys().size() + " keys"));
         ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.root_hint"));
         if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.key_inspector.back"))) {
             ActorRootTimelineRows.leaveInspection();model.selectItem(s.clip().getTimelineClip(),false);
