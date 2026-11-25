@@ -37,6 +37,9 @@ public class UITheme {
     /** 属性面板分组卡片（{@code ImDrawList} 绘制，使用 imCol32 打包）：比 CHILD_BG 略亮，描边弱于控件描边。 */
     public static final int CARD_BG = imCol32(40, 43, 52, 255);
     public static final int CARD_HEADER_BG = imCol32(58, 64, 82, 255);
+    /** 卡片内小标题条的底色与左侧强调条。 */
+    public static final int SUBHEADING_BG = imCol32(52, 58, 76, 255);
+    public static final int SUBHEADING_ACCENT = imCol32(92, 160, 255, 255);
     public static final int CARD_BORDER = imCol32(70, 76, 94, 200);
 
     public static class DarkTheme {
@@ -112,12 +115,12 @@ public class UITheme {
          * 列表行背景（容器树、表格等 ImDrawList 绘制）。
          * 使用 {@link UITheme#imCol32(int, int, int, int)} 打包，与 ImGui IM_COL32 一致。
          */
-        public static final int LIST_ROW_BG = imCol32(37, 37, 37, 255);
-        public static final int LIST_ROW_BG_HOVERED = imCol32(48, 52, 62, 255);
-        public static final int LIST_ROW_BG_SELECTED = imCol32(56, 96, 160, 255);
-        public static final int LIST_ROW_BG_SELECTED_HOVERED = imCol32(72, 130, 210, 255);
+        public static final int LIST_ROW_BG = imCol32(56, 62, 78, 255);
+        public static final int LIST_ROW_BG_HOVERED = imCol32(74, 84, 108, 255);
+        public static final int LIST_ROW_BG_SELECTED = imCol32(58, 112, 190, 255);
+        public static final int LIST_ROW_BG_SELECTED_HOVERED = imCol32(80, 140, 224, 255);
         /** 已在时间线上的容器行（未选中时） */
-        public static final int LIST_ROW_BG_TIMELINE = imCol32(38, 51, 68, 255);
+        public static final int LIST_ROW_BG_TIMELINE = imCol32(44, 72, 108, 255);
         
         // 调整大小手柄
         public static final int RESIZE_GRIP = rgba(72, 130, 210, 70);
@@ -468,6 +471,24 @@ public class UITheme {
     /** 以 RGBA 打包色绘制文本（参数顺序与 ImGui.textColored 一致，颜色改用主题色）。 */
     public static void colored(int color, String text) {
         label(text, color);
+    }
+
+    /**
+     * 卡片内的小标题：深色底条 + 左侧强调竖条，用来划分同一张卡片里的几个子类别（取代“分割线 + 标题文字”）。
+     */
+    public static void subheading(String text) {
+        spacing(Spacing.TINY);
+        float x = ImGui.getCursorScreenPosX();
+        float y = ImGui.getCursorScreenPosY();
+        float w = ImGui.getContentRegionAvailX();
+        float h = ImGui.getTextLineHeight() + 6f;
+        var drawList = ImGui.getWindowDrawList();
+        drawList.addRectFilled(x, y, x + w, y + h, SUBHEADING_BG, Rounding.SMALL);
+        drawList.addRectFilled(x, y, x + 3f, y + h, SUBHEADING_ACCENT, Rounding.SMALL);
+        ImGui.setCursorScreenPos(x + 10f, y + 3f);
+        label(text, DarkTheme.TEXT_SELECTED);
+        ImGui.setCursorScreenPos(x, y + h);
+        spacing(Spacing.SMALL);
     }
 
     /**

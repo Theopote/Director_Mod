@@ -340,7 +340,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         long containerCount = children.size() - groupCount;
 
         UITheme.label(tr(DirectorLang.Properties.AdapterContainer.DIRECT_CHILDREN, children.size()), UITheme.DarkTheme.TEXT);
-        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.CHILD_CONTAINERS, containerCount), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(tr(DirectorLang.Properties.AdapterContainer.CHILD_CONTAINERS, containerCount));
         UITheme.label(tr(DirectorLang.Properties.AdapterContainer.CHILD_GROUPS, groupCount), UITheme.DarkTheme.TEXT);
 
         UITheme.spacingSmall();
@@ -462,8 +462,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             UITheme.label(preset.getMode().getDescription(), UITheme.DarkTheme.TEXT_DISABLED);
         }
 
-        UITheme.separator();
-        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.ANIMATION_PARAMS), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(tr(DirectorLang.Properties.AdapterContainer.ANIMATION_PARAMS));
         
         // 确保 preset 存在
         if (preset == null) {

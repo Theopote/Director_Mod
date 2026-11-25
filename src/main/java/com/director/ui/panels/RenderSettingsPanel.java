@@ -141,7 +141,7 @@ public class RenderSettingsPanel extends AbstractPanel {
     // ============================================================
 
     private void renderGlobalMeshSettings() {
-        UITheme.label("Mesh / 缓存 / 降级：", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading("Mesh / 缓存 / 降级：");
         ImGui.indent();
 
         {
@@ -184,7 +184,7 @@ public class RenderSettingsPanel extends AbstractPanel {
     // ============================================================
 
     private void renderSelectionToggles() {
-        UITheme.label("显示控制：", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading("显示控制：");
         ImGui.indent();
 
         boolean cur = rs.selection_showFill;
@@ -209,7 +209,7 @@ public class RenderSettingsPanel extends AbstractPanel {
 
     private void renderSelectionStyles() {
         // 选取样式
-        UITheme.label("选区样式：", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading("选区样式：");
         ImGui.indent();
         if (ImGui.colorEdit4("填充颜色##selectionFillColor", rs.selection_fillColor)) {
             LOGGER.debug("[RenderSettingsPanel] 选区填充颜色更新");
@@ -226,7 +226,7 @@ public class RenderSettingsPanel extends AbstractPanel {
         ImGui.separator();
 
         // 包围盒样式（独立于选区）
-        UITheme.label("包围盒样式：", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading("包围盒样式：");
         ImGui.indent();
         boolean cur = rs.selection_bboxShowFill;
         if (ImGui.checkbox("包围盒显示填充（面）##selectionBBoxFill", cur)) {
@@ -239,7 +239,7 @@ public class RenderSettingsPanel extends AbstractPanel {
         ImGui.separator();
 
         // 预设（可选）
-        UITheme.label("预设：", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading("预设：");
         ImGui.indent();
         String[] borderPresetNames = java.util.Arrays.stream(borderPresets)
                 .map(BorderStyle::name)
@@ -293,7 +293,7 @@ public class RenderSettingsPanel extends AbstractPanel {
     // ============================================================
 
     private void renderToolPreviewSettings() {
-        UITheme.label("工具预览样式：", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading("工具预览样式：");
         ImGui.indent();
 
         {
@@ -330,7 +330,7 @@ public class RenderSettingsPanel extends AbstractPanel {
     // ============================================================
 
     private void renderContainerSettings() {
-        UITheme.label("容器预览样式：", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading("容器预览样式：");
         ImGui.indent();
 
         {
@@ -371,7 +371,7 @@ public class RenderSettingsPanel extends AbstractPanel {
     // ============================================================
 
     private void renderActionButtons() {
-        UITheme.label("操作：", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading("操作：");
         if (ImGui.button("重置为默认值##resetRenderSettings")) {
             resetToDefaults();
         }

@@ -113,7 +113,7 @@ public final class ToolPropertyRendering {
     static void renderOperationControls(SelectionTool tool) {
         if (!(tool instanceof SelectionOperationSupport s)) return;
         ImGui.spacing();
-        UITheme.label(Icons.TARGET + " 操作模式", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(Icons.TARGET + " 操作模式");
         SelectionOperation cur = s.getOperation();
         SelectionOperation[] all = SelectionOperation.values();
         for (int i = 0; i < all.length; i++) {

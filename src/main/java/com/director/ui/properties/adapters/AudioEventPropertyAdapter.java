@@ -88,8 +88,7 @@ public class AudioEventPropertyAdapter implements IPropertyAdapter<AudioEvent> {
         var linkedClip = TimelineAudioService.getInstance().getLinkedClip(event);
         if (linkedClip.isPresent()) {
             TimelineClip clip = linkedClip.get();
-            UITheme.separator();
-            UITheme.label("链接", UITheme.DarkTheme.TEXT_SELECTED);
+            UITheme.subheading("链接");
             ImGui.textDisabled(String.format("跟随片段: %s [%.2fs - %.2fs]",
                     clip.getLabel(), clip.getStartTime(), clip.getEndTime()));
 

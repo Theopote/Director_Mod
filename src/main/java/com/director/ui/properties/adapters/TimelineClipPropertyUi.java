@@ -365,7 +365,7 @@ public class TimelineClipPropertyUi {
             config.setEasing(currentEasing);
         }
 
-        UITheme.label(policy.sectionTitle(), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(policy.sectionTitle());
         if (policy.sectionHint() != null) {
             UITheme.label(policy.sectionHint(), UITheme.DarkTheme.TEXT_DISABLED);
             UITheme.spacingSmall();
@@ -516,9 +516,7 @@ public class TimelineClipPropertyUi {
             InlineNotice.draw(InlineNotice.Level.ERROR, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_GENERIC, e.getMessage()));
         }
 
-        UITheme.separator();
-
-        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_EASING_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_EASING_HEADER));
 
         EasingFunction currentEasingFunc;
         try {
@@ -554,9 +552,7 @@ public class TimelineClipPropertyUi {
         ImGui.endDisabled();
         if (currentMode == AnimationMode.INSTANT) ImGui.textWrapped(wholeText("instant_no_action"));
 
-        UITheme.separator();
-
-        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_ADVANCED_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_ADVANCED_HEADER));
 
         // This modifier is implemented only for ENTER; native exit actions provide their own fade.
         if (policy.phase() == ClipAnimationConfig.AnimationPhase.ENTER && currentMode != AnimationMode.INSTANT) {
@@ -892,7 +888,7 @@ public class TimelineClipPropertyUi {
         }
 
         // ✅ 快捷预设：排序策略（Sequence）属于“序列层”，从动画设置面板移到这里
-        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PRESET_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PRESET_HEADER));
         // 定义所有预设按钮的标签和配置
         String[] presetLabels = ClipPropertyUiI18n.sequencePresetLabels();
 
@@ -934,29 +930,20 @@ public class TimelineClipPropertyUi {
             ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PRESET_TOOLTIP));
         }
 
-        UITheme.separator();
-
         // ========================= 主内容区域 =========================
         // ---------- 1. 切分方式 (Flow) ----------
         modified |= renderSequenceFlowSection(params, variant);
 
-        UITheme.separator();
-
         // ---------- 2. 起始锚点 (Origin) ----------
         modified |= renderSequenceOriginSection(params, variant);
 
-        UITheme.separator();
-
         // ---------- 3. 内部填充 (Fill) ----------
         modified |= renderSequenceFillSection(params);
-
-        UITheme.separator();
 
         // ---------- 4. 层级分离度 + 修饰 ----------
         modified |= renderSequenceWeightAndModifiers(params);
 
         // ---------- 5. 节奏/并发（决定“同时/批次/分组推进”等时间映射） ----------
-        UITheme.separator();
         modified |= renderSequenceTimingSection(clip, config, params);
 
         return modified;
@@ -966,7 +953,7 @@ public class TimelineClipPropertyUi {
             SequenceParameters params) {
         boolean modified = false;
 
-        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_TIMING_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_TIMING_HEADER));
 
         // 并发模式
         ConcurrencyMode[] conc = ConcurrencyMode.values();
@@ -1078,7 +1065,7 @@ public class TimelineClipPropertyUi {
         boolean modified = false;
         boolean demolition = variant == TimelineClipUiVariant.DEMOLITION;
 
-        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_FLOW_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_FLOW_HEADER));
 
         FlowType[] flows = FlowType.values();
         ImInt flowIdx = new ImInt(params.getFlowType().ordinal());
@@ -1096,7 +1083,7 @@ public class TimelineClipPropertyUi {
 
         // 仅在 PLANAR 模式下显示平面方向选择
         if (params.getFlowType() == FlowType.PLANAR) {
-            UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PLANE_DIRECTION), UITheme.DarkTheme.TEXT_SELECTED);
+            UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PLANE_DIRECTION));
 
             // 快捷预设：X/Y/Z轴
             ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_QUICK_DIRECTIONS));
@@ -1214,7 +1201,7 @@ public class TimelineClipPropertyUi {
         String originLabel = demolition
                 ? ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ORIGIN_HEADER_DEMOLITION)
                 : ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ORIGIN_HEADER);
-        UITheme.label(originLabel, UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(originLabel);
         if (demolition) {
             UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ORIGIN_DEMOLITION_HINT),
                     UITheme.DarkTheme.TEXT_DISABLED);
@@ -1312,7 +1299,7 @@ public class TimelineClipPropertyUi {
     boolean renderSequenceFillSection(SequenceParameters params) {
         boolean modified = false;
 
-        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_FILL_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_FILL_HEADER));
 
         FillType[] fills = FillType.values();
         ImInt fillIdx = new ImInt(params.getFillType().ordinal());
@@ -1330,7 +1317,7 @@ public class TimelineClipPropertyUi {
 
         // RASTER 专属参数：行内扫描方向 / 换行步长 / 蛇形
         if (params.getFillType() == FillType.RASTER) {
-            UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_RASTER_SETTINGS), UITheme.DarkTheme.TEXT_SELECTED);
+            UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_RASTER_SETTINGS));
 
             // 根据当前 PLANAR 的“层平面”动态给出轴名；非轴对齐时退化为 U/V
             String[] scanAxisLabels = getStrings(params);
@@ -1373,7 +1360,7 @@ public class TimelineClipPropertyUi {
 
         // FLOOD 专属参数：FloodSeedMode
         if (params.getFillType() == FillType.FLOOD) {
-            UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_FLOOD_SEED_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
+            UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_FLOOD_SEED_HEADER));
 
             FloodSeedMode[] seedModes = FloodSeedMode.values();
             ImInt seedIdx = new ImInt(params.getFloodSeedMode().ordinal());
@@ -1435,7 +1422,7 @@ public class TimelineClipPropertyUi {
     boolean renderSequenceWeightAndModifiers(SequenceParameters params) {
         boolean modified = false;
 
-        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_WEIGHT_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_WEIGHT_HEADER));
 
         // 层级分离度
         ImGui.text(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_WEIGHT_LABEL));
@@ -1567,7 +1554,7 @@ public class TimelineClipPropertyUi {
         }
 
         // ========== 1. 快捷添加 (Quick Add / Shortcuts) ==========
-        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_QUICK_ADD_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_QUICK_ADD_HEADER));
 
         // 第一排
         ImBoolean flash = new ImBoolean(hasEffectType(config, EffectType.FLASH_WHITE));
@@ -1609,10 +1596,7 @@ public class TimelineClipPropertyUi {
             modified = true;
         }
 
-        UITheme.separator();
-
-        // ========== 2. 特效库 (Effect Library) ==========
-        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_LIBRARY_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_LIBRARY_HEADER));
 
         // 功能性按钮行 (清空 & 粘贴)
         boolean hasEffects = !config.getEffects().isEmpty();
@@ -1686,7 +1670,7 @@ public class TimelineClipPropertyUi {
         if (effects.isEmpty()) {
             ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_NONE));
         } else {
-            UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_CURRENT), UITheme.DarkTheme.TEXT_SELECTED);
+            UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_CURRENT));
 
             int index = 0;
             for (EffectInstance inst : effects) {
@@ -1740,8 +1724,7 @@ public class TimelineClipPropertyUi {
                     IBlockEffect effectImpl = BlockEffectRegistry.get(inst.getType());
                     if (effectImpl != null) {
                         try {
-                            UITheme.separator();
-                            UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PARAMS_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
+                            UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PARAMS_HEADER));
                             modified |= renderEffectParams(inst, inst.getType());
                         } catch (Exception e) {
                             LOGGER.error("渲染特效参数 UI 出错: {}", e.getMessage(), e);
@@ -1855,7 +1838,7 @@ public class TimelineClipPropertyUi {
     boolean renderSingleEffectTimingUI(EffectInstance inst, TimelineClip clip) {
         boolean modified = false;
 
-        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_TIMELINE_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_TIMELINE_HEADER));
 
         // ✅ 特效时间轴是“相对于单块动画窗口”的归一化（0..1），而不是相对于片段长度
         ClipAnimationConfig cfg = clip.getAnimationConfig();
