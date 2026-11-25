@@ -68,4 +68,13 @@ class AnimationAssetTest {
         assertThrows(IllegalArgumentException.class, () -> asset.getOrCreateBoneTrack("tail"));
         assertThrows(IllegalArgumentException.class, () -> asset.addMarker(new AnimationMarker(2f, "hit")));
     }
+
+    @Test
+    void rejectsNonFiniteSampleTimes() {
+        var asset = new AnimationAsset("project:finite", "Finite", HumanoidRig.DEFINITION,
+                1f, AnimationLoopMode.LOOP);
+        assertThrows(IllegalArgumentException.class, () -> asset.sample(Float.NaN));
+        assertThrows(IllegalArgumentException.class, () -> asset.sample(Float.POSITIVE_INFINITY));
+        assertThrows(IllegalArgumentException.class, () -> asset.normalizeTime(Float.NEGATIVE_INFINITY));
+    }
 }

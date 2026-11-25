@@ -98,7 +98,7 @@ public class EntitySpawnClip extends EntityClip {
     // ========== Getters and Setters ==========
 
     public Vector3f getPosition() {
-        return position;
+        return new Vector3f(position);
     }
 
     public void setPosition(float x, float y, float z) {
@@ -130,7 +130,7 @@ public class EntitySpawnClip extends EntityClip {
     private final Vector3f scale = new Vector3f(1);
     public float getRollDeg() { return rollDeg; }
     public void setRollDeg(float value) { if (Float.isFinite(value)) { rollDeg = value; samplingChanged(); } }
-    public Vector3f getScale() { return scale; }
+    public Vector3f getScale() { return new Vector3f(scale); }
     public void setScale(float x, float y, float z) {
         if (Float.isFinite(x) && Float.isFinite(y) && Float.isFinite(z) && x > 0 && y > 0 && z > 0) {
             scale.set(x, y, z);

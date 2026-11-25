@@ -55,7 +55,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
     }
 
     public Vector3f getPosition() {
-        return position;
+        return new Vector3f(position);
     }
 
     public void setPosition(float x, float y, float z) {
@@ -64,7 +64,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
     }
 
     public Vector3f getRotation() {
-        return rotation;
+        return new Vector3f(rotation);
     }
 
     public void setRotation(float yaw, float pitch, float roll) {
@@ -73,7 +73,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
     }
 
     public Vector3f getScale() {
-        return scale;
+        return new Vector3f(scale);
     }
 
     public void setScale(float x, float y, float z) {

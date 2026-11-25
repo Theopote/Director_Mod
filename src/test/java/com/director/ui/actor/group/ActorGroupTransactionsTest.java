@@ -230,10 +230,14 @@ class ActorGroupTransactionsTest {
         var track = member(ActorType.PLAYER);
         var spawn = new EntitySpawnClip("Spawn", 0, 10); attach(track, spawn);
         assertEquals(1, service.placeGroup(model, group, new Vec3d(10,20,30), 0, 0));
-        spawn.getPosition().x = 99;
+        var detachedPosition = spawn.getPosition();
+        detachedPosition.x = 99;
+        assertEquals(10, spawn.getPosition().x);
+        spawn.setPosition(99, spawn.getPosition().y, spawn.getPosition().z);
         assertThrows(IllegalArgumentException.class, history::undo);
         assertEquals(99, spawn.getPosition().x);
-        spawn.getPosition().x = 10; assertTrue(history.undo()); assertEquals(0, spawn.getPosition().x);
+        spawn.setPosition(10, spawn.getPosition().y, spawn.getPosition().z);
+        assertTrue(history.undo()); assertEquals(0, spawn.getPosition().x);
     }
     @Test void followRouteUsesLeaderHistoryAroundCorner() {
         var leader = member(ActorType.PLAYER); var follower = member(ActorType.PLAYER);

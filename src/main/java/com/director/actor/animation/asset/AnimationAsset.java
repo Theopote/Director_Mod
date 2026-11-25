@@ -91,6 +91,8 @@ public final class AnimationAsset {
     }
 
     public float normalizeTime(float time, AnimationLoopMode playbackMode) {
+        if (!Float.isFinite(time))
+            throw new IllegalArgumentException("Animation time must be finite: " + time);
         float safe = Math.max(0f, time);
         if (duration <= 0f) return 0f;
         AnimationLoopMode mode = playbackMode == null ? loopMode : playbackMode;

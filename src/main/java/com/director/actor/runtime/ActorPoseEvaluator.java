@@ -41,9 +41,12 @@ public final class ActorPoseEvaluator {
             sources.changed(before,pose,"路径端点转身／换脚");
         }
         var weights=new HashMap<String,Float>();var diagnostics=new ArrayList<Diagnostic>();
+        int beforePreset = diagnostics.size();
         pose=applyLayer(pose,preset,"preset-layer",weights,diagnostics);
-        if(diagnostics.isEmpty()) sources.layer(preset,"动作预设");
-        stages.add(stage(ActorPoseStage.Kind.PRESET,preset,diagnostics.isEmpty()?null:diagnostics.getFirst().detail().reason()));
+        boolean presetAccepted = diagnostics.size() == beforePreset;
+        if(presetAccepted) sources.layer(preset,"动作预设");
+        stages.add(stage(ActorPoseStage.Kind.PRESET,preset,
+                presetAccepted?null:diagnostics.getLast().detail().reason()));
         if (secondary != null) {
             int beforeSecondary = diagnostics.size();
             pose = applyLayer(pose, secondary, "secondary-preset-layer", weights, diagnostics);

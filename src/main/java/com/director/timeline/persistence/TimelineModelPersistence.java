@@ -268,7 +268,7 @@ public class TimelineModelPersistence {
         public String animationId;
         public Boolean animationLoop;
         public Float animationSpeed;
-        public List<com.director.timeline.model.entity.AnimationEvent> animationEvents;
+        public List<AnimationEventDTO> animationEvents;
 
         // ===== EntityStateClip =====
         public Boolean sneaking, sprinting, glowing, invulnerable;
@@ -340,6 +340,51 @@ public class TimelineModelPersistence {
         public String displayName;
         public Boolean showNameTag;
         public String entityType;       // EntityKeyframe.EntityType.name()
+    }
+
+    /** Serializable event shape; domain callbacks and future runtime state never enter project JSON. */
+    public static final class AnimationEventDTO {
+        public Float normalizedTime;
+        public String timing;
+        public EntityActionEventDTO action;
+
+        static AnimationEventDTO from(com.director.timeline.model.entity.AnimationEvent event) {
+            var dto = new AnimationEventDTO();
+            dto.normalizedTime = event.getNormalizedTime();
+            dto.timing = event.getTiming().name();
+            dto.action = EntityActionEventDTO.from(event.getAction());
+            return dto;
+        }
+
+        com.director.timeline.model.entity.AnimationEvent toDomain() {
+            if (normalizedTime == null || !Float.isFinite(normalizedTime) || normalizedTime < 0 || normalizedTime > 1)
+                throw new IllegalArgumentException("动画事件时间必须位于 0–1");
+            if (action == null) throw new IllegalArgumentException("动画事件缺少动作");
+            var mode = timing == null || timing.isBlank()
+                    ? com.director.timeline.model.entity.AnimationEvent.Timing.CLIP
+                    : com.director.timeline.model.entity.AnimationEvent.Timing.valueOf(timing);
+            return new com.director.timeline.model.entity.AnimationEvent(normalizedTime, action.toDomain(), mode);
+        }
+    }
+
+    public static final class EntityActionEventDTO {
+        public String type;
+        public Map<String, Object> params = new HashMap<>();
+
+        static EntityActionEventDTO from(com.director.timeline.playback.entity.EntityActionEvent event) {
+            var dto = new EntityActionEventDTO();
+            dto.type = event.type().name();
+            dto.params = com.director.actor.prop.PropEventParameters.copy(event.params(), false);
+            return dto;
+        }
+
+        com.director.timeline.playback.entity.EntityActionEvent toDomain() {
+            if (type == null || type.isBlank()) throw new IllegalArgumentException("动画事件缺少动作类型");
+            var actionType = com.director.timeline.model.entity.EntityActionClip.ActionType.valueOf(type);
+            var values = params == null ? Map.<String, Object>of() : params;
+            return new com.director.timeline.playback.entity.EntityActionEvent(actionType,
+                    com.director.actor.prop.PropEventParameters.copy(values, false));
+        }
     }
     
     /**
@@ -1465,9 +1510,7 @@ public class TimelineModelPersistence {
                 cdto.animationId = ac.getAnimationId();
                 cdto.animationLoop = ac.isLoop();
                 cdto.animationSpeed = ac.getSpeed();
-                cdto.animationEvents=ac.getEvents().stream().map(e->new com.director.timeline.model.entity.AnimationEvent(
-                        e.getNormalizedTime(),new com.director.timeline.playback.entity.EntityActionEvent(e.getAction().type(),
-                        com.director.actor.prop.PropEventParameters.copy(e.getAction().params(),false)),e.getTiming())).toList();
+                cdto.animationEvents=ac.getEvents().stream().map(AnimationEventDTO::from).toList();
                 cdto.setPoseBlend(ac.getBlendSettings());
             }
             case com.director.timeline.model.entity.EntityStateClip stc -> {
@@ -1677,10 +1720,13 @@ public class TimelineModelPersistence {
                 if (cdto.animationLoop != null) ac.setLoop(cdto.animationLoop);
                 if (cdto.animationSpeed != null) ac.setSpeed(cdto.animationSpeed);
                 if(cdto.animationEvents!=null) for(var event:cdto.animationEvents) {
-                    if(event==null || event.getAction()==null || event.getAction().type()==null || !Float.isFinite(event.getNormalizedTime())) continue;
-                    ac.addEvent(new com.director.timeline.model.entity.AnimationEvent(event.getNormalizedTime(),
-                            new com.director.timeline.playback.entity.EntityActionEvent(event.getAction().type(),
-                                    com.director.actor.prop.PropEventParameters.copy(event.getAction().params(),false)),event.getTiming()));
+                    if(event==null) continue;
+                    try {
+                        ac.addEvent(event.toDomain());
+                    } catch (IllegalArgumentException | NullPointerException invalid) {
+                        LOGGER.warn("[TimelineModelPersistence] 忽略片段 {} 的无效动画事件: {}",
+                                ac.getName(), invalid.getMessage());
+                    }
                 }
                 cdto.restorePoseBlend(ac);
             }
