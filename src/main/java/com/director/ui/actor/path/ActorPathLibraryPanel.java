@@ -1,5 +1,6 @@
 package com.director.ui.actor.path;
 
+import com.director.ui.feedback.InlineNotice;
 import com.director.ui.theme.UITheme;
 import com.director.actor.path.ActorPathDefinition;
 import com.director.actor.path.ActorPathLibraryManager;
@@ -231,7 +232,7 @@ public final class ActorPathLibraryPanel {
                     + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.DELETE_CONFIRM));
             ImGui.text(ActorPropertyAdapterI18n.tr(
                     DirectorLang.Properties.AdapterActor.PathLibrary.DELETE_NAME_FMT, pathName));
-            UITheme.colored(UITheme.Semantic.DANGER,
+            InlineNotice.draw(InlineNotice.Level.ERROR,
                     ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.DELETE_WARNING));
             ImGui.separator();
 

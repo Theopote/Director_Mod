@@ -1,5 +1,6 @@
 package com.director.ui.dialogs;
 
+import com.director.ui.feedback.InlineNotice;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.theme.UITheme;
@@ -222,7 +223,7 @@ public class DialogManager {
             UITheme.title(Icons.TIMELINE + " " + title);
 
             if (timelineSettingsAccessor == null) {
-                UITheme.colored(UITheme.Semantic.DANGER, tr(DirectorLang.SystemDialog.TimelineSettings.ACCESS_ERROR));
+                InlineNotice.draw(InlineNotice.Level.ERROR, tr(DirectorLang.SystemDialog.TimelineSettings.ACCESS_ERROR));
                 if (ImGui.button(tr(DirectorLang.Common.CLOSE), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                     closeTimelineSettingsDialog();
                 }
@@ -234,7 +235,7 @@ public class DialogManager {
                     timelineSettingsAccessor.getSnapSettings();
 
             if (snapSettings == null) {
-                UITheme.colored(UITheme.Semantic.DANGER, tr(DirectorLang.SystemDialog.TimelineSettings.UNAVAILABLE));
+                InlineNotice.draw(InlineNotice.Level.ERROR, tr(DirectorLang.SystemDialog.TimelineSettings.UNAVAILABLE));
                 if (ImGui.button(tr(DirectorLang.Common.CLOSE), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                     closeTimelineSettingsDialog();
                 }

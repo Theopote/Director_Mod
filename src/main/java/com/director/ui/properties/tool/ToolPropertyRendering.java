@@ -1,5 +1,6 @@
 package com.director.ui.properties.tool;
 
+import com.director.ui.feedback.InlineNotice;
 import com.director.core.selection.SelectionOperation;
 import com.director.core.selection.SelectionOperationSupport;
 import com.director.core.selection.SelectionState;
@@ -408,7 +409,7 @@ public final class ToolPropertyRendering {
                     UITheme.colored(UITheme.Semantic.TEXT_SECONDARY, "左键选取，拖拽连续框取；右键或按钮确认剔除。");
                 } else {
                     UITheme.label("未检测到可用容器", UITheme.DarkTheme.TEXT_DISABLED);
-                    UITheme.colored(UITheme.Semantic.WARNING, "请先在容器面板选中一个容器（或启用实时接收激活容器）。");
+                    InlineNotice.draw(InlineNotice.Level.WARNING, "请先在容器面板选中一个容器（或启用实时接收激活容器）。");
                 }
                 ImGui.unindent();
             }

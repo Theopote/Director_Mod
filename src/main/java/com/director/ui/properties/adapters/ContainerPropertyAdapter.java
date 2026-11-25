@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.ui.feedback.InlineNotice;
 import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerAnimationPreset;
@@ -498,7 +499,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             }
         } catch (Exception e) {
             LOGGER.error("渲染动画参数时出错: {}", e.getMessage(), e);
-            UITheme.colored(UITheme.Semantic.DANGER, tr(DirectorLang.Properties.AdapterContainer.RENDER_ERROR, e.getMessage()));
+            InlineNotice.draw(InlineNotice.Level.ERROR, tr(DirectorLang.Properties.AdapterContainer.RENDER_ERROR, e.getMessage()));
         }
 
         UITheme.separator();

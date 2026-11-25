@@ -1,5 +1,6 @@
 package com.director.ui.video;
 
+import com.director.ui.feedback.InlineNotice;
 import com.director.ui.theme.UITheme;
 import com.director.ui.DirectorUIManager;
 import com.director.ui.theme.Icons;
@@ -92,7 +93,7 @@ public final class VideoExportProgressOverlay {
                 if (current == Status.SUCCEEDED) {
                     UITheme.colored(UITheme.Semantic.SUCCESS, Icons.CHECK + " 导出完成");
                 } else if (current == Status.CANCELED) {
-                    UITheme.colored(UITheme.Semantic.WARNING, "导出已取消");
+                    InlineNotice.draw(InlineNotice.Level.WARNING, "导出已取消");
                 } else {
                     UITheme.colored(UITheme.Semantic.DANGER, Icons.ERROR + " 导出失败");
                 }

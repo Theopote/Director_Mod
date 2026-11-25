@@ -1,5 +1,6 @@
 package com.director.ui.panels;
 
+import com.director.ui.feedback.InlineNotice;
 import com.director.actor.ActorRegistryManager;
 import com.director.core.DirectorServices;
 import com.director.i18n.DirectorI18n;
@@ -444,7 +445,7 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
         String typeName = currentSelection.getClass().getSimpleName();
         String fullClassName = currentSelection.getClass().getName();
         
-        UITheme.colored(UITheme.Semantic.WARNING,
+        InlineNotice.draw(InlineNotice.Level.WARNING,
             tr(DirectorLang.Properties.NO_ADAPTER_MESSAGE, typeName));
         
         UITheme.separator();
@@ -491,7 +492,7 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
         //UITheme.spacingLarge();
         UITheme.title(Icons.ERROR + " " + tr(DirectorLang.Properties.RENDER_ERROR_TITLE));
         
-        UITheme.colored(UITheme.Semantic.DANGER, tr(DirectorLang.Properties.RENDER_ERROR_MESSAGE));
+        InlineNotice.draw(InlineNotice.Level.ERROR, tr(DirectorLang.Properties.RENDER_ERROR_MESSAGE));
         
         UITheme.separator();
         

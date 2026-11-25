@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.ui.feedback.InlineNotice;
 import com.director.ui.theme.UITheme;
 import com.director.core.DirectorServices;
 import com.director.core.animation.effect.EffectInstance;
@@ -69,7 +70,7 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
             return renderPropertiesInternal(clip);
         } catch (Exception e) {
             LOGGER.error("渲染拆除片段属性时发生异常: {}", e.getMessage(), e);
-            UITheme.colored(UITheme.Semantic.DANGER, "渲染错误: " + e.getMessage());
+            InlineNotice.draw(InlineNotice.Level.ERROR, "渲染错误: " + e.getMessage());
             return false;
         }
     }

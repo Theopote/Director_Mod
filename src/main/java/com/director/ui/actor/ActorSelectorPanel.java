@@ -1,5 +1,6 @@
 package com.director.ui.actor;
 
+import com.director.ui.feedback.InlineNotice;
 import com.director.ui.theme.UITheme;
 import com.director.actor.*;
 import com.director.i18n.ActorPropertyAdapterI18n;
@@ -217,7 +218,7 @@ public final class ActorSelectorPanel {
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.DELETE_NAME_FMT, deletingActor.getName()));
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.DELETE_TYPE_FMT,
                     ActorPropertyAdapterI18n.actorTypeLabel(deletingActor.getType())));
-            UITheme.colored(UITheme.Semantic.DANGER,
+            InlineNotice.draw(InlineNotice.Level.ERROR,
                     ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.DELETE_WARNING));
 
             ImGui.separator();

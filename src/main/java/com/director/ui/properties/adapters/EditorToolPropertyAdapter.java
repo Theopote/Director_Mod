@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.ui.feedback.InlineNotice;
 import com.director.client.gizmo.GizmoMode;
 import com.director.core.DirectorServices;
 import com.director.actor.Actor;
@@ -118,7 +119,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         Actor actor = resolveSelectedActor();
         String unavailable = actorToolUnavailableReason(tool, actor);
         if (!unavailable.isEmpty()) {
-            UITheme.colored(UITheme.Semantic.WARNING, "只读：" + unavailable);
+            InlineNotice.draw(InlineNotice.Level.WARNING, "只读：" + unavailable);
             ImGui.separator();
         }
         if (Card.begin("editor_tool.current_actor", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CURRENT_ACTOR))) {

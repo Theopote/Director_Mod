@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.ui.feedback.InlineNotice;
 import com.director.actor.animation.AnimationData;
 import com.director.actor.animation.asset.AnimationAsset;
 import com.director.timeline.model.TimelineClip;
@@ -1321,7 +1322,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 Actor actor = actorOpt.get();
             
                 ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_CONFIRM));
-                UITheme.colored(UITheme.Semantic.DANGER,
+                InlineNotice.draw(InlineNotice.Level.ERROR,
                         ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_ACTOR_FMT,
                                 actor.getName(), ActorPropertyAdapterI18n.actorTypeLabel(actor.getType())));
                 ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_UNDO_WARNING));

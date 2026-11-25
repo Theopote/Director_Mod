@@ -1,5 +1,6 @@
 package com.director.ui.coordinator;
 
+import com.director.ui.feedback.InlineNotice;
 import com.director.ui.theme.UITheme;
 import com.director.ui.commands.UICommandFacade;
 import com.director.ui.di.IPanelRegistry;
@@ -77,7 +78,7 @@ public final class UIPanelManager {
         try {
             LOGGER.debug("[UIPanelManager] 渲染空状态UI提示");
             if (ImGui.begin("Director", ImGuiWindowFlags.AlwaysAutoResize)) {
-                UITheme.colored(UITheme.Semantic.DANGER, "Director UI 初始化失败");
+                InlineNotice.draw(InlineNotice.Level.ERROR, "Director UI 初始化失败");
                 ImGui.separator();
                 ImGui.text("面板状态: 无可用面板");
                 ImGui.text("请检查面板配置和初始化");
