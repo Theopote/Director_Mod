@@ -1,6 +1,8 @@
 package com.director.client.renderer;
 
 import com.director.client.gizmo.Axis;
+import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
@@ -29,11 +31,22 @@ public final class OverlayRenderHelper {
 
     private OverlayRenderHelper() {}
 
-    /** 面中心锚点（框选面手柄）的视觉大小：未激活 / 激活（拖拽中）。调大便于看见和拖动机理。 */
+    /** 面中心锚点（框选面手柄）的视觉大小：未激活 / 激活（悬停或拖拽）。 */
     private static final float HANDLE_SIZE_IDLE = 0.2f;
     private static final float HANDLE_SIZE_ACTIVE = 0.28f;
+    /** 深色描边相对手柄的放大系数，用于在任意背景上提高对比度。 */
+    private static final float HANDLE_HALO_SCALE = 1.22f;
     /** 拾取半宽：与视觉手柄对齐并略放大，供 {@link com.director.core.selection.tools.FaceHandleManager} 使用。 */
     public static final float HANDLE_PICK_HALF_SIZE = HANDLE_SIZE_IDLE / 2.0f + 0.01f;
+
+    private static final int[][] CUBE_FACES = {
+        {0, 2, 3, 1}, // -Z
+        {4, 5, 7, 6}, // +Z
+        {0, 1, 5, 4}, // -Y
+        {2, 6, 7, 3}, // +Y
+        {0, 4, 6, 2}, // -X
+        {1, 3, 7, 5}  // +X
+    };
 
     public static void drawHandle(VertexConsumer consumer, Matrix4f matrix, Vec3d pos, float[] color, boolean active) {
         if (consumer == null || pos == null || color == null || color.length < 4) {
@@ -41,24 +54,121 @@ public final class OverlayRenderHelper {
         }
 
         float size = active ? HANDLE_SIZE_ACTIVE : HANDLE_SIZE_IDLE;
-        double halfSize = size / 2.0;
+        drawWireCube(consumer, matrix, pos, size, color[0], color[1], color[2],
+                active ? Math.min(1.0f, color[3] + 0.2f) : color[3]);
+    }
 
+    /**
+     * 深色外框 + 彩色线框，提高面中心手柄在亮/暗背景下的辨识度。
+     */
+    public static void drawHandleWithHalo(VertexConsumer consumer, Matrix4f matrix, Vec3d pos,
+                                          float[] color, boolean active) {
+        if (consumer == null || pos == null || color == null || color.length < 4) {
+            return;
+        }
+
+        float size = active ? HANDLE_SIZE_ACTIVE : HANDLE_SIZE_IDLE;
+        drawWireCube(consumer, matrix, pos, size * HANDLE_HALO_SCALE, 0.02f, 0.02f, 0.05f, 0.92f);
+        drawWireCube(consumer, matrix, pos, size, color[0], color[1], color[2],
+                active ? Math.min(1.0f, color[3] + 0.15f) : color[3]);
+    }
+
+    /**
+     * 半透明实心填充（需 EntityTranslucent 顶点格式）。
+     */
+    public static void drawSolidHandle(VertexConsumer consumer, Matrix4f matrix, Vec3d pos,
+                                       float[] color, boolean active) {
+        if (consumer == null || pos == null || color == null || color.length < 4) {
+            return;
+        }
+
+        float size = active ? HANDLE_SIZE_ACTIVE : HANDLE_SIZE_IDLE;
+        double halfSize = size / 2.0;
         populateCorners(
             pos.x - halfSize, pos.y - halfSize, pos.z - halfSize,
             pos.x + halfSize, pos.y + halfSize, pos.z + halfSize
         );
 
-        float alpha = active ? Math.min(1.0f, color[3] + 0.2f) : color[3];
+        float alpha = Math.min(1.0f, Math.max(0.0f, color[3]));
+        for (int[] face : CUBE_FACES) {
+            MutableVec3d a = CORNERS[face[0]];
+            MutableVec3d b = CORNERS[face[1]];
+            MutableVec3d c = CORNERS[face[2]];
+            MutableVec3d d = CORNERS[face[3]];
+            emitSolidQuad(consumer, matrix, a, b, c, d, color[0], color[1], color[2], alpha);
+        }
+    }
+
+    private static void drawWireCube(VertexConsumer consumer, Matrix4f matrix, Vec3d pos, float size,
+                                     float r, float g, float b, float a) {
+        double halfSize = size / 2.0;
+        populateCorners(
+            pos.x - halfSize, pos.y - halfSize, pos.z - halfSize,
+            pos.x + halfSize, pos.y + halfSize, pos.z + halfSize
+        );
+
         for (int[] edge : CUBE_EDGES) {
-            MutableVec3d a = CORNERS[edge[0]];
-            MutableVec3d b = CORNERS[edge[1]];
-            consumer.vertex(matrix, (float) a.x, (float) a.y, (float) a.z)
-                    .color(color[0], color[1], color[2], alpha)
+            MutableVec3d p0 = CORNERS[edge[0]];
+            MutableVec3d p1 = CORNERS[edge[1]];
+            consumer.vertex(matrix, (float) p0.x, (float) p0.y, (float) p0.z)
+                    .color(r, g, b, a)
                     .normal(0, 1, 0);
-            consumer.vertex(matrix, (float) b.x, (float) b.y, (float) b.z)
-                    .color(color[0], color[1], color[2], alpha)
+            consumer.vertex(matrix, (float) p1.x, (float) p1.y, (float) p1.z)
+                    .color(r, g, b, a)
                     .normal(0, 1, 0);
         }
+    }
+
+    private static void emitSolidQuad(VertexConsumer consumer, Matrix4f matrix,
+                                      MutableVec3d p1, MutableVec3d p2, MutableVec3d p3, MutableVec3d p4,
+                                      float r, float g, float b, float a) {
+        double ex = p2.x - p1.x;
+        double ey = p2.y - p1.y;
+        double ez = p2.z - p1.z;
+        double fx = p3.x - p1.x;
+        double fy = p3.y - p1.y;
+        double fz = p3.z - p1.z;
+        double nx = ey * fz - ez * fy;
+        double ny = ez * fx - ex * fz;
+        double nz = ex * fy - ey * fx;
+        double len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+        if (len > 1e-6) {
+            nx /= len;
+            ny /= len;
+            nz /= len;
+        } else {
+            nx = 0;
+            ny = 1;
+            nz = 0;
+        }
+        float nxf = (float) nx;
+        float nyf = (float) ny;
+        float nzf = (float) nz;
+
+        consumer.vertex(matrix, (float) p1.x, (float) p1.y, (float) p1.z)
+                .color(r, g, b, a)
+                .texture(0.0f, 0.0f)
+                .overlay(OverlayTexture.DEFAULT_UV)
+                .light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
+                .normal(nxf, nyf, nzf);
+        consumer.vertex(matrix, (float) p2.x, (float) p2.y, (float) p2.z)
+                .color(r, g, b, a)
+                .texture(1.0f, 0.0f)
+                .overlay(OverlayTexture.DEFAULT_UV)
+                .light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
+                .normal(nxf, nyf, nzf);
+        consumer.vertex(matrix, (float) p3.x, (float) p3.y, (float) p3.z)
+                .color(r, g, b, a)
+                .texture(1.0f, 1.0f)
+                .overlay(OverlayTexture.DEFAULT_UV)
+                .light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
+                .normal(nxf, nyf, nzf);
+        consumer.vertex(matrix, (float) p4.x, (float) p4.y, (float) p4.z)
+                .color(r, g, b, a)
+                .texture(0.0f, 1.0f)
+                .overlay(OverlayTexture.DEFAULT_UV)
+                .light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
+                .normal(nxf, nyf, nzf);
     }
 
     public static void drawRing(VertexConsumer consumer, Matrix4f matrix, Vec3d center, Axis axis, double radius, float[] color) {

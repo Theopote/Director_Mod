@@ -13,7 +13,6 @@ import imgui.ImGui;
 import imgui.flag.ImGuiTableBgTarget;
 import imgui.flag.ImGuiTableColumnFlags;
 import imgui.flag.ImGuiTableFlags;
-import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiWindowFlags;
 import net.minecraft.util.math.BlockPos;
 import org.lwjgl.glfw.GLFW;

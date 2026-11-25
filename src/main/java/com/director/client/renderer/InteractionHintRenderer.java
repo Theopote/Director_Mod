@@ -3,12 +3,14 @@ package com.director.client.renderer;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.tools.FaceHandleManager;
 import com.director.client.settings.RenderSettings;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL11;
 
 /**
  * Renders transient interaction hints such as drag arrows or hover indicators.
@@ -19,6 +21,13 @@ public final class InteractionHintRenderer {
 
     // 全局设置中心（新系统优先读取）
     private static final RenderSettings settings = RenderSettings.get();
+
+    /** 悬停双向箭头基础长度（世界单位，再乘距离系数）。 */
+    private static final double ARROW_LENGTH_BASE = 0.85;
+    /** 悬停双向箭头箭头头尺寸。 */
+    private static final double ARROW_HEAD_BASE = 0.24;
+    /** 拖拽方向箭头头尺寸。 */
+    private static final double DRAG_ARROW_HEAD = 0.28;
 
     public static void render(MatrixStack matrices,
                               VertexConsumerProvider consumers,
@@ -59,24 +68,38 @@ public final class InteractionHintRenderer {
             ? previewBox
             : selectionBox;
 
-        drawAxisColoredHandles(
-            matrices,
-            consumers,
-            camPos,
-            handleBox,
-            hoveredFace,
-            draggingFace
+        // 与 Actor Gizmo 一致：禁用深度，确保背面/被方块遮挡时仍能找到手柄
+        GlStateManager._enableBlend();
+        GlStateManager._blendFuncSeparate(
+            GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA,
+            GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA
         );
+        GlStateManager._disableDepthTest();
+        GlStateManager._depthMask(false);
+        try {
+            drawAxisColoredHandles(
+                matrices,
+                consumers,
+                camPos,
+                handleBox,
+                hoveredFace,
+                draggingFace
+            );
 
-        VertexConsumer lineConsumer = consumers.getBuffer(RenderLayers.getLineOverlay());
-        Matrix4f matrix = matrices.peek().getPositionMatrix();
+            VertexConsumer lineConsumer = consumers.getBuffer(RenderLayers.getLineOverlay());
+            Matrix4f matrix = matrices.peek().getPositionMatrix();
 
-        if (draggingFace != null && previewBox != null) {
-            drawDragArrow(lineConsumer, matrix, camPos,
-                baseBounds, previewBox, draggingFace);
-        } else if (hoveredFace != null) {
-            drawBidirectionalArrow(lineConsumer, matrix, camPos,
-                baseBounds, hoveredFace);
+            if (draggingFace != null && previewBox != null) {
+                drawDragArrow(lineConsumer, matrix, camPos,
+                    baseBounds, previewBox, draggingFace);
+            } else if (hoveredFace != null) {
+                drawBidirectionalArrow(lineConsumer, matrix, camPos,
+                    baseBounds, hoveredFace);
+            }
+        } finally {
+            GlStateManager._enableDepthTest();
+            GlStateManager._depthMask(true);
+            GlStateManager._disableBlend();
         }
     }
 
@@ -86,7 +109,8 @@ public final class InteractionHintRenderer {
                                                Box handleBox,
                                                Integer hoveredFace,
                                                Integer draggingFace) {
-        VertexConsumer buffer = consumers.getBuffer(RenderLayers.getLineOverlay());
+        // 先画半透明实心体，再画深色描边 + 亮色线框，层次更清晰
+        VertexConsumer fillBuffer = consumers.getBuffer(RenderLayers.getPreviewLayer());
         Matrix4f matrix = matrices.peek().getPositionMatrix();
 
         for (int faceIndex = 0; faceIndex < 6; faceIndex++) {
@@ -94,17 +118,47 @@ public final class InteractionHintRenderer {
             Vec3d rel = center.subtract(camPos);
 
             float[] base = axisBaseColor(faceIndex);
-            float[] color;
-            if (draggingFace != null && draggingFace == faceIndex) {
-                color = new float[]{1.0f, 1.0f, 0.25f, 1.0f};
-            } else if (hoveredFace != null && hoveredFace == faceIndex) {
-                color = brighten(base);
+            boolean hovered = hoveredFace != null && hoveredFace == faceIndex;
+            boolean dragging = draggingFace != null && draggingFace == faceIndex;
+            boolean active = hovered || dragging;
+
+            float[] fillColor;
+            float[] outlineColor;
+            if (dragging) {
+                fillColor = new float[]{1.0f, 0.95f, 0.25f, 0.72f};
+                outlineColor = new float[]{1.0f, 1.0f, 0.55f, 1.0f};
+            } else if (hovered) {
+                float[] hot = brighten(base);
+                fillColor = new float[]{hot[0], hot[1], hot[2], 0.68f};
+                outlineColor = new float[]{hot[0], hot[1], hot[2], 1.0f};
             } else {
-                color = new float[]{base[0], base[1], base[2], 0.65f};
+                fillColor = new float[]{base[0], base[1], base[2], 0.50f};
+                outlineColor = new float[]{base[0], base[1], base[2], 0.98f};
             }
 
-            boolean active = draggingFace != null && draggingFace == faceIndex;
-            OverlayRenderHelper.drawHandle(buffer, matrix, rel, color, active);
+            OverlayRenderHelper.drawSolidHandle(fillBuffer, matrix, rel, fillColor, active);
+        }
+
+        VertexConsumer lineBuffer = consumers.getBuffer(RenderLayers.getLineOverlay());
+        for (int faceIndex = 0; faceIndex < 6; faceIndex++) {
+            Vec3d center = OverlayRenderHelper.faceCenter(handleBox, faceIndex);
+            Vec3d rel = center.subtract(camPos);
+
+            float[] base = axisBaseColor(faceIndex);
+            boolean hovered = hoveredFace != null && hoveredFace == faceIndex;
+            boolean dragging = draggingFace != null && draggingFace == faceIndex;
+            boolean active = hovered || dragging;
+
+            float[] outlineColor;
+            if (dragging) {
+                outlineColor = new float[]{1.0f, 1.0f, 0.55f, 1.0f};
+            } else if (hovered) {
+                outlineColor = brighten(base);
+            } else {
+                outlineColor = new float[]{base[0], base[1], base[2], 0.98f};
+            }
+
+            OverlayRenderHelper.drawHandleWithHalo(lineBuffer, matrix, rel, outlineColor, active);
         }
     }
 
@@ -121,14 +175,15 @@ public final class InteractionHintRenderer {
             return;
         }
 
-        // ✅ 直接从全局设置读取颜色（实时生效）
-        float[] color = settings.tool_outlineColor;
+        float[] color = axisArrowColor(faceIndex);
         Vec3d startRel = start.subtract(camPos);
         Vec3d endRel = end.subtract(camPos);
+        // 深色描边线，提高对比度
+        line(consumer, matrix, startRel, endRel, new float[]{0.02f, 0.02f, 0.05f, 0.85f});
         line(consumer, matrix, startRel, endRel, color);
 
         Vec3d dir = delta.normalize();
-        drawArrowHead(consumer, matrix, endRel, dir, 0.2, color);
+        drawArrowHead(consumer, matrix, endRel, dir, DRAG_ARROW_HEAD, color);
     }
 
     private static void drawBidirectionalArrow(VertexConsumer consumer,
@@ -141,10 +196,11 @@ public final class InteractionHintRenderer {
 
         double distance = faceCenter.distanceTo(camPos);
         double distanceMultiplier = Math.max(distance, 8.0) / 15.0;
-        double arrowLength = 0.4 * distanceMultiplier;
-        double arrowHeadSize = 0.15 * distanceMultiplier;
+        double arrowLength = ARROW_LENGTH_BASE * distanceMultiplier;
+        double arrowHeadSize = ARROW_HEAD_BASE * distanceMultiplier;
 
-        float[] color = {1.0f, 1.0f, 1.0f, 0.9f};
+        float[] color = axisArrowColor(faceIndex);
+        float[] halo = {0.02f, 0.02f, 0.05f, 0.9f};
 
         Vec3d arrow1Start = faceCenter.subtract(normal.multiply(arrowLength));
         Vec3d arrow2End = faceCenter.add(normal.multiply(arrowLength));
@@ -153,28 +209,37 @@ public final class InteractionHintRenderer {
         Vec3d arrow1EndRel = faceCenter.subtract(camPos);
         Vec3d arrow2EndRel = arrow2End.subtract(camPos);
 
+        // 先画深色粗感描边，再画轴色主体
+        line(consumer, matrix, arrow1StartRel, arrow1EndRel, halo);
+        line(consumer, matrix, arrow1EndRel, arrow2EndRel, halo);
         line(consumer, matrix, arrow1StartRel, arrow1EndRel, color);
         line(consumer, matrix, arrow1EndRel, arrow2EndRel, color);
 
-        drawArrowHead(consumer, matrix, arrow1EndRel, normal.multiply(-1), arrowHeadSize, color);
+        drawArrowHead(consumer, matrix, arrow1StartRel, normal.multiply(-1), arrowHeadSize, color);
         drawArrowHead(consumer, matrix, arrow2EndRel, normal, arrowHeadSize, color);
     }
 
+    /** X=红 / Y=绿 / Z=蓝，饱和度偏高，便于远距离辨认。 */
     private static float[] axisBaseColor(int faceIndex) {
         return switch (faceIndex) {
-            case 0, 1 -> new float[]{1.0f, 0.3f, 0.3f};
-            case 2, 3 -> new float[]{0.3f, 1.0f, 0.3f};
-            case 4, 5 -> new float[]{0.3f, 0.45f, 1.0f};
-            default -> new float[]{0.85f, 0.85f, 0.85f};
+            case 0, 1 -> new float[]{1.0f, 0.22f, 0.22f};
+            case 2, 3 -> new float[]{0.22f, 1.0f, 0.32f};
+            case 4, 5 -> new float[]{0.30f, 0.55f, 1.0f};
+            default -> new float[]{0.95f, 0.95f, 0.95f};
         };
+    }
+
+    private static float[] axisArrowColor(int faceIndex) {
+        float[] base = brighten(axisBaseColor(faceIndex));
+        return new float[]{base[0], base[1], base[2], 1.0f};
     }
 
     private static float[] brighten(float[] base) {
         return new float[]{
-            clamp(base[0] + 0.35f),
-            clamp(base[1] + 0.35f),
-            clamp(base[2] + 0.35f),
-            0.95f
+            clamp(base[0] + 0.28f),
+            clamp(base[1] + 0.28f),
+            clamp(base[2] + 0.28f),
+            1.0f
         };
     }
 
@@ -203,17 +268,22 @@ public final class InteractionHintRenderer {
         Vec3d perp2;
         if (Math.abs(dir.y) < 0.9) {
             Vec3d up = new Vec3d(0, 1, 0);
-            perp1 = dir.crossProduct(up).normalize().multiply(size * 0.5);
-            perp2 = dir.crossProduct(perp1).normalize().multiply(size * 0.5);
+            perp1 = dir.crossProduct(up).normalize().multiply(size * 0.55);
+            perp2 = dir.crossProduct(perp1).normalize().multiply(size * 0.55);
         } else {
             Vec3d right = new Vec3d(1, 0, 0);
-            perp1 = dir.crossProduct(right).normalize().multiply(size * 0.5);
-            perp2 = dir.crossProduct(perp1).normalize().multiply(size * 0.5);
+            perp1 = dir.crossProduct(right).normalize().multiply(size * 0.55);
+            perp2 = dir.crossProduct(perp1).normalize().multiply(size * 0.55);
         }
 
         Vec3d p1 = base.add(perp1);
         Vec3d p2 = base.add(perp2);
         Vec3d p3 = base.subtract(perp1).subtract(perp2);
+
+        float[] halo = {0.02f, 0.02f, 0.05f, 0.85f};
+        line(consumer, matrix, tip, p1, halo);
+        line(consumer, matrix, tip, p2, halo);
+        line(consumer, matrix, tip, p3, halo);
 
         line(consumer, matrix, tip, p1, color);
         line(consumer, matrix, tip, p2, color);
@@ -223,4 +293,3 @@ public final class InteractionHintRenderer {
         line(consumer, matrix, p3, p1, color);
     }
 }
-
