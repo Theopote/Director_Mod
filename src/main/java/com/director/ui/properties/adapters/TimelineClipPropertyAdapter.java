@@ -6,7 +6,7 @@ import com.director.core.container.Container;
 import com.director.i18n.DirectorLang;
 import com.director.i18n.TimelinePropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineTrack;
 import com.director.ui.theme.Icons;
@@ -88,22 +88,27 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         final float oldStartTime = clip.getStartTime();
         final float oldEndTime = clip.getEndTime();
 
-        if (Section.header("timeline_clip.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_BASIC))) {
+        if (Card.begin("timeline_clip.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_BASIC))) {
             modified |= propertyUi.renderBasicProperties(clip, TimelineClipUiVariant.CONTAINER);
         }
+        Card.end();
 
         boolean sequenceModified = false;
         boolean animationModified = false;
 
-        if (!clip.getAnimationConfig().isWholeContainer() && Section.header("timeline_clip.section_sequence", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_SEQUENCE))) {
-            sequenceModified = propertyUi.renderSequenceBehavior(clip, TimelineClipUiVariant.CONTAINER);
-            modified |= sequenceModified;
+        if (!clip.getAnimationConfig().isWholeContainer()) {
+            if (Card.begin("timeline_clip.section_sequence", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_SEQUENCE))) {
+                sequenceModified = propertyUi.renderSequenceBehavior(clip, TimelineClipUiVariant.CONTAINER);
+                modified |= sequenceModified;
+            }
+            Card.end();
         }
 
-        if (Section.header("timeline_clip.section_animation", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_ANIMATION))) {
+        if (Card.begin("timeline_clip.section_animation", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_ANIMATION))) {
             animationModified = propertyUi.renderAnimationSettings(clip, TimelineClipUiVariant.CONTAINER);
             modified |= animationModified;
         }
+        Card.end();
 
         List<EffectInstance> effects = clip.getAnimationConfig() != null ? clip.getAnimationConfig().getEffects()
                 : java.util.Collections.emptyList();
@@ -111,9 +116,10 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
                 + (clip.getAnimationConfig().isWholeContainer() || effects.isEmpty()
                 ? TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER)
                 : TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER_COUNT, effects.size()));
-        if (Section.header("timeline_clip.effects", effectsHeader)) {
+        if (Card.begin("timeline_clip.effects", effectsHeader)) {
             modified |= propertyUi.renderEffectsSection(clip);
         }
+        Card.end();
 
         TimelineTrack parent = clip.getParentTrack();
         TrackType type = parent != null ? parent.getType() : null;

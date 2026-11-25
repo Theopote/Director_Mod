@@ -6,7 +6,7 @@ import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.actor.ActorClipInspectorGesture;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -23,7 +23,7 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
         var payload = source.getTimelineClip().getParentTrack().getActorTrackPayload();
         Actor actor = ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
         UITheme.title(Icons.SMILE + " " + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.TITLE));
-        if (Section.header("actor_action_clip.section_semantics", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.SECTION_SEMANTICS))) {
+        if (Card.begin("actor_action_clip.section_semantics", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.SECTION_SEMANTICS))) {
             PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.ACTION_TYPE));
             if (ImGui.beginCombo("##actorActionType", ActorPropertyAdapterI18n.actionSemanticLabel(clip.getActionType()))) {
                 for (var type : ActorActionType.values()) {
@@ -43,7 +43,8 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
             if (!ActorBehaviorCapabilities.supportsAction(actor, clip.getActionType()))
                 ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.RIG_WARNING_HINT));
         }
-        if (Section.header("actor_action_clip.section_intensity", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.SECTION_INTENSITY))) {
+        Card.end();
+        if (Card.begin("actor_action_clip.section_intensity", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.SECTION_INTENSITY))) {
             float[] intensity = {clip.getIntensity()};
             PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY));
             boolean changed = ImGui.sliderFloat("##actorActionIntensity", intensity, 0, 1, "%.2f");
@@ -61,7 +62,8 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
                         ? "gui.director.actor.behavior.locomotion_route" : "gui.director.actor.behavior.locomotion_inplace"));
             }
         }
-        if (Section.header("actor_action_clip.section_time_edit", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.SECTION_TIME_EDIT))) {
+        Card.end();
+        if (Card.begin("actor_action_clip.section_time_edit", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.SECTION_TIME_EDIT))) {
             var start = new ImFloat(clip.getStartTime()); var end = new ImFloat(clip.getEndTime());
             PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.START_TIME));
             boolean changed = ImGui.inputFloat("##actorActionStart", start);
@@ -80,6 +82,7 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
             gesture.observe("end", changed);
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION_FMT, clip.getLength()));
         }
+        Card.end();
         gesture.end(); return false;
     }
 }

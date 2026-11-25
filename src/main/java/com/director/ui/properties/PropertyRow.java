@@ -6,12 +6,16 @@ import imgui.flag.ImGuiCol;
 
 /** Places the next value widget beside a clipped, frame-aligned label. */
 public final class PropertyRow {
-    private static final float LABEL_WIDTH = 72f;
+    /** 参数名宽度占可用宽度的比例及上下限：中文 16px 字体下约容纳 6~10 个字。 */
+    private static final float LABEL_FRACTION = 0.40f;
+    private static final float LABEL_MIN_WIDTH = 96f;
+    private static final float LABEL_MAX_WIDTH = 168f;
 
     private PropertyRow() {}
 
     public static void label(String label) {
-        float width = Math.min(LABEL_WIDTH, ImGui.getContentRegionAvailX() * 0.35f);
+        float avail = ImGui.getContentRegionAvailX();
+        float width = Math.min(Math.max(avail * LABEL_FRACTION, LABEL_MIN_WIDTH), Math.min(LABEL_MAX_WIDTH, avail * 0.5f));
         if (width < 1f) {
             return;
         }

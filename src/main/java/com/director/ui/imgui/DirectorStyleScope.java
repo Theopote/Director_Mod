@@ -44,20 +44,20 @@ public final class DirectorStyleScope implements AutoCloseable {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowMinSize, 32f, 32f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowTitleAlign, 0.0f, 0.5f);
-        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, UITheme.Rounding.NORMAL);
+        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, UITheme.Rounding.SMALL);
         ImGui.pushStyleVar(ImGuiStyleVar.ChildBorderSize, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, UITheme.Rounding.MEDIUM);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, UITheme.Rounding.NORMAL);
         ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, 1.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, UITheme.Spacing.BUTTON_PADDING_X, UITheme.Spacing.BUTTON_PADDING_Y);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, UITheme.Rounding.NORMAL);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, UITheme.Rounding.SMALL);
         ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, UITheme.Spacing.ELEMENT_SPACING, UITheme.Spacing.ELEMENT_SPACING);
         ImGui.pushStyleVar(ImGuiStyleVar.ItemInnerSpacing, UITheme.Spacing.SMALL, UITheme.Spacing.SMALL);
         ImGui.pushStyleVar(ImGuiStyleVar.IndentSpacing, UITheme.Spacing.LARGE);
         ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, 12.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, UITheme.Rounding.NORMAL);
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, UITheme.Rounding.SMALL);
         ImGui.pushStyleVar(ImGuiStyleVar.GrabMinSize, 10.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, UITheme.Rounding.NORMAL);
+        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, UITheme.Rounding.SMALL);
         ImGui.pushStyleVar(ImGuiStyleVar.TabRounding, UITheme.Rounding.SMALL);
         ImGui.pushStyleVar(ImGuiStyleVar.ButtonTextAlign, 0.5f, 0.5f);
 

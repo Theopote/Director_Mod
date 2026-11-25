@@ -30,6 +30,11 @@ public class UITheme {
         private Semantic() {}
     }
 
+    /** 属性面板分组卡片（{@code ImDrawList} 绘制，使用 imCol32 打包）：比 CHILD_BG 略亮，描边弱于控件描边。 */
+    public static final int CARD_BG = imCol32(40, 43, 52, 255);
+    public static final int CARD_HEADER_BG = imCol32(58, 64, 82, 255);
+    public static final int CARD_BORDER = imCol32(70, 76, 94, 200);
+
     public static class DarkTheme {
         // 背景色（窗口最暗，子区域逐级提亮）
         public static final int WINDOW_BG = rgba(18, 19, 23, 246);           // 主窗口背景（更透明）
@@ -323,11 +328,11 @@ public class UITheme {
         
         // 圆角
         style.setWindowRounding(Rounding.NORMAL);
-        style.setChildRounding(Rounding.NORMAL);
-        style.setFrameRounding(Rounding.NORMAL);
-        style.setPopupRounding(Rounding.MEDIUM);
-        style.setScrollbarRounding(Rounding.NORMAL);
-        style.setGrabRounding(Rounding.NORMAL);
+        style.setChildRounding(Rounding.SMALL);
+        style.setFrameRounding(Rounding.SMALL);
+        style.setPopupRounding(Rounding.NORMAL);
+        style.setScrollbarRounding(Rounding.SMALL);
+        style.setGrabRounding(Rounding.SMALL);
         style.setTabRounding(Rounding.SMALL);
         
         // 窗口/子区域无描边，层次靠底色区分；输入框、按钮与弹出层用 1px 弱描边提升轮廓清晰度
