@@ -46,6 +46,7 @@ public final class BlockSequenceGenerator {
             SequenceEvaluator.Evaluation evaluation = EVALUATOR.evaluate(blocks.get(i), bbox, params);
             item.setGroupId(evaluation.layerIndex());
             item.setScore(evaluation.finalScore());
+            item.setFillScore(evaluation.fillScore());
             items.add(item);
         }
 
@@ -58,7 +59,17 @@ public final class BlockSequenceGenerator {
                 .thenComparingLong(item -> item.getPos().asLong());
         boolean grouped = params.getTimeMappingStrategy() == TimeMappingStrategy.GROUP_FIRST
                 || params.getTimeMappingStrategy() == TimeMappingStrategy.STAGGERED;
-        if (grouped && params.getConcurrencyMode() == ConcurrencyMode.ONE_BY_ONE) {
+        if (params.getPriorityWeight() >= 100.0f) {
+            Comparator<BlockSequenceItem> layerOrder = Comparator.comparingInt(BlockSequenceItem::getGroupId);
+            Comparator<BlockSequenceItem> fillOrder = Comparator.comparingDouble(BlockSequenceItem::getFillScore);
+            Comparator<BlockSequenceItem> positionOrder = Comparator.comparingLong(item -> item.getPos().asLong());
+            if (params.isReverse()) {
+            layerOrder = layerOrder.reversed();
+            fillOrder = fillOrder.reversed();
+            positionOrder = positionOrder.reversed();
+            }
+            items.sort(layerOrder.thenComparing(fillOrder).thenComparing(positionOrder));
+        } else if (grouped && params.getConcurrencyMode() == ConcurrencyMode.ONE_BY_ONE) {
             Comparator<BlockSequenceItem> groupOrder = Comparator.comparingInt(BlockSequenceItem::getGroupId);
             if (params.isReverse()) groupOrder = groupOrder.reversed();
             items.sort(groupOrder.thenComparing(scoreOrder));
@@ -247,6 +258,7 @@ public final class BlockSequenceGenerator {
                     finalScore = -finalScore;
                 }
                 item.setScore(finalScore);
+                item.setFillScore(bfsScore);
             }
         }
     }

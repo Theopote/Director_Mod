@@ -119,6 +119,53 @@ class PerBlockScheduleTest {
         var schedule = PerBlockSchedule.create(BlockSequenceGenerator.generate(null, container, params), params, 1);
         assertEquals(upperNear, schedule.entries().getFirst().getPos());
     }
+
+    @Test void strictLayerWeightKeepsLargeLayerFillRangesFromInterleaving() {
+        var lowerLayer = new BlockPos(120, 0, 120);
+        var upperLayer = new BlockPos(0, 1, 0);
+        var container = new Container("large-layers");
+        container.addBlocks(List.of(lowerLayer, upperLayer));
+        var params = new SequenceParameters();
+        params.setFlowType(com.director.core.animation.sequence.evaluator.FlowType.PLANAR);
+        params.setFillType(com.director.core.animation.sequence.evaluator.FillType.LINEAR_SCAN);
+        params.setOriginType(com.director.core.animation.sequence.evaluator.OriginType.BOTTOM_CENTER);
+        params.setPlaneYaw(0);
+        params.setPlanePitch(90);
+        params.setPriorityWeight(100);
+
+        var ordered = BlockSequenceGenerator.generate(null, container, params);
+        assertEquals(List.of(lowerLayer, upperLayer), ordered.stream().map(BlockSequenceEntry::getPos).toList());
+
+        params.setReverse(true);
+        ordered = BlockSequenceGenerator.generate(null, container, params);
+        assertEquals(List.of(upperLayer, lowerLayer), ordered.stream().map(BlockSequenceEntry::getPos).toList());
+    }
+
+    @Test void spiralFillAdvancesOutwardAndAroundTheOrigin() {
+        var east = new BlockPos(2, 0, 0);
+        var south = new BlockPos(0, 0, 2);
+        var west = new BlockPos(-2, 0, 0);
+        var north = new BlockPos(0, 0, -2);
+        var container = new Container("spiral");
+        container.addBlocks(List.of(north, west, south, east));
+        var params = new SequenceParameters();
+        params.setFlowType(com.director.core.animation.sequence.evaluator.FlowType.NONE);
+        params.setFillType(com.director.core.animation.sequence.evaluator.FillType.SPIRAL);
+        params.setOriginType(com.director.core.animation.sequence.evaluator.OriginType.CENTER);
+        var evaluator = new SequenceEvaluator();
+
+        float eastScore = evaluator.evaluate(east, container.getBoundingBox(), params).fillScore();
+        float southScore = evaluator.evaluate(south, container.getBoundingBox(), params).fillScore();
+        float westScore = evaluator.evaluate(west, container.getBoundingBox(), params).fillScore();
+        float northScore = evaluator.evaluate(north, container.getBoundingBox(), params).fillScore();
+        assertTrue(eastScore < southScore);
+        assertTrue(southScore < westScore);
+        assertTrue(westScore < northScore);
+
+        var inner = new BlockPos(1, 0, 0);
+        assertTrue(evaluator.evaluate(inner, container.getBoundingBox(), params).fillScore() < eastScore);
+    }
+
     @Test void tinyActionDurationSurvivesCopyAndGsonRoundTrip() {
         var config = config(new SequenceParameters()); config.setDuration(0.001f);
         assertEquals(0.001f, config.copy().getDuration());

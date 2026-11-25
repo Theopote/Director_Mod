@@ -8,7 +8,6 @@ import com.director.ui.properties.Card;
 
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
-import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.camera.path.CameraPathEnterContext;
 import com.director.timeline.model.camera.path.CranePathClip;

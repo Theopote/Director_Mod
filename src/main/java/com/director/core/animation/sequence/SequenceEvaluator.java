@@ -121,7 +121,10 @@ public final class SequenceEvaluator {
                 return (float) (Math.abs(rel.x) + Math.abs(rel.z));
             }
             case SPIRAL -> {
-                return (float) Math.atan2(rel.z, rel.x);
+                double angle = Math.atan2(rel.z, rel.x);
+                if (angle < 0) angle += Math.PI * 2.0;
+                double radius = Math.hypot(rel.x, rel.z);
+                return (float) (radius + angle / (Math.PI * 2.0));
             }
             case NOISE -> {
                 return hash(rel) * 10.0f;

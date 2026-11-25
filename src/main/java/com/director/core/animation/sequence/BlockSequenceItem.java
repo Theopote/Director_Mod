@@ -24,6 +24,7 @@ public final class BlockSequenceItem implements Serializable {
 
     private int groupId;
     private double score;
+    private double fillScore;
 
     public BlockSequenceItem(BlockPos pos, int index) {
         this.pos = pos;
@@ -54,6 +55,14 @@ public final class BlockSequenceItem implements Serializable {
 
     public void setScore(double score) {
         this.score = score;
+    }
+
+    public double getFillScore() {
+        return fillScore;
+    }
+
+    public void setFillScore(double fillScore) {
+        this.fillScore = fillScore;
     }
 }
 
