@@ -110,8 +110,9 @@ class ActorAnimationAssetLifecycleTest {
         model.setPlaying(false);
         var cow = new Actor("Cow", ActorType.COW); ActorRegistryManager.getInstance().registerActor(cow); track.getActorTrackPayload().setActorRef(new ActorRef(cow.getActorId()));
         assertThrows(IllegalArgumentException.class, () -> ActorAnimationAssetEditing.attach(model, library, source.id(), track));
-        assertThrows(IllegalArgumentException.class, () -> ActorAnimationAssetEditing.createForActor(model, library, "project:new", "New", 2, cow.getActorId()));
-        assertEquals(1, library.size()); assertTrue(track.getClips().isEmpty()); assertFalse(history.canUndo());
+        var created = ActorAnimationAssetEditing.createForActor(model, library, "project:new", "New", 2, cow.getActorId());
+        assertEquals(com.director.actor.rig.skeleton.QuadrupedRig.DEFINITION, created.rig());
+        assertEquals(2, library.size()); assertTrue(track.getClips().isEmpty()); assertTrue(history.canUndo());
     }
     @Test void redoRefusesReboundOwnerAndCanRetryWhenBindingIsRestored() {
         ActorAnimationAssetEditing.attach(model, library, source.id(), track); assertTrue(history.undo());

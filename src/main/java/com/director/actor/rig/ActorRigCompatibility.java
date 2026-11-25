@@ -1,11 +1,8 @@
  package com.director.actor.rig;
 
 import com.director.actor.*;
-import com.director.actor.rig.skeleton.HumanoidRig;
-import com.director.actor.rig.skeleton.RigDefinition;
-import com.director.actor.rig.skeleton.RigDefinitions;
+import com.director.actor.rig.skeleton.*;
 import com.director.timeline.model.TimelineModel;
-import com.director.timeline.model.entity.EntityAnimationClip;
 import com.director.actor.animation.asset.AnimationAssetLibrary;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,8 +21,14 @@ public final class ActorRigCompatibility {
         };
     }
     public static boolean accepts(ActorType type, String rigId) {
-        return family(type) == Family.HUMANOID && (HumanoidRig.DEFINITION.id().equals(rigId)
-                || type == ActorType.PLAYER && com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION.id().equals(rigId));
+        if (type == null) return false;
+        return switch (type) {
+            case VILLAGER -> VillagerRig.DEFINITION.id().equals(rigId);
+            case COW, SHEEP -> QuadrupedRig.DEFINITION.id().equals(rigId);
+            case PLAYER, ZOMBIE, SKELETON -> HumanoidRig.DEFINITION.id().equals(rigId)
+                    || type == ActorType.PLAYER && ArticulatedPlayerRig.DEFINITION.id().equals(rigId);
+            case CUSTOM -> false;
+        };
     }
     /**
      * Instance-aware check. CUSTOM actors must match their bound rig;
@@ -44,6 +47,8 @@ public final class ActorRigCompatibility {
         if (actor == null) return Optional.empty();
         Family fam = family(actor.getType());
         if (actor.getType() == ActorType.PLAYER) return Optional.of(com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION);
+        if (actor.getType() == ActorType.VILLAGER) return Optional.of(VillagerRig.DEFINITION);
+        if (fam == Family.QUADRUPED) return Optional.of(QuadrupedRig.DEFINITION);
         if (fam == Family.HUMANOID) return Optional.of(HumanoidRig.DEFINITION);
         if (fam == Family.CUSTOM) {
             String rigId = actor.getCustomRigId();
@@ -58,8 +63,8 @@ public final class ActorRigCompatibility {
     public static String explanation(ActorType type) {
         return switch (family(type)) {
             case HUMANOID -> "标准人形：支持身体、头、双臂与双腿关键帧。";
-            case VILLAGER -> "村民型：尚未实现独立骨骼绑定，不能使用标准人形关键帧动画。";
-            case QUADRUPED -> "四足型：尚未实现四足骨骼绑定，可继续使用现有过程化动作。";
+            case VILLAGER -> "村民型：支持头、交叉手臂与双腿关键帧。";
+            case QUADRUPED -> "四足型：支持独立前后四肢、头和身体关键帧。";
             case CUSTOM -> "自定义类型：尚未绑定自定义骨架，不能使用关键帧动画。";
         };
     }

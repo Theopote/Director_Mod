@@ -2,6 +2,8 @@ package com.director.actor.rig;
 
 import com.director.actor.ActorType;
 import com.director.actor.rig.skeleton.HumanoidRig;
+import com.director.actor.rig.skeleton.QuadrupedRig;
+import com.director.actor.rig.skeleton.VillagerRig;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -19,6 +21,10 @@ class ActorRigCompatibilityTest {
         assertEquals(ActorRigCompatibility.Family.VILLAGER, ActorRigCompatibility.family(ActorType.VILLAGER));
         assertEquals(ActorRigCompatibility.Family.QUADRUPED, ActorRigCompatibility.family(ActorType.COW));
         assertEquals(ActorRigCompatibility.Family.CUSTOM, ActorRigCompatibility.family(ActorType.CUSTOM));
+        assertTrue(ActorRigCompatibility.accepts(ActorType.VILLAGER, VillagerRig.DEFINITION.id()));
+        assertTrue(ActorRigCompatibility.accepts(ActorType.COW, QuadrupedRig.DEFINITION.id()));
+        assertTrue(ActorRigCompatibility.accepts(ActorType.SHEEP, QuadrupedRig.DEFINITION.id()));
+        assertFalse(ActorRigCompatibility.accepts(ActorType.COW, VillagerRig.DEFINITION.id()));
     }
     @Test void typeChangeChecksSpawnOwnedManualAndPresetEvenWhenMuted() {
         var library=com.director.actor.animation.asset.AnimationAssetLibrary.getInstance();

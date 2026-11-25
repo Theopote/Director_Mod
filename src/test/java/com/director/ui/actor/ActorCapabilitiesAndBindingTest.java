@@ -22,7 +22,7 @@ class ActorCapabilitiesAndBindingTest {
         assertTrue(player.selectable()); assertTrue(player.movable()); assertTrue(player.editableBones());
         assertFalse(player.propSlots().isEmpty()); assertFalse(player.supports(null));
         var cow=new Actor("Cow",ActorType.COW); var c=ActorCapabilities.of(cow);
-        assertFalse(c.editableBones()); assertTrue(c.propSlots().isEmpty());
+        assertTrue(c.editableBones()); assertTrue(c.propSlots().isEmpty());
         for(var action:ActorActionType.values()) assertEquals(cow.getRigProfile().supports(action),c.supports(action));
         assertFalse(ActorCapabilities.of(new Actor("Custom",ActorType.CUSTOM)).editableBones());
         assertFalse(ActorCapabilities.of(null).selectable());

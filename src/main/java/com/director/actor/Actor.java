@@ -159,8 +159,7 @@ public final class Actor {
     }
 
     /**
-     * 解析此演员当前可用于关键帧动画的骨架（{@code null} 表示暂不支持关键帧动画，
-     * 例如四足/村民类型，或尚未绑定骨架的 CUSTOM 类型）。
+     * 解析此演员当前可用于关键帧动画的骨架；仅未绑定骨架的 CUSTOM 类型返回空值。
      */
     public java.util.Optional<com.director.actor.rig.skeleton.RigDefinition> resolveRigDefinition() {
         return com.director.actor.rig.ActorRigCompatibility.resolveRig(this);

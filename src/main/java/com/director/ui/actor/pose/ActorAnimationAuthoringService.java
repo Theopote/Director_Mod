@@ -162,8 +162,7 @@ public final class ActorAnimationAuthoringService {
     }
 
     public static boolean mirror(ActorAnimationEditContext context, Collection<Float> times, InterpolationMode mode) {
-        if (context == null || !context.isCurrent() || times == null || times.isEmpty()
-                || !HumanoidTopology.matches(context.asset().rig())) return false;
+        if (context == null || !context.isCurrent() || times == null || times.isEmpty()) return false;
         List<Paste> keys = new ArrayList<>();
         var rig=context.asset().rig();
         for (Float time : new LinkedHashSet<>(times)) {
@@ -196,8 +195,7 @@ public final class ActorAnimationAuthoringService {
 
     /** Copy only selected authored channels to their symmetric counterparts. */
     public static boolean mirrorSelection(ActorAnimationEditContext context,Collection<Key> selected) {
-        if(context==null || !context.isCurrent() || selected==null || selected.isEmpty()
-                || !HumanoidTopology.matches(context.asset().rig())) return false;
+        if(context==null || !context.isCurrent() || selected==null || selected.isEmpty()) return false;
         var rig=context.asset().rig();var keys=new ArrayList<Paste>();
         for(var key:new LinkedHashSet<>(selected)) {
             if(!valid(context.asset(),key)) return false;

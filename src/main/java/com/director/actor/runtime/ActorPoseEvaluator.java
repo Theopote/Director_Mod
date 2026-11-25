@@ -30,7 +30,7 @@ public final class ActorPoseEvaluator {
         // A Spawn preset may be carried in the primary sampler slot when no manual layer exists.
         if(sample.animationIsPreset && preset==null && manual!=null) {preset=manual;manual=null;}
         var stages=new ArrayList<ActorPoseStage>();
-        RigPose pose=HumanoidTopology.matches(rig)?LegacyHumanoidPoseAdapter.convert(base,rig):new RigPose(rig);
+        RigPose pose=LegacyMobPoseAdapter.convert(base,rig);
         var sources=new ActorPoseSources();
         var before=ActorPoseSources.capture(pose);
         if(type==ActorType.PLAYER) {

@@ -35,6 +35,25 @@ class TimelineRegressionTest {
         TimelineCommandBridge.bind(history);
         TimelineAudioController.getInstance().setTimelineModel(model);
     }
+    @Test void timelineSchemaIsWrittenAndLegacyDtosAreMigrated() {
+        var current = TimelineModelPersistence.toDTO(model, new TimelineViewportState());
+        assertEquals(TimelineModelPersistence.CURRENT_SCHEMA_VERSION, current.schemaVersion);
+
+        var legacy = new TimelineModelPersistence.TimelineDTO();
+        legacy.schemaVersion = 0;
+        legacy.tracks = null;
+        legacy.pointLights = null;
+        legacy.markers = null;
+        TimelineModelPersistence.fromDTO(legacy, new TimelineModel(new TimelineViewportState()), new TimelineViewportState());
+        assertEquals(TimelineModelPersistence.CURRENT_SCHEMA_VERSION, legacy.schemaVersion);
+        assertNotNull(legacy.tracks);
+        assertNotNull(legacy.pointLights);
+        assertNotNull(legacy.markers);
+
+        legacy.schemaVersion = TimelineModelPersistence.CURRENT_SCHEMA_VERSION + 1;
+        assertThrows(IllegalArgumentException.class,
+                () -> TimelineModelPersistence.fromDTO(legacy, model, new TimelineViewportState()));
+    }
     @AfterEach void cleanup() {
         audio.setTimelineModel(null);
         TimelineAudioController.getInstance().setTimelineModel(null);

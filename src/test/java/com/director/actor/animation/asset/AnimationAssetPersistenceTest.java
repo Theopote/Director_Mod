@@ -1,6 +1,8 @@
 package com.director.actor.animation.asset;
 
 import com.director.actor.rig.skeleton.HumanoidRig;
+import com.director.actor.rig.skeleton.QuadrupedRig;
+import com.director.actor.rig.skeleton.VillagerRig;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.AfterEach;
@@ -94,6 +96,27 @@ class AnimationAssetPersistenceTest {
 
         assertTrue(library.contains("project:first"));
         assertEquals(1, library.size());
+    }
+
+    @Test
+    void roundTripsNativeMobRigs() throws Exception {
+        var villager = new AnimationAsset("project:villager-wave", "Villager Wave",
+                VillagerRig.DEFINITION, 1, AnimationLoopMode.ONCE);
+        villager.getOrCreateBoneTrack(VillagerRig.HEAD).rotation()
+                .put(.5f, new Quaternionf().rotateY(.3f), InterpolationMode.LINEAR);
+        var quadruped = new AnimationAsset("project:quad-step", "Quadruped Step",
+                QuadrupedRig.DEFINITION, 1, AnimationLoopMode.LOOP);
+        quadruped.getOrCreateBoneTrack(QuadrupedRig.LEFT_FRONT_LEG).rotation()
+                .put(0, new Quaternionf().rotateX(.4f), InterpolationMode.LINEAR);
+        library.register(villager);
+        library.register(quadruped);
+        Path file = tempDir.resolve("native-rigs.json");
+        AnimationAssetPersistence.save(file, library);
+        library.clear();
+        AnimationAssetPersistence.load(file, library);
+
+        assertEquals(VillagerRig.DEFINITION, library.find(villager.id()).orElseThrow().rig());
+        assertEquals(QuadrupedRig.DEFINITION, library.find(quadruped.id()).orElseThrow().rig());
     }
 
     private static AnimationAsset asset(String id, String name) {

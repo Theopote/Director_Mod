@@ -1,0 +1,33 @@
+package com.director.actor.rig.skeleton;
+
+import java.util.List;
+
+/** Native four-legged topology with independently authored front and hind legs. */
+public final class QuadrupedRig {
+    public static final String ROOT = "root";
+    public static final String BODY = "body";
+    public static final String HEAD = "head";
+    public static final String LEFT_FRONT_LEG = "left_front_leg";
+    public static final String RIGHT_FRONT_LEG = "right_front_leg";
+    public static final String LEFT_HIND_LEG = "left_hind_leg";
+    public static final String RIGHT_HIND_LEG = "right_hind_leg";
+
+    public static final RigDefinition DEFINITION = new RigDefinition(
+            "director:quadruped",
+            "Quadruped",
+            List.of(
+                    bone(ROOT, -1, BoneTransform.identity(), BoneCapabilities.full()),
+                    bone(BODY, 0, BoneTransform.translation(0f, .8f, 0f), BoneCapabilities.rotationAndScale()),
+                    bone(HEAD, 1, BoneTransform.translation(0f, .35f, -.55f), BoneCapabilities.rotationAndScale()),
+                    bone(LEFT_FRONT_LEG, 1, BoneTransform.translation(.22f, -.1f, -.4f), BoneCapabilities.rotationAndScale()),
+                    bone(RIGHT_FRONT_LEG, 1, BoneTransform.translation(-.22f, -.1f, -.4f), BoneCapabilities.rotationAndScale()),
+                    bone(LEFT_HIND_LEG, 1, BoneTransform.translation(.22f, -.1f, .4f), BoneCapabilities.rotationAndScale()),
+                    bone(RIGHT_HIND_LEG, 1, BoneTransform.translation(-.22f, -.1f, .4f), BoneCapabilities.rotationAndScale())
+            ));
+
+    private QuadrupedRig() {}
+
+    private static BoneDefinition bone(String id, int parent, BoneTransform rest, BoneCapabilities capabilities) {
+        return new BoneDefinition(id, id, parent, rest, capabilities);
+    }
+}

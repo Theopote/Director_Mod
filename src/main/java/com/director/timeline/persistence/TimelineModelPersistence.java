@@ -61,12 +61,13 @@ import java.util.UUID;
  * {@link #saveToFile}/{@link #loadFromFile} 按世界目录读写；加载后调用
  * {@code LightLifecycle.cleanLoadedProject} 清理灯光一致性。</p>
  *
- * <p><b>限制</b>：无旧路径/旧 schema 迁移；未知枚举值（如已删除的 AnimationSource）会被忽略并保留默认。</p>
+ * <p>时间线 DTO 带有 schema 版本；加载器按版本顺序迁移旧工程，并拒绝未知的未来版本。</p>
  *
  * @author Director Team
  * @version 1.0
  */
 public class TimelineModelPersistence {
+    public static final int CURRENT_SCHEMA_VERSION = 2;
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineModelPersistence.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
@@ -118,6 +119,8 @@ public class TimelineModelPersistence {
      * 时间线数据传输对象
      */
     public static class TimelineDTO {
+        /** Zero identifies timeline files written before schema versioning. */
+        public int schemaVersion;
         public List<TrackDTO> tracks = new ArrayList<>();
         public List<com.director.lighting.PointLight> pointLights = new ArrayList<>();
         public int lightingVersion;
@@ -599,6 +602,7 @@ public class TimelineModelPersistence {
      */
     public static TimelineDTO toDTO(TimelineModel model, TimelineViewportState viewportState) {
         TimelineDTO dto = new TimelineDTO();
+        dto.schemaVersion = CURRENT_SCHEMA_VERSION;
         dto.pointLights.addAll(model.getPointLights());
         dto.lightingVersion=1;
         
@@ -914,11 +918,32 @@ public class TimelineModelPersistence {
     /**
      * 从 DTO 恢复 TimelineModel
      */
+    private static void migrate(TimelineDTO dto) {
+        if (dto.schemaVersion < 0 || dto.schemaVersion > CURRENT_SCHEMA_VERSION)
+            throw new IllegalArgumentException("不支持的时间线 schema 版本：" + dto.schemaVersion);
+        int sourceVersion = dto.schemaVersion;
+        if (sourceVersion == 0) {
+            if (dto.tracks == null) dto.tracks = new ArrayList<>();
+            if (dto.pointLights == null) dto.pointLights = new ArrayList<>();
+            if (dto.markers == null) dto.markers = new ArrayList<>();
+            dto.schemaVersion = 1;
+        }
+        if (dto.schemaVersion == 1) {
+            // Version 2 keeps events in primitive DTOs. Legacy event JSON has the same wire shape,
+            // so Gson has already populated AnimationEventDTO without a structural transformation.
+            dto.schemaVersion = 2;
+        }
+        if (sourceVersion != dto.schemaVersion)
+            LOGGER.info("[TimelineModelPersistence] 时间线 schema 已从 {} 迁移到 {}",
+                    sourceVersion, dto.schemaVersion);
+    }
+
     public static void fromDTO(TimelineDTO dto, TimelineModel model, TimelineViewportState viewportState) {
         if (dto == null) {
             LOGGER.warn("[TimelineModelPersistence] DTO 为空，跳过恢复");
             return;
         }
+        migrate(dto);
 
         TimelineAudioLoadHook audioHook = model.getAudioLoadHook();
         boolean prevSuppress = audioHook.isSuppressAutoCreate();

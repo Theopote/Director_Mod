@@ -59,6 +59,6 @@ class ActorAnimationDetailTargetTest {
         assertEquals(UNBOUND,ActorAnimationDetailTarget.resolve(model).status());
         var cow=new Actor("Cow",ActorType.COW); ActorRegistryManager.getInstance().registerActor(cow);
         track.getActorTrackPayload().setActorRef(ActorRef.of(cow));
-        assertEquals(UNSUPPORTED_RIG,ActorAnimationDetailTarget.resolve(model).status());
+        assertEquals(INCOMPATIBLE,ActorAnimationDetailTarget.resolve(model).status());
     }
 }
