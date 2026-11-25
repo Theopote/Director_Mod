@@ -3,6 +3,7 @@ package com.director.ui.actor.pose;
 import com.director.timeline.model.*;
 import com.director.timeline.model.entity.*;
 import com.director.timeline.playback.entity.EntityActionEvent;
+import com.director.actor.prop.AnimationEventParameters;
 import com.director.actor.prop.PropEventParameters;
 import com.director.ui.timeline.commands.*;
 import java.util.*;
@@ -39,7 +40,7 @@ public final class ActorAnimationEventEditing {
         var actor=com.director.actor.ActorRegistryManager.getInstance().getActor(owner.getActorTrackPayload().getActorRef().getActorId()).orElse(null);
         for(var event:after) {
             if(!Float.isFinite(event.getNormalizedTime())) throw new IllegalArgumentException("事件时间无效");
-            if(!before.contains(event)) PropEventParameters.validateActor(actor,event.getAction().type(),event.getAction().params());
+            if(!before.contains(event)) AnimationEventParameters.validateActor(actor,event.getAction().type(),event.getAction().params());
         }
         TimelineCommandBridge.execute(new StateChangeCommand(model,"Edit actor animation events",
                 ()->apply(model,owner,clip,after,before),()->apply(model,owner,clip,before,after)));

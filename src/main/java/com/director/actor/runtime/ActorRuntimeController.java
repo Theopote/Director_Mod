@@ -127,6 +127,7 @@ public final class ActorRuntimeController {
         releaseWorldResources();previewWorldRevision=previews.worldRevision();
     }
     private void releaseWorldResources() {
+        ActorAnimationEventEffects.getInstance().reset();
         if(timelineSource!=null) timelineSource.invalidateActorEditContext();
         diagnostics.clear();
         propRuntimes.values().forEach(ActorPropRuntime::dispose);propRuntimes.clear();
@@ -244,6 +245,7 @@ public final class ActorRuntimeController {
         this.enabled = enabled;
         hasUpdateSnapshot = false;
         if (!enabled) {
+            ActorAnimationEventEffects.getInstance().reset();
             diagnostics.clear();
             ActorPreviewManager.getInstance().clear();
             ProjectileRuntimeManager.getInstance().clear();
@@ -1257,13 +1259,7 @@ public final class ActorRuntimeController {
             // 处理 Action 事件
             for (EntityActionEvent e : s.actionEvents) {
                 LOGGER.debug("[ActorRuntime] Actor {} 触发 Action: {}", actor.getName(), e.type());
-                
-                // 处理 Prop 相关 Action
-                if (com.director.actor.prop.PropEventParameters.supports(e.type())) {
-                    // Prop state is reconstructed from timeline time below.
-                }
-                
-                // TODO: 未来可以在这里触发声音、粒子效果等
+                ActorAnimationEventEffects.getInstance().dispatch(entity, e, timelineSource.getCurrentTime());
             }
         }
 

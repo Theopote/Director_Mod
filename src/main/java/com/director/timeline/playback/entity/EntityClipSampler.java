@@ -449,10 +449,26 @@ public class EntityClipSampler {
         result.animationLocalTime = Math.max(0.0f, timeSeconds - active.getStartTime());
         result.animationBlendEnvelope = result.animationBlendSettings.envelopeAt(result.animationLocalTime,active.getLength());
 
-        if(emitEvents && active.hasEvents()) {
-            var clock=AnimationEventClock.projection(track,active,eventFrom,timeSeconds);
-            for(var event:active.getEvents()) for(float at:clock.times(event))
-                if(at>eventFrom && at<=timeSeconds) result.actionEvents.add(event.getAction());
+        if(active.hasEvents()) {
+            var stateClock=AnimationEventClock.projection(track,active,active.getStartTime(),timeSeconds);
+            EntityActionEvent lastVisibility=null;
+            float lastVisibilityTime=Float.NEGATIVE_INFINITY;
+            for(var event:active.getEvents()) {
+                if(event.getAction().type()==EntityActionClip.ActionType.SET_VISIBILITY) {
+                    var occurrences=stateClock.times(event);
+                    if(!occurrences.isEmpty() && occurrences.getLast()>lastVisibilityTime) {
+                        lastVisibilityTime=occurrences.getLast();
+                        lastVisibility=event.getAction();
+                    }
+                }
+            }
+            if(lastVisibility!=null)
+                result.visibility=Boolean.TRUE.equals(lastVisibility.params().get("visible"))?1:0;
+            if(emitEvents) {
+                var eventClock=AnimationEventClock.projection(track,active,eventFrom,timeSeconds);
+                for(var event:active.getEvents()) for(float at:eventClock.times(event))
+                    if(at>eventFrom && at<=timeSeconds) result.actionEvents.add(event.getAction());
+            }
         }
     }
 

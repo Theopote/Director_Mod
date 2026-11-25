@@ -30,6 +30,9 @@ public class EntityActionClip extends EntityClip {
         PLACE_BLOCK("放置方块"),
         BREAK_BLOCK("破坏方块"),
         PLAY_SOUND("播放声音"),
+        SPAWN_PARTICLE("生成粒子"),
+        CAMERA_SHAKE("相机抖动"),
+        SET_VISIBILITY("设置可见性"),
         SAY_LINE("对话"),
         // Prop 相关 Action（v1.0 新增）
         ATTACH_PROP("装备道具"),

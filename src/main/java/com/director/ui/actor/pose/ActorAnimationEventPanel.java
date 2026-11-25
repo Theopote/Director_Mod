@@ -18,7 +18,7 @@ public final class ActorAnimationEventPanel {
     private int index=-1;
     private final ImFloat time=new ImFloat(.5f);
     private AnimationEvent.Timing timing=AnimationEvent.Timing.CLIP;
-    private EntityActionClip.ActionType type=EntityActionClip.ActionType.DETACH_PROP;
+    private EntityActionClip.ActionType type=EntityActionClip.ActionType.PLAY_SOUND;
     private Map<String,Object> params=new LinkedHashMap<>();
     private String message="";
     private final ActorAnimationEventTimeline timeline = new ActorAnimationEventTimeline();
@@ -35,12 +35,17 @@ public final class ActorAnimationEventPanel {
         render(model, owner, clip, false);
     }
 
+    void renderCanvasLane(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip, float duration,
+                          float start, float end, float x, float y, float width, boolean hovered) {
+        timeline.renderAssetLane(model, owner, clip, duration, start, end, x, y, width, hovered, this::beginDraft);
+    }
+
     private void beginDraft(ActorAnimationEventTimeline.DraftSeed seed) {
         index = before.size();
         time.set(seed.phase());
         timing = seed.timing();
-        type = EntityActionClip.ActionType.DETACH_PROP;
-        params = new LinkedHashMap<>(Map.of("slot", "MAIN_HAND"));
+        type = EntityActionClip.ActionType.PLAY_SOUND;
+        params = defaults(type);
         message = "";
     }
 
@@ -79,10 +84,32 @@ public final class ActorAnimationEventPanel {
             ImGui.inputFloat(tr("time"),time);
             var clock=new ImInt(timing.ordinal());if(ImGui.combo(tr("clock"),clock,new String[]{tr("clip_clock"),tr("asset_clock")})) timing=AnimationEvent.Timing.values()[clock.get()];
             if(ImGui.beginCombo(tr("action"),type.getDisplayName())) {
-                for(var candidate:EntityActionClip.ActionType.values()) if(PropEventParameters.supports(candidate))
-                    if(ImGui.selectable(candidate.getDisplayName(),type==candidate)) {type=candidate;params.putIfAbsent(type==EntityActionClip.ActionType.SWITCH_PROP?"newSlot":"slot","MAIN_HAND");}
+                for(var candidate:AnimationEventParameters.supported())
+                    if(ImGui.selectable(candidate.getDisplayName(),type==candidate)) {type=candidate;params=defaults(type);}
                 ImGui.endCombo();
             }
+            if(type==EntityActionClip.ActionType.PLAY_SOUND) {
+                inputText("soundId","声音 ID");
+                inputFloat("volume","音量",.8f);
+                inputFloat("pitch","音调",1);
+            } else if(type==EntityActionClip.ActionType.SPAWN_PARTICLE) {
+                String selected=params.get("particle") instanceof String text?text:"POOF";
+                if(ImGui.beginCombo("粒子类型",selected)) {
+                    for(var candidate:AnimationEventParameters.PARTICLES)
+                        if(ImGui.selectable(candidate,candidate.equals(selected))) params.put("particle",candidate);
+                    ImGui.endCombo();
+                }
+                inputFloat("count","粒子数量",8);
+                inputFloat("spread","扩散范围",.25f);
+                inputFloat("speed","速度",.02f);
+            } else if(type==EntityActionClip.ActionType.CAMERA_SHAKE) {
+                inputFloat("intensity","抖动强度",.25f);
+                inputFloat("duration","持续时间",.35f);
+                inputFloat("frequency","抖动频率",14);
+            } else if(type==EntityActionClip.ActionType.SET_VISIBILITY) {
+                var visible=new imgui.type.ImBoolean(!Boolean.FALSE.equals(params.get("visible")));
+                if(ImGui.checkbox("设为可见",visible)) params.put("visible",visible.get());
+            } else {
             String[] slots=type==EntityActionClip.ActionType.SWITCH_PROP?new String[]{"newSlot","oldSlot"}:new String[]{"slot"};
             for(String key:slots) {
                 String selected=params.get(key) instanceof String text?text:"";
@@ -113,6 +140,7 @@ public final class ActorAnimationEventPanel {
                     var value=new ImFloat(params.get(key) instanceof Number n?n.floatValue():fallback);
                     if(ImGui.inputFloat(tr(key)+"##"+key,value)||!params.containsKey(key)) params.put(key,value.get());
                 }
+            }
             if(ImGui.collapsingHeader(tr("advanced"))) params.forEach((key,value)->ImGui.textWrapped(key+"："+value));
             if(ImGui.button(tr("apply"))) {
                 try {
@@ -132,5 +160,24 @@ public final class ActorAnimationEventPanel {
         ImGui.endDisabled();
         if(index>=0) { ImGui.sameLine(); if(ImGui.button(tr("cancel"))) { index=-1; message=""; } }
         if(!message.isEmpty()) ImGui.textWrapped(message);
+    }
+
+    private void inputText(String key,String label) {
+        var value=new imgui.type.ImString(params.get(key) instanceof String text?text:"",256);
+        if(ImGui.inputText(label+"##event:"+key,value)) params.put(key,value.get());
+    }
+    private void inputFloat(String key,String label,float fallback) {
+        var value=new ImFloat(params.get(key) instanceof Number n?n.floatValue():fallback);
+        if(ImGui.inputFloat(label+"##event:"+key,value) || !params.containsKey(key)) params.put(key,value.get());
+    }
+    private static Map<String,Object> defaults(EntityActionClip.ActionType type) {
+        return switch(type) {
+            case PLAY_SOUND -> new LinkedHashMap<>(Map.of("soundId","minecraft:entity.player.attack.sweep","volume",.8f,"pitch",1f));
+            case SPAWN_PARTICLE -> new LinkedHashMap<>(Map.of("particle","POOF","count",8,"spread",.25f,"speed",.02f));
+            case CAMERA_SHAKE -> new LinkedHashMap<>(Map.of("intensity",.25f,"duration",.35f,"frequency",14f));
+            case SET_VISIBILITY -> new LinkedHashMap<>(Map.of("visible",true));
+            case SWITCH_PROP -> new LinkedHashMap<>(Map.of("newSlot","MAIN_HAND"));
+            default -> new LinkedHashMap<>(Map.of("slot","MAIN_HAND"));
+        };
     }
 }

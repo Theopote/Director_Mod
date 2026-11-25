@@ -355,6 +355,8 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
         }
         var runtime = CameraRuntime.getInstance();
         if (sampled != null) {
+            sampled = com.director.actor.runtime.ActorAnimationEventEffects.getInstance()
+                    .decorate(sampled, timelineModel.getCurrentTime());
             runtime.applyTimelineSample(sampled);
             runtime.setOwner(CameraRuntime.Owner.TIMELINE);
             setCameraInputHidden(true);
@@ -591,7 +593,8 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
             preparePlayerCameraForExport();
             return;
         }
-        runtime.applyTimelineSample(sample);
+        runtime.applyTimelineSample(com.director.actor.runtime.ActorAnimationEventEffects.getInstance()
+                .decorate(sample, timeSeconds));
         runtime.setOwner(CameraRuntime.Owner.TIMELINE);
         CameraRenderOverride.publishTimelineActive(true);
         setCameraInputHidden(true);

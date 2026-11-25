@@ -154,4 +154,16 @@ class AnimationEventClockTest {
         var legacy=gson.fromJson("{\"normalizedTime\":0.5,\"action\":{\"type\":\"ATTACK\",\"params\":{}}}",AnimationEvent.class);
         assertEquals(AnimationEvent.Timing.CLIP,legacy.getTiming());
     }
+
+    @Test void visibilityEventsAreDeterministicAtCurrentTimelineTime() {
+        clip.clearEvents();
+        clip.addEvent(new AnimationEvent(.25f, new EntityActionEvent(
+                EntityActionClip.ActionType.SET_VISIBILITY, Map.of("visible", false)), AnimationEvent.Timing.ANIMATION));
+        clip.addEvent(new AnimationEvent(.75f, new EntityActionEvent(
+                EntityActionClip.ActionType.SET_VISIBILITY, Map.of("visible", true)), AnimationEvent.Timing.ANIMATION));
+        var sampler = new EntityClipSampler(track);
+        assertEquals(0, sampler.sampleSnapshot(.5f).visibility);
+        assertEquals(1, sampler.sampleSnapshot(3.1f).visibility);
+        assertEquals(0, sampler.sampleSnapshot(2.5f).visibility);
+    }
 }
