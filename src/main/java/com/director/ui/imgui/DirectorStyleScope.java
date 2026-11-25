@@ -20,7 +20,7 @@ import imgui.flag.ImGuiStyleVar;
 public final class DirectorStyleScope implements AutoCloseable {
 
     private static final int STYLE_VAR_COUNT = 22;
-    private static final int STYLE_COLOR_COUNT = 39;
+    private static final int STYLE_COLOR_COUNT = 46;
 
     private DirectorStyleScope() {
         pushDirectorStyle();
@@ -44,20 +44,20 @@ public final class DirectorStyleScope implements AutoCloseable {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowMinSize, 32f, 32f);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowTitleAlign, 0.0f, 0.5f);
-        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, UITheme.Rounding.SMALL);
+        ImGui.pushStyleVar(ImGuiStyleVar.ChildRounding, UITheme.Rounding.NORMAL);
         ImGui.pushStyleVar(ImGuiStyleVar.ChildBorderSize, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, UITheme.Rounding.NORMAL);
-        ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupRounding, UITheme.Rounding.MEDIUM);
+        ImGui.pushStyleVar(ImGuiStyleVar.PopupBorderSize, 1.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, UITheme.Spacing.BUTTON_PADDING_X, UITheme.Spacing.BUTTON_PADDING_Y);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, UITheme.Rounding.SMALL);
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, UITheme.Rounding.NORMAL);
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameBorderSize, 1.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, UITheme.Spacing.ELEMENT_SPACING, UITheme.Spacing.ELEMENT_SPACING);
         ImGui.pushStyleVar(ImGuiStyleVar.ItemInnerSpacing, UITheme.Spacing.SMALL, UITheme.Spacing.SMALL);
         ImGui.pushStyleVar(ImGuiStyleVar.IndentSpacing, UITheme.Spacing.LARGE);
-        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, 14.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarSize, 12.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.ScrollbarRounding, UITheme.Rounding.NORMAL);
         ImGui.pushStyleVar(ImGuiStyleVar.GrabMinSize, 10.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, UITheme.Rounding.SMALL);
+        ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, UITheme.Rounding.NORMAL);
         ImGui.pushStyleVar(ImGuiStyleVar.TabRounding, UITheme.Rounding.SMALL);
         ImGui.pushStyleVar(ImGuiStyleVar.ButtonTextAlign, 0.5f, 0.5f);
 
@@ -141,6 +141,18 @@ public final class DirectorStyleScope implements AutoCloseable {
         ImGui.pushStyleColor(ImGuiCol.TabUnfocused, c[0], c[1], c[2], c[3]);
         c = toFloat(UITheme.DarkTheme.TAB_UNFOCUSED);
         ImGui.pushStyleColor(ImGuiCol.TabUnfocusedActive, c[0], c[1], c[2], c[3]);
+        c = toFloat(UITheme.DarkTheme.TITLE_BG_ACTIVE);
+        ImGui.pushStyleColor(ImGuiCol.TableHeaderBg, c[0], c[1], c[2], c[3]);
+        c = toFloat(UITheme.DarkTheme.SEPARATOR);
+        ImGui.pushStyleColor(ImGuiCol.TableBorderStrong, c[0], c[1], c[2], c[3]);
+        c = toFloat(UITheme.DarkTheme.BORDER_SHADOW);
+        ImGui.pushStyleColor(ImGuiCol.TableBorderLight, c[0], c[1], c[2], c[3]);
+        ImGui.pushStyleColor(ImGuiCol.TableRowBgAlt, 1f, 1f, 1f, 8f / 255f);
+        c = toFloat(UITheme.DarkTheme.SLIDER_GRAB_ACTIVE);
+        ImGui.pushStyleColor(ImGuiCol.DragDropTarget, c[0], c[1], c[2], c[3]);
+        c = toFloat(UITheme.DarkTheme.SLIDER_GRAB);
+        ImGui.pushStyleColor(ImGuiCol.NavHighlight, c[0], c[1], c[2], c[3]);
+        ImGui.pushStyleColor(ImGuiCol.ModalWindowDimBg, 0f, 0f, 0f, 120f / 255f);
     }
 
     private static float[] toFloat(int rgba) {
