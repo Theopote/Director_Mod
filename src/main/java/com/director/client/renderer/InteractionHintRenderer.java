@@ -109,7 +109,7 @@ public final class InteractionHintRenderer {
                                                Box handleBox,
                                                Integer hoveredFace,
                                                Integer draggingFace) {
-        // 先画半透明实心体，再画深色描边 + 亮色线框，层次更清晰
+        // 半透明高饱和填充 + 同色亮线框（无黑边）
         VertexConsumer fillBuffer = consumers.getBuffer(RenderLayers.getPreviewLayer());
         Matrix4f matrix = matrices.peek().getPositionMatrix();
 
@@ -123,17 +123,13 @@ public final class InteractionHintRenderer {
             boolean active = hovered || dragging;
 
             float[] fillColor;
-            float[] outlineColor;
             if (dragging) {
-                fillColor = new float[]{1.0f, 0.95f, 0.25f, 0.72f};
-                outlineColor = new float[]{1.0f, 1.0f, 0.55f, 1.0f};
+                fillColor = new float[]{1.0f, 0.95f, 0.35f, 0.82f};
             } else if (hovered) {
                 float[] hot = brighten(base);
-                fillColor = new float[]{hot[0], hot[1], hot[2], 0.68f};
-                outlineColor = new float[]{hot[0], hot[1], hot[2], 1.0f};
+                fillColor = new float[]{hot[0], hot[1], hot[2], 0.78f};
             } else {
-                fillColor = new float[]{base[0], base[1], base[2], 0.50f};
-                outlineColor = new float[]{base[0], base[1], base[2], 0.98f};
+                fillColor = new float[]{base[0], base[1], base[2], 0.62f};
             }
 
             OverlayRenderHelper.drawSolidHandle(fillBuffer, matrix, rel, fillColor, active);
@@ -151,14 +147,14 @@ public final class InteractionHintRenderer {
 
             float[] outlineColor;
             if (dragging) {
-                outlineColor = new float[]{1.0f, 1.0f, 0.55f, 1.0f};
+                outlineColor = new float[]{1.0f, 1.0f, 0.65f, 1.0f};
             } else if (hovered) {
                 outlineColor = brighten(base);
             } else {
-                outlineColor = new float[]{base[0], base[1], base[2], 0.98f};
+                outlineColor = new float[]{base[0], base[1], base[2], 1.0f};
             }
 
-            OverlayRenderHelper.drawHandleWithHalo(lineBuffer, matrix, rel, outlineColor, active);
+            OverlayRenderHelper.drawHandle(lineBuffer, matrix, rel, outlineColor, active);
         }
     }
 

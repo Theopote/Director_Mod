@@ -34,8 +34,6 @@ public final class OverlayRenderHelper {
     /** 面中心锚点（框选面手柄）的视觉大小：未激活 / 激活（悬停或拖拽）。 */
     private static final float HANDLE_SIZE_IDLE = 0.2f;
     private static final float HANDLE_SIZE_ACTIVE = 0.28f;
-    /** 深色描边相对手柄的放大系数，用于在任意背景上提高对比度。 */
-    private static final float HANDLE_HALO_SCALE = 1.22f;
     /** 拾取半宽：与视觉手柄对齐并略放大，供 {@link com.director.core.selection.tools.FaceHandleManager} 使用。 */
     public static final float HANDLE_PICK_HALF_SIZE = HANDLE_SIZE_IDLE / 2.0f + 0.01f;
 
@@ -56,21 +54,6 @@ public final class OverlayRenderHelper {
         float size = active ? HANDLE_SIZE_ACTIVE : HANDLE_SIZE_IDLE;
         drawWireCube(consumer, matrix, pos, size, color[0], color[1], color[2],
                 active ? Math.min(1.0f, color[3] + 0.2f) : color[3]);
-    }
-
-    /**
-     * 深色外框 + 彩色线框，提高面中心手柄在亮/暗背景下的辨识度。
-     */
-    public static void drawHandleWithHalo(VertexConsumer consumer, Matrix4f matrix, Vec3d pos,
-                                          float[] color, boolean active) {
-        if (consumer == null || pos == null || color == null || color.length < 4) {
-            return;
-        }
-
-        float size = active ? HANDLE_SIZE_ACTIVE : HANDLE_SIZE_IDLE;
-        drawWireCube(consumer, matrix, pos, size * HANDLE_HALO_SCALE, 0.02f, 0.02f, 0.05f, 0.92f);
-        drawWireCube(consumer, matrix, pos, size, color[0], color[1], color[2],
-                active ? Math.min(1.0f, color[3] + 0.15f) : color[3]);
     }
 
     /**
