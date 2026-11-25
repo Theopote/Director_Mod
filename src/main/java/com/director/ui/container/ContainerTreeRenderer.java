@@ -21,8 +21,8 @@ import java.util.List;
  * <p>与 InteractionHandler 对齐（可见 = 可点 = 可选 = 可拖）：
  * <ul>
  *   <li>可见行：每行一个 {@code treeNodeEx}，父行不叠子行，不存在 parent 吃掉 children 的 hit。</li>
- *   <li>可点：整行 TreeNode 为 hit 区；组内子节点不画行内锁/可见性图标，避免叠在标签上抢点击导致「组内部分容器点不中」。</li>
- *   <li>根级节点仅在 {@code iconRegionStart >= MIN_LABEL_WIDTH_FOR_ICONS} 时绘制行内图标；锁/可见性仍可通过右键菜单操作。</li>
+ *   <li>可点：整行 TreeNode 为 hit 区；组内子节点只画可见性图标，锁定仍由组统一管理。</li>
+ *   <li>控制图标仅在名称与控制区之间有足够空间时绘制；右键菜单仍可操作锁定/可见性。</li>
  *   <li>不引入独立 VisibleNode 列表：ImGui 每行一 item，hit 与 last item 一致，由 InteractionHandler 直接基于 isItemHovered/Clicked 处理。</li>
  * </ul>
  *
@@ -35,7 +35,7 @@ class ContainerTreeRenderer {
     private static final float ICON_BUTTON_SIZE = 18.0f;
     private static final float ICONS_REGION_WIDTH = ICON_BUTTON_SIZE * 2.0f; // 36
     private static final float ICON_RIGHT_MARGIN = 6.0f; // 与滚动条拉开距离，避免抢点击
-    /** 仅用于根级节点：图标区起始偏移至少保留此宽度才绘制行内锁/可见性图标；组内子节点一律不绘（避免抢点击）。 */
+    /** 图标区起始偏移至少保留此宽度才绘制行内控制；深层子节点额外保留缩进空间。 */
     private static final float MIN_LABEL_WIDTH_FOR_ICONS = 80.0f;
     private static final float TREE_NODE_INNER_SPACING = 2.0f; // 树节点内部间距（箭头和文本之间），更紧凑
     /** 行与行之间的垂直间距（ItemSpacing.y），在 renderTree 内覆写。 */
@@ -231,15 +231,15 @@ class ContainerTreeRenderer {
             }
 
             // 在同一行右侧绘制图标（右对齐）
-            // 组内子节点一律不绘制行内图标：缩进会压缩右侧空间，图标极易叠在标签上抢走点击，导致「组中有些容器不能被选中」。
-            // 根级节点在空间足够时仍绘制；锁/可见性始终可通过右键菜单操作。
+            // 组内子节点只显示独立可见性开关；锁定状态继续由组级联。
             float contentMaxX = ImGui.getContentRegionMaxX();
             float cursorStartX = ImGui.getCursorStartPosX();
             float iconRegionStart = contentMaxX - cursorStartX - ICONS_REGION_WIDTH - ICON_RIGHT_MARGIN;
             iconRegionStart = Math.max(0, iconRegionStart);
 
             boolean isInGroup = container.getParent() != null;
-            boolean allowIcons = !isInGroup && iconRegionStart >= MIN_LABEL_WIDTH_FOR_ICONS;
+            boolean showLockIcon = !isInGroup;
+            boolean allowIcons = iconRegionStart >= MIN_LABEL_WIDTH_FOR_ICONS + container.getDepth() * 12.0f;
 
             if (isOnTimeline && isRowVisible) {
                 drawTimelineBadge(label, rowMin, rowMax, iconRegionStart, allowIcons);
@@ -252,7 +252,7 @@ class ContainerTreeRenderer {
                     drawNameButtonsSeparator(iconRegionStart, rowMin, rowMax);
                 }
                 ImGui.sameLine(iconRegionStart);
-                iconClickState = renderContainerControlIcons(container, isOnTimeline);
+                iconClickState = renderContainerControlIcons(container, isOnTimeline, showLockIcon, iconRegionStart);
                 iconHovered = ImGui.isItemHovered();
             } else {
                 iconClickState = new IconClickState(false, false);
@@ -425,49 +425,46 @@ class ContainerTreeRenderer {
      * 锁定/可见性图标：InvisibleButton 作命中区 + DrawList 绘制图标。
      * 用 isItemClicked 检测点击；当 ImGui 把 click 判给行时，用 isMouseClicked+rect 显式命中，确保事件能路由到按钮并 consume，不触发行选择。
      */
-    private IconClickState renderContainerControlIcons(Container container, boolean isOnTimeline) {
+        private IconClickState renderContainerControlIcons(Container container, boolean isOnTimeline,
+            boolean showLock, float iconRegionStart) {
         ImGui.pushID("Icons");
-        boolean lockClicked;
-        boolean visibilityClicked;
+        boolean lockClicked = false;
+        boolean visibilityClicked = false;
         boolean lockHovered;
         boolean visibilityHovered;
         ImDrawList drawList = ImGui.getWindowDrawList();
         float mx = ImGui.getMousePosX();
         float my = ImGui.getMousePosY();
         try {
-            // 锁定
-            String lockIcon = container.isLocked() ? Icons.LOCK : Icons.UNLOCK;
-            int lockColor = container.isLocked() ? LOCKED_COLOR : LOCKED_DISABLED_COLOR;
-            if (isOnTimeline) {
-                ImGui.beginDisabled();
-            }
-            ImGui.invisibleButton("lock_btn", ICON_BUTTON_SIZE, ICON_BUTTON_SIZE);
-            imgui.ImVec2 lockMin = ImGui.getItemRectMin();
-            imgui.ImVec2 lockMax = ImGui.getItemRectMax();
-            lockClicked = ImGui.isItemClicked(ImGuiMouseButton.Left)
-                || (!isOnTimeline && ImGui.isMouseClicked(ImGuiMouseButton.Left) && rectContainsScreen(lockMin, lockMax, mx, my));
-            lockHovered = ImGui.isItemHovered();
-            if (isOnTimeline) {
-                ImGui.endDisabled();
-                lockClicked = false;
-            }
-            if (lockHovered) {
+            if (showLock) {
+                String lockIcon = container.isLocked() ? Icons.LOCK : Icons.UNLOCK;
+                int lockColor = container.isLocked() ? LOCKED_COLOR : LOCKED_DISABLED_COLOR;
+                if (isOnTimeline) ImGui.beginDisabled();
+                ImGui.invisibleButton("lock_btn", ICON_BUTTON_SIZE, ICON_BUTTON_SIZE);
+                imgui.ImVec2 lockMin = ImGui.getItemRectMin();
+                imgui.ImVec2 lockMax = ImGui.getItemRectMax();
+                lockClicked = ImGui.isItemClicked(ImGuiMouseButton.Left)
+                    || (!isOnTimeline && ImGui.isMouseClicked(ImGuiMouseButton.Left) && rectContainsScreen(lockMin, lockMax, mx, my));
+                lockHovered = ImGui.isItemHovered();
                 if (isOnTimeline) {
-                    ImGui.setTooltip(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.LOCK_TIMELINE_TOOLTIP));
-                } else {
-                    ImGui.setTooltip(DirectorI18n.translate(
-                        container.isLocked()
-                            ? DirectorLang.ContainerPanel.Tree.UNLOCK_CONTAINER
-                            : DirectorLang.ContainerPanel.Tree.LOCK_CONTAINER));
+                    ImGui.endDisabled();
+                    lockClicked = false;
                 }
+                if (lockHovered) {
+                    ImGui.setTooltip(DirectorI18n.translate(isOnTimeline
+                            ? DirectorLang.ContainerPanel.Tree.LOCK_TIMELINE_TOOLTIP
+                            : container.isLocked() ? DirectorLang.ContainerPanel.Tree.UNLOCK_CONTAINER
+                                    : DirectorLang.ContainerPanel.Tree.LOCK_CONTAINER));
+                }
+                drawIconInRect(drawList, lockMin, lockMax, lockIcon, lockColor);
             }
-            drawIconInRect(drawList, lockMin, lockMax, lockIcon, lockColor);
 
-            // 可见性
-            ImGui.sameLine();
-            boolean isHidden = container.getState() == com.director.core.container.ContainerState.HIDDEN;
-            String visIcon = isHidden ? Icons.INVISIBLE : Icons.VISIBLE;
-            int visColor = isHidden ? VISIBLE_DISABLED_COLOR : VISIBLE_COLOR;
+            if (showLock) ImGui.sameLine();
+            else ImGui.sameLine(iconRegionStart + ICON_BUTTON_SIZE + ImGui.getStyle().getItemSpacing().x);
+            boolean isLocallyHidden = container.getState() == com.director.core.container.ContainerState.HIDDEN;
+            String visIcon = isLocallyHidden ? Icons.INVISIBLE : Icons.VISIBLE;
+            int visColor = isLocallyHidden || !container.isEffectivelyVisible()
+                    ? VISIBLE_DISABLED_COLOR : VISIBLE_COLOR;
 
             if (isOnTimeline) {
                 ImGui.beginDisabled();
@@ -486,7 +483,7 @@ class ContainerTreeRenderer {
                     ImGui.setTooltip(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.VISIBILITY_TIMELINE_TOOLTIP));
                 } else {
                     ImGui.setTooltip(DirectorI18n.translate(
-                        isHidden
+                        isLocallyHidden
                             ? DirectorLang.ContainerPanel.Tree.SHOW_CONTAINER_TOOLTIP
                             : DirectorLang.ContainerPanel.Tree.HIDE_CONTAINER_TOOLTIP));
                 }

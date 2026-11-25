@@ -526,6 +526,8 @@ public class ContainerManager {
             list.add(c);
         }
         if (list.isEmpty()) return;
+        java.util.List<Boolean> oldEffectiveVisibility = list.stream()
+            .map(Container::isEffectivelyVisible).toList();
         writeLock.lock();
         try {
             int insertIndex = startIndex < 0
@@ -550,20 +552,19 @@ public class ContainerManager {
         } finally {
             writeLock.unlock();
         }
-        // 继承组状态（锁外应用可见性/锁定），并逐个触发 moved 事件
-        for (Container c : list) {
+        // 锁定仍由父组级联；可见性保留成员自身状态，只应用祖先组的有效约束。
+        for (int i = 0; i < list.size(); i++) {
+            Container c = list.get(i);
             if (newParent != null && newParent.isGroup()) {
                 try {
                     if (newParent.isLocked() != c.isLocked()) {
                         c.setLocked(newParent.isLocked());
                     }
-                    if (newParent.getState() != c.getState()) {
-                        c.setState(newParent.getState());
-                    }
                 } catch (Exception e) {
-                    LOGGER.warn("[ContainerManager] 批量移动时应用组状态出错: {}", e.getMessage());
+                    LOGGER.warn("[ContainerManager] 批量移动时应用组锁定状态出错: {}", e.getMessage());
                 }
             }
+            if (oldEffectiveVisibility.get(i) != c.isEffectivelyVisible()) c.refreshEffectiveVisibility();
             fireContainerMoved(c, newParent);
         }
     }
@@ -575,10 +576,10 @@ public class ContainerManager {
             return;
         }
 
-        Container oldParent;
+        boolean oldEffectiveVisibility = container.isEffectivelyVisible();
         writeLock.lock();
         try {
-            oldParent = container.getParent();
+            Container oldParent = container.getParent();
             if (oldParent != null) {
                 oldParent.removeChild(container);
             } else {
@@ -595,19 +596,17 @@ public class ContainerManager {
         } finally {
             writeLock.unlock();
         }
-        // 继承组状态：如果新父级是组，则子容器跟随组的锁定与可见性
+        // 锁定仍由父组级联；成员自身显隐状态不被父组覆盖。
         if (newParent != null && newParent.isGroup()) {
             try {
                 if (newParent.isLocked() != container.isLocked()) {
                     container.setLocked(newParent.isLocked());
                 }
-                if (newParent.getState() != container.getState()) {
-                    container.setState(newParent.getState());
-                }
             } catch (Exception e) {
-                LOGGER.warn("[ContainerManager] 应用组状态到子容器时出错: {}", e.getMessage());
+                LOGGER.warn("[ContainerManager] 应用组锁定状态到子容器时出错: {}", e.getMessage());
             }
         }
+        if (oldEffectiveVisibility != container.isEffectivelyVisible()) container.refreshEffectiveVisibility();
         fireContainerMoved(container, newParent);
     }
 

@@ -512,43 +512,45 @@ public class Container {
             
             LOGGER.debug("[Container] 容器 {} 状态变更: {} -> {}，方块数量: {}", 
                 name, oldState.getDisplayName(), state.getDisplayName(), getBlockCount());
-            
-            if (syncVisibility) {
-                try {
-                    if (!DirectorServices.isInitialized()) {
-                        // 启动早期：ContainerManager.createDefaultContainers() 期间可能会触发 setState，
-                        // 此时 DirectorServices 仍在装配，跳过可见性同步即可（服务会在 SERVER_STARTED 后绑定）。
-                        return;
-                    }
-                    var visibilityService = DirectorServices.get().visibilityOrNull();
-                    if (visibilityService != null) {
-                        if (state == ContainerState.HIDDEN) {
-                            visibilityService.hideContainer(this);
-                        } else {
-                            visibilityService.showContainer(this);
-                        }
-                    } else {
-                        LOGGER.warn("[Container] ContainerVisibilityService未初始化，无法切换可见性");
-                    }
-                } catch (IllegalStateException e) {
-                    // 兼容历史初始化顺序：此时服务可能尚未装配完成，降级为 warn 避免 ERROR 刷屏。
-                    LOGGER.warn("[Container] 切换容器可见性跳过（服务未就绪）: {}", e.getMessage());
-                } catch (Exception e) {
-                    LOGGER.error("[Container] 切换容器可见性失败: {}", e.getMessage(), e);
-                }
-            }
-
-            // 组的可见性应级联到子容器
-            if (isGroup()) {
-                for (Container child : getChildrenInternal()) {
-                    child.setState(state, syncVisibility);
-                }
-            }
+            if (syncVisibility) refreshEffectiveVisibility();
         }
     }
     
-    public boolean isHidden() { return state == ContainerState.HIDDEN; }
-    public boolean isStateVisible() { return state == ContainerState.VISIBLE; }
+    /** The container's own visibility preference, independent of ancestor groups. */
+    public boolean isLocallyVisible() { return state == ContainerState.VISIBLE; }
+
+    /** Whether this container and every ancestor group allow it to be visible. */
+    public boolean isEffectivelyVisible() {
+        for (Container current = this; current != null; current = current.parent) {
+            if (current.state != ContainerState.VISIBLE) return false;
+        }
+        return true;
+    }
+
+    public boolean isHidden() { return !isEffectivelyVisible(); }
+    public boolean isStateVisible() { return isEffectivelyVisible(); }
+
+    /** Reapplies inherited visibility after this container is reparented. */
+    public void refreshEffectiveVisibility() {
+        if (isGroup()) {
+            for (Container child : getChildrenInternal()) child.refreshEffectiveVisibility();
+            return;
+        }
+        try {
+            if (!DirectorServices.isInitialized()) return;
+            var visibilityService = DirectorServices.get().visibilityOrNull();
+            if (visibilityService == null) {
+                LOGGER.warn("[Container] ContainerVisibilityService未初始化，无法切换可见性");
+                return;
+            }
+            if (isEffectivelyVisible()) visibilityService.showContainer(this);
+            else visibilityService.hideContainer(this);
+        } catch (IllegalStateException e) {
+            LOGGER.warn("[Container] 切换容器可见性跳过（服务未就绪）: {}", e.getMessage());
+        } catch (Exception e) {
+            LOGGER.error("[Container] 切换容器可见性失败: {}", e.getMessage(), e);
+        }
+    }
     
     public void toggleState() {
         setState(state.toggle());

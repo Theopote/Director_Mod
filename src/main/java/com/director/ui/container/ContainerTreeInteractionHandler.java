@@ -552,7 +552,7 @@ class ContainerTreeInteractionHandler {
             if (timelineSelection) ImGui.endDisabled();
         } else {
             boolean disabled = isTimelineControlled(container);
-            boolean hidden = container.isHidden();
+            boolean hidden = container.getState() == com.director.core.container.ContainerState.HIDDEN;
             renderMenuItem(hidden ? tr(DirectorLang.ContainerPanel.ContextMenu.SHOW) : hideLabel, "V", disabled,
                 () -> controller.toggleContainerState(container.getId()));
 
