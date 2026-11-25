@@ -13,6 +13,7 @@ import java.util.function.Function;
 
 /** Read-only graph of one authored channel in asset time. */
 final class ActorAnimationCurvePreview {
+    enum RotationDisplay { EULER, QUATERNION }
     private ActorAnimationCurvePreview() {}
 
     static List<Float> sampleTimes(KeyframeTrack<?> track, float start, float end) {
@@ -31,13 +32,20 @@ final class ActorAnimationCurvePreview {
         return List.copyOf(times);
     }
 
-    static void render(ActorAnimationDopeSheet.Row row, float start, float duration, float playhead) {
+    static void render(ActorAnimationDopeSheet.Row row, float start, float duration, float playhead,
+                       RotationDisplay rotationDisplay) {
         var track = row.track().orElseThrow();
         switch (row.channel()) {
-            case TRANSLATION -> plot(track.translation(), new Vector3f(), ActorAnimationCurvePreview::components, start, duration, playhead);
-            case SCALE -> plot(track.scale(), new Vector3f(1), ActorAnimationCurvePreview::components, start, duration, playhead);
-            case ROTATION -> plot(track.rotation(), new Quaternionf(), q -> new float[]{q.x, q.y, q.z, q.w},
-                    start, duration, playhead);
+            case TRANSLATION -> plot(track.translation(), new Vector3f(), ActorAnimationCurvePreview::components,
+                    start, duration, playhead, "XYZ");
+            case SCALE -> plot(track.scale(), new Vector3f(1), ActorAnimationCurvePreview::components,
+                    start, duration, playhead, "XYZ");
+            case ROTATION -> {
+                if (rotationDisplay == RotationDisplay.QUATERNION)
+                    plot(track.rotation(), new Quaternionf(), q -> new float[]{q.x, q.y, q.z, q.w},
+                            start, duration, playhead, "XYZW");
+                else plotEuler(track.rotation(), start, duration, playhead);
+            }
         }
     }
 
@@ -45,12 +53,32 @@ final class ActorAnimationCurvePreview {
         return new float[]{value.x, value.y, value.z};
     }
 
-    private static <T> void plot(KeyframeTrack<T> track, T fallback, Function<T, float[]> components,
-                                 float start, float duration, float playhead) {
+    static float[] eulerDegrees(Quaternionf value, float[] previous) {
+        var radians = value.getEulerAnglesXYZ(new Vector3f());
+        var degrees = new float[]{(float)Math.toDegrees(radians.x), (float)Math.toDegrees(radians.y),
+                (float)Math.toDegrees(radians.z)};
+        if (previous != null) for (int i = 0; i < degrees.length; i++) {
+            while (degrees[i] - previous[i] > 180f) degrees[i] -= 360f;
+            while (degrees[i] - previous[i] < -180f) degrees[i] += 360f;
+        }
+        return degrees;
+    }
+
+    private static void plotEuler(KeyframeTrack<Quaternionf> track, float start, float duration, float playhead) {
         var times = sampleTimes(track, start, start + duration);
         var values = new float[times.size()][];
-        double low = Double.POSITIVE_INFINITY;
-        double high = Double.NEGATIVE_INFINITY;
+        float[] previous = null;
+        for (int i = 0; i < times.size(); i++) {
+            values[i] = eulerDegrees(track.sample(times.get(i), new Quaternionf()), previous);
+            previous = values[i];
+        }
+        draw(times, values, start, duration, playhead, "XYZ");
+    }
+
+    private static <T> void plot(KeyframeTrack<T> track, T fallback, Function<T, float[]> components,
+                                 float start, float duration, float playhead, String axes) {
+        var times = sampleTimes(track, start, start + duration);
+        var values = new float[times.size()][];
         for (int i = 0; i < times.size(); i++) {
             float[] sample = components.apply(track.sample(times.get(i), fallback));
             if (sample.length == 4 && i > 0) {
@@ -60,10 +88,18 @@ final class ActorAnimationCurvePreview {
                 if (dot < 0) for (int axis = 0; axis < 4; axis++) sample[axis] = -sample[axis];
             }
             values[i] = sample;
-            for (float value : sample) {
-                low = Math.min(low, value);
-                high = Math.max(high, value);
-            }
+        }
+        draw(times, values, start, duration, playhead, axes);
+    }
+
+    private static void draw(List<Float> times, float[][] values, float start, float duration, float playhead,
+                             String axes) {
+        if (values.length == 0) return;
+        double low = Double.POSITIVE_INFINITY;
+        double high = Double.NEGATIVE_INFINITY;
+        for (float[] sample : values) for (float value : sample) {
+            low = Math.min(low, value);
+            high = Math.max(high, value);
         }
         if (!Double.isFinite(low) || !Double.isFinite(high)) return;
         if (low == high) {
@@ -82,7 +118,7 @@ final class ActorAnimationCurvePreview {
         draw.addRectFilled(x, y, x + width, y + height, TimelineColors.rgba(24, 27, 32, 255), 3f);
         float top = y + 24f, bottom = y + height - 20f;
         for (int axis = 0; axis < values[0].length; axis++) {
-            draw.addText(x + 8 + axis * 18, y + 4, colors[axis], "XYZW".substring(axis, axis + 1));
+            draw.addText(x + 8 + axis * 18, y + 4, colors[axis], axes.substring(axis, axis + 1));
             for (int i = 1; i < times.size(); i++) {
                 float fromX = x + (times.get(i - 1) - start) / duration * width;
                 float toX = x + (times.get(i) - start) / duration * width;

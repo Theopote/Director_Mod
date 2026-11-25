@@ -30,6 +30,15 @@ class ActorAuthoringExperienceTest {
         assertEquals(2f, track.sample(times.get(jump), new org.joml.Vector3f()).x);
     }
 
+    @Test void eulerCurveUnwrapsAnglesAcrossTheBoundary() {
+        var first = ActorAnimationCurvePreview.eulerDegrees(
+                new Quaternionf().rotateX((float)Math.toRadians(170)), null);
+        var second = ActorAnimationCurvePreview.eulerDegrees(
+                new Quaternionf().rotateX((float)Math.toRadians(-170)), first);
+        assertEquals(170, first[0], 1e-3f);
+        assertEquals(190, second[0], 1e-3f);
+    }
+
     private TimelineModel model;
     private TimelineTrack owner;
     private TimelineCommandHistory history;

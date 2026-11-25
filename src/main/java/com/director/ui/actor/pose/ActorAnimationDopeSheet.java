@@ -722,8 +722,18 @@ public final class ActorAnimationDopeSheet {
             }
             ImGui.endCombo();
         }
-        if (selected.channel() == Channel.ROTATION) ImGui.textWrapped(curveText("quaternion"));
-        ActorAnimationCurvePreview.render(selected, view.startTime, visibleDuration(duration, view.zoom), renderContext.assetTime());
+        if (selected.channel() == Channel.ROTATION) {
+            var mode = new imgui.type.ImInt(view.quaternionCurve ? 1 : 0);
+            ImGui.setNextItemWidth(150);
+            if (ImGui.combo(curveText("rotation_display"), mode,
+                    new String[]{curveText("rotation_euler"), curveText("rotation_quaternion")}))
+                view.quaternionCurve = mode.get() != 0;
+            ImGui.textWrapped(view.quaternionCurve ? curveText("quaternion") : curveText("euler"));
+        }
+        ActorAnimationCurvePreview.render(selected, view.startTime, visibleDuration(duration, view.zoom),
+                renderContext.assetTime(), view.quaternionCurve
+                        ? ActorAnimationCurvePreview.RotationDisplay.QUATERNION
+                        : ActorAnimationCurvePreview.RotationDisplay.EULER);
     }
 
     private static String curveLabel(Row row) {
@@ -751,6 +761,7 @@ public final class ActorAnimationDopeSheet {
         private float zoom = 1f;
         private float startTime;
         private boolean curve;
+        private boolean quaternionCurve;
         private String curveBone;
         private Channel curveChannel;
     }

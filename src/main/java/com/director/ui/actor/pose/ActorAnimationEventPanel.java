@@ -31,10 +31,6 @@ public final class ActorAnimationEventPanel {
         render(model, owner, clip, true);
     }
 
-    void renderTimeline(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip) {
-        render(model, owner, clip, false);
-    }
-
     void renderCanvasLane(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip, float duration,
                           float start, float end, float x, float y, float width, boolean hovered) {
         timeline.renderAssetLane(model, owner, clip, duration, start, end, x, y, width, hovered, this::beginDraft);
