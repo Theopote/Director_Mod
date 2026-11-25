@@ -1321,7 +1321,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 Actor actor = actorOpt.get();
             
                 ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_CONFIRM));
-                ImGui.textColored(1.0f, 0.5f, 0.5f, 1.0f,
+                UITheme.colored(UITheme.Semantic.DANGER,
                         ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_ACTOR_FMT,
                                 actor.getName(), ActorPropertyAdapterI18n.actorTypeLabel(actor.getType())));
                 ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_UNDO_WARNING));

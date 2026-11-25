@@ -1,6 +1,8 @@
 package com.director.ui.panels;
 
+import com.director.ui.theme.UITheme;
 import com.director.core.container.*;
+import com.director.ui.properties.Card;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.container.ContainerColorPicker;
@@ -145,7 +147,7 @@ public class ContainerPropertiesPanel {
     }
 
     private void renderContainerInfo(Container container) {
-        ImGui.textColored(0.4f, 1.0f, 0.5f, 1.0f,
+        UITheme.colored(UITheme.Semantic.SUCCESS,
                 container.getType().getIcon() + " " + container.getName());
         ImGui.sameLine();
         ImGui.textDisabled("(ID: " + container.getId().toString().substring(0, 8) + ")");
@@ -154,158 +156,174 @@ public class ContainerPropertiesPanel {
 
     private void renderBasicProperties(Container container) {
         ImGui.setNextItemOpen(false, ImGuiCond.Once);
-        if (!ImGui.collapsingHeader(tr(DirectorLang.Properties.EmbeddedContainer.BASIC_PROPERTIES))) return;
+        if (!Card.begin("embeddedContainer1", tr(DirectorLang.Properties.EmbeddedContainer.BASIC_PROPERTIES))) { Card.end(); return; }
+        try {
 
-        boolean nameEnterPressed = ImGui.inputText(tr(DirectorLang.Properties.EmbeddedContainer.NAME), nameBuffer,
-                ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.EnterReturnsTrue);
-        if (nameEnterPressed || ImGui.isItemDeactivatedAfterEdit()) {
-            String newName = UIUtils.cleanString(nameBuffer.get());
-            if (!newName.isEmpty() && !newName.equals(container.getName())) {
-                controller.renameContainer(container.getId(), newName);
+            boolean nameEnterPressed = ImGui.inputText(tr(DirectorLang.Properties.EmbeddedContainer.NAME), nameBuffer,
+                    ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.EnterReturnsTrue);
+            if (nameEnterPressed || ImGui.isItemDeactivatedAfterEdit()) {
+                String newName = UIUtils.cleanString(nameBuffer.get());
+                if (!newName.isEmpty() && !newName.equals(container.getName())) {
+                    controller.renameContainer(container.getId(), newName);
+                }
             }
-        }
 
-        int currentTypeIndex = 0;
-        ContainerType currentType = container.getType();
-        for (int i = 0; i < AVAILABLE_TYPES.length; i++) {
-            if (AVAILABLE_TYPES[i] == currentType) {
-                currentTypeIndex = i;
-                break;
+            int currentTypeIndex = 0;
+            ContainerType currentType = container.getType();
+            for (int i = 0; i < AVAILABLE_TYPES.length; i++) {
+                if (AVAILABLE_TYPES[i] == currentType) {
+                    currentTypeIndex = i;
+                    break;
+                }
             }
-        }
-        typeIndex.set(currentTypeIndex);
+            typeIndex.set(currentTypeIndex);
 
-        if (ImGui.combo(tr(DirectorLang.Properties.EmbeddedContainer.TYPE), typeIndex, buildTypeNames())) {
-            ContainerType newType = AVAILABLE_TYPES[typeIndex.get()];
-            if (newType != currentType) {
-                controller.setContainerType(container.getId(), newType);
+            if (ImGui.combo(tr(DirectorLang.Properties.EmbeddedContainer.TYPE), typeIndex, buildTypeNames())) {
+                ContainerType newType = AVAILABLE_TYPES[typeIndex.get()];
+                if (newType != currentType) {
+                    controller.setContainerType(container.getId(), newType);
+                }
             }
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.TYPE_TOOLTIP));
-        }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.TYPE_TOOLTIP));
+            }
 
-        if (ImGui.inputTextMultiline(tr(DirectorLang.Properties.EmbeddedContainer.DESCRIPTION), descBuffer, 0, 55)) {
-            controller.setMetadata(container.getId(), "description", UIUtils.cleanString(descBuffer.get()));
+            if (ImGui.inputTextMultiline(tr(DirectorLang.Properties.EmbeddedContainer.DESCRIPTION), descBuffer, 0, 55)) {
+                controller.setMetadata(container.getId(), "description", UIUtils.cleanString(descBuffer.get()));
+            }
+        } finally {
+            Card.end();
         }
     }
 
     private void renderAnimationPreset(Container container) {
         ImGui.setNextItemOpen(false, ImGuiCond.Once);
-        if (!ImGui.collapsingHeader(tr(DirectorLang.Properties.EmbeddedContainer.ANIMATION_PRESET))) return;
+        if (!Card.begin("embeddedContainer2", tr(DirectorLang.Properties.EmbeddedContainer.ANIMATION_PRESET))) { Card.end(); return; }
+        try {
 
-        ContainerAnimationPreset preset = container.getDefaultAnimationPreset();
-        AnimationMode[] modes = AnimationMode.values();
+            ContainerAnimationPreset preset = container.getDefaultAnimationPreset();
+            AnimationMode[] modes = AnimationMode.values();
 
-        animModeIndex.set(preset.getMode().ordinal());
-        if (ImGui.combo(tr(DirectorLang.Properties.EmbeddedContainer.APPEAR_MODE), animModeIndex, buildAnimationModeNames())) {
-            AnimationMode newMode = modes[animModeIndex.get()];
-            controller.setPresetMode(container.getId(), newMode);
+            animModeIndex.set(preset.getMode().ordinal());
+            if (ImGui.combo(tr(DirectorLang.Properties.EmbeddedContainer.APPEAR_MODE), animModeIndex, buildAnimationModeNames())) {
+                AnimationMode newMode = modes[animModeIndex.get()];
+                controller.setPresetMode(container.getId(), newMode);
+            }
+
+            ImGui.pushStyleColor(ImGuiCol.Text, 0.6f, 0.6f, 0.6f, 1.0f);
+            ImGui.textWrapped(preset.getMode().getDescription());
+            ImGui.popStyleColor();
+
+            ImGui.spacing();
+
+            float dur = preset.getSuggestedDuration();
+            float[] durBuf = { dur };
+            if (ImGui.sliderFloat(tr(DirectorLang.Properties.EmbeddedContainer.SUGGESTED_DURATION), durBuf,
+                    ContainerAnimationPreset.MIN_SUGGESTED_DURATION,
+                    ContainerAnimationPreset.MAX_SUGGESTED_DURATION, "%.2fs")) {
+                controller.setPresetDuration(container.getId(), durBuf[0]);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.SUGGESTED_DURATION_TOOLTIP));
+            }
+
+            float[] delayBuf = { preset.getDelay() };
+            if (ImGui.sliderFloat(tr(DirectorLang.Properties.EmbeddedContainer.DEFAULT_DELAY), delayBuf, 0f, 10f, "%.1fs")) {
+                controller.setPresetDelay(container.getId(), delayBuf[0]);
+            }
+
+            if (ImGui.inputText(tr(DirectorLang.Properties.EmbeddedContainer.EASING_CURVE), easingBuffer)) {
+                controller.setPresetEasing(container.getId(), easingBuffer.get());
+            }
+
+            if (ImGui.inputText(tr(DirectorLang.Properties.EmbeddedContainer.PLAY_ORDERING), orderingBuffer)) {
+                controller.setPresetOrdering(container.getId(), orderingBuffer.get());
+            }
+
+            ImGui.spacing();
+            ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedContainer.PRESET_HINT));
+        } finally {
+            Card.end();
         }
-
-        ImGui.pushStyleColor(ImGuiCol.Text, 0.6f, 0.6f, 0.6f, 1.0f);
-        ImGui.textWrapped(preset.getMode().getDescription());
-        ImGui.popStyleColor();
-
-        ImGui.spacing();
-
-        float dur = preset.getSuggestedDuration();
-        float[] durBuf = { dur };
-        if (ImGui.sliderFloat(tr(DirectorLang.Properties.EmbeddedContainer.SUGGESTED_DURATION), durBuf,
-                ContainerAnimationPreset.MIN_SUGGESTED_DURATION,
-                ContainerAnimationPreset.MAX_SUGGESTED_DURATION, "%.2fs")) {
-            controller.setPresetDuration(container.getId(), durBuf[0]);
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.SUGGESTED_DURATION_TOOLTIP));
-        }
-
-        float[] delayBuf = { preset.getDelay() };
-        if (ImGui.sliderFloat(tr(DirectorLang.Properties.EmbeddedContainer.DEFAULT_DELAY), delayBuf, 0f, 10f, "%.1fs")) {
-            controller.setPresetDelay(container.getId(), delayBuf[0]);
-        }
-
-        if (ImGui.inputText(tr(DirectorLang.Properties.EmbeddedContainer.EASING_CURVE), easingBuffer)) {
-            controller.setPresetEasing(container.getId(), easingBuffer.get());
-        }
-
-        if (ImGui.inputText(tr(DirectorLang.Properties.EmbeddedContainer.PLAY_ORDERING), orderingBuffer)) {
-            controller.setPresetOrdering(container.getId(), orderingBuffer.get());
-        }
-
-        ImGui.spacing();
-        ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedContainer.PRESET_HINT));
     }
 
     private void renderVisualProperties(Container container) {
         ImGui.setNextItemOpen(false, ImGuiCond.Once);
-        if (!ImGui.collapsingHeader(tr(DirectorLang.Properties.EmbeddedContainer.CONTAINER_PROPERTIES))) return;
+        if (!Card.begin("embeddedContainer3", tr(DirectorLang.Properties.EmbeddedContainer.CONTAINER_PROPERTIES))) { Card.end(); return; }
+        try {
 
-        ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.UI_TAG_COLOR));
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.UI_TAG_COLOR_TOOLTIP));
-        }
+            ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.UI_TAG_COLOR));
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.UI_TAG_COLOR_TOOLTIP));
+            }
 
-        String tagColorLabel = tr(DirectorLang.Properties.EmbeddedContainer.TAG_COLOR_PICKER);
-        if (ContainerColorPicker.renderColorPicker(tagColorLabel, tagColorBuffer)) {
-            int newTagColor = ContainerColorPicker.colorFloatToInt(tagColorBuffer);
-            controller.setMetadata(container.getId(), "tagColor", newTagColor);
-        }
+            String tagColorLabel = tr(DirectorLang.Properties.EmbeddedContainer.TAG_COLOR_PICKER);
+            if (ContainerColorPicker.renderColorPicker(tagColorLabel, tagColorBuffer)) {
+                int newTagColor = ContainerColorPicker.colorFloatToInt(tagColorBuffer);
+                controller.setMetadata(container.getId(), "tagColor", newTagColor);
+            }
 
-        ImGui.sameLine();
-        if (ImGui.button(tr(DirectorLang.Properties.EmbeddedContainer.CLEAR) + "##clearTagColor")) {
-            controller.setMetadata(container.getId(), "tagColor", null);
-            float[] defaultColorArray = ContainerColorPicker.colorIntToFloat(0xFFFFFFFF);
-            System.arraycopy(defaultColorArray, 0, tagColorBuffer, 0, 4);
-            currentEditingContainerId = null;
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.CLEAR_TAG_TOOLTIP));
-        }
+            ImGui.sameLine();
+            if (ImGui.button(tr(DirectorLang.Properties.EmbeddedContainer.CLEAR) + "##clearTagColor")) {
+                controller.setMetadata(container.getId(), "tagColor", null);
+                float[] defaultColorArray = ContainerColorPicker.colorIntToFloat(0xFFFFFFFF);
+                System.arraycopy(defaultColorArray, 0, tagColorBuffer, 0, 4);
+                currentEditingContainerId = null;
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.CLEAR_TAG_TOOLTIP));
+            }
 
-        ImGui.separator();
+            ImGui.separator();
 
-        boolean locked = container.isLocked();
-        if (ImGui.checkbox(tr(DirectorLang.Properties.EmbeddedContainer.LOCKED), locked)) {
-            controller.setContainerLocked(container.getId(), !locked);
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.LOCKED_TOOLTIP));
-        }
+            boolean locked = container.isLocked();
+            if (ImGui.checkbox(tr(DirectorLang.Properties.EmbeddedContainer.LOCKED), locked)) {
+                controller.setContainerLocked(container.getId(), !locked);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.LOCKED_TOOLTIP));
+            }
 
-        ImGui.sameLine();
+            ImGui.sameLine();
 
-        ContainerState currentState = container.getState();
-        boolean isVisible = currentState == ContainerState.VISIBLE;
-        if (ImGui.checkbox(tr(DirectorLang.Properties.EmbeddedContainer.VISIBLE), isVisible)) {
-            controller.toggleContainerState(container.getId());
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(isVisible
-                ? tr(DirectorLang.Properties.EmbeddedContainer.HIDE_TOOLTIP)
-                : tr(DirectorLang.Properties.EmbeddedContainer.SHOW_TOOLTIP));
+            ContainerState currentState = container.getState();
+            boolean isVisible = currentState == ContainerState.VISIBLE;
+            if (ImGui.checkbox(tr(DirectorLang.Properties.EmbeddedContainer.VISIBLE), isVisible)) {
+                controller.toggleContainerState(container.getId());
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(isVisible
+                    ? tr(DirectorLang.Properties.EmbeddedContainer.HIDE_TOOLTIP)
+                    : tr(DirectorLang.Properties.EmbeddedContainer.SHOW_TOOLTIP));
+            }
+        } finally {
+            Card.end();
         }
     }
 
     private void renderReadonlyInfo(Container container) {
         ImGui.setNextItemOpen(false, ImGuiCond.Once);
-        if (!ImGui.collapsingHeader(tr(DirectorLang.Properties.EmbeddedContainer.STATS))) return;
+        if (!Card.begin("embeddedContainer4", tr(DirectorLang.Properties.EmbeddedContainer.STATS))) { Card.end(); return; }
+        try {
 
-        ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.BLOCK_COUNT, container.getBlockCount()));
-        ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.CHILD_COUNT, container.getChildren().size()));
-        ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.TOTAL_BLOCKS, container.getTotalBlockCount()));
+            ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.BLOCK_COUNT, container.getBlockCount()));
+            ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.CHILD_COUNT, container.getChildren().size()));
+            ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.TOTAL_BLOCKS, container.getTotalBlockCount()));
 
-        Container.BoundingBox bbox = container.getBoundingBox();
-        ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.SIZE_VOLUME,
-                bbox.getWidth(), bbox.getHeight(), bbox.getDepth(), bbox.getVolume()));
+            Container.BoundingBox bbox = container.getBoundingBox();
+            ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.SIZE_VOLUME,
+                    bbox.getWidth(), bbox.getHeight(), bbox.getDepth(), bbox.getVolume()));
 
-        if (container.getCenter() != null) {
-            ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.CENTER, container.getCenter()));
+            if (container.getCenter() != null) {
+                ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.CENTER, container.getCenter()));
+            }
+
+            ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedContainer.CREATED_AT,
+                    new java.util.Date(container.getCreatedTime())));
+            ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedContainer.MODIFIED_AT,
+                    new java.util.Date(container.getModifiedTime())));
+        } finally {
+            Card.end();
         }
-
-        ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedContainer.CREATED_AT,
-                new java.util.Date(container.getCreatedTime())));
-        ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedContainer.MODIFIED_AT,
-                new java.util.Date(container.getModifiedTime())));
     }
 }

@@ -1,6 +1,8 @@
 package com.director.ui.panels;
 
+import com.director.ui.theme.UITheme;
 import com.director.core.container.Container;
+import com.director.ui.properties.Card;
 import com.director.core.container.ContainerType;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
@@ -43,9 +45,9 @@ public class GroupPropertiesPanel {
             return;
         }
 
-        ImGui.textColored(0.5f, 0.8f, 1.0f, 1.0f, tr(DirectorLang.Properties.EmbeddedGroup.TITLE));
+        UITheme.colored(UITheme.Semantic.INFO, tr(DirectorLang.Properties.EmbeddedGroup.TITLE));
         ImGui.sameLine();
-        ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f,
+        UITheme.colored(UITheme.Semantic.TEXT_SECONDARY,
             String.format("(ID: %s)", group.getId().toString().substring(0, 8)));
         ImGui.separator();
 
@@ -59,7 +61,7 @@ public class GroupPropertiesPanel {
     }
 
     private void renderBasicInfo(Container group) {
-        ImGui.textColored(0.8f, 0.9f, 1.0f, 1.0f, tr(DirectorLang.Properties.EmbeddedGroup.BASIC_INFO));
+        UITheme.colored(UITheme.Semantic.INFO, tr(DirectorLang.Properties.EmbeddedGroup.BASIC_INFO));
 
         syncBuffersIfNeeded(group);
 
@@ -99,25 +101,27 @@ public class GroupPropertiesPanel {
     }
 
     private void renderChildrenOverview(Container group) {
-        if (!ImGui.collapsingHeader(tr(DirectorLang.Properties.EmbeddedGroup.INCLUDED_CONTAINERS), ImGuiTreeNodeFlags.DefaultOpen)) {
-            return;
-        }
-        List<Container> children = group.getChildren();
-        if (children.isEmpty()) {
-            ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedGroup.NO_CHILDREN));
-            return;
-        }
-        int limit = Math.min(children.size(), MAX_CHILDREN_VISIBLE);
-        for (int i = 0; i < limit; i++) {
-            Container child = children.get(i);
-            ImGui.bulletText(tr(DirectorLang.Properties.EmbeddedGroup.CHILD_ITEM,
-                child.getType().getIcon(),
-                child.getName(),
-                child.getTotalBlockCount()));
-        }
-        if (children.size() > MAX_CHILDREN_VISIBLE) {
-            ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedGroup.MORE_CHILDREN,
-                children.size() - MAX_CHILDREN_VISIBLE));
+        if (!Card.begin("embeddedGroup1", tr(DirectorLang.Properties.EmbeddedGroup.INCLUDED_CONTAINERS))) { Card.end(); return; }
+        try {
+            List<Container> children = group.getChildren();
+            if (children.isEmpty()) {
+                ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedGroup.NO_CHILDREN));
+                return;
+            }
+            int limit = Math.min(children.size(), MAX_CHILDREN_VISIBLE);
+            for (int i = 0; i < limit; i++) {
+                Container child = children.get(i);
+                ImGui.bulletText(tr(DirectorLang.Properties.EmbeddedGroup.CHILD_ITEM,
+                    child.getType().getIcon(),
+                    child.getName(),
+                    child.getTotalBlockCount()));
+            }
+            if (children.size() > MAX_CHILDREN_VISIBLE) {
+                ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedGroup.MORE_CHILDREN,
+                    children.size() - MAX_CHILDREN_VISIBLE));
+            }
+        } finally {
+            Card.end();
         }
     }
 

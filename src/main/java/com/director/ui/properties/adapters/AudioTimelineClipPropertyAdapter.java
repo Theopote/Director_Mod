@@ -91,7 +91,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                 TimelineAudioService audioService = TimelineAudioService.getInstance();
                 TimelineClip containerClip = audioService.getContainerClipForAudioClip(clip).orElse(null);
                 if (containerClip == null) {
-                    ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, "⚠ 未找到绑定的容器片段（可能需要先生成一次自动音效）。");
+                    UITheme.colored(UITheme.Semantic.DANGER, "⚠ 未找到绑定的容器片段（可能需要先生成一次自动音效）。");
                 } else {
                     var cfg = containerClip.getAnimationConfig();
                     if (cfg == null) {

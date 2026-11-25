@@ -1,6 +1,7 @@
 package com.director.ui.properties.actor;
 
 import com.director.actor.animation.AnimationData;
+import com.director.ui.properties.Card;
 import com.director.actor.runtime.*;
 import com.director.core.DirectorServices;
 import com.director.timeline.model.*;
@@ -30,56 +31,60 @@ public final class ActorCoordinationPanel {
                 && payload.findSpawnClipAt(time) == source
                 && !payload.hasCompletedDespawn(time, source, EntityDespawnClip.DespawnMode.REMOVE);
         String summary = !bound ? "no_actor" : outside ? "summary_outside" : active ? "summary_active" : "summary_inactive";
-        if (!ImGui.collapsingHeader(tr("title") + " · " + tr(summary) + "###actorCoordination")) return null;
-        if (!bound) return null;
-        ImGui.text(tr("clip_range",source.getName(),source.getStartTime(),source.getEndTime(),time));
-        if(time<source.getStartTime() || time>source.getEndTime()) {
-            ImGui.textWrapped(tr("outside_clip"));return null;
-        }
-        if (!active) {
-            ImGui.textWrapped(tr("inactive_clip"));return null;
-        }
-        var feedback=ActorRuntimeController.getInstance().poseFeedback(model,payload.getActorRef().getActorId());
-        if(feedback==null || feedback.coordination()==null) {
-            ImGui.textWrapped(tr("no_snapshot"));
-            if(ImGui.button(tr("view_preset")+"##coordinationPresetMissing")) return new Navigation(Focus.PRESET,null);
-            return null;
-        }
-        var coordination=feedback.coordination();Navigation requested=null;
-        ImGui.textDisabled(tr("layer_order"));
-        ImGui.separator();
-        ImGui.textWrapped(tr("gaze",feedback.gaze()));
-        var gaze=lookAtAt(owner,time);
-        if(gaze!=null && ImGui.smallButton(tr("view_gaze")+"##coordinationGaze")) requested=new Navigation(Focus.GAZE,gaze.getId());
-        for(var kind:ORDER) {
-            var stage=coordination.stages().stream().filter(s->s.kind()==kind).findFirst().orElse(null);
-            if(stage==null) continue;
-            ImGui.pushID(kind.name());ImGui.separator();
-            ImGui.textWrapped(label(kind)+"："+status(stage));
-            if(kind==ActorPoseStage.Kind.PRESET && coordination.presetId()!=null) {
-                String id=coordination.presetId();
-                var asset=com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(id).orElse(null);
-                String name=asset==null?com.director.actor.animation.AnimationLibrary.getInstance().get(id).map(AnimationData::getName).orElse(id):asset.name();
-                ImGui.textWrapped(name+" · "+tr(coordination.distanceClock()?"distance_clock":"local_clock"));
+        if (!Card.begin("actorCoordination", tr("title") + " · " + tr(summary))) { Card.end(); return null; }
+        try {
+            if (!bound) return null;
+            ImGui.text(tr("clip_range",source.getName(),source.getStartTime(),source.getEndTime(),time));
+            if(time<source.getStartTime() || time>source.getEndTime()) {
+                ImGui.textWrapped(tr("outside_clip"));return null;
             }
-            ImGui.textWrapped(stage.detailCode()==ActorPoseStage.Detail.DIAGNOSTIC?stage.detail():
-                    tr("detail."+stage.detailCode().name().toLowerCase(Locale.ROOT)));
-            if(kind!=ActorPoseStage.Kind.CONTACT && stage.state()!=ActorPoseStage.State.UNSUPPORTED) {
-                if(ImGui.smallButton(tr("view_settings"))) requested=new Navigation(
-                        kind==ActorPoseStage.Kind.PRESET || kind==ActorPoseStage.Kind.SECONDARY_PRESET
-                                ?Focus.PRESET:kind==ActorPoseStage.Kind.QUICK?Focus.QUICK:Focus.MANUAL,null);
+            if (!active) {
+                ImGui.textWrapped(tr("inactive_clip"));return null;
             }
-            ImGui.popID();
+            var feedback=ActorRuntimeController.getInstance().poseFeedback(model,payload.getActorRef().getActorId());
+            if(feedback==null || feedback.coordination()==null) {
+                ImGui.textWrapped(tr("no_snapshot"));
+                if(ImGui.button(tr("view_preset")+"##coordinationPresetMissing")) return new Navigation(Focus.PRESET,null);
+                return null;
+            }
+            var coordination=feedback.coordination();Navigation requested=null;
+            ImGui.textDisabled(tr("layer_order"));
+            ImGui.separator();
+            ImGui.textWrapped(tr("gaze",feedback.gaze()));
+            var gaze=lookAtAt(owner,time);
+            if(gaze!=null && ImGui.smallButton(tr("view_gaze")+"##coordinationGaze")) requested=new Navigation(Focus.GAZE,gaze.getId());
+            for(var kind:ORDER) {
+                var stage=coordination.stages().stream().filter(s->s.kind()==kind).findFirst().orElse(null);
+                if(stage==null) continue;
+                ImGui.pushID(kind.name());ImGui.separator();
+                ImGui.textWrapped(label(kind)+"："+status(stage));
+                if(kind==ActorPoseStage.Kind.PRESET && coordination.presetId()!=null) {
+                    String id=coordination.presetId();
+                    var asset=com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().find(id).orElse(null);
+                    String name=asset==null?com.director.actor.animation.AnimationLibrary.getInstance().get(id).map(AnimationData::getName).orElse(id):asset.name();
+                    ImGui.textWrapped(name+" · "+tr(coordination.distanceClock()?"distance_clock":"local_clock"));
+                }
+                ImGui.textWrapped(stage.detailCode()==ActorPoseStage.Detail.DIAGNOSTIC?stage.detail():
+                        tr("detail."+stage.detailCode().name().toLowerCase(Locale.ROOT)));
+                if(kind!=ActorPoseStage.Kind.CONTACT && stage.state()!=ActorPoseStage.State.UNSUPPORTED) {
+                    if(ImGui.smallButton(tr("view_settings"))) requested=new Navigation(
+                            kind==ActorPoseStage.Kind.PRESET || kind==ActorPoseStage.Kind.SECONDARY_PRESET
+                                    ?Focus.PRESET:kind==ActorPoseStage.Kind.QUICK?Focus.QUICK:Focus.MANUAL,null);
+                }
+                ImGui.popID();
+            }
+            ImGui.separator();var motion=coordination.motion();
+            ImGui.textWrapped(tr("motion",com.director.i18n.ActorPropertyAdapterI18n.actionSemanticLabel(motion.action()),motion.speed()));
+            if(motion.routeId()!=null) {
+                ImGui.textWrapped(tr("route",motion.routeName(),motion.duration(),com.director.i18n.ActorPropertyAdapterI18n.routeLoopLabel(motion.loop())));
+                if(ImGui.smallButton(tr("view_route")+"##coordinationRoute")) requested=new Navigation(Focus.ROUTE,motion.routeId());
+            } else ImGui.textWrapped(tr("no_route"));
+            if(motion.relation()) ImGui.textWrapped(tr("relation"));
+            for(String issue:feedback.diagnostics()) ImGui.textWrapped(tr("diagnostic",issue));
+            return requested;
+        } finally {
+            Card.end();
         }
-        ImGui.separator();var motion=coordination.motion();
-        ImGui.textWrapped(tr("motion",com.director.i18n.ActorPropertyAdapterI18n.actionSemanticLabel(motion.action()),motion.speed()));
-        if(motion.routeId()!=null) {
-            ImGui.textWrapped(tr("route",motion.routeName(),motion.duration(),com.director.i18n.ActorPropertyAdapterI18n.routeLoopLabel(motion.loop())));
-            if(ImGui.smallButton(tr("view_route")+"##coordinationRoute")) requested=new Navigation(Focus.ROUTE,motion.routeId());
-        } else ImGui.textWrapped(tr("no_route"));
-        if(motion.relation()) ImGui.textWrapped(tr("relation"));
-        for(String issue:feedback.diagnostics()) ImGui.textWrapped(tr("diagnostic",issue));
-        return requested;
     }
     private static String label(ActorPoseStage.Kind kind) {return tr("kind."+kind.name().toLowerCase(Locale.ROOT));}
     private static String status(ActorPoseStage stage) {

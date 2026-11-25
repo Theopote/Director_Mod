@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.ui.theme.UITheme;
 import com.director.core.DirectorServices;
 import com.director.core.animation.effect.EffectInstance;
 import com.director.core.container.Container;
@@ -73,7 +74,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             return renderPropertiesInternal(clip);
         } catch (Exception e) {
             LOGGER.error("渲染片段属性时发生异常: {}", e.getMessage(), e);
-            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f,
+            UITheme.colored(UITheme.Semantic.DANGER,
                     TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineCommon.RENDER_ERROR, e.getMessage()));
             if (ImGui.button(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.VIEW_DETAILS))) {
                 LOGGER.error("详细堆栈:", e);

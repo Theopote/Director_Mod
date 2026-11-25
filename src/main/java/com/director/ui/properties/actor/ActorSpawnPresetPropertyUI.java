@@ -1,6 +1,7 @@
 package com.director.ui.properties.actor;
 
 import com.director.actor.ActorRegistryManager;
+import com.director.ui.properties.Card;
 import com.director.actor.animation.AnimationLibrary;
 import com.director.actor.animation.asset.AnimationAssetLibrary;
 import com.director.actor.rig.ActorRigCompatibility;
@@ -79,145 +80,149 @@ public final class ActorSpawnPresetPropertyUI {
     public static void render(EntitySpawnClip source,EntitySpawnClip draft,ActorClipInspectorGesture gesture) {
         boolean focus=focusRequest.consume(source);
         if(focus) ImGui.setNextItemOpen(true,imgui.flag.ImGuiCond.Always);
-        if(!ImGui.collapsingHeader(presetText("title"))) {playbackQuery.clear();return;}
-        if(focus) ImGui.setScrollHereY(0);
-        ImGui.pushID("spawnPreset");
+        if(!Card.begin("spawnPresetCard", presetText("title"))) {Card.end();playbackQuery.clear();return;}
         try {
-            var wrapper=source.getTimelineClip();
-            var payload=wrapper==null || wrapper.getParentTrack()==null?null:wrapper.getParentTrack().getActorTrackPayload();
-            var actor=payload==null || payload.getActorRef()==null?null:
-                    ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
-            var catalog=catalogCache.entries(AnimationAssetLibrary.getInstance(),AnimationLibrary.getInstance(),actor);
-            var rig=ActorRigCompatibility.resolveRig(actor).orElse(null);
-            var binding=draft.getPreset();
-            String current = presetText("none");
-            if(binding!=null) {
-                String id=binding.animationId();
-                current = catalog.stream().filter(e -> e.id().equals(id))
-                        .map(e -> e.name() + " · " + e.purpose().label() + (e.compatible() ? "" : " · " + presetText("incompatible")))
-                        .findFirst().orElseGet(() -> presetText("missing", id));
-            }
-            if (ImGui.beginCombo(presetText("primary") + "##primaryAsset", current)) {
-                try {
-                    if (ImGui.selectable(presetText("none") + "##clearPrimary", binding == null) && binding != null) {
-                        binding = null;
-                        gesture.requestCommit();
-                    }
-                    var secondary = draft.getSecondaryPreset();
-                    for (var entry : catalog) {
-                        if (entry.isPose() || !entry.compatible() || entry.id().equals(draft.getBoneAnimationId())) continue;
-                        boolean selected = binding != null && entry.id().equals(binding.animationId());
-                        boolean blocked = secondary != null && secondary.fullyOverridesSameAction(entry.id());
-                        ImGui.beginDisabled(blocked);
-                        if (ImGui.selectable(entry.name() + " · " + entry.rigName() + "##" + entry.id(), selected) && !selected) {
-                            binding = ActorPresetBinding.select(entry.id(), binding);
+            if(focus) ImGui.setScrollHereY(0);
+            ImGui.pushID("spawnPreset");
+            try {
+                var wrapper=source.getTimelineClip();
+                var payload=wrapper==null || wrapper.getParentTrack()==null?null:wrapper.getParentTrack().getActorTrackPayload();
+                var actor=payload==null || payload.getActorRef()==null?null:
+                        ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
+                var catalog=catalogCache.entries(AnimationAssetLibrary.getInstance(),AnimationLibrary.getInstance(),actor);
+                var rig=ActorRigCompatibility.resolveRig(actor).orElse(null);
+                var binding=draft.getPreset();
+                String current = presetText("none");
+                if(binding!=null) {
+                    String id=binding.animationId();
+                    current = catalog.stream().filter(e -> e.id().equals(id))
+                            .map(e -> e.name() + " · " + e.purpose().label() + (e.compatible() ? "" : " · " + presetText("incompatible")))
+                            .findFirst().orElseGet(() -> presetText("missing", id));
+                }
+                if (ImGui.beginCombo(presetText("primary") + "##primaryAsset", current)) {
+                    try {
+                        if (ImGui.selectable(presetText("none") + "##clearPrimary", binding == null) && binding != null) {
+                            binding = null;
                             gesture.requestCommit();
                         }
-                        ImGui.endDisabled();
-                        if (blocked && ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled))
-                            ImGui.setTooltip(presetText("primary_blocked"));
+                        var secondary = draft.getSecondaryPreset();
+                        for (var entry : catalog) {
+                            if (entry.isPose() || !entry.compatible() || entry.id().equals(draft.getBoneAnimationId())) continue;
+                            boolean selected = binding != null && entry.id().equals(binding.animationId());
+                            boolean blocked = secondary != null && secondary.fullyOverridesSameAction(entry.id());
+                            ImGui.beginDisabled(blocked);
+                            if (ImGui.selectable(entry.name() + " · " + entry.rigName() + "##" + entry.id(), selected) && !selected) {
+                                binding = ActorPresetBinding.select(entry.id(), binding);
+                                gesture.requestCommit();
+                            }
+                            ImGui.endDisabled();
+                            if (blocked && ImGui.isItemHovered(imgui.flag.ImGuiHoveredFlags.AllowWhenDisabled))
+                                ImGui.setTooltip(presetText("primary_blocked"));
+                        }
+                    } finally {
+                        ImGui.endCombo();
                     }
-                } finally {
-                    ImGui.endCombo();
                 }
-            }
-            draft.setPreset(binding);
-            renderSecondary(draft, gesture, catalog, rig);
-            if(binding==null) {playbackQuery.clear();return;}
-            boolean changed;
-            var model=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
-            var playback=playbackQuery.sample(payload,model.getCurrentTime());
-            boolean distanceClock= com.director.actor.runtime.ActorPresetClock.followsDistance(binding.animationId(), playback);
-            if(distanceClock) ImGui.textWrapped(presetText("distance_clock"));
-            else if(com.director.actor.runtime.ActorPresetClock.purpose(binding.animationId())==com.director.actor.animation.AnimationData.Purpose.LOCOMOTION)
-                ImGui.textWrapped(presetText("local_gait"));
-            else ImGui.textWrapped(presetText("local_action"));
-            ImGui.beginDisabled(distanceClock);
-            boolean loop=binding.loop();changed=ImGui.checkbox(presetText("loop"),loop);
-            if(changed) loop=!loop;gesture.observe("presetLoop",changed);
-            float[] speed={binding.speed()};changed=ImGui.sliderFloat(presetText("speed"),speed,.01f,4);gesture.observe("presetSpeed",changed);
-            ImGui.endDisabled();
-            var blend=binding.blend();float[] weight={blend.weight()};
-            changed=ImGui.sliderFloat(presetText("primary_weight"),weight,0,1);gesture.observe("presetWeight",changed);
-            var mode=new ImInt(blend.mode().ordinal());
-            float[] fades={blend.fadeIn(),blend.fadeOut()};
-            int channels=blend.channels();
-            if(ImGui.treeNode(presetText("advanced") + "##presetAdvancedBlend")) {
-                changed=ImGui.combo(presetText("blend"),mode,new String[]{presetText("override"),presetText("additive")});
-                gesture.observe("presetMode",changed);
-                changed=ImGui.inputFloat2(presetText("fades"),fades);
-                if(!Float.isFinite(fades[0]) || !Float.isFinite(fades[1]) || fades[0]<0 || fades[1]<0) {
-                    fades[0]=blend.fadeIn();fades[1]=blend.fadeOut();
-                }
-                gesture.observe("presetFades",changed);
-                ImGui.textDisabled(presetText("fade_hint"));
-                int[] bits={RigPose.TRANSLATION,RigPose.ROTATION,RigPose.SCALE};
-                String[] labels={presetText("translation"),presetText("rotation"),presetText("scale")};
-                for(int i=0;i<bits.length;i++) {
-                    changed=ImGui.checkbox(labels[i],(channels&bits[i])!=0);
-                    if(changed) channels^=bits[i];gesture.observe("presetChannel"+i,changed);
-                }
-                ImGui.treePop();
-            }
-            ImGui.text(presetText("scope"));
-            var scopeInput=new ActorPresetBinding(binding.animationId(),loop,speed[0],
-                    new PoseBlendSettings(PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,
-                            blend.allBones(),blend.boneIds(),fades[0],fades[1]));
-            blend=renderScopeButtons(scopeInput,rig,gesture).blend();
-            ImGui.textDisabled(presetText("scope_help"));
-            if(ImGui.isItemHovered()) ImGui.setTooltip(presetText("scope_hint"));
-            boolean all=blend.allBones();
-            var bones=new LinkedHashSet<>(blend.boneIds());
-            if(ImGui.treeNode(presetText("custom_bones") + "##presetCustomBones")) {
-                changed=ImGui.checkbox(presetText("all_bones"),all);
-                if(changed) all=!all;gesture.observe("presetAllBones",changed);
-                if(!all && rig!=null) for(var bone:rig.bones()) {
-                    changed=ImGui.checkbox(bone.displayName()+"##presetBone"+bone.id(),bones.contains(bone.id()));
-                    if(changed) {if(!bones.remove(bone.id())) bones.add(bone.id());}
-                    gesture.observe("presetBone"+bone.id(),changed);
-                }
-                ImGui.treePop();
-            }
-            var next=new ActorPresetBinding(binding.animationId(),loop,speed[0],new PoseBlendSettings(
-                    PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,all,bones,fades[0],fades[1]));
-            draft.setPreset(next);
-            float time=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel().getCurrentTime();
-            var feedback=ActorPresetFeedback.resolve(next,rig,time-draft.getStartTime(),draft.getLength(),playback,actor==null?null:actor.getRigProfile());
-            boolean muted=source.isMuted() || wrapper!=null && wrapper.getParentTrack()!=null && wrapper.getParentTrack().isMuted();
-            ImGui.text(presetText("effective_weight", String.format(Locale.ROOT, "%.1f%%", 100 * (muted ? 0 : feedback.weight()))));
-            if(!feedback.available()) ImGui.textWrapped(presetText("unavailable"));
-            else if(!feedback.authoredData()) ImGui.textWrapped(presetText("empty_asset"));
-            else if(feedback.bones().isEmpty()) {
-                ImGui.textWrapped(presetText("empty_scope"));
-                if(ImGui.button(presetText("restore_scope") + "##restorePresetMask")) {
-                    draft.setPreset(ActorPresetScope.restoreChannelsAndBones(next));gesture.requestCommit();
-                }
-            }
-            else if(rig!=null) ImGui.textWrapped(presetText("affected_bones", feedback.bones().stream()
-                    .map(id->rig.bone(rig.requireBoneIndex(id)).displayName()).collect(java.util.stream.Collectors.joining(", "))));
-            var routeFeedback=ActorPresetRouteFeedback.resolve(feedback,playback,muted);
-            if(routeFeedback==ActorPresetRouteFeedback.LOCAL_CLOCK) {
-                ImGui.textWrapped(presetText("leg_local"));
-                ImGui.beginDisabled(!ActorPresetScope.UPPER.supported(rig));
-                if(ImGui.button(presetText("use_upper") + "##fixPresetLegScope")) {
-                    draft.setPreset(ActorPresetScope.UPPER.apply(next,rig));
-                    gesture.requestCommit();
-                }
+                draft.setPreset(binding);
+                renderSecondary(draft, gesture, catalog, rig);
+                if(binding==null) {playbackQuery.clear();return;}
+                boolean changed;
+                var model=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
+                var playback=playbackQuery.sample(payload,model.getCurrentTime());
+                boolean distanceClock= com.director.actor.runtime.ActorPresetClock.followsDistance(binding.animationId(), playback);
+                if(distanceClock) ImGui.textWrapped(presetText("distance_clock"));
+                else if(com.director.actor.runtime.ActorPresetClock.purpose(binding.animationId())==com.director.actor.animation.AnimationData.Purpose.LOCOMOTION)
+                    ImGui.textWrapped(presetText("local_gait"));
+                else ImGui.textWrapped(presetText("local_action"));
+                ImGui.beginDisabled(distanceClock);
+                boolean loop=binding.loop();changed=ImGui.checkbox(presetText("loop"),loop);
+                if(changed) loop=!loop;gesture.observe("presetLoop",changed);
+                float[] speed={binding.speed()};changed=ImGui.sliderFloat(presetText("speed"),speed,.01f,4);gesture.observe("presetSpeed",changed);
                 ImGui.endDisabled();
-                ImGui.textWrapped(presetText("gait_usage"));
-            } else if(routeFeedback==ActorPresetRouteFeedback.DISTANCE_CLOCK) {
-                ImGui.textWrapped(presetText("leg_distance"));
-            }
-            if(ImGui.treeNode(presetText("composition"))) {
-                ImGui.textWrapped(presetText("composition_route"));
-                ImGui.textWrapped(presetText("composition_manual"));
-                ImGui.textWrapped(presetText("composition_blend"));
-                ImGui.textWrapped(presetText("composition_debug"));
-                ImGui.treePop();
-            }
+                var blend=binding.blend();float[] weight={blend.weight()};
+                changed=ImGui.sliderFloat(presetText("primary_weight"),weight,0,1);gesture.observe("presetWeight",changed);
+                var mode=new ImInt(blend.mode().ordinal());
+                float[] fades={blend.fadeIn(),blend.fadeOut()};
+                int channels=blend.channels();
+                if(ImGui.treeNode(presetText("advanced") + "##presetAdvancedBlend")) {
+                    changed=ImGui.combo(presetText("blend"),mode,new String[]{presetText("override"),presetText("additive")});
+                    gesture.observe("presetMode",changed);
+                    changed=ImGui.inputFloat2(presetText("fades"),fades);
+                    if(!Float.isFinite(fades[0]) || !Float.isFinite(fades[1]) || fades[0]<0 || fades[1]<0) {
+                        fades[0]=blend.fadeIn();fades[1]=blend.fadeOut();
+                    }
+                    gesture.observe("presetFades",changed);
+                    ImGui.textDisabled(presetText("fade_hint"));
+                    int[] bits={RigPose.TRANSLATION,RigPose.ROTATION,RigPose.SCALE};
+                    String[] labels={presetText("translation"),presetText("rotation"),presetText("scale")};
+                    for(int i=0;i<bits.length;i++) {
+                        changed=ImGui.checkbox(labels[i],(channels&bits[i])!=0);
+                        if(changed) channels^=bits[i];gesture.observe("presetChannel"+i,changed);
+                    }
+                    ImGui.treePop();
+                }
+                ImGui.text(presetText("scope"));
+                var scopeInput=new ActorPresetBinding(binding.animationId(),loop,speed[0],
+                        new PoseBlendSettings(PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,
+                                blend.allBones(),blend.boneIds(),fades[0],fades[1]));
+                blend=renderScopeButtons(scopeInput,rig,gesture).blend();
+                ImGui.textDisabled(presetText("scope_help"));
+                if(ImGui.isItemHovered()) ImGui.setTooltip(presetText("scope_hint"));
+                boolean all=blend.allBones();
+                var bones=new LinkedHashSet<>(blend.boneIds());
+                if(ImGui.treeNode(presetText("custom_bones") + "##presetCustomBones")) {
+                    changed=ImGui.checkbox(presetText("all_bones"),all);
+                    if(changed) all=!all;gesture.observe("presetAllBones",changed);
+                    if(!all && rig!=null) for(var bone:rig.bones()) {
+                        changed=ImGui.checkbox(bone.displayName()+"##presetBone"+bone.id(),bones.contains(bone.id()));
+                        if(changed) {if(!bones.remove(bone.id())) bones.add(bone.id());}
+                        gesture.observe("presetBone"+bone.id(),changed);
+                    }
+                    ImGui.treePop();
+                }
+                var next=new ActorPresetBinding(binding.animationId(),loop,speed[0],new PoseBlendSettings(
+                        PoseLayer.BlendMode.values()[mode.get()],weight[0],channels,all,bones,fades[0],fades[1]));
+                draft.setPreset(next);
+                float time=com.director.core.DirectorServices.get().containerTimeline().getTimelineModel().getCurrentTime();
+                var feedback=ActorPresetFeedback.resolve(next,rig,time-draft.getStartTime(),draft.getLength(),playback,actor==null?null:actor.getRigProfile());
+                boolean muted=source.isMuted() || wrapper!=null && wrapper.getParentTrack()!=null && wrapper.getParentTrack().isMuted();
+                ImGui.text(presetText("effective_weight", String.format(Locale.ROOT, "%.1f%%", 100 * (muted ? 0 : feedback.weight()))));
+                if(!feedback.available()) ImGui.textWrapped(presetText("unavailable"));
+                else if(!feedback.authoredData()) ImGui.textWrapped(presetText("empty_asset"));
+                else if(feedback.bones().isEmpty()) {
+                    ImGui.textWrapped(presetText("empty_scope"));
+                    if(ImGui.button(presetText("restore_scope") + "##restorePresetMask")) {
+                        draft.setPreset(ActorPresetScope.restoreChannelsAndBones(next));gesture.requestCommit();
+                    }
+                }
+                else if(rig!=null) ImGui.textWrapped(presetText("affected_bones", feedback.bones().stream()
+                        .map(id->rig.bone(rig.requireBoneIndex(id)).displayName()).collect(java.util.stream.Collectors.joining(", "))));
+                var routeFeedback=ActorPresetRouteFeedback.resolve(feedback,playback,muted);
+                if(routeFeedback==ActorPresetRouteFeedback.LOCAL_CLOCK) {
+                    ImGui.textWrapped(presetText("leg_local"));
+                    ImGui.beginDisabled(!ActorPresetScope.UPPER.supported(rig));
+                    if(ImGui.button(presetText("use_upper") + "##fixPresetLegScope")) {
+                        draft.setPreset(ActorPresetScope.UPPER.apply(next,rig));
+                        gesture.requestCommit();
+                    }
+                    ImGui.endDisabled();
+                    ImGui.textWrapped(presetText("gait_usage"));
+                } else if(routeFeedback==ActorPresetRouteFeedback.DISTANCE_CLOCK) {
+                    ImGui.textWrapped(presetText("leg_distance"));
+                }
+                if(ImGui.treeNode(presetText("composition"))) {
+                    ImGui.textWrapped(presetText("composition_route"));
+                    ImGui.textWrapped(presetText("composition_manual"));
+                    ImGui.textWrapped(presetText("composition_blend"));
+                    ImGui.textWrapped(presetText("composition_debug"));
+                    ImGui.treePop();
+                }
 
 
-        } finally { ImGui.popID(); }
+            } finally { ImGui.popID(); }
+        } finally {
+            Card.end();
+        }
     }
 
     private static String presetText(String key, Object... args) {

@@ -271,7 +271,7 @@ public final class VideoExportDialog {
         List<TimelineTrack> cameraTracks = getCameraTracks();
         if (settings.cameraMode == VideoExportSettings.CAMERA_TRACK) {
             if (cameraTracks.isEmpty()) {
-                ImGui.textColored(1.0f, 0.6f, 0.2f, 1.0f,
+                UITheme.colored(UITheme.Semantic.WARNING,
                         Icons.WARNING + " 当前工程没有摄像机轨道（TrackType.CAMERA）");
                 settings.cameraTrackIndex = 0;
                 settings.cameraTrackName = "";
@@ -347,7 +347,7 @@ public final class VideoExportDialog {
         // =============================
         if (lastError != null) {
             ImGui.separator();
-            ImGui.textColored(1.0f, 0.4f, 0.4f, 1.0f, Icons.ERROR + " " + lastError);
+            UITheme.colored(UITheme.Semantic.DANGER, Icons.ERROR + " " + lastError);
             UITheme.spacingSmall();
         }
 
@@ -589,9 +589,9 @@ public final class VideoExportDialog {
         ImGui.text("FFmpeg 状态：");
         ImGui.sameLine();
         if (ffmpegOk) {
-            ImGui.textColored(0.4f, 1.0f, 0.5f, 1.0f, Icons.CHECK + " 已就绪");
+            UITheme.colored(UITheme.Semantic.SUCCESS, Icons.CHECK + " 已就绪");
         } else {
-            ImGui.textColored(1.0f, 0.4f, 0.4f, 1.0f, Icons.ERROR + " 不可用");
+            UITheme.colored(UITheme.Semantic.DANGER, Icons.ERROR + " 不可用");
         }
 
         if (ffmpegPath != null) {

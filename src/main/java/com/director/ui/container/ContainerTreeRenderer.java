@@ -533,7 +533,7 @@ class ContainerTreeRenderer {
         boolean isOnTimeline = DirectorServices.get().containerTimeline()
             .isContainerOnTimeline(container.getId());
         if (isOnTimeline) {
-            ImGui.textColored(0.66f, 0.82f, 1.0f, 1.0f,
+            UITheme.colored(UITheme.Semantic.INFO,
                 DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_ON_TIMELINE));
             ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_READONLY));
             ImGui.separator();

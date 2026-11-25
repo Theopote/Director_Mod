@@ -1,5 +1,6 @@
 package com.director.ui.container;
 
+import com.director.ui.theme.UITheme;
 import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerType;
@@ -267,12 +268,12 @@ class ContainerTreeInteractionHandler {
     private void renderItemContextMenu(Container container) {
         int selCount = controller.getSelectedContainers().size();
         if (selCount > 1) {
-            ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f,
+            UITheme.colored(UITheme.Semantic.INFO,
                 tr(DirectorLang.ContainerPanel.ContextMenu.SELECTED_COUNT, selCount));
             ImGui.sameLine();
             ImGui.textDisabled("(" + container.getName() + ")");
         } else {
-            ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f, container.getName());
+            UITheme.colored(UITheme.Semantic.INFO, container.getName());
         }
         if (isTimelineControlled(container)) {
             ImGui.sameLine();

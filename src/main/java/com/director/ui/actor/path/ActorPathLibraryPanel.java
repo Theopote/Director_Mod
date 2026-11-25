@@ -1,5 +1,6 @@
 package com.director.ui.actor.path;
 
+import com.director.ui.theme.UITheme;
 import com.director.actor.path.ActorPathDefinition;
 import com.director.actor.path.ActorPathLibraryManager;
 import com.director.i18n.ActorPropertyAdapterI18n;
@@ -230,7 +231,7 @@ public final class ActorPathLibraryPanel {
                     + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.DELETE_CONFIRM));
             ImGui.text(ActorPropertyAdapterI18n.tr(
                     DirectorLang.Properties.AdapterActor.PathLibrary.DELETE_NAME_FMT, pathName));
-            ImGui.textColored(1.0f, 0.4f, 0.4f, 1.0f,
+            UITheme.colored(UITheme.Semantic.DANGER,
                     ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.DELETE_WARNING));
             ImGui.separator();
 

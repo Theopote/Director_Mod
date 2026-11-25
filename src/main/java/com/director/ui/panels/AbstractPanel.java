@@ -271,7 +271,7 @@ public abstract class AbstractPanel implements IPanel {
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.WindowBg, 0x00000000);
 
         // 显示隐藏提示
-        ImGui.textColored(0.5f, 0.5f, 0.5f, 1.0f,
+        UITheme.colored(UITheme.Semantic.TEXT_MUTED,
                 DirectorI18n.translate(DirectorLang.Panel.HIDDEN, PanelI18n.title(getPanelName())));
 
         ImGui.popStyleColor();

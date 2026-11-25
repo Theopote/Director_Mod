@@ -1,5 +1,6 @@
 package com.director.ui.properties.actor;
 import com.director.core.DirectorServices;
+import com.director.ui.properties.Card;
 import com.director.actor.runtime.ActorRuntimeController;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.timeline.model.entity.EntityClip;
@@ -10,14 +11,19 @@ import java.util.UUID;
 public final class ActorRuntimeDiagnosticsUI {
     private ActorRuntimeDiagnosticsUI() {}
     public static void render(EntityClip clip) {
-        if (clip == null || !ImGui.collapsingHeader(tr("title") + "##clipDiagnostics")) return;
-        if(!clip.getLoadWarnings().isEmpty()) {
-            ImGui.textWrapped("加载时已恢复此片段的部分混合参数：");
-            for(var warning:clip.getLoadWarnings()) ImGui.textWrapped(warning);
+        if (clip == null) return;
+        if (!Card.begin("clipDiagnostics", tr("title"))) { Card.end(); return; }
+        try {
+            if(!clip.getLoadWarnings().isEmpty()) {
+                ImGui.textWrapped("加载时已恢复此片段的部分混合参数：");
+                for(var warning:clip.getLoadWarnings()) ImGui.textWrapped(warning);
+            }
+            if(clip.getTimelineClip()==null || clip.getTimelineClip().getParentTrack()==null) return;
+            var payload=clip.getTimelineClip().getParentTrack().getActorTrackPayload();
+            if(payload!=null && payload.getActorRef()!=null) render(payload.getActorRef().getActorId());
+        } finally {
+            Card.end();
         }
-        if(clip.getTimelineClip()==null || clip.getTimelineClip().getParentTrack()==null) return;
-        var payload=clip.getTimelineClip().getParentTrack().getActorTrackPayload();
-        if(payload!=null && payload.getActorRef()!=null) render(payload.getActorRef().getActorId());
     }
     private static void render(UUID actor) {
         var model=DirectorServices.get().containerTimeline().getTimelineModel();

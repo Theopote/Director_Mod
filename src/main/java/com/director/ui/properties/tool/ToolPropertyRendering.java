@@ -105,7 +105,7 @@ public final class ToolPropertyRendering {
         int color = n > 0 ? UITheme.DarkTheme.TEXT_SELECTED : UITheme.DarkTheme.TEXT;
         UITheme.label(String.format("%s %s (%d)", tool.getIcon(), tool.getDisplayName(), n), color);
         String d = tool.getDescription();
-        if (d != null && !d.isEmpty()) ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, d);
+        if (d != null && !d.isEmpty()) UITheme.colored(UITheme.Semantic.TEXT_SECONDARY, d);
         ImGui.spacing();
     }
 
@@ -184,7 +184,7 @@ public final class ToolPropertyRendering {
                 PropertyRow.field("每帧步数");
                 if (ImGui.sliderInt("##faceStepSize", ctx.getIntBuffer2(), 128, 16_384))
                     tool.setStepSize(ctx.getIntBuffer2()[0]);
-                ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "步数越大扩散越快，但可能带来瞬时卡顿。");
+                UITheme.colored(UITheme.Semantic.TEXT_SECONDARY, "步数越大扩散越快，但可能带来瞬时卡顿。");
                 ImGui.unindent();
             }
             Card.end();
@@ -208,9 +208,9 @@ public final class ToolPropertyRendering {
             ImGui.separator();
             int cnt = ctx.getSelectionManager().getSelectionSet().size();
             if (cnt > 0) {
-                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
+                UITheme.colored(UITheme.Semantic.SUCCESS, Icons.STATS + " 当前选中: " + cnt + " 个方块");
             } else {
-                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 点击方块面以选择并传播");
+                UITheme.colored(UITheme.Semantic.TEXT_MUTED, Icons.STATS + " 点击方块面以选择并传播");
             }
         }
         @Override
@@ -223,8 +223,8 @@ public final class ToolPropertyRendering {
             // 1) 套索设置（与魔棒「匹配规则」同级）
             if (Card.begin("selection_tool.lasso", "套索设置")) {
                 ImGui.indent();
-                ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "当前采样点: " + tool.getPathSampleCount());
-                ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "绘制状态: " + (tool.isDrawing() ? "进行中" : "已结束/空闲"));
+                UITheme.colored(UITheme.Semantic.TEXT_SECONDARY, "当前采样点: " + tool.getPathSampleCount());
+                UITheme.colored(UITheme.Semantic.TEXT_SECONDARY, "绘制状态: " + (tool.isDrawing() ? "进行中" : "已结束/空闲"));
                 ImGui.unindent();
             }
             Card.end();
@@ -233,9 +233,9 @@ public final class ToolPropertyRendering {
             ImGui.separator();
             int cnt = ctx.getSelectionManager().getSelectionSet().size();
             if (cnt > 0) {
-                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
+                UITheme.colored(UITheme.Semantic.SUCCESS, Icons.STATS + " 当前选中: " + cnt + " 个方块");
             } else {
-                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 绘制闭合路径以选择");
+                UITheme.colored(UITheme.Semantic.TEXT_MUTED, Icons.STATS + " 绘制闭合路径以选择");
             }
         }
         @Override
@@ -280,9 +280,9 @@ public final class ToolPropertyRendering {
             ImGui.separator();
             int cnt = ctx.getSelectionManager().getSelectionSet().size();
             if (cnt > 0) {
-                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
+                UITheme.colored(UITheme.Semantic.SUCCESS, Icons.STATS + " 当前选中: " + cnt + " 个方块");
             } else {
-                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 拖拽绘制笔刷范围以选择");
+                UITheme.colored(UITheme.Semantic.TEXT_MUTED, Icons.STATS + " 拖拽绘制笔刷范围以选择");
             }
         }
         @Override
@@ -362,7 +362,7 @@ public final class ToolPropertyRendering {
                     }
                     if (ImGui.isItemHovered()) ImGui.setTooltip("限制单次双击扩选数量，避免大范围卡顿。");
 
-                    ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "提示: Shift+双击会强制加选，与其他选择工具一致。");
+                    UITheme.colored(UITheme.Semantic.TEXT_SECONDARY, "提示: Shift+双击会强制加选，与其他选择工具一致。");
                     ImGui.unindent();
                 }
             } finally {
@@ -373,9 +373,9 @@ public final class ToolPropertyRendering {
             ImGui.separator();
             int cnt = ctx.getSelectionManager().getSelectionSet().size();
             if (cnt > 0) {
-                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
+                UITheme.colored(UITheme.Semantic.SUCCESS, Icons.STATS + " 当前选中: " + cnt + " 个方块");
             } else {
-                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 单击选择，双击可按配置扩展");
+                UITheme.colored(UITheme.Semantic.TEXT_MUTED, Icons.STATS + " 单击选择，双击可按配置扩展");
             }
         }
 
@@ -405,10 +405,10 @@ public final class ToolPropertyRendering {
                         LOGGER.info("[ToolPropertyRendering] 容器剔除导入当前选区: {} 个方块", imported);
                     }
                     if (ImGui.isItemHovered()) ImGui.setTooltip("可先用其他选择工具选区，再导入为剔除候选。");
-                    ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "左键选取，拖拽连续框取；右键或按钮确认剔除。");
+                    UITheme.colored(UITheme.Semantic.TEXT_SECONDARY, "左键选取，拖拽连续框取；右键或按钮确认剔除。");
                 } else {
                     UITheme.label("未检测到可用容器", UITheme.DarkTheme.TEXT_DISABLED);
-                    ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, "请先在容器面板选中一个容器（或启用实时接收激活容器）。");
+                    UITheme.colored(UITheme.Semantic.WARNING, "请先在容器面板选中一个容器（或启用实时接收激活容器）。");
                 }
                 ImGui.unindent();
             }
@@ -456,7 +456,7 @@ public final class ToolPropertyRendering {
                     ImGui.endCombo();
                 }
                 ImGui.spacing();
-                ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, spread.getDescription());
+                UITheme.colored(UITheme.Semantic.TEXT_SECONDARY, spread.getDescription());
                 if (spread == MagicWandConfig.SpreadMode.SPHERE_REGION) {
                     ImGui.spacing();
                     ctx.getIntBuffer1()[0] = c.getSphereRadius();
@@ -483,7 +483,7 @@ public final class ToolPropertyRendering {
                     ImGui.endCombo();
                 }
                 ImGui.spacing();
-                ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, m.getDescription());
+                UITheme.colored(UITheme.Semantic.TEXT_SECONDARY, m.getDescription());
                 
                 // 动态显示标签/过滤器输入框
                 if (m == MagicWandConfig.CompareMode.BY_TAG) {
@@ -591,14 +591,14 @@ public final class ToolPropertyRendering {
             ImGui.separator();
             int pc = tool.getLastPreviewCount();
             if (pc > 0) {
-                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 预览: " + pc + " 个方块");
+                UITheme.colored(UITheme.Semantic.SUCCESS, Icons.STATS + " 预览: " + pc + " 个方块");
                 MagicWandTask.MagicWandTaskResult pr = tool.getPreviewResult();
                 if (pr != null) {
-                    if (pr.reachedLimit()) { ImGui.sameLine(); ImGui.textColored(1.0f, 1.0f, 0.0f, 1.0f, "(达到上限)"); }
-                    if (pr.cancelled()) { ImGui.sameLine(); ImGui.textColored(1.0f, 0.5f, 0.5f, 1.0f, "(已取消)"); }
+                    if (pr.reachedLimit()) { ImGui.sameLine(); UITheme.colored(UITheme.Semantic.WARNING, "(达到上限)"); }
+                    if (pr.cancelled()) { ImGui.sameLine(); UITheme.colored(UITheme.Semantic.DANGER, "(已取消)"); }
                 }
             } else {
-                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, "悬停方块以显示预览");
+                UITheme.colored(UITheme.Semantic.TEXT_MUTED, "悬停方块以显示预览");
             }
         }
         @Override
@@ -611,7 +611,7 @@ public final class ToolPropertyRendering {
             // 1) 框选设置（与魔棒结构一致，暂无扩展参数）
             if (Card.begin("selection_tool.box", "框选设置")) {
                 ImGui.indent();
-                ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "拖拽绘制立方体区域，支持 Gizmo 调整。");
+                UITheme.colored(UITheme.Semantic.TEXT_SECONDARY, "拖拽绘制立方体区域，支持 Gizmo 调整。");
                 ImGui.unindent();
             }
             Card.end();
@@ -620,9 +620,9 @@ public final class ToolPropertyRendering {
             ImGui.separator();
             int cnt = ctx.getSelectionManager().getSelectionSet().size();
             if (cnt > 0) {
-                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
+                UITheme.colored(UITheme.Semantic.SUCCESS, Icons.STATS + " 当前选中: " + cnt + " 个方块");
             } else {
-                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 拖拽绘制框选区域");
+                UITheme.colored(UITheme.Semantic.TEXT_MUTED, Icons.STATS + " 拖拽绘制框选区域");
             }
         }
         @Override

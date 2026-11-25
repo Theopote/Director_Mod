@@ -178,12 +178,12 @@ public class ContainerToolbar {
         if (n == 0) {
             ImGui.textDisabled(tr(DirectorLang.ContainerPanel.Toolbar.NO_SELECTION));
         } else if (n > 1) {
-            ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f,
+            UITheme.colored(UITheme.Semantic.INFO,
                 tr(DirectorLang.ContainerPanel.Toolbar.SELECTED_COUNT, n));
         } else {
             Container c = controller.getSelectedContainer();
             if (c != null) {
-                ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f,
+                UITheme.colored(UITheme.Semantic.INFO,
                     tr(DirectorLang.ContainerPanel.Toolbar.SELECTED_SINGLE, c.getName(), c.getType().getDisplayName()));
             } else {
                 ImGui.textDisabled(tr(DirectorLang.ContainerPanel.Toolbar.NO_SELECTION));

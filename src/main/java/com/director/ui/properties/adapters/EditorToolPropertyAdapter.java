@@ -118,7 +118,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         Actor actor = resolveSelectedActor();
         String unavailable = actorToolUnavailableReason(tool, actor);
         if (!unavailable.isEmpty()) {
-            ImGui.textColored(1f, .65f, .2f, 1f, "只读：" + unavailable);
+            UITheme.colored(UITheme.Semantic.WARNING, "只读：" + unavailable);
             ImGui.separator();
         }
         if (Card.begin("editor_tool.current_actor", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CURRENT_ACTOR))) {

@@ -316,7 +316,7 @@ public class TimelineClipPropertyUi {
                 ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_FADE_DURATION_INFO,
                         fadeDuration, fadeStart[0], fadeEnd[0]));
             } else if (fadeEnd[0] == fadeStart[0] && fadeStart[0] > 0.0f) {
-                ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_FADE_INSTANT_WARNING));
+                UITheme.colored(UITheme.Semantic.WARNING, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_FADE_INSTANT_WARNING));
             } else {
                 ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_FADE_DISABLED));
             }
@@ -337,7 +337,7 @@ public class TimelineClipPropertyUi {
             return modified;
         } catch (Exception e) {
             LOGGER.error("渲染动画设置时发生异常: {}", e.getMessage(), e);
-            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_RENDER_ANIMATION, e.getMessage()));
+            UITheme.colored(UITheme.Semantic.DANGER, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_RENDER_ANIMATION, e.getMessage()));
             return false;
         }
     }
@@ -504,7 +504,7 @@ public class TimelineClipPropertyUi {
                     }
                 } catch (Exception e) {
                     LOGGER.warn("渲染动画参数时出错: {}", e.getMessage(), e);
-                    ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_RENDER_PARAMS, e.getMessage()));
+                    UITheme.colored(UITheme.Semantic.DANGER, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_RENDER_PARAMS, e.getMessage()));
                 }
             } else {
                 LOGGER.warn("未找到动画模式 {} 对应的 Transformer", currentMode);
@@ -512,7 +512,7 @@ public class TimelineClipPropertyUi {
             }
         } catch (Exception e) {
             LOGGER.error("渲染动画参数时出错: {}", e.getMessage(), e);
-            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_GENERIC, e.getMessage()));
+            UITheme.colored(UITheme.Semantic.DANGER, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_GENERIC, e.getMessage()));
         }
 
         UITheme.separator();
@@ -603,7 +603,7 @@ public class TimelineClipPropertyUi {
                 }
             } catch (Exception e) {
                 LOGGER.error("恢复默认值时出错: {}", e.getMessage(), e);
-                ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_RESTORE, e.getMessage()));
+                UITheme.colored(UITheme.Semantic.DANGER, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_RESTORE, e.getMessage()));
             }
         }
         if (ImGui.isItemHovered()) {
@@ -1744,7 +1744,7 @@ public class TimelineClipPropertyUi {
                             modified |= renderEffectParams(inst, inst.getType());
                         } catch (Exception e) {
                             LOGGER.error("渲染特效参数 UI 出错: {}", e.getMessage(), e);
-                            ImGui.textColored(1f, 0f, 0f, 1f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_EFFECT_PARAMS, e.getMessage()));
+                            UITheme.colored(UITheme.Semantic.DANGER, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_EFFECT_PARAMS, e.getMessage()));
                         }
                     } else {
                         ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_IMPL_NOT_FOUND, inst.getType().name()));
@@ -1891,7 +1891,7 @@ public class TimelineClipPropertyUi {
                         || (clipPhase == ClipAnimationConfig.AnimationPhase.EXIT
                                 && effectPhase != EffectInstance.EffectPhase.EXIT));
         if (phaseMismatch) {
-            ImGui.textColored(1.0f, 0.6f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PHASE_MISMATCH_WARNING));
+            UITheme.colored(UITheme.Semantic.WARNING, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PHASE_MISMATCH_WARNING));
             if (ImGui.isItemHovered()) {
                 String clipPhaseName = clipPhase == ClipAnimationConfig.AnimationPhase.ENTER
                         ? ClipPropertyUiI18n.effectPhaseName(ClipPropertyUiI18n.EffectPhaseKind.ENTER)

@@ -498,7 +498,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             }
         } catch (Exception e) {
             LOGGER.error("渲染动画参数时出错: {}", e.getMessage(), e);
-            imgui.ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, tr(DirectorLang.Properties.AdapterContainer.RENDER_ERROR, e.getMessage()));
+            UITheme.colored(UITheme.Semantic.DANGER, tr(DirectorLang.Properties.AdapterContainer.RENDER_ERROR, e.getMessage()));
         }
 
         UITheme.separator();

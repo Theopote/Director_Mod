@@ -347,7 +347,7 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
      * 工具上下文下无当前工具时显示
      */
     private void renderNoToolMessage() {
-        ImGui.textColored(1.0f, 1.0f, 0.0f, 1.0f, Icons.WARNING + " " + tr(DirectorLang.Properties.NO_TOOL));
+        UITheme.colored(UITheme.Semantic.WARNING, Icons.WARNING + " " + tr(DirectorLang.Properties.NO_TOOL));
         UITheme.label(tr(DirectorLang.Properties.SELECT_TOOL_HINT), UITheme.DarkTheme.TEXT);
     }
     
@@ -444,7 +444,7 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
         String typeName = currentSelection.getClass().getSimpleName();
         String fullClassName = currentSelection.getClass().getName();
         
-        ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f,
+        UITheme.colored(UITheme.Semantic.WARNING,
             tr(DirectorLang.Properties.NO_ADAPTER_MESSAGE, typeName));
         
         UITheme.separator();
@@ -491,7 +491,7 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
         //UITheme.spacingLarge();
         UITheme.title(Icons.ERROR + " " + tr(DirectorLang.Properties.RENDER_ERROR_TITLE));
         
-        ImGui.textColored(1.0f, 0.4f, 0.4f, 1.0f, tr(DirectorLang.Properties.RENDER_ERROR_MESSAGE));
+        UITheme.colored(UITheme.Semantic.DANGER, tr(DirectorLang.Properties.RENDER_ERROR_MESSAGE));
         
         UITheme.separator();
         

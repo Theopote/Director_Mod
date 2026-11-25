@@ -1,6 +1,7 @@
 package com.director.ui.properties.actor;
 
 import com.director.actor.Actor;
+import com.director.ui.properties.Card;
 import com.director.ui.actor.ActorAppearanceEditing;
 import imgui.ImGui;
 import java.util.Objects;
@@ -20,23 +21,27 @@ public final class RigProfileStylePropertyUI {
             owner=actor;modelScope=model;before=current;
             values=new float[]{current.motion(),current.tempo(),current.lean(),current.arms(),current.legs()};message="";
         }
-        if(!ImGui.collapsingHeader(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.title"))) return false;
-        ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.hint"));
-        ImGui.beginDisabled(!ActorAppearanceEditing.editable(model));
-        String[] labels={
-                com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.motion"),
-                com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.tempo"),
-                com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.lean"),
-                com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.arms"),
-                com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.legs")};
-        float[] min={.5f,.7f,.5f,.3f,.3f},max={1.5f,1.3f,1.5f,1.5f,1.5f};
-        for(int i=0;i<5;i++) {float[] value={values[i]};if(ImGui.sliderFloat(labels[i]+"##style"+i,value,min[i],max[i])) values[i]=value[0];}
-        if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.apply"))) {
-            try {ActorAppearanceEditing.style(model,actor,before,new ActorAppearanceEditing.Style(values[0],values[1],values[2],values[3],values[4]));message=com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.applied");}
-            catch(RuntimeException error){message=error.getMessage();}
+        if(!Card.begin("rigProfileStyle", com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.title"))) { Card.end(); return false; }
+        try {
+            ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.hint"));
+            ImGui.beginDisabled(!ActorAppearanceEditing.editable(model));
+            String[] labels={
+                    com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.motion"),
+                    com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.tempo"),
+                    com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.lean"),
+                    com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.arms"),
+                    com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.legs")};
+            float[] min={.5f,.7f,.5f,.3f,.3f},max={1.5f,1.3f,1.5f,1.5f,1.5f};
+            for(int i=0;i<5;i++) {float[] value={values[i]};if(ImGui.sliderFloat(labels[i]+"##style"+i,value,min[i],max[i])) values[i]=value[0];}
+            if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.apply"))) {
+                try {ActorAppearanceEditing.style(model,actor,before,new ActorAppearanceEditing.Style(values[0],values[1],values[2],values[3],values[4]));message=com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.applied");}
+                catch(RuntimeException error){message=error.getMessage();}
+            }
+            ImGui.sameLine();if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.cancel"))) before=null;
+            ImGui.endDisabled();if(!message.isEmpty()) ImGui.textWrapped(message);
+            return false;
+        } finally {
+            Card.end();
         }
-        ImGui.sameLine();if(ImGui.button(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.cancel"))) before=null;
-        ImGui.endDisabled();if(!message.isEmpty()) ImGui.textWrapped(message);
-        return false;
     }
 }

@@ -222,7 +222,7 @@ public class DialogManager {
             UITheme.title(Icons.TIMELINE + " " + title);
 
             if (timelineSettingsAccessor == null) {
-                ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, tr(DirectorLang.SystemDialog.TimelineSettings.ACCESS_ERROR));
+                UITheme.colored(UITheme.Semantic.DANGER, tr(DirectorLang.SystemDialog.TimelineSettings.ACCESS_ERROR));
                 if (ImGui.button(tr(DirectorLang.Common.CLOSE), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                     closeTimelineSettingsDialog();
                 }
@@ -234,7 +234,7 @@ public class DialogManager {
                     timelineSettingsAccessor.getSnapSettings();
 
             if (snapSettings == null) {
-                ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, tr(DirectorLang.SystemDialog.TimelineSettings.UNAVAILABLE));
+                UITheme.colored(UITheme.Semantic.DANGER, tr(DirectorLang.SystemDialog.TimelineSettings.UNAVAILABLE));
                 if (ImGui.button(tr(DirectorLang.Common.CLOSE), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                     closeTimelineSettingsDialog();
                 }
@@ -255,7 +255,7 @@ public class DialogManager {
                 if (!success) {
                     frameRateRef[0] = frameRate;
                     ImGui.sameLine();
-                    ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, Icons.WARNING);
+                    UITheme.colored(UITheme.Semantic.DANGER, Icons.WARNING);
                     if (ImGui.isItemHovered()) {
                         ImGui.setTooltip(tr(DirectorLang.SystemDialog.TimelineSettings.FRAME_RATE_ERROR_TOOLTIP));
                     }
@@ -411,8 +411,7 @@ public class DialogManager {
         ImGui.setNextWindowSize(420, 190);
         ImBoolean popupOpen = new ImBoolean(true);
         if (ImGui.beginPopupModal(title, popupOpen, ImGuiWindowFlags.AlwaysAutoResize)) {
-            ImGui.textColored(
-                    1.0f, 0.47f, 0.31f, 1.0f,
+            UITheme.colored(UITheme.Semantic.DANGER,
                     Icons.WARNING + " " + tr(DirectorLang.SystemDialog.RESET_WORKSPACE_WARNING)
             );
             ImGui.spacing();
@@ -493,8 +492,7 @@ public class DialogManager {
 
             if (layoutName.isEmpty()) {
                 ImGui.spacing();
-                ImGui.textColored(
-                        0.8f, 0.6f, 0.2f, 1.0f,
+                UITheme.colored(UITheme.Semantic.WARNING,
                         Icons.WARNING + " " + tr(DirectorLang.SystemDialog.SAVE_LAYOUT_NAME_REQUIRED)
                 );
             }
@@ -514,8 +512,7 @@ public class DialogManager {
             ImGui.spacing();
 
             if (layoutAccessor == null) {
-                ImGui.textColored(
-                        1.0f, 0.3f, 0.3f, 1.0f,
+                UITheme.colored(UITheme.Semantic.DANGER,
                         Icons.ERROR + " " + tr(DirectorLang.SystemDialog.LOAD_LAYOUT_ACCESSOR_UNAVAILABLE)
                 );
                 ImGui.spacing();
@@ -529,8 +526,7 @@ public class DialogManager {
             java.util.List<String> presets = layoutAccessor.listLayoutPresets();
 
             if (presets.isEmpty()) {
-                ImGui.textColored(
-                        0.8f, 0.6f, 0.2f, 1.0f,
+                UITheme.colored(UITheme.Semantic.WARNING,
                         Icons.WARNING + " " + tr(DirectorLang.SystemDialog.LOAD_LAYOUT_NONE_FOUND)
                 );
                 ImGui.spacing();

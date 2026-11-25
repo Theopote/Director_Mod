@@ -26,6 +26,10 @@ public class UITheme {
         public static final int WARNING = DarkTheme.TEXT_WARNING;
         public static final int DANGER = rgba(255, 110, 110, 255);
         public static final int INFO = DarkTheme.CHECK_MARK;
+        /** 次要说明文字（比正文暗，比禁用文字亮） */
+        public static final int TEXT_SECONDARY = rgba(172, 178, 194, 255);
+        /** 弱化提示文字 */
+        public static final int TEXT_MUTED = DarkTheme.TEXT_DISABLED;
 
         private Semantic() {}
     }
@@ -461,6 +465,11 @@ public class UITheme {
         ImGui.textColored(col[0], col[1], col[2], col[3], text);
     }
     
+    /** 以 RGBA 打包色绘制文本（参数顺序与 ImGui.textColored 一致，颜色改用主题色）。 */
+    public static void colored(int color, String text) {
+        label(text, color);
+    }
+
     /**
      * 标题文本
      */

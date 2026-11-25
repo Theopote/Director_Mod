@@ -1,6 +1,7 @@
 package com.director.ui.properties.actor;
 
 import com.director.core.DirectorServices;
+import com.director.ui.properties.Card;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.timeline.model.TimelineModel;
@@ -80,9 +81,7 @@ public final class ActorLiveTransformPropertyUI {
         editingActor = actorId; editingModel = model; editingTrack = target == null ? null : target.timelineTrack();
         ImGui.beginDisabled(readOnly || cancelledUntilRelease);
 
-        if (ImGui.collapsingHeader(Icons.TRANSFORM + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SECTION_TRANSFORM),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Card.begin("liveTransform.TRANSFORM", Icons.TRANSFORM + " " + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SECTION_TRANSFORM))) {
             ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.track.live_transform"));
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.TIME_HINT_FMT, time));
             if (target != null) {
@@ -145,10 +144,9 @@ public final class ActorLiveTransformPropertyUI {
                 }
             }
         }
+        Card.end();
 
-        if (ImGui.collapsingHeader(Icons.TARGET + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SECTION_LOOK_AT),
-                ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Card.begin("liveTransform.TARGET", Icons.TARGET + " " + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SECTION_LOOK_AT))) {
             var lookSource=target==null?null:com.director.ui.actor.lookat.ActorLookAtEditSession.resolveSource(model,target.timelineTrack());
             if(lookSource!=null) {
                 ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.live.look_clip", lookSource.getName()));
@@ -213,6 +211,7 @@ public final class ActorLiveTransformPropertyUI {
             }
             ImGui.endDisabled();
         }
+        Card.end();
 
         if (gesture != null && !widgetRendered) cancelGesture();
         if (!error.isEmpty()) ImGui.textWrapped(error);

@@ -1,5 +1,6 @@
 package com.director.ui.video;
 
+import com.director.ui.theme.UITheme;
 import com.director.ui.DirectorUIManager;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
@@ -89,11 +90,11 @@ public final class VideoExportProgressOverlay {
                 ImGui.progressBar(progress, -1, 0, String.format("%.0f%%", progress * 100f));
             } else {
                 if (current == Status.SUCCEEDED) {
-                    ImGui.textColored(0.4f, 1.0f, 0.5f, 1.0f, Icons.CHECK + " 导出完成");
+                    UITheme.colored(UITheme.Semantic.SUCCESS, Icons.CHECK + " 导出完成");
                 } else if (current == Status.CANCELED) {
-                    ImGui.textColored(1.0f, 0.8f, 0.4f, 1.0f, "导出已取消");
+                    UITheme.colored(UITheme.Semantic.WARNING, "导出已取消");
                 } else {
-                    ImGui.textColored(1.0f, 0.4f, 0.4f, 1.0f, Icons.ERROR + " 导出失败");
+                    UITheme.colored(UITheme.Semantic.DANGER, Icons.ERROR + " 导出失败");
                 }
             }
             if (message != null && !message.isBlank()) {
