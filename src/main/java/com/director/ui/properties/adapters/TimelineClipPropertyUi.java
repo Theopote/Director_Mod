@@ -32,7 +32,7 @@ import com.director.ui.theme.Icons;
 import imgui.ImDrawList;
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.Card;
-import com.director.ui.properties.Section;
+
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
@@ -1530,7 +1530,7 @@ public class TimelineClipPropertyUi {
         }
         ImGui.textWrapped(wholeText(settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.SHOCKWAVE
                 ? "shockwave_hint" : "dust_hint"));
-        if (settings.isDustEnabled() && Section.header("clip.whole_visual_parameters", wholeText("visual_parameters"), false)) {
+        if (Card.beginIf(settings.isDustEnabled(), "clip.whole_visual_parameters", wholeText("visual_parameters"), false)) {
             if (settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.DEBRIS_CLOUD) {
                 float[] ratio = {settings.getDebrisRatio()};
                 PropertyRow.field(wholeText("debris_ratio"));
@@ -1549,6 +1549,7 @@ public class TimelineClipPropertyUi {
                 settings.setDustSpread(spread[0]); modified = true;
             }
         }
+        Card.end();
         wholeAnimationEdits.endFrame(modified, ImGui.isAnyItemActive(), wholeText("visual_edit"));
         return modified;
     }

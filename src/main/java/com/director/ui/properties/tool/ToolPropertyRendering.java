@@ -19,7 +19,7 @@ import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.Card;
-import com.director.ui.properties.Section;
+
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.type.ImInt;
@@ -135,16 +135,20 @@ public final class ToolPropertyRendering {
     }
 
     static void renderGenericProperties(SelectionTool tool) {
-        if (!Section.header("selection_tool.info", "工具信息", false)) return;
-        SelectionState state = tool.getCurrentSelection();
-        if (state != null && !state.isEmpty()) {
-            UITheme.label("已选择: " + state.size() + " 个方块", UITheme.DarkTheme.TEXT_SELECTED);
-            if (ImGui.button("清除选择##clearSelection")) {
-                tool.clearSelection();
-                LOGGER.info("[ToolPropertyRendering] 清除选择");
+        if (!Card.begin("selection_tool.info", "工具信息", false)) { Card.end(); return; }
+        try {
+            SelectionState state = tool.getCurrentSelection();
+            if (state != null && !state.isEmpty()) {
+                UITheme.label("已选择: " + state.size() + " 个方块", UITheme.DarkTheme.TEXT_SELECTED);
+                if (ImGui.button("清除选择##clearSelection")) {
+                    tool.clearSelection();
+                    LOGGER.info("[ToolPropertyRendering] 清除选择");
+                }
+            } else {
+                UITheme.label("未选择任何方块", UITheme.DarkTheme.TEXT_DISABLED);
             }
-        } else {
-            UITheme.label("未选择任何方块", UITheme.DarkTheme.TEXT_DISABLED);
+        } finally {
+            Card.end();
         }
     }
 
@@ -288,77 +292,81 @@ public final class ToolPropertyRendering {
     private static final class ClickToolRenderer implements ToolPropertyRenderer<ClickSelectTool> {
         @Override
         public void render(ClickSelectTool tool, IToolPropertyRenderContext ctx) {
-            if (Section.header("selection_tool.click.expansion", "点选扩展")) {
-                ImGui.indent();
-                boolean enabled = tool.isDoubleClickExpandEnabled();
-                PropertyRow.label("启用双击扩选");
-                if (ImGui.checkbox("##clickDoubleEnabled", enabled)) {
-                    tool.setDoubleClickExpandEnabled(!enabled);
-                }
-                if (ImGui.isItemHovered()) ImGui.setTooltip("双击同一方块时执行扩展选择。关闭后保持原有单点行为。");
-
-                ClickSelectTool.DoubleClickPreset preset = tool.getDoubleClickPreset();
-                ClickSelectTool.DoubleClickPreset[] presets = ClickSelectTool.DoubleClickPreset.values();
-                int presetCurrent = 0;
-                for (int i = 0; i < presets.length; i++) {
-                    if (presets[i] == preset) {
-                        presetCurrent = i;
-                        break;
+            try {
+                if (Card.begin("selection_tool.click.expansion", "点选扩展")) {
+                    ImGui.indent();
+                    boolean enabled = tool.isDoubleClickExpandEnabled();
+                    PropertyRow.label("启用双击扩选");
+                    if (ImGui.checkbox("##clickDoubleEnabled", enabled)) {
+                        tool.setDoubleClickExpandEnabled(!enabled);
                     }
-                }
-                ImInt presetIdx = new ImInt(presetCurrent);
-                String[] presetItems = new String[presets.length];
-                for (int i = 0; i < presets.length; i++) {
-                    presetItems[i] = presets[i].getDisplayName();
-                }
-                PropertyRow.field("双击预设");
-                if (ImGui.combo("##clickPreset", presetIdx, presetItems)) {
-                    tool.setDoubleClickPreset(presets[presetIdx.get()]);
-                }
-                if (ImGui.isItemHovered()) ImGui.setTooltip("快速/精确/大范围为推荐参数组合；自定义表示你已手动调整参数。");
+                    if (ImGui.isItemHovered()) ImGui.setTooltip("双击同一方块时执行扩展选择。关闭后保持原有单点行为。");
 
-                ClickSelectTool.DoubleClickMode mode = tool.getDoubleClickMode();
-                ClickSelectTool.DoubleClickMode[] modes = ClickSelectTool.DoubleClickMode.values();
-                int current = 0;
-                for (int i = 0; i < modes.length; i++) {
-                    if (modes[i] == mode) {
-                        current = i;
-                        break;
+                    ClickSelectTool.DoubleClickPreset preset = tool.getDoubleClickPreset();
+                    ClickSelectTool.DoubleClickPreset[] presets = ClickSelectTool.DoubleClickPreset.values();
+                    int presetCurrent = 0;
+                    for (int i = 0; i < presets.length; i++) {
+                        if (presets[i] == preset) {
+                            presetCurrent = i;
+                            break;
+                        }
                     }
-                }
-                ImInt modeIdx = new ImInt(current);
-                String[] modeItems = new String[modes.length];
-                for (int i = 0; i < modes.length; i++) {
-                    modeItems[i] = modes[i].getDisplayName();
-                }
-                PropertyRow.field("双击模式");
-                if (ImGui.combo("##clickDoubleMode", modeIdx, modeItems)) {
-                    tool.setDoubleClickMode(modes[modeIdx.get()]);
-                }
+                    ImInt presetIdx = new ImInt(presetCurrent);
+                    String[] presetItems = new String[presets.length];
+                    for (int i = 0; i < presets.length; i++) {
+                        presetItems[i] = presets[i].getDisplayName();
+                    }
+                    PropertyRow.field("双击预设");
+                    if (ImGui.combo("##clickPreset", presetIdx, presetItems)) {
+                        tool.setDoubleClickPreset(presets[presetIdx.get()]);
+                    }
+                    if (ImGui.isItemHovered()) ImGui.setTooltip("快速/精确/大范围为推荐参数组合；自定义表示你已手动调整参数。");
 
-                boolean visibleOnly = tool.isVisibleOnlySelection();
-                PropertyRow.label("仅可见方块");
-                if (ImGui.checkbox("##clickVisibleOnly", visibleOnly)) {
-                    tool.setVisibleOnlySelection(!visibleOnly);
-                }
-                if (ImGui.isItemHovered()) ImGui.setTooltip("只选择至少有一个外露面的方块，避免扩选到内部被遮挡方块。");
+                    ClickSelectTool.DoubleClickMode mode = tool.getDoubleClickMode();
+                    ClickSelectTool.DoubleClickMode[] modes = ClickSelectTool.DoubleClickMode.values();
+                    int current = 0;
+                    for (int i = 0; i < modes.length; i++) {
+                        if (modes[i] == mode) {
+                            current = i;
+                            break;
+                        }
+                    }
+                    ImInt modeIdx = new ImInt(current);
+                    String[] modeItems = new String[modes.length];
+                    for (int i = 0; i < modes.length; i++) {
+                        modeItems[i] = modes[i].getDisplayName();
+                    }
+                    PropertyRow.field("双击模式");
+                    if (ImGui.combo("##clickDoubleMode", modeIdx, modeItems)) {
+                        tool.setDoubleClickMode(modes[modeIdx.get()]);
+                    }
 
-                ctx.getIntBuffer1()[0] = tool.getExpansionRange();
-                PropertyRow.field("扩展范围");
-                if (ImGui.sliderInt("##clickExpandRange", ctx.getIntBuffer1(), 1, 64)) {
-                    tool.setExpansionRange(ctx.getIntBuffer1()[0]);
-                }
-                if (ImGui.isItemHovered()) ImGui.setTooltip("连通模式表示最大扩散步数；全局同类模式表示立方体半径。");
+                    boolean visibleOnly = tool.isVisibleOnlySelection();
+                    PropertyRow.label("仅可见方块");
+                    if (ImGui.checkbox("##clickVisibleOnly", visibleOnly)) {
+                        tool.setVisibleOnlySelection(!visibleOnly);
+                    }
+                    if (ImGui.isItemHovered()) ImGui.setTooltip("只选择至少有一个外露面的方块，避免扩选到内部被遮挡方块。");
 
-                ctx.getIntBuffer2()[0] = tool.getMaxSelectionCount();
-                PropertyRow.field("最大选择数");
-                if (ImGui.sliderInt("##clickMaxCount", ctx.getIntBuffer2(), 128, 200_000)) {
-                    tool.setMaxSelectionCount(ctx.getIntBuffer2()[0]);
-                }
-                if (ImGui.isItemHovered()) ImGui.setTooltip("限制单次双击扩选数量，避免大范围卡顿。");
+                    ctx.getIntBuffer1()[0] = tool.getExpansionRange();
+                    PropertyRow.field("扩展范围");
+                    if (ImGui.sliderInt("##clickExpandRange", ctx.getIntBuffer1(), 1, 64)) {
+                        tool.setExpansionRange(ctx.getIntBuffer1()[0]);
+                    }
+                    if (ImGui.isItemHovered()) ImGui.setTooltip("连通模式表示最大扩散步数；全局同类模式表示立方体半径。");
 
-                ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "提示: Shift+双击会强制加选，与其他选择工具一致。");
-                ImGui.unindent();
+                    ctx.getIntBuffer2()[0] = tool.getMaxSelectionCount();
+                    PropertyRow.field("最大选择数");
+                    if (ImGui.sliderInt("##clickMaxCount", ctx.getIntBuffer2(), 128, 200_000)) {
+                        tool.setMaxSelectionCount(ctx.getIntBuffer2()[0]);
+                    }
+                    if (ImGui.isItemHovered()) ImGui.setTooltip("限制单次双击扩选数量，避免大范围卡顿。");
+
+                    ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "提示: Shift+双击会强制加选，与其他选择工具一致。");
+                    ImGui.unindent();
+                }
+            } finally {
+                Card.end();
             }
 
             ImGui.spacing();
@@ -500,8 +508,7 @@ public final class ToolPropertyRendering {
                 ImGui.unindent();
             }
             Card.end();
-            if (c.getSpreadMode() == MagicWandConfig.SpreadMode.CONNECTED_FLOOD
-                && Section.header("selection_tool.wand.connectivity", "连通性与传播")) {
+            if (Card.beginIf(c.getSpreadMode() == MagicWandConfig.SpreadMode.CONNECTED_FLOOD, "selection_tool.wand.connectivity", "连通性与传播")) {
                 ImGui.indent();
                 MagicWandConfig.Connectivity conn = c.getConnectivity();
                 PropertyRow.field("连通性");
@@ -523,6 +530,7 @@ public final class ToolPropertyRendering {
                 // 对角传播 checkbox 已移除，融合进 Connectivity 逻辑中
                 ImGui.unindent();
             }
+            Card.end();
             if (Card.begin("selection_tool.wand.limits", "限制与性能")) {
                 ImGui.indent();
                 ctx.getIntBuffer1()[0] = c.getMaxBlocks();

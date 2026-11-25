@@ -58,6 +58,19 @@ public final class Card {
         return begin(id, title, true);
     }
 
+    /** 条件不成立时不绘制任何东西（返回 false），对应的 {@link #end()} 为空操作。 */
+    public static boolean beginIf(boolean condition, String id, String title) {
+        return beginIf(condition, id, title, true);
+    }
+
+    public static boolean beginIf(boolean condition, String id, String title, boolean defaultOpen) {
+        if (!condition) {
+            NESTED.push(true);
+            return false;
+        }
+        return begin(id, title, defaultOpen);
+    }
+
     public static boolean begin(String id, String title, boolean defaultOpen) {
         if (active) {
             NESTED.push(true);

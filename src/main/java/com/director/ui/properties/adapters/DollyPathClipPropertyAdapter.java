@@ -5,7 +5,7 @@ import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.Card;
-import com.director.ui.properties.Section;
+
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
 import com.director.timeline.container.ContainerTimelineService;
@@ -273,7 +273,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
                 ImGui.spacing();
                 ImGui.indent();
                 // 使用可折叠区域，让高级选项更"收"一些
-                if (Section.header("camera.dolly.custom_direction_vector", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.CUSTOM_DIRECTION_VECTOR))) {
+                if (Card.begin("camera.dolly.custom_direction_vector", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.CUSTOM_DIRECTION_VECTOR))) {
                     float[] dirArr = {fixedDirectionArr[0].get(), fixedDirectionArr[1].get(), fixedDirectionArr[2].get()};
                     boolean directionChanged = ImGui.dragFloat3("##direction_vector", dirArr, 0.01f);
                     boolean isDirectionActive = ImGui.isItemActive();
@@ -297,6 +297,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
                     
                     ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.NORMALIZE_HINT));
                 }
+                Card.end();
                 ImGui.unindent();
             }
             ImGui.unindent();
@@ -325,7 +326,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             }
             
             // 调试信息（可折叠）
-            if (Section.header("camera.dolly.debug_info_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.DEBUG_INFO_SECTION), false)) {
+            if (Card.begin("camera.dolly.debug_info_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.DEBUG_INFO_SECTION), false)) {
                 ImGui.indent();
                 Vec3d startPos = clip.getStartPosition();
                 Vec3d dollyDir = clip.getDollyDirection();
@@ -345,6 +346,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
                 }
                 ImGui.unindent(); // Debug Info 的缩进
             }
+            Card.end();
             ImGui.unindent(); // Advanced 的缩进
         }
         Card.end();

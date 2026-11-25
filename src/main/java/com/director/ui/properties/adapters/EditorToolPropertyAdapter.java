@@ -11,7 +11,6 @@ import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.Card;
-import com.director.ui.properties.Section;
 import com.director.ui.properties.PropertyContext;
 import com.director.ui.properties.actor.ActorLiveTransformPropertyUI;
 import com.director.ui.properties.actor.RigProfileStylePropertyUI;
@@ -228,112 +227,118 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         poseGallery.render(DirectorServices.get().containerTimeline().getTimelineModel(), ActorSelectionHub.getSelectedActorId());
         var draft = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance();
         com.director.ui.actor.pose.ActorBoneDraftPanel.render();
-        if (!Section.header("editor_tool.keyframes", com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.keyframes"))) return;
-        var settings = com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance();
-        ImInt editTarget = new ImInt(settings.getEditTarget().ordinal());
-        PropertyRow.field(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.target"));
-        if (ImGui.combo("##boneEditTarget", editTarget, new String[]{net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.asset"), net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.pose")})) {
-            draft.cancelDraft();
-            settings.setEditTarget(com.director.ui.actor.pose.ActorAnimationAuthoringSettings.EditTarget.values()[editTarget.get()]);
-        }
-        animationAutoKeyframe.set(settings.isAutoKeyframe());
-        PropertyRow.label(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.auto_apply"));
-        if (ImGui.checkbox("##actorAnimationAutoKey", animationAutoKeyframe)) {
-            settings.setAutoKeyframe(animationAutoKeyframe.get());
-        }
-        if (ImGui.isItemHovered()) ImGui.setTooltip(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.hint"));
-
-        animationBoneGizmoMode.set(settings.getBoneGizmoMode() == com.director.client.gizmo.GizmoMode.TRANSLATE ? 1
-                : settings.getBoneGizmoMode() == com.director.client.gizmo.GizmoMode.SCALE ? 2 : 0);
-        PropertyRow.field(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.gizmo"));
-        if (ImGui.combo("##actorBoneGizmoMode", animationBoneGizmoMode,
-                new String[]{com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.rotate"), com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.translate"), com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.scale")})) {
-            settings.setBoneGizmoMode(switch (animationBoneGizmoMode.get()) {
-                case 1 -> com.director.client.gizmo.GizmoMode.TRANSLATE;
-                case 2 -> com.director.client.gizmo.GizmoMode.SCALE;
-                default -> com.director.client.gizmo.GizmoMode.ROTATE;
-            });
-        }
-        if (ImGui.isItemHovered()) ImGui.setTooltip(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.translate_tip"));
-
-        if(ImGui.treeNode(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.new_asset") + "##actorNewAssetSettings")) {
-            animationAssetId.set(settings.getAssetId());
-            PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.asset_id"));
-            if (ImGui.inputText("##actorAnimationAssetId", animationAssetId)) {
-                settings.setAssetId(animationAssetId.get());
+        if (!Card.begin("editor_tool.keyframes", com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.keyframes"))) { Card.end(); return; }
+        try {
+            var settings = com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance();
+            ImInt editTarget = new ImInt(settings.getEditTarget().ordinal());
+            PropertyRow.field(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.target"));
+            if (ImGui.combo("##boneEditTarget", editTarget, new String[]{net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.asset"), net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.pose")})) {
+                draft.cancelDraft();
+                settings.setEditTarget(com.director.ui.actor.pose.ActorAnimationAuthoringSettings.EditTarget.values()[editTarget.get()]);
             }
-            float[] duration = { settings.getNewAssetDuration() };
-            PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.new_duration"));
-            if (ImGui.sliderFloat("##actorAnimationDuration", duration, 0.1f, 60f, "%.2fs")) {
-                settings.setNewAssetDuration(duration[0]);
+            animationAutoKeyframe.set(settings.isAutoKeyframe());
+            PropertyRow.label(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.auto_apply"));
+            if (ImGui.checkbox("##actorAnimationAutoKey", animationAutoKeyframe)) {
+                settings.setAutoKeyframe(animationAutoKeyframe.get());
             }
-            ImGui.treePop();
+            if (ImGui.isItemHovered()) ImGui.setTooltip(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.bone_draft.hint"));
+
+            animationBoneGizmoMode.set(settings.getBoneGizmoMode() == com.director.client.gizmo.GizmoMode.TRANSLATE ? 1
+                    : settings.getBoneGizmoMode() == com.director.client.gizmo.GizmoMode.SCALE ? 2 : 0);
+            PropertyRow.field(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.gizmo"));
+            if (ImGui.combo("##actorBoneGizmoMode", animationBoneGizmoMode,
+                    new String[]{com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.rotate"), com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.translate"), com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.scale")})) {
+                settings.setBoneGizmoMode(switch (animationBoneGizmoMode.get()) {
+                    case 1 -> com.director.client.gizmo.GizmoMode.TRANSLATE;
+                    case 2 -> com.director.client.gizmo.GizmoMode.SCALE;
+                    default -> com.director.client.gizmo.GizmoMode.ROTATE;
+                });
+            }
+            if (ImGui.isItemHovered()) ImGui.setTooltip(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.translate_tip"));
+
+            if(ImGui.treeNode(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.new_asset") + "##actorNewAssetSettings")) {
+                animationAssetId.set(settings.getAssetId());
+                PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.asset_id"));
+                if (ImGui.inputText("##actorAnimationAssetId", animationAssetId)) {
+                    settings.setAssetId(animationAssetId.get());
+                }
+                float[] duration = { settings.getNewAssetDuration() };
+                PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.new_duration"));
+                if (ImGui.sliderFloat("##actorAnimationDuration", duration, 0.1f, 60f, "%.2fs")) {
+                    settings.setNewAssetDuration(duration[0]);
+                }
+                ImGui.treePop();
+            }
+            var modes = com.director.actor.animation.asset.InterpolationMode.values();
+            animationInterpolation.set(settings.getInterpolation().ordinal());
+            String[] labels = java.util.Arrays.stream(modes).map(mode -> com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.keys.mode." + mode.name().toLowerCase(java.util.Locale.ROOT))).toArray(String[]::new);
+            PropertyRow.field(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.interpolation"));
+            if (ImGui.combo("##actorAnimationInterpolation", animationInterpolation, labels)) {
+                settings.setInterpolation(modes[Math.max(0, Math.min(animationInterpolation.get(), modes.length - 1))]);
+            }
+            ImGui.separator();
+            UUID actorId = ActorSelectionHub.getSelectedActorId();
+            TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+            com.director.ui.actor.pose.ActorAnimationAssetPanel.render(model, actorId);
+            com.director.ui.actor.pose.ActorBonePropertiesPanel.render(model, actorId);
+            com.director.ui.actor.pose.ActorAnimationDopeSheet.render(model, actorId);
+        } finally {
+            Card.end();
         }
-        var modes = com.director.actor.animation.asset.InterpolationMode.values();
-        animationInterpolation.set(settings.getInterpolation().ordinal());
-        String[] labels = java.util.Arrays.stream(modes).map(mode -> com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.keys.mode." + mode.name().toLowerCase(java.util.Locale.ROOT))).toArray(String[]::new);
-        PropertyRow.field(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.interpolation"));
-        if (ImGui.combo("##actorAnimationInterpolation", animationInterpolation, labels)) {
-            settings.setInterpolation(modes[Math.max(0, Math.min(animationInterpolation.get(), modes.length - 1))]);
-        }
-        ImGui.separator();
-        UUID actorId = ActorSelectionHub.getSelectedActorId();
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        com.director.ui.actor.pose.ActorAnimationAssetPanel.render(model, actorId);
-        com.director.ui.actor.pose.ActorBonePropertiesPanel.render(model, actorId);
-        com.director.ui.actor.pose.ActorAnimationDopeSheet.render(model, actorId);
     }
 
     private void renderLocalPoseAuthoring(Actor actor) {
-        if (!Section.header("editor_tool.local_pose_override", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.LOCAL_POSE_OVERRIDE))) {
-            return;
-        }
-        if (actor == null) {
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.SELECT_ACTOR_FIRST));
-            return;
-        }
+        if (!Card.begin("editor_tool.local_pose_override", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.LOCAL_POSE_OVERRIDE))) { Card.end(); return; }
+        try {
+            if (actor == null) {
+                ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.SELECT_ACTOR_FIRST));
+                return;
+            }
 
-        float[] duration = { poseDuration.get() };
-        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION));
-        if (ImGui.sliderFloat("##actorLocalPoseDuration",
-                duration, 0.1f, 10.0f, "%.2fs")) {
-            poseDuration.set(Math.max(0.05f, duration[0]));
-        }
+            float[] duration = { poseDuration.get() };
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION));
+            if (ImGui.sliderFloat("##actorLocalPoseDuration",
+                    duration, 0.1f, 10.0f, "%.2fs")) {
+                poseDuration.set(Math.max(0.05f, duration[0]));
+            }
 
-        PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.HEAD));
-        ImGui.checkbox("##actorLocalPoseHead", poseHead);
-        PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY));
-        ImGui.checkbox("##actorLocalPoseBody", poseBody);
-        PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.ARMS));
-        ImGui.checkbox("##actorLocalPoseArms", poseArms);
-        PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEGS));
-        ImGui.checkbox("##actorLocalPoseLegs", poseLegs);
+            PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.HEAD));
+            ImGui.checkbox("##actorLocalPoseHead", poseHead);
+            PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY));
+            ImGui.checkbox("##actorLocalPoseBody", poseBody);
+            PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.ARMS));
+            ImGui.checkbox("##actorLocalPoseArms", poseArms);
+            PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEGS));
+            ImGui.checkbox("##actorLocalPoseLegs", poseLegs);
 
-        if (poseHead.get()) {
-            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.HEAD_PITCH) + "##actorLocalHeadPitch", poseHeadPitchDeg);
-            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.HEAD_YAW) + "##actorLocalHeadYaw", poseHeadYawDeg);
-        }
-        if (poseBody.get()) {
-            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY_PITCH) + "##actorLocalBodyPitch", poseBodyPitchDeg);
-            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY_YAW) + "##actorLocalBodyYaw", poseBodyYawDeg);
-            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY_ROLL) + "##actorLocalBodyRoll", poseBodyRollDeg);
-        }
-        if (poseArms.get()) {
-            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEFT_ARM) + "##actorLocalLeftArm", poseLeftArmDeg);
-            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.RIGHT_ARM) + "##actorLocalRightArm", poseRightArmDeg);
-        }
-        if (poseLegs.get()) {
-            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEFT_LEG) + "##actorLocalLeftLeg", poseLeftLegDeg);
-            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.RIGHT_LEG) + "##actorLocalRightLeg", poseRightLegDeg);
-        }
+            if (poseHead.get()) {
+                degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.HEAD_PITCH) + "##actorLocalHeadPitch", poseHeadPitchDeg);
+                degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.HEAD_YAW) + "##actorLocalHeadYaw", poseHeadYawDeg);
+            }
+            if (poseBody.get()) {
+                degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY_PITCH) + "##actorLocalBodyPitch", poseBodyPitchDeg);
+                degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY_YAW) + "##actorLocalBodyYaw", poseBodyYawDeg);
+                degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY_ROLL) + "##actorLocalBodyRoll", poseBodyRollDeg);
+            }
+            if (poseArms.get()) {
+                degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEFT_ARM) + "##actorLocalLeftArm", poseLeftArmDeg);
+                degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.RIGHT_ARM) + "##actorLocalRightArm", poseRightArmDeg);
+            }
+            if (poseLegs.get()) {
+                degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEFT_LEG) + "##actorLocalLeftLeg", poseLeftLegDeg);
+                degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.RIGHT_LEG) + "##actorLocalRightLeg", poseRightLegDeg);
+            }
 
-        if (ImGui.button(Icons.ADD + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CREATE_LOCAL_POSE_CLIP)
-                + "##createActorLocalPoseClip")) {
-            createActorPoseClip(actor);
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CREATE_LOCAL_POSE_TOOLTIP));
+            if (ImGui.button(Icons.ADD + " "
+                    + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CREATE_LOCAL_POSE_CLIP)
+                    + "##createActorLocalPoseClip")) {
+                createActorPoseClip(actor);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CREATE_LOCAL_POSE_TOOLTIP));
+            }
+        } finally {
+            Card.end();
         }
     }
 
@@ -348,128 +353,132 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     }
 
     private void renderPoseAuthoring(Actor actor) {
-        if (!Section.header("editor_tool.semantic_action", ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.semantic_section"))) {
-            return;
-        }
+        if (!Card.begin("editor_tool.semantic_action", ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.semantic_section"))) { Card.end(); return; }
+        try {
 
-        if (actor == null) {
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.SELECT_ACTOR_FIRST));
-            return;
-        }
-
-        ActorActionType[] actions = ActorActionType.values();
-        int current = Math.max(0, Math.min(actionIndex.get(), actions.length - 1));
-        ActorRigProfile rig = actor.getRigProfile();
-        String currentLabel = ActorPropertyAdapterI18n.actionSemanticLabel(actions[current]);
-        if (rig != null && !rig.supports(actions[current])) {
-            currentLabel += ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.RIG_NOT_SUPPORTED_SUFFIX);
-        }
-
-        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.ACTION_SEMANTIC));
-        if (ImGui.beginCombo("##actorPoseAction", currentLabel)) {
-            for (int i = 0; i < actions.length; i++) {
-                ActorActionType action = actions[i];
-                boolean supported = rig == null || rig.supports(action);
-                boolean selected = i == current;
-                if (!supported) {
-                    ImGui.beginDisabled();
-                }
-                if (ImGui.selectable(ActorPropertyAdapterI18n.actionSemanticLabel(action), selected)) {
-                    actionIndex.set(i);
-                }
-                if (!supported) {
-                    ImGui.endDisabled();
-                }
-                if (selected) {
-                    ImGui.setItemDefaultFocus();
-                }
+            if (actor == null) {
+                ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.SELECT_ACTOR_FIRST));
+                return;
             }
-            ImGui.endCombo();
-        }
 
-        float[] intensity = { actionIntensity.get() };
-        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY));
-        if (ImGui.sliderFloat("##actorPoseIntensity",
-                intensity, 0.0f, 1.0f, "%.2f")) {
-            actionIntensity.set(intensity[0]);
-        }
+            ActorActionType[] actions = ActorActionType.values();
+            int current = Math.max(0, Math.min(actionIndex.get(), actions.length - 1));
+            ActorRigProfile rig = actor.getRigProfile();
+            String currentLabel = ActorPropertyAdapterI18n.actionSemanticLabel(actions[current]);
+            if (rig != null && !rig.supports(actions[current])) {
+                currentLabel += ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.RIG_NOT_SUPPORTED_SUFFIX);
+            }
 
-        float[] duration = { actionDuration.get() };
-        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION));
-        if (ImGui.sliderFloat("##actorPoseDuration",
-                duration, 0.1f, 10.0f, "%.2fs")) {
-            actionDuration.set(Math.max(0.1f, duration[0]));
-        }
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.ACTION_SEMANTIC));
+            if (ImGui.beginCombo("##actorPoseAction", currentLabel)) {
+                for (int i = 0; i < actions.length; i++) {
+                    ActorActionType action = actions[i];
+                    boolean supported = rig == null || rig.supports(action);
+                    boolean selected = i == current;
+                    if (!supported) {
+                        ImGui.beginDisabled();
+                    }
+                    if (ImGui.selectable(ActorPropertyAdapterI18n.actionSemanticLabel(action), selected)) {
+                        actionIndex.set(i);
+                    }
+                    if (!supported) {
+                        ImGui.endDisabled();
+                    }
+                    if (selected) {
+                        ImGui.setItemDefaultFocus();
+                    }
+                }
+                ImGui.endCombo();
+            }
 
-        PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.LOOP));
-        if (ImGui.checkbox("##actorPoseLoop", actionLoop)) {
-            // ImBoolean is updated by ImGui.
-        }
+            float[] intensity = { actionIntensity.get() };
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY));
+            if (ImGui.sliderFloat("##actorPoseIntensity",
+                    intensity, 0.0f, 1.0f, "%.2f")) {
+                actionIntensity.set(intensity[0]);
+            }
 
-        if (ImGui.button(Icons.ADD + " "
-                + com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.create_action")
-                + "##createActorPoseClip")) {
-            createActorActionClip(actor, actions[Math.max(0, Math.min(actionIndex.get(), actions.length - 1))]);
+            float[] duration = { actionDuration.get() };
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION));
+            if (ImGui.sliderFloat("##actorPoseDuration",
+                    duration, 0.1f, 10.0f, "%.2fs")) {
+                actionDuration.set(Math.max(0.1f, duration[0]));
+            }
+
+            PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.LOOP));
+            if (ImGui.checkbox("##actorPoseLoop", actionLoop)) {
+                // ImBoolean is updated by ImGui.
+            }
+
+            if (ImGui.button(Icons.ADD + " "
+                    + com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.pose_tool.create_action")
+                    + "##createActorPoseClip")) {
+                createActorActionClip(actor, actions[Math.max(0, Math.min(actionIndex.get(), actions.length - 1))]);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CREATE_POSE_TOOLTIP));
+            }
+            if(!actionCreationError.isEmpty()) ImGui.textWrapped(actionCreationError);
+        } finally {
+            Card.end();
         }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CREATE_POSE_TOOLTIP));
-        }
-        if(!actionCreationError.isEmpty()) ImGui.textWrapped(actionCreationError);
     }
 
     private void renderActorPathToolProperties(Actor actor) {
-        if (!Section.header("editor_tool.path_drawing", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.PATH_DRAWING))) {
-            return;
-        }
+        if (!Card.begin("editor_tool.path_drawing", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.PATH_DRAWING))) { Card.end(); return; }
+        try {
 
-        ActorPathController controller = ActorPathController.getInstance();
-        if (actor == null) {
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.SELECT_ACTOR_FIRST));
-        }
+            ActorPathController controller = ActorPathController.getInstance();
+            if (actor == null) {
+                ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.SELECT_ACTOR_FIRST));
+            }
 
-        ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.PATH_DRAW_HINT));
-        String targetKey = controller.isLibraryEditing() ? "gui.director.actor.path.target_library"
-                : controller.isRouteEditing() ? "gui.director.actor.path.target_route" : "gui.director.actor.path.target_draft";
-        ImGui.textWrapped(ActorPropertyAdapterI18n.tr(targetKey));
-        if (!controller.getLastError().isEmpty()) ImGui.textWrapped(controller.getLastError());
-        ImGui.beginDisabled(controller.isReadOnly());
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.PATH_DRAW_HINT));
+            String targetKey = controller.isLibraryEditing() ? "gui.director.actor.path.target_library"
+                    : controller.isRouteEditing() ? "gui.director.actor.path.target_route" : "gui.director.actor.path.target_draft";
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr(targetKey));
+            if (!controller.getLastError().isEmpty()) ImGui.textWrapped(controller.getLastError());
+            ImGui.beginDisabled(controller.isReadOnly());
 
-        ActorRouteClip.InterpolationMode[] modes = ActorRouteClip.InterpolationMode.values();
-        ImInt interpolation = new ImInt(controller.getInterpolationMode().ordinal());
-        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CURVE_TYPE));
-        if (ImGui.combo("##actorPathInterpolation",
-                interpolation, ActorPropertyAdapterI18n.routeInterpolationLabels())) {
-            controller.setInterpolationMode(modes[Math.max(0, Math.min(interpolation.get(), modes.length - 1))]);
-        }
+            ActorRouteClip.InterpolationMode[] modes = ActorRouteClip.InterpolationMode.values();
+            ImInt interpolation = new ImInt(controller.getInterpolationMode().ordinal());
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CURVE_TYPE));
+            if (ImGui.combo("##actorPathInterpolation",
+                    interpolation, ActorPropertyAdapterI18n.routeInterpolationLabels())) {
+                controller.setInterpolationMode(modes[Math.max(0, Math.min(interpolation.get(), modes.length - 1))]);
+            }
 
-        ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.ANCHOR_COUNT_FMT, controller.getAnchorCount()));
-        if (controller.isDrawing()) {
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.DRAWING_IN_PROGRESS));
-        }
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.ANCHOR_COUNT_FMT, controller.getAnchorCount()));
+            if (controller.isDrawing()) {
+                ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.DRAWING_IN_PROGRESS));
+            }
 
-        ImGui.beginDisabled(actor == null || controller.getAnchorCount() < 2);
-        if (ImGui.button(Icons.ADD + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.APPLY_TO_ACTOR)
-                + "##actorPathApplyActor", ImGui.getContentRegionAvailX(), 0)) {
-            controller.applyPathToSelectedActor();
+            ImGui.beginDisabled(actor == null || controller.getAnchorCount() < 2);
+            if (ImGui.button(Icons.ADD + " "
+                    + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.APPLY_TO_ACTOR)
+                    + "##actorPathApplyActor", ImGui.getContentRegionAvailX(), 0)) {
+                controller.applyPathToSelectedActor();
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.APPLY_PATH_TOOLTIP));
+            }
+            ImGui.endDisabled();
+            ImGui.beginDisabled(controller.getAnchorCount() < 2);
+            if (ImGui.button(Icons.SAVE + " " + ActorPropertyAdapterI18n.tr("gui.director.actor.path.save_library") + "##actorPathSave", ImGui.getContentRegionAvailX(), 0)) {
+                controller.finalizePath();
+            }
+            ImGui.endDisabled();
+            ImGui.beginDisabled(!controller.canRemoveSelectedAnchor());
+            if (ImGui.button(Icons.DELETE + " "
+                    + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.DELETE_SELECTED_ANCHOR)
+                    + "##actorPathDeleteAnchor", ImGui.getContentRegionAvailX(), 0)) {
+                controller.removeSelectedAnchor();
+            }
+            ImGui.endDisabled();
+            ImGui.endDisabled();
+        } finally {
+            Card.end();
         }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.APPLY_PATH_TOOLTIP));
-        }
-        ImGui.endDisabled();
-        ImGui.beginDisabled(controller.getAnchorCount() < 2);
-        if (ImGui.button(Icons.SAVE + " " + ActorPropertyAdapterI18n.tr("gui.director.actor.path.save_library") + "##actorPathSave", ImGui.getContentRegionAvailX(), 0)) {
-            controller.finalizePath();
-        }
-        ImGui.endDisabled();
-        ImGui.beginDisabled(!controller.canRemoveSelectedAnchor());
-        if (ImGui.button(Icons.DELETE + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.DELETE_SELECTED_ANCHOR)
-                + "##actorPathDeleteAnchor", ImGui.getContentRegionAvailX(), 0)) {
-            controller.removeSelectedAnchor();
-        }
-        ImGui.endDisabled();
-        ImGui.endDisabled();
     }
 
     private void renderTransformHint() {

@@ -5,7 +5,7 @@ import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.Card;
-import com.director.ui.properties.Section;
+
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
 import com.director.timeline.container.ContainerTimelineService;
@@ -239,7 +239,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             }
             
             // 调试信息（可折叠）
-            if (Section.header("camera.crane.debug_info_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.DEBUG_INFO_SECTION), false)) {
+            if (Card.begin("camera.crane.debug_info_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.DEBUG_INFO_SECTION), false)) {
                 ImGui.indent();
                 Vec3d startPos = clip.getStartPosition();
                 if (startPos != null) {
@@ -256,6 +256,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
                 }
                 ImGui.unindent(); // Debug Info 的缩进
             }
+            Card.end();
             ImGui.unindent(); // Advanced 的缩进
         }
         Card.end();

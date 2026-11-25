@@ -5,7 +5,7 @@ import com.director.core.animation.effect.EffectInstance;
 import com.director.core.container.Container;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.Card;
-import com.director.ui.properties.Section;
+
 import com.director.timeline.model.TimelineClip;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
@@ -87,10 +87,11 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         boolean sequenceModified = false;
         boolean animationModified = false;
 
-        if (!clip.getAnimationConfig().isWholeContainer() && Section.header("erase_timeline_clip.sequence", "序列行为")) {
+        if (Card.beginIf(!clip.getAnimationConfig().isWholeContainer(), "erase_timeline_clip.sequence", "序列行为")) {
             sequenceModified = propertyUi.renderSequenceBehavior(clip, TimelineClipUiVariant.DEMOLITION);
             modified |= sequenceModified;
         }
+        Card.end();
 
         if (Card.begin("erase_timeline_clip.animation", "动画设置")) {
             animationModified = propertyUi.renderAnimationSettings(clip, TimelineClipUiVariant.DEMOLITION);

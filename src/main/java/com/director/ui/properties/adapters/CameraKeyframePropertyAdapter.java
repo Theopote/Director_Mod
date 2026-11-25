@@ -3,7 +3,8 @@ package com.director.ui.properties.adapters;
 import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
+
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -98,36 +99,39 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ① 基础信息（时间、关键帧类型）
     // ============================================================================
     private void basicInfoSection(CameraKeyframe kf, AtomicBoolean changed) {
-        if (!Section.header("camera.keyframe.section_basic", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_BASIC)))
-            return;
+        if (!Card.begin("camera.keyframe.section_basic", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_BASIC))) { Card.end(); return; }
+        try {
 
 
-        // ----- 时间 -----
-        f1.set(kf.getTime());
-        if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.TIME),
-                f1, 0.02f, 0f, 10000f, "%.2f")) {
-            float clampedTime = clampTimeToOwnerClip(kf, f1.get());
-            if (Math.abs(clampedTime - f1.get()) > 0.0001f) {
-                f1.set(clampedTime);
+            // ----- 时间 -----
+            f1.set(kf.getTime());
+            if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.TIME),
+                    f1, 0.02f, 0f, 10000f, "%.2f")) {
+                float clampedTime = clampTimeToOwnerClip(kf, f1.get());
+                if (Math.abs(clampedTime - f1.get()) > 0.0001f) {
+                    f1.set(clampedTime);
+                }
+                kf.setTime(clampedTime);
             }
-            kf.setTime(clampedTime);
+            if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+            tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.TIME_TOOLTIP));
+
+            ImGui.spacing();
+
+            // ----- 关键帧类型 -----
+            String[] keyTypeLabels = CameraPropertyAdapterI18n.keyframeTypeLabels();
+            i1.set(kf.getKeyType().ordinal());
+            if (enumCombo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.KEY_TYPE),
+                    i1, keyTypeLabels)) {
+                kf.setKeyType(CameraKeyframe.KeyType.values()[i1.get()]);
+                changed.set(true);
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+            tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.KEY_TYPE_TOOLTIP));
+
+        } finally {
+            Card.end();
         }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
-        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.TIME_TOOLTIP));
-
-        ImGui.spacing();
-
-        // ----- 关键帧类型 -----
-        String[] keyTypeLabels = CameraPropertyAdapterI18n.keyframeTypeLabels();
-        i1.set(kf.getKeyType().ordinal());
-        if (enumCombo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.KEY_TYPE),
-                i1, keyTypeLabels)) {
-            kf.setKeyType(CameraKeyframe.KeyType.values()[i1.get()]);
-            changed.set(true);
-        }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
-        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.KEY_TYPE_TOOLTIP));
-
     }
 
     private float clampTimeToOwnerClip(CameraKeyframe keyframe, float time) {
@@ -146,75 +150,81 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ② 曲线插值（位置 + 旋转）
     // ============================================================================
     private void interpolationSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
-        if (!Section.header("camera.keyframe.section_interpolation", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_INTERPOLATION)))
-            return;
+        if (!Card.begin("camera.keyframe.section_interpolation", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_INTERPOLATION))) { Card.end(); return; }
+        try {
 
 
-        // --- Segment Path Type（位置曲线） ---
-        String[] segLabels = CameraPropertyAdapterI18n.segmentPathTypeLabels();
-        i1.set(kf.getSegmentPathType().ordinal());
-        if (enumCombo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.POSITION_CURVE),
-                i1, segLabels)) {
-            kf.setSegmentPathType(CameraKeyframe.SegmentPathType.values()[i1.get()]);
-            changed.set(true);
-            editing.set(true);
+            // --- Segment Path Type（位置曲线） ---
+            String[] segLabels = CameraPropertyAdapterI18n.segmentPathTypeLabels();
+            i1.set(kf.getSegmentPathType().ordinal());
+            if (enumCombo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.POSITION_CURVE),
+                    i1, segLabels)) {
+                kf.setSegmentPathType(CameraKeyframe.SegmentPathType.values()[i1.get()]);
+                changed.set(true);
+                editing.set(true);
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+            tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.POSITION_CURVE_TOOLTIP));
+
+            ImGui.spacing();
+
+            // --- RotationInterpolation（旋转曲线） ---
+            String[] rLabels = CameraPropertyAdapterI18n.rotationInterpolationLabels();
+            i1.set(kf.getRotationInterpolation().ordinal());
+            if (enumCombo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION_CURVE),
+                    i1, rLabels)) {
+                kf.setRotationInterpolation(CameraKeyframe.RotationInterpolation.values()[i1.get()]);
+                changed.set(true);
+                editing.set(true);
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+            tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION_CURVE_TOOLTIP));
+
+        } finally {
+            Card.end();
         }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
-        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.POSITION_CURVE_TOOLTIP));
-
-        ImGui.spacing();
-
-        // --- RotationInterpolation（旋转曲线） ---
-        String[] rLabels = CameraPropertyAdapterI18n.rotationInterpolationLabels();
-        i1.set(kf.getRotationInterpolation().ordinal());
-        if (enumCombo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION_CURVE),
-                i1, rLabels)) {
-            kf.setRotationInterpolation(CameraKeyframe.RotationInterpolation.values()[i1.get()]);
-            changed.set(true);
-            editing.set(true);
-        }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
-        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION_CURVE_TOOLTIP));
-
     }
 
     // ============================================================================
     // ③ 位置（Position）与旋转（Rotation）
     // ============================================================================
     private void transformSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
-        if (!Section.header("camera.keyframe.section_transform", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_TRANSFORM)))
-            return;
+        if (!Card.begin("camera.keyframe.section_transform", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_TRANSFORM))) { Card.end(); return; }
+        try {
 
 
-        // ---- Capture 按钮 ----
-        if (ImGui.button(Icons.CAMERA + " "
-                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.CAPTURE_FROM_VIEW), -1, 0)) {
-            boolean ok = TimelineCameraController.getInstance().captureFromCurrentCamera(kf);
-            if (ok) {
+            // ---- Capture 按钮 ----
+            if (ImGui.button(Icons.CAMERA + " "
+                    + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.CAPTURE_FROM_VIEW), -1, 0)) {
+                boolean ok = TimelineCameraController.getInstance().captureFromCurrentCamera(kf);
+                if (ok) {
+                    changed.set(true);
+                }
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+            tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.CAPTURE_TOOLTIP));
+
+            ImGui.spacing();
+
+            // ----- Position -----
+            if (vector3(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.POSITION),
+                    kf.getPosition(), kf::setPosition, 0.05f,
+                    CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.POSITION_TOOLTIP), editing)) {
                 changed.set(true);
             }
+
+            ImGui.spacing();
+
+            // ----- Rotation -----
+            if (vector3(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION),
+                    kf.getRotation(), kf::setRotation, 0.1f,
+                    CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION_TOOLTIP), editing)) {
+                changed.set(true);
+            }
+
+        } finally {
+            Card.end();
         }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
-        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.CAPTURE_TOOLTIP));
-
-        ImGui.spacing();
-
-        // ----- Position -----
-        if (vector3(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.POSITION),
-                kf.getPosition(), kf::setPosition, 0.05f,
-                CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.POSITION_TOOLTIP), editing)) {
-            changed.set(true);
-        }
-
-        ImGui.spacing();
-
-        // ----- Rotation -----
-        if (vector3(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION),
-                kf.getRotation(), kf::setRotation, 0.1f,
-                CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION_TOOLTIP), editing)) {
-            changed.set(true);
-        }
-
     }
 
     // ============================================================================
@@ -224,188 +234,197 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         boolean show = kf.getSegmentPathType() == CameraKeyframe.SegmentPathType.BEZIER
                 || kf.getKeyType() == CameraKeyframe.KeyType.MANUAL_BEZIER;
         
-        if (!show || !Section.header("camera.keyframe.section_bezier", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_BEZIER)))
-            return;
+        if (!Card.beginIf(show, "camera.keyframe.section_bezier", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_BEZIER))) { Card.end(); return; }
+        try {
 
 
-        // 手柄模式
-        String[] modeLabels = CameraPropertyAdapterI18n.handleModeLabels();
-        i1.set(kf.getHandleMode().ordinal());
-        if (enumCombo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_MODE),
-                i1, modeLabels)) {
-            kf.setHandleMode(CameraKeyframe.HandleMode.values()[i1.get()]);
-            changed.set(true);
-        }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
-        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_MODE_TOOLTIP));
+            // 手柄模式
+            String[] modeLabels = CameraPropertyAdapterI18n.handleModeLabels();
+            i1.set(kf.getHandleMode().ordinal());
+            if (enumCombo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_MODE),
+                    i1, modeLabels)) {
+                kf.setHandleMode(CameraKeyframe.HandleMode.values()[i1.get()]);
+                changed.set(true);
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+            tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_MODE_TOOLTIP));
 
-        ImGui.spacing();
+            ImGui.spacing();
 
-        // AUTO 模式：隐藏手柄编辑，提示用户
-        boolean auto = kf.getHandleMode() == CameraKeyframe.HandleMode.AUTO;
-        if (auto) {
-            UITheme.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_AUTO_HINT),
-                    UITheme.DarkTheme.TEXT_DISABLED);
-            return;
-        }
+            // AUTO 模式：隐藏手柄编辑，提示用户
+            boolean auto = kf.getHandleMode() == CameraKeyframe.HandleMode.AUTO;
+            if (auto) {
+                UITheme.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_AUTO_HINT),
+                        UITheme.DarkTheme.TEXT_DISABLED);
+                return;
+            }
 
-        // In handle
-        boolean inChanged = vector3(
-                CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_IN),
-                kf.getBezierInHandle(), kf::setBezierInHandle, 0.05f,
-                CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_AUTO_GENERATED_HINT),
-                editing);
+            // In handle
+            boolean inChanged = vector3(
+                    CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_IN),
+                    kf.getBezierInHandle(), kf::setBezierInHandle, 0.05f,
+                    CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_AUTO_GENERATED_HINT),
+                    editing);
         
-        if (inChanged) {
-            changed.set(true);
+            if (inChanged) {
+                changed.set(true);
             
-            // ALIGNED 模式：修改 In 时，自动对齐 Out
-            if (kf.getHandleMode() == CameraKeyframe.HandleMode.ALIGNED) {
-                Vector3f in = kf.getBezierInHandle();
-                Vector3f out = kf.getBezierOutHandle();
-                // 如果 In 不为零，将 Out 设置为 In 的反方向
-                if (in.lengthSquared() > 0.0001f) {
-                    out.set(in).negate();
-                    kf.setBezierOutHandle(out);
+                // ALIGNED 模式：修改 In 时，自动对齐 Out
+                if (kf.getHandleMode() == CameraKeyframe.HandleMode.ALIGNED) {
+                    Vector3f in = kf.getBezierInHandle();
+                    Vector3f out = kf.getBezierOutHandle();
+                    // 如果 In 不为零，将 Out 设置为 In 的反方向
+                    if (in.lengthSquared() > 0.0001f) {
+                        out.set(in).negate();
+                        kf.setBezierOutHandle(out);
+                    }
                 }
             }
-        }
 
-        ImGui.spacing();
+            ImGui.spacing();
 
-        // Out handle
-        boolean outChanged = vector3(
-                CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_OUT),
-                kf.getBezierOutHandle(), kf::setBezierOutHandle, 0.05f,
-                CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_AUTO_GENERATED_HINT),
-                editing);
+            // Out handle
+            boolean outChanged = vector3(
+                    CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_OUT),
+                    kf.getBezierOutHandle(), kf::setBezierOutHandle, 0.05f,
+                    CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_AUTO_GENERATED_HINT),
+                    editing);
         
-        if (outChanged) {
-            changed.set(true);
+            if (outChanged) {
+                changed.set(true);
             
-            // ALIGNED 模式：修改 Out 时，自动对齐 In
-            if (kf.getHandleMode() == CameraKeyframe.HandleMode.ALIGNED) {
-                Vector3f in = kf.getBezierInHandle();
-                Vector3f out = kf.getBezierOutHandle();
-                // 如果 Out 不为零，将 In 设置为 Out 的反方向
-                if (out.lengthSquared() > 0.0001f) {
-                    in.set(out).negate();
-                    kf.setBezierInHandle(in);
+                // ALIGNED 模式：修改 Out 时，自动对齐 In
+                if (kf.getHandleMode() == CameraKeyframe.HandleMode.ALIGNED) {
+                    Vector3f in = kf.getBezierInHandle();
+                    Vector3f out = kf.getBezierOutHandle();
+                    // 如果 Out 不为零，将 In 设置为 Out 的反方向
+                    if (out.lengthSquared() > 0.0001f) {
+                        in.set(out).negate();
+                        kf.setBezierInHandle(in);
+                    }
                 }
             }
+
+            ImGui.spacing();
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_RELATIVE_HINT));
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_AUTO_GENERATED_HINT));
+
+        } finally {
+            Card.end();
         }
-
-        ImGui.spacing();
-        ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_RELATIVE_HINT));
-        ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_AUTO_GENERATED_HINT));
-
     }
 
     // ============================================================================
     // ⑤ 投影参数（FOV / near / far）
     // ============================================================================
     private void projectionSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
-        if (!Section.header("camera.keyframe.section_projection", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_PROJECTION)))
-            return;
+        if (!Card.begin("camera.keyframe.section_projection", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_PROJECTION))) { Card.end(); return; }
+        try {
 
 
-        // FOV
-        f1.set(kf.getFov());
-        if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOV),
-                f1, 0.1f, 1f, 180f, "%.1f°")) {
-            kf.setFov(f1.get());
-            editing.set(true); // ⭐ 拖拽中实时预览
-            // 只在鼠标松开时才标记为 changed，避免拖动时频繁刷新 PathManager
+            // FOV
+            f1.set(kf.getFov());
+            if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOV),
+                    f1, 0.1f, 1f, 180f, "%.1f°")) {
+                kf.setFov(f1.get());
+                editing.set(true); // ⭐ 拖拽中实时预览
+                // 只在鼠标松开时才标记为 changed，避免拖动时频繁刷新 PathManager
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+            tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOV_TOOLTIP));
+
+            ImGui.spacing();
+
+            ImGui.textDisabled(CameraPropertyAdapterI18n.tr("gui.director.camera.projection_unsupported"));
+            ImGui.beginDisabled();
+            // near plane
+            f1.set(kf.getNearPlane());
+            if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.NEAR),
+                    f1, 0.001f, 0.001f, 10f, "%.3f")) {
+                kf.setNearPlane(f1.get());
+                editing.set(true); // ⭐ 拖拽中实时预览
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+            tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.NEAR_TOOLTIP));
+
+            ImGui.spacing();
+
+            // far plane
+            f2.set(kf.getFarPlane());
+            if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FAR),
+                    f2, 0.1f, 1f, 10000f, "%.1f")) {
+                kf.setFarPlane(f2.get());
+                editing.set(true); // ⭐ 拖拽中实时预览
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+            tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FAR_TOOLTIP));
+
+            // near < far 校验
+            if (kf.getNearPlane() >= kf.getFarPlane()) {
+                UITheme.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.NEAR_FAR_WARNING),
+                        UITheme.DarkTheme.TEXT_WARNING);
+            }
+            ImGui.endDisabled();
+
+        } finally {
+            Card.end();
         }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
-        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOV_TOOLTIP));
-
-        ImGui.spacing();
-
-        ImGui.textDisabled(CameraPropertyAdapterI18n.tr("gui.director.camera.projection_unsupported"));
-        ImGui.beginDisabled();
-        // near plane
-        f1.set(kf.getNearPlane());
-        if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.NEAR),
-                f1, 0.001f, 0.001f, 10f, "%.3f")) {
-            kf.setNearPlane(f1.get());
-            editing.set(true); // ⭐ 拖拽中实时预览
-        }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
-        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.NEAR_TOOLTIP));
-
-        ImGui.spacing();
-
-        // far plane
-        f2.set(kf.getFarPlane());
-        if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FAR),
-                f2, 0.1f, 1f, 10000f, "%.1f")) {
-            kf.setFarPlane(f2.get());
-            editing.set(true); // ⭐ 拖拽中实时预览
-        }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
-        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FAR_TOOLTIP));
-
-        // near < far 校验
-        if (kf.getNearPlane() >= kf.getFarPlane()) {
-            UITheme.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.NEAR_FAR_WARNING),
-                    UITheme.DarkTheme.TEXT_WARNING);
-        }
-        ImGui.endDisabled();
-
     }
 
     // ============================================================================
     // ⑥ 景深（DOF）
     // ============================================================================
     private void depthOfFieldSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
-        if (!Section.header("camera.keyframe.section_dof", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_DOF), false))
-            return;
+        if (!Card.begin("camera.keyframe.section_dof", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_DOF), false)) { Card.end(); return; }
+        try {
 
 
-        ImGui.textDisabled(CameraPropertyAdapterI18n.tr("gui.director.camera.dof_unsupported"));
-        ImGui.beginDisabled();
-        // 复用 ImBoolean 对象
-        dofEnabled.set(kf.isDepthOfFieldEnabled());
-        PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.DOF_ENABLED));
-        if (ImGui.checkbox("##dof_enabled",
-                dofEnabled)) {
-            kf.setDepthOfFieldEnabled(dofEnabled.get());
-            changed.set(true);
-        }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
-        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.DOF_TOOLTIP));
+            ImGui.textDisabled(CameraPropertyAdapterI18n.tr("gui.director.camera.dof_unsupported"));
+            ImGui.beginDisabled();
+            // 复用 ImBoolean 对象
+            dofEnabled.set(kf.isDepthOfFieldEnabled());
+            PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.DOF_ENABLED));
+            if (ImGui.checkbox("##dof_enabled",
+                    dofEnabled)) {
+                kf.setDepthOfFieldEnabled(dofEnabled.get());
+                changed.set(true);
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+            tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.DOF_TOOLTIP));
 
-        if (!dofEnabled.get()) {
+            if (!dofEnabled.get()) {
+                ImGui.endDisabled();
+
+                return;
+            }
+
+            // 焦距
+            f1.set(kf.getFocusDistance());
+            if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOCUS),
+                    f1, 0.05f, 0f, 2000f, "%.2f")) {
+                kf.setFocusDistance(f1.get());
+                editing.set(true); // ⭐ 拖拽中实时预览
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+            tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOCUS_TOOLTIP));
+
+            ImGui.spacing();
+
+            // 光圈
+            f1.set(kf.getAperture());
+            if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.APERTURE),
+                    f1, 0.01f, 0.01f, 10f, "%.2f")) {
+                kf.setAperture(f1.get());
+                editing.set(true); // ⭐ 拖拽中实时预览
+            }
+            if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
+            tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.APERTURE_TOOLTIP));
+
             ImGui.endDisabled();
 
-            return;
+        } finally {
+            Card.end();
         }
-
-        // 焦距
-        f1.set(kf.getFocusDistance());
-        if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOCUS),
-                f1, 0.05f, 0f, 2000f, "%.2f")) {
-            kf.setFocusDistance(f1.get());
-            editing.set(true); // ⭐ 拖拽中实时预览
-        }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
-        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOCUS_TOOLTIP));
-
-        ImGui.spacing();
-
-        // 光圈
-        f1.set(kf.getAperture());
-        if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.APERTURE),
-                f1, 0.01f, 0.01f, 10f, "%.2f")) {
-            kf.setAperture(f1.get());
-            editing.set(true); // ⭐ 拖拽中实时预览
-        }
-        if (ImGui.isItemDeactivatedAfterEdit()) changed.set(true);
-        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.APERTURE_TOOLTIP));
-
-        ImGui.endDisabled();
-
     }
 
     // ============================================================================

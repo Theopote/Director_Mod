@@ -5,7 +5,7 @@ import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.Card;
-import com.director.ui.properties.Section;
+
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.entity.ActorPoseClip;
@@ -67,14 +67,15 @@ public final class ActorPoseClipPropertyAdapter implements IPropertyAdapter<Acto
         }
         Card.end();
 
-        if (clip.isOverrideHead() && Section.header("actor_pose_clip.section_head", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.SECTION_HEAD))) {
+        if (Card.beginIf(clip.isOverrideHead(), "actor_pose_clip.section_head", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.SECTION_HEAD))) {
             radSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.HEAD_PITCH) + "##poseHeadPitch",
                     clip.getHeadPitch(), clip::setHeadPitch);
             radSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.HEAD_YAW) + "##poseHeadYaw",
                     clip.getHeadYaw(), clip::setHeadYaw);
         }
+        Card.end();
 
-        if (clip.isOverrideBody() && Section.header("actor_pose_clip.section_body", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.SECTION_BODY))) {
+        if (Card.beginIf(clip.isOverrideBody(), "actor_pose_clip.section_body", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.SECTION_BODY))) {
             radSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY_PITCH) + "##poseBodyPitch",
                     clip.getBodyPitch(), clip::setBodyPitch);
             radSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY_YAW) + "##poseBodyYaw",
@@ -82,8 +83,9 @@ public final class ActorPoseClipPropertyAdapter implements IPropertyAdapter<Acto
             radSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY_ROLL) + "##poseBodyRoll",
                     clip.getBodyRoll(), clip::setBodyRoll);
         }
+        Card.end();
 
-        if (clip.isOverrideArms() && Section.header("actor_pose_clip.section_arms", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.SECTION_ARMS))) {
+        if (Card.beginIf(clip.isOverrideArms(), "actor_pose_clip.section_arms", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.SECTION_ARMS))) {
             String leftArm = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEFT_ARM);
             String rightArm = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.RIGHT_ARM);
             radSlider(leftArm + " Pitch##poseLeftArmPitch",
@@ -99,13 +101,15 @@ public final class ActorPoseClipPropertyAdapter implements IPropertyAdapter<Acto
             radSlider(rightArm + " Roll##poseRightArmRoll",
                     clip.getRightArmRoll(), clip::setRightArmRoll);
         }
+        Card.end();
 
-        if (clip.isOverrideLegs() && Section.header("actor_pose_clip.section_legs", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.SECTION_LEGS))) {
+        if (Card.beginIf(clip.isOverrideLegs(), "actor_pose_clip.section_legs", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.SECTION_LEGS))) {
             radSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEFT_LEG) + "##poseLeftLeg",
                     clip.getLeftLegPitch(), clip::setLeftLegPitch);
             radSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.RIGHT_LEG) + "##poseRightLeg",
                     clip.getRightLegPitch(), clip::setRightLegPitch);
         }
+        Card.end();
 
         ImGui.endDisabled();
         gesture.end();

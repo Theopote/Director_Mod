@@ -5,7 +5,7 @@ import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.Card;
-import com.director.ui.properties.Section;
+
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.entity.ActorRouteClip;
@@ -193,41 +193,45 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
         }
         Card.end();
 
-        if (Section.header("actor_route_clip.section_waypoints", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SECTION_WAYPOINTS))) {
-            if (source.getSourcePathId() != null) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.linked_hint"));
-            ImGui.beginDisabled(source.getSourcePathId() != null);
-            for (int i = 0; i < clip.getWaypoints().size(); i++) {
-                Vector3f point = clip.getWaypoints().get(i);
-                float[] xyz = {point.x, point.y, point.z};
-                PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.WAYPOINT_FMT, i + 1));
-                float buttonWidth = ImGui.calcTextSize(Icons.DELETE).x + 2f * ImGui.getStyle().getFramePadding().x;
-                float available = ImGui.getContentRegionAvailX();
-                float fieldWidth = available - buttonWidth - ImGui.getStyle().getItemSpacing().x;
-                boolean inline = fieldWidth >= 72f;
-                ImGui.setNextItemWidth(inline ? fieldWidth : -1f);
-                if (ImGui.inputFloat3("##routePoint" + i, xyz)) {
-                    if (new Vector3f(xyz[0], xyz[1], xyz[2]).isFinite()) clip.setWaypoint(i, xyz[0], xyz[1], xyz[2]);
-                }
-                observe("point" + i);
-                if (inline) ImGui.sameLine();
-                ImGui.beginDisabled(clip.getWaypoints().size() <= 2);
-                if (ImGui.button(Icons.DELETE + "##deleteRoutePoint" + i)) {
-                    clip.removeWaypoint(i);
+        try {
+            if (Card.begin("actor_route_clip.section_waypoints", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SECTION_WAYPOINTS))) {
+                if (source.getSourcePathId() != null) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.linked_hint"));
+                ImGui.beginDisabled(source.getSourcePathId() != null);
+                for (int i = 0; i < clip.getWaypoints().size(); i++) {
+                    Vector3f point = clip.getWaypoints().get(i);
+                    float[] xyz = {point.x, point.y, point.z};
+                    PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.WAYPOINT_FMT, i + 1));
+                    float buttonWidth = ImGui.calcTextSize(Icons.DELETE).x + 2f * ImGui.getStyle().getFramePadding().x;
+                    float available = ImGui.getContentRegionAvailX();
+                    float fieldWidth = available - buttonWidth - ImGui.getStyle().getItemSpacing().x;
+                    boolean inline = fieldWidth >= 72f;
+                    ImGui.setNextItemWidth(inline ? fieldWidth : -1f);
+                    if (ImGui.inputFloat3("##routePoint" + i, xyz)) {
+                        if (new Vector3f(xyz[0], xyz[1], xyz[2]).isFinite()) clip.setWaypoint(i, xyz[0], xyz[1], xyz[2]);
+                    }
+                    observe("point" + i);
+                    if (inline) ImGui.sameLine();
+                    ImGui.beginDisabled(clip.getWaypoints().size() <= 2);
+                    if (ImGui.button(Icons.DELETE + "##deleteRoutePoint" + i)) {
+                        clip.removeWaypoint(i);
+                        ImGui.endDisabled();
+                        break;
+                    }
                     ImGui.endDisabled();
-                    break;
+                }
+                ImGui.beginDisabled(clip.getWaypoints().size() >= 2048);
+                if (ImGui.button(Icons.ADD + " "
+                        + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.ADD_WAYPOINT) + "##addRoutePoint")) {
+                    Vector3f last = clip.getWaypoints().isEmpty()
+                            ? new Vector3f()
+                            : clip.getWaypoints().getLast();
+                    clip.addWaypoint(last.x, last.y, last.z);
                 }
                 ImGui.endDisabled();
+                ImGui.endDisabled();
             }
-            ImGui.beginDisabled(clip.getWaypoints().size() >= 2048);
-            if (ImGui.button(Icons.ADD + " "
-                    + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.ADD_WAYPOINT) + "##addRoutePoint")) {
-                Vector3f last = clip.getWaypoints().isEmpty()
-                        ? new Vector3f()
-                        : clip.getWaypoints().getLast();
-                clip.addWaypoint(last.x, last.y, last.z);
-            }
-            ImGui.endDisabled();
-            ImGui.endDisabled();
+        } finally {
+            Card.end();
         }
 
         if (session != null && activeWidget != null && !activeWidgetRendered) {
