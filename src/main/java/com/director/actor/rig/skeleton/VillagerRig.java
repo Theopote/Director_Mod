@@ -21,7 +21,8 @@ public final class VillagerRig {
                     bone(ARMS, 1, BoneTransform.translation(0f, .25f, -.2f), BoneCapabilities.rotationAndScale()),
                     bone(LEFT_LEG, 0, BoneTransform.translation(.125f, .55f, 0f), BoneCapabilities.rotationAndScale()),
                     bone(RIGHT_LEG, 0, BoneTransform.translation(-.125f, .55f, 0f), BoneCapabilities.rotationAndScale())
-            ));
+            ),
+            List.of(LegChain.thigh(LEFT_LEG), LegChain.thigh(RIGHT_LEG)));
 
     private VillagerRig() {}
 

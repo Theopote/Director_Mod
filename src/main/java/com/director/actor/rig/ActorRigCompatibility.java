@@ -1,6 +1,8 @@
- package com.director.actor.rig;
+package com.director.actor.rig;
 
 import com.director.actor.*;
+import com.director.actor.animation.AnimationData;
+import com.director.actor.animation.AnimationLibrary;
 import com.director.actor.rig.skeleton.*;
 import com.director.timeline.model.TimelineModel;
 import com.director.actor.animation.asset.AnimationAssetLibrary;
@@ -83,6 +85,35 @@ public final class ActorRigCompatibility {
         if (actor == null) throw new IllegalArgumentException("演员不存在，请重新绑定演员轨道");
         if (!accepts(actor, rigId)) throw new IllegalArgumentException(explanation(actor) + " 动画骨架：" + rigId);
     }
+    /**
+     * Built-in Pose library clips may partially remap onto non-humanoid rigs when they share
+     * controlled bone ids (e.g. villager {@code left_leg}/{@code right_leg} from {@code walk}).
+     */
+    public static boolean acceptsBuiltin(RigDefinition rig, String animationId) {
+        if (rig == null || animationId == null || animationId.isBlank()) return false;
+        return AnimationLibrary.getInstance().get(animationId).map(data -> acceptsBuiltin(rig, data)).orElse(false);
+    }
+
+    public static boolean acceptsBuiltin(RigDefinition rig, AnimationData data) {
+        if (rig == null || data == null) return false;
+        if (HumanoidTopology.matches(rig)) return true;
+        for (String bone : data.controlledBones()) {
+            if (rig.findBoneIndex(bone) >= 0) return true;
+        }
+        return false;
+    }
+
+    public static Optional<RigDefinition> defaultRig(ActorType type) {
+        if (type == null) return Optional.empty();
+        return switch (type) {
+            case PLAYER -> Optional.of(ArticulatedPlayerRig.DEFINITION);
+            case VILLAGER -> Optional.of(VillagerRig.DEFINITION);
+            case COW, SHEEP -> Optional.of(QuadrupedRig.DEFINITION);
+            case ZOMBIE, SKELETON -> Optional.of(HumanoidRig.DEFINITION);
+            case CUSTOM -> Optional.empty();
+        };
+    }
+
     public static boolean canChangeType(TimelineModel model, UUID actorId, ActorType type) {
         for (var track : model.getAllTracks()) {
             var payload = track.getActorTrackPayload();
@@ -91,8 +122,11 @@ public final class ActorRigCompatibility {
                 var asset=AnimationAssetLibrary.getInstance().find(id).orElse(null);
                 if(asset!=null) {
                     if(!accepts(type,asset.rigId())) return false;
-                } else if(com.director.actor.animation.AnimationLibrary.getInstance().get(id).isPresent()
-                        && family(type)!=Family.HUMANOID) return false;
+                } else {
+                    var builtin = AnimationLibrary.getInstance().get(id);
+                    if (builtin.isPresent() && defaultRig(type).map(rig -> !acceptsBuiltin(rig, builtin.get())).orElse(true))
+                        return false;
+                }
             }
         }
         return true;

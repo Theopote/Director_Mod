@@ -64,7 +64,7 @@ public final class ActorAnimationCatalog {
             entries.put(asset.id(),new Entry(asset.id(),asset.name(),asset.rig().displayName(),asset.purpose(),Source.PROJECT,compatible));
         }
         for(var animation:builtins) entries.putIfAbsent(animation.getId(),new Entry(animation.getId(),animation.getName(),
-                "标准人形",animation.purpose(),Source.BUILTIN,HumanoidTopology.matches(rig)));
+                "内置动作",animation.purpose(),Source.BUILTIN,ActorRigCompatibility.acceptsBuiltin(rig, animation)));
         return List.copyOf(entries.values());
     }
     public static List<Entry> filter(List<Entry> entries,String query,Source source,AnimationData.Purpose purpose,

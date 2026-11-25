@@ -97,8 +97,14 @@ public class EntitySpawnClip extends EntityClip {
 
     // ========== Getters and Setters ==========
 
+    /** Defensive copy for UI / commands. Prefer {@link #positionView()} on hot sample paths. */
     public Vector3f getPosition() {
         return new Vector3f(position);
+    }
+
+    /** Live view of stored position; callers must not mutate. */
+    public Vector3f positionView() {
+        return position;
     }
 
     private transient boolean invalidPosition;
@@ -106,6 +112,10 @@ public class EntitySpawnClip extends EntityClip {
     private transient boolean invalidPitch;
     private transient boolean invalidRoll;
     public boolean hasInvalidTransform() { return invalidPosition || invalidYaw || invalidPitch || invalidRoll; }
+    /**
+     * Rejects non-finite input without mutating stored values; sets {@link #hasInvalidTransform()}.
+     * Draft commit paths must check the flag — setters do not throw.
+     */
     public void setPosition(float x, float y, float z) {
         if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)) { invalidPosition = true; return; }
         invalidPosition = false;
@@ -142,7 +152,12 @@ public class EntitySpawnClip extends EntityClip {
         if (!Float.isFinite(value)) { invalidRoll = true; return; }
         invalidRoll = false; rollDeg = value; samplingChanged();
     }
+    /** Defensive copy for UI / commands. Prefer {@link #scaleView()} on hot sample paths. */
     public Vector3f getScale() { return new Vector3f(scale); }
+
+    /** Live view of stored scale; callers must not mutate. */
+    public Vector3f scaleView() { return scale; }
+
     public void setScale(float x, float y, float z) {
         if (Float.isFinite(x) && Float.isFinite(y) && Float.isFinite(z) && x > 0 && y > 0 && z > 0) {
             scale.set(x, y, z);

@@ -23,7 +23,8 @@ public final class HumanoidRig {
                     bone(RIGHT_ARM, 1, BoneTransform.translation(-0.375f, 0.125f, 0f), BoneCapabilities.rotationAndScale()),
                     bone(LEFT_LEG, 0, BoneTransform.translation(0.125f, 0.75f, 0f), BoneCapabilities.rotationAndScale()),
                     bone(RIGHT_LEG, 0, BoneTransform.translation(-0.125f, 0.75f, 0f), BoneCapabilities.rotationAndScale())
-            ));
+            ),
+            List.of(LegChain.thigh(LEFT_LEG), LegChain.thigh(RIGHT_LEG)));
 
     private HumanoidRig() {}
 

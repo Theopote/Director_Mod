@@ -69,9 +69,10 @@ public final class ActorPoseEvaluator {
         stages.add(stage(ActorPoseStage.Kind.MANUAL,manual,diagnostics.size()==previousDiagnostics?null:diagnostics.getLast().detail().reason()));
         pose.setLimbBendMode(bendMode);
         before=ActorPoseSources.capture(pose);
-        if(type==ActorType.PLAYER) ActorRouteFootContact.apply(pose,sample,profile,weights);
+        boolean contact=pose.rig()!=null && !pose.rig().legs().isEmpty();
+        if(contact) ActorRouteFootContact.apply(pose,sample,profile,weights);
         sources.changed(before,pose,"路径脚底接触修正",true);
-        stages.add(ActorPoseStage.contact(before,pose,type==ActorType.PLAYER));
+        stages.add(ActorPoseStage.contact(before,pose,contact));
         return new Result(pose,weights,diagnostics,sources.snapshot(),stages);
     }
     private static ActorPoseStage stage(ActorPoseStage.Kind kind,Layer layer,String rejection) {

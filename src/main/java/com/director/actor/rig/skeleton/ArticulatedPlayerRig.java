@@ -16,7 +16,9 @@ public final class ArticulatedPlayerRig {
         bones.add(new BoneDefinition(RIGHT_FOREARM,"右前臂（肘）",4,BoneTransform.translation(0,-.25f,0),BoneCapabilities.rotationAndScale()));
         bones.add(new BoneDefinition(LEFT_SHIN,"左小腿（膝）",5,BoneTransform.translation(0,-.375f,0),BoneCapabilities.rotationAndScale()));
         bones.add(new BoneDefinition(RIGHT_SHIN,"右小腿（膝）",6,BoneTransform.translation(0,-.375f,0),BoneCapabilities.rotationAndScale()));
-        DEFINITION=new RigDefinition("director:articulated_player","可弯曲玩家",bones);
+        DEFINITION=new RigDefinition("director:articulated_player","可弯曲玩家",bones,java.util.List.of(
+                LegChain.thighAndShin(HumanoidRig.LEFT_LEG,LEFT_SHIN),
+                LegChain.thighAndShin(HumanoidRig.RIGHT_LEG,RIGHT_SHIN)));
     }
     private ArticulatedPlayerRig() {}
 }

@@ -4,7 +4,6 @@ import com.director.actor.Actor;
 import com.director.actor.animation.*;
 import com.director.actor.animation.asset.*;
 import com.director.actor.rig.ActorRigCompatibility;
-import com.director.actor.rig.skeleton.HumanoidTopology;
 import com.director.actor.rig.skeleton.PoseLayer;
 import com.director.actor.rig.skeleton.RigPoseComposer;
 import com.director.timeline.model.entity.ActorPresetBinding;
@@ -47,9 +46,7 @@ public final class ActorPresetValidation {
         boolean compatible = asset != null
                 ? rig != null && ActorRigCompatibility.accepts(actor, asset.rigId())
                     && RigPoseComposer.sameLayout(rig, asset.rig())
-                : AnimationLibrary.getInstance().get(id)
-                    .map(animation -> HumanoidTopology.matches(rig))
-                    .orElse(false);
+                : ActorRigCompatibility.acceptsBuiltin(rig, id);
         if (!compatible) throw new IllegalArgumentException("动作不存在或与演员骨架不兼容");
     }
 }

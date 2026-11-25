@@ -402,7 +402,8 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
                 || !track.getClips().contains(wrapper)) return false;
 
         UITheme.title(clip.getName());
-        com.director.ui.properties.actor.ActorPropertyBreadcrumb.render(track, clip, null, java.util.List.of());
+        if (com.director.ui.properties.actor.ActorPropertyBreadcrumb.render(track, clip, null, java.util.List.of()))
+            return true;
         if (ImGui.smallButton(tr("gui.director.actor.clip_inspector.open_track", track.getName()))) {
             model.selectItem(track, false);
             DirectorServices.get().uiSelection().selectTrack(track);

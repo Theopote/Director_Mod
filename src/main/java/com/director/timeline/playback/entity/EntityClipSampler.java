@@ -274,10 +274,9 @@ public class EntityClipSampler {
     private void applySpawnClip(EntitySample result, EntitySpawnClip clip, float time) {
         // Spawn Clip 只在开始时生效，但这里我们始终应用位置和旋转作为基础
         result.motionLocalTime=Math.max(0f,time-clip.getStartTime());
-        Vector3f pos = clip.getPosition();
-        result.position.set(pos);
+        result.position.set(clip.positionView());
         result.rotation.set(clip.getYawDeg(), clip.getPitchDeg(), clip.getRollDeg());
-        result.scale.set(clip.getScale());
+        result.scale.set(clip.scaleView());
         if (applyRootKeys(result, clip.getKeyframes(), time)) {
             var prev = findPrevKeyframe(clip.getKeyframes().stream().filter(k -> k.hasChannel(EntityClipKeyframe.POSITION)).toList(), time);
             var next = findNextKeyframe(clip.getKeyframes().stream().filter(k -> k.hasChannel(EntityClipKeyframe.POSITION)).toList(), time);

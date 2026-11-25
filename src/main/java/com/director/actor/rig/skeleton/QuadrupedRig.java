@@ -23,7 +23,10 @@ public final class QuadrupedRig {
                     bone(RIGHT_FRONT_LEG, 1, BoneTransform.translation(-.22f, -.1f, -.4f), BoneCapabilities.rotationAndScale()),
                     bone(LEFT_HIND_LEG, 1, BoneTransform.translation(.22f, -.1f, .4f), BoneCapabilities.rotationAndScale()),
                     bone(RIGHT_HIND_LEG, 1, BoneTransform.translation(-.22f, -.1f, .4f), BoneCapabilities.rotationAndScale())
-            ));
+            ),
+            List.of(
+                    LegChain.thigh(LEFT_FRONT_LEG), LegChain.thigh(RIGHT_FRONT_LEG),
+                    LegChain.thigh(LEFT_HIND_LEG), LegChain.thigh(RIGHT_HIND_LEG)));
 
     private QuadrupedRig() {}
 

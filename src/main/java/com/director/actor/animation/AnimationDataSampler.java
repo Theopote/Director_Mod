@@ -10,8 +10,7 @@ public final class AnimationDataSampler {
     /** Adapt fixed-field actions to the shared compositor without inventing TRS channels. */
     public static com.director.actor.rig.skeleton.RigPose sampleRig(String id,
             com.director.actor.rig.skeleton.RigDefinition rig, float time, boolean loop, float speed) {
-        if (!com.director.actor.rig.skeleton.HumanoidTopology.matches(rig)) return null;
-        if (id == null || id.isBlank()) return null;
+        if (id == null || id.isBlank() || !com.director.actor.rig.ActorRigCompatibility.acceptsBuiltin(rig, id)) return null;
         var data = AnimationLibrary.getInstance().get(id).orElse(null);
         if (data == null) return null;
         var sampled = sample(data, time, loop, speed);

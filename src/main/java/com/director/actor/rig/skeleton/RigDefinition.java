@@ -12,8 +12,13 @@ public final class RigDefinition {
     private final String displayName;
     private final List<BoneDefinition> bones;
     private final Map<String, Integer> boneIndexById;
+    private final List<LegChain> legs;
 
     public RigDefinition(String id, String displayName, List<BoneDefinition> bones) {
+        this(id, displayName, bones, List.of());
+    }
+
+    public RigDefinition(String id, String displayName, List<BoneDefinition> bones, List<LegChain> legs) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("Rig id must not be blank");
         }
@@ -24,6 +29,19 @@ public final class RigDefinition {
         this.displayName = displayName == null || displayName.isBlank() ? id : displayName;
         this.bones = Collections.unmodifiableList(new ArrayList<>(bones));
         this.boneIndexById = buildAndValidateIndex(this.bones);
+        this.legs = validateLegs(legs == null ? List.of() : legs, this.boneIndexById);
+    }
+
+    private static List<LegChain> validateLegs(List<LegChain> legs, Map<String, Integer> index) {
+        for (LegChain leg : legs) {
+            if (!index.containsKey(leg.legBone()))
+                throw new IllegalArgumentException("Unknown leg bone: " + leg.legBone());
+            if (leg.lowerBone() != null && !index.containsKey(leg.lowerBone()))
+                throw new IllegalArgumentException("Unknown lower leg bone: " + leg.lowerBone());
+            if (leg.footBone() != null && !index.containsKey(leg.footBone()))
+                throw new IllegalArgumentException("Unknown foot bone: " + leg.footBone());
+        }
+        return Collections.unmodifiableList(new ArrayList<>(legs));
     }
 
     private static Map<String, Integer> buildAndValidateIndex(List<BoneDefinition> bones) {
@@ -63,6 +81,7 @@ public final class RigDefinition {
     public String displayName() { return displayName; }
     public int boneCount() { return bones.size(); }
     public List<BoneDefinition> bones() { return bones; }
+    public List<LegChain> legs() { return legs; }
     public BoneDefinition bone(int index) { return bones.get(index); }
     public int requireBoneIndex(String boneId) {
         Integer index = boneIndexById.get(boneId);
@@ -70,4 +89,10 @@ public final class RigDefinition {
         return index;
     }
     public int findBoneIndex(String boneId) { return boneIndexById.getOrDefault(boneId, -1); }
+
+    public LegChain findLeg(String legBone) {
+        if (legBone == null) return null;
+        for (LegChain leg : legs) if (legBone.equals(leg.legBone())) return leg;
+        return null;
+    }
 }

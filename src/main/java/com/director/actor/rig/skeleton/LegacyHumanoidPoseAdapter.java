@@ -28,6 +28,7 @@ public final class LegacyHumanoidPoseAdapter {
     }
 
     private static void rotate(RigPose target, String boneId, float pitch, float yaw, float roll) {
+        if (target.rig().findBoneIndex(boneId) < 0) return;
         BoneTransform rest = target.localTransform(boneId);
         Quaternionf rotation = new Quaternionf().rotateXYZ(pitch, yaw, roll);
         target.setLocalTransform(boneId, rest.withRotation(rotation));

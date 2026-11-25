@@ -24,6 +24,7 @@ public final class ActorRouteFootContact {
     }
     public static void apply(RigPose pose,EntitySample sample,com.director.actor.rig.ActorRigProfile profile,
                              java.util.Map<String,Float> authoredWeights) {
+        if (pose == null || pose.rig().legs().isEmpty()) return;
         if (ActorRouteTurnPose.supports(pose,sample) && !(sample.poseOverrideEnabled && sample.poseOverrideLegs)
                 && sample.scale.x > .001f && sample.scale.y > .001f && sample.scale.z > .001f) {
             float progress=ActorRouteMotion.stopTurn(sample.routeClip,sample.routeLocalTime).turnProgress();
@@ -37,42 +38,52 @@ public final class ActorRouteFootContact {
                 || !sample.routeClip.isAlignRotationToRoute()
                 || (sample.actionExplicit && sample.action!=com.director.actor.action.ActorActionType.WALK
                     && sample.action!=com.director.actor.action.ActorActionType.RUN) || sample.relationEnabled
-                || (sample.poseOverrideEnabled && sample.poseOverrideLegs) || sample.speed <= .02f || !HumanoidTopology.matches(pose.rig())
+                || (sample.poseOverrideEnabled && sample.poseOverrideLegs) || sample.speed <= .02f
                 || sample.scale.x <= .001f || sample.scale.y <= .001f || sample.scale.z <= .001f) return;
         float distance = ActorRouteMotion.distanceTravelled(sample.routeClip, sample.routeLocalTime);
-        correct(pose,sample,HumanoidRig.LEFT_LEG,distance,stride,0,contactWeight(authoredWeights,HumanoidRig.LEFT_LEG,ArticulatedPlayerRig.LEFT_SHIN));
-        correct(pose,sample,HumanoidRig.RIGHT_LEG,distance,stride,.5f,contactWeight(authoredWeights,HumanoidRig.RIGHT_LEG,ArticulatedPlayerRig.RIGHT_SHIN));
+        var legs = pose.rig().legs();
+        for (int i = 0; i < legs.size(); i++) {
+            LegChain chain = legs.get(i);
+            float shift = legs.size() <= 1 ? 0f : (float) i / legs.size();
+            correct(pose, sample, chain, distance, stride, shift,
+                    contactWeight(authoredWeights, chain));
+        }
     }
     /** Bounded support-foot stabilization, released smoothly at each foot exchange. */
     private static void correctTurnSupport(RigPose pose,EntitySample sample,
                                             java.util.Map<String,Float> weights,float progress) {
+        var legs = pose.rig().legs();
+        if (legs.isEmpty()) return;
         boolean first=progress<.5f;
-        String leg=first?HumanoidRig.RIGHT_LEG:HumanoidRig.LEFT_LEG;
-        String shin=first?ArticulatedPlayerRig.RIGHT_SHIN:ArticulatedPlayerRig.LEFT_SHIN;
-        float strength=contactWeight(weights,leg,shin);
+        // Prefer classic biped pairing when present; otherwise first/second declared chain.
+        LegChain chain = legs.size() >= 2
+                ? (first ? legs.get(1) : legs.get(0))
+                : legs.getFirst();
+        float strength=contactWeight(weights,chain);
         if (strength<=0) return;
         float phase=first?progress*2:(progress-.5f)*2;
         float envelope=(float)Math.pow(Math.sin(Math.PI*phase),2);
-        // Reconstruct the half-turn entry from absolute scene time, never last-frame state.
         float relativeYaw=(float)(Math.PI*(progress-(first?0:.5f)));
         var restPose=new RigPose(pose.rig());
-        var target=solePosition(restPose,leg).mul(sample.scale);
+        var target=solePosition(restPose,chain).mul(sample.scale);
         new Quaternionf().rotateY(relativeYaw).transform(target);
         target.div(sample.scale);
-        var correction=target.sub(solePosition(pose,leg));
+        var correction=target.sub(solePosition(pose,chain));
         if (correction.length()>.2f) correction.normalize().mul(.2f);
         if(!correction.isFinite()) return;
-        var desired=solePosition(pose,leg).add(correction.mul(envelope*strength));
-        ActorLegContactIk.solve(pose,leg,desired);
+        var desired=solePosition(pose,chain).add(correction.mul(envelope*strength));
+        ActorLegContactIk.solve(pose,chain,desired,1f);
     }
 
-    private static float contactWeight(java.util.Map<String,Float> weights,String leg,String shin) {
-        // Root offsets and authored scale/translation do not own leg rotation channels.
-        float authored=Math.max(weights.getOrDefault(leg,0f),weights.getOrDefault(shin,0f));
-        return Float.isFinite(authored)?1-Math.clamp(authored,0f,1f):0;
+    private static float contactWeight(java.util.Map<String,Float> weights, LegChain chain) {
+        float authored = weights.getOrDefault(chain.legBone(), 0f);
+        if (chain.lowerBone() != null) authored = Math.max(authored, weights.getOrDefault(chain.lowerBone(), 0f));
+        return Float.isFinite(authored) ? 1 - Math.clamp(authored, 0f, 1f) : 0;
     }
-    private static void correct(RigPose pose, EntitySample sample, String bone, float distance,float stride,float shift,float strength) {
+
+    private static void correct(RigPose pose, EntitySample sample, LegChain chain, float distance,float stride,float shift,float strength) {
         if (strength<=0) return;
+        String bone = chain.legBone();
         float cycle = distance / stride + shift;
         float phase = cycle - (float)Math.floor(cycle);
         if (phase >= .5f) return;
@@ -100,14 +111,17 @@ public final class ActorRouteFootContact {
         new Quaternionf().rotateY((float)Math.toRadians(sample.rotation.x)).transform(target);
         target.div(sample.scale);
         var current = pose.localTransform(bone);
-        var sole = solePosition(pose, bone);
+        var sole = solePosition(pose, chain);
         var correction = target.sub(sole);
         if (correction.length() > .3f) correction.normalize().mul(.3f);
-        if (RigPoseComposer.sameLayout(pose.rig(),ArticulatedPlayerRig.DEFINITION)) {
-            ActorLegContactIk.solve(pose,bone,new Vector3f(sole).add(correction),weight*strength);
+        if (chain.hasKnee() && RigPoseComposer.sameLayout(pose.rig(),ArticulatedPlayerRig.DEFINITION)) {
+            ActorLegContactIk.solve(pose,chain,new Vector3f(sole).add(correction),weight*strength);
             return;
         }
-        // Correction is measured in model space; the leg translation is parent-local.
+        if (!chain.hasKnee()) {
+            ActorLegContactIk.solve(pose, chain, new Vector3f(sole).add(correction), weight * strength);
+            return;
+        }
         int parent = pose.rig().bone(pose.rig().requireBoneIndex(bone)).parentIndex();
         if (parent >= 0) {
             var inverse = pose.calculateModelTransforms()[parent].invert();
@@ -117,12 +131,23 @@ public final class ActorRouteFootContact {
         var translation = current.translation().add(correction.mul(weight*strength));
         pose.setLocalTransform(pose.rig().requireBoneIndex(bone), new BoneTransform(translation, current.rotation(), current.scale()), RigPose.TRANSLATION);
     }
+
     /** Model-space foot endpoint, including thigh, knee and segment scales. */
     public static Vector3f solePosition(RigPose pose, String leg) {
-        String shin = HumanoidRig.LEFT_LEG.equals(leg) ? ArticulatedPlayerRig.LEFT_SHIN : ArticulatedPlayerRig.RIGHT_SHIN;
-        int index = pose.rig().findBoneIndex(shin);
-        float length = .375f;
-        if (index < 0) { index = pose.rig().requireBoneIndex(leg); length = .75f; }
-        return pose.calculateModelTransform(index).transformPosition(new Vector3f(0,-length,0));
+        LegChain chain = pose.rig().findLeg(leg);
+        if (chain == null) chain = LegChain.thigh(leg);
+        return solePosition(pose, chain);
+    }
+
+    public static Vector3f solePosition(RigPose pose, LegChain chain) {
+        if (chain.hasKnee()) {
+            int shin = pose.rig().findBoneIndex(chain.lowerBone());
+            if (shin >= 0) {
+                return pose.calculateModelTransform(shin).transformPosition(new Vector3f(0, -.375f, 0));
+            }
+        }
+        int index = pose.rig().requireBoneIndex(chain.legBone());
+        float length = chain.hasKnee() ? .375f : .75f;
+        return pose.calculateModelTransform(index).transformPosition(new Vector3f(0, -length, 0));
     }
 }

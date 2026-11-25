@@ -101,6 +101,7 @@ class ActorAnimationCatalogTest {
         assertTrue(ActorAnimationCatalog.filter(entries(player),"First",null,null,true,null).isEmpty());
         assertEquals(1,ActorAnimationCatalog.filter(entries(player),"Second",null,null,true,null).size());
         var cow=new Actor("Cow",ActorType.COW);
-        assertTrue(ActorAnimationCatalog.filter(entries(cow),"",null,null,true,null).isEmpty());
+        // Humanoid project assets stay incompatible; builtins may partially remap via shared bones.
+        assertTrue(ActorAnimationCatalog.filter(entries(cow),"",ActorAnimationCatalog.Source.PROJECT,null,true,null).isEmpty());
     }
 }
