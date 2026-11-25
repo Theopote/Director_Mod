@@ -85,6 +85,18 @@ class ActorTransformEditSessionTest {
         assertEquals(0, loaded.getRollDeg()); assertEquals(new Vector3f(1), loaded.getScale());
     }
 
+    @Test void spawnRejectsNonFiniteTransformWithoutMutation() {
+        var spawn = new EntitySpawnClip("Actor", 0, 5);
+        spawn.setPosition(1, 2, 3);
+        spawn.setYawDeg(10);
+        spawn.setPosition(Float.NaN, 4, 5);
+        spawn.setYawDeg(Float.POSITIVE_INFINITY);
+        spawn.setPitchDeg(Float.NaN);
+        assertEquals(new Vector3f(1, 2, 3), spawn.getPosition());
+        assertEquals(10, spawn.getYawDeg());
+        assertEquals(0, spawn.getPitchDeg());
+    }
+
     @Test void transformEditsTheCoveringSpawnWhenALaterSpawnHasEnded() {
         var covering = new EntitySpawnClip("Covering", 0, 5);
         var ended = new EntitySpawnClip("Ended", 1, 1.5f);

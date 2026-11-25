@@ -193,6 +193,9 @@ public final class ActorSelectionHub {
      * <p>（比如点到空白区域）
      */
     public static void clearSelection() {
+        cancelPlace();
+        com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
+        com.director.ui.actor.pose.ActorKeyframeSelection.getInstance().clear();
         com.director.ui.actor.pose.ActorBonePropertiesPanel.cancelNumericDraft();
         TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model != null) {

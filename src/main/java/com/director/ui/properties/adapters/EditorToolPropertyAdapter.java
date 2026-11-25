@@ -115,6 +115,11 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
 
     private void renderActorToolProperties(EditorTool tool) {
         Actor actor = resolveSelectedActor();
+        String unavailable = actorToolUnavailableReason(tool, actor);
+        if (!unavailable.isEmpty()) {
+            ImGui.textColored(1f, .65f, .2f, 1f, "只读：" + unavailable);
+            ImGui.separator();
+        }
         if (Section.header("editor_tool.current_actor", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CURRENT_ACTOR))) {
             if (actor == null) {
                 ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.NO_ACTOR_SELECTED));
@@ -157,6 +162,33 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
                 renderTransformHint();
             }
         }
+    }
+
+    private String actorToolUnavailableReason(EditorTool tool, Actor actor) {
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (model == null) return "未打开时间线工程。";
+        if (model.isPlaying()) return "正在播放。请先暂停。";
+        if (model.isScrubbing()) return "正在拖动播放头。";
+        if (actor == null) return "";
+        com.director.timeline.model.TimelineTrack owner;
+        try {
+            owner = com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model, actor.getActorId());
+        } catch (IllegalArgumentException unavailable) {
+            return "演员没有唯一绑定轨道。";
+        }
+        if (owner.isLocked()) return "演员轨道已锁定。";
+        if (owner.isMuted()) return "演员轨道已静音。";
+        if (ToolRegistry.ACTOR_POSE_TOOL_ID.equals(tool.id())
+                && !com.director.actor.ActorCapabilities.of(actor).editableBones())
+            return "当前演员没有可编辑骨架。";
+        if (ToolRegistry.isActorTransformGizmoToolId(tool.id())
+                && com.director.actor.preview.ActorPreviewManager.getInstance()
+                    .getPreview(actor.getActorId()) == null)
+            return "演员预览当前不可用。";
+        if (ToolRegistry.ACTOR_PATH_TOOL_ID.equals(tool.id())
+                && com.director.ui.actor.path.ActorPathController.getInstance().isReadOnly())
+            return "路径当前不可编辑。";
+        return "";
     }
 
     private void renderLookAtAuthoring(Actor actor) {

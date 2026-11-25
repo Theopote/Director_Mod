@@ -290,6 +290,16 @@ class ActorRootKeyframeEditingTest {
         assertTrue(history.undo()); assertEquals(1, spawn.getKeyframes().size());
         assertEquals(new Vector3f(8), new EntityClipSampler(owner.getActorTrackPayload()).sampleAt(0).position);
     }
+    @Test void routeOwnedRootKeyCannotBeRemoved() {
+        var spawn = add(new EntitySpawnClip("Actor", 0, 5));
+        model.setCurrentTime(2);
+        var key = ActorRootKeyframeEditing.write(model, owner, spawn, new Vector3f(2), new Vector3f(), new Vector3f(1));
+        assertNotNull(key);
+        var route = add(new ActorRouteClip("Route", 0, 5));
+        route.setWaypoints(java.util.List.of(new Vector3f(), new Vector3f(5, 0, 0)));
+        assertFalse(ActorRootKeyframeEditing.remove(model, owner, spawn));
+        assertTrue(spawn.getKeyframes().contains(key));
+    }
     @Test void convertingEndpointAnimationKeepsTrajectory() {
         var clip = add(new EntityTransformClip("Move", 0, 4));
         clip.setFromPos(0, 0, 0); clip.setToPos(8, 0, 0); clip.setInterpolation(TimelineInterpolation.LINEAR);

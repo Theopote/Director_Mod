@@ -101,7 +101,14 @@ public class EntitySpawnClip extends EntityClip {
         return new Vector3f(position);
     }
 
+    private transient boolean invalidPosition;
+    private transient boolean invalidYaw;
+    private transient boolean invalidPitch;
+    private transient boolean invalidRoll;
+    public boolean hasInvalidTransform() { return invalidPosition || invalidYaw || invalidPitch || invalidRoll; }
     public void setPosition(float x, float y, float z) {
+        if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)) { invalidPosition = true; return; }
+        invalidPosition = false;
         this.position.set(x, y, z);
         samplingChanged();
     }
@@ -111,7 +118,8 @@ public class EntitySpawnClip extends EntityClip {
     }
 
     public void setYawDeg(float yawDeg) {
-        if (!Float.isFinite(yawDeg)) return;
+        if (!Float.isFinite(yawDeg)) { invalidYaw = true; return; }
+        invalidYaw = false;
         this.yawDeg = yawDeg;
         samplingChanged();
     }
@@ -121,7 +129,8 @@ public class EntitySpawnClip extends EntityClip {
     }
 
     public void setPitchDeg(float pitchDeg) {
-        if (!Float.isFinite(pitchDeg)) return;
+        if (!Float.isFinite(pitchDeg)) { invalidPitch = true; return; }
+        invalidPitch = false;
         this.pitchDeg = pitchDeg;
         samplingChanged();
     }
@@ -129,7 +138,10 @@ public class EntitySpawnClip extends EntityClip {
     private float rollDeg;
     private final Vector3f scale = new Vector3f(1);
     public float getRollDeg() { return rollDeg; }
-    public void setRollDeg(float value) { if (Float.isFinite(value)) { rollDeg = value; samplingChanged(); } }
+    public void setRollDeg(float value) {
+        if (!Float.isFinite(value)) { invalidRoll = true; return; }
+        invalidRoll = false; rollDeg = value; samplingChanged();
+    }
     public Vector3f getScale() { return new Vector3f(scale); }
     public void setScale(float x, float y, float z) {
         if (Float.isFinite(x) && Float.isFinite(y) && Float.isFinite(z) && x > 0 && y > 0 && z > 0) {

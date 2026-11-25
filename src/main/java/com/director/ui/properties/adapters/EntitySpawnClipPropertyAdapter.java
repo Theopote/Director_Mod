@@ -29,12 +29,20 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         float[] pos = {clip.getPosition().x,clip.getPosition().y,clip.getPosition().z};
         PropertyRow.field(tr("position"));
         changed = ImGui.inputFloat3("##spawnPosition",pos);
-        if (changed) clip.setPosition(pos[0],pos[1],pos[2]);
+        if (changed) {
+            if (Float.isFinite(pos[0]) && Float.isFinite(pos[1]) && Float.isFinite(pos[2]))
+                clip.setPosition(pos[0],pos[1],pos[2]);
+            else gesture.report("位置必须是有限数值。");
+        }
         gesture.observe("position",changed);
         var yaw = new ImFloat(clip.getYawDeg());
         PropertyRow.field(tr("yaw"));
         changed = ImGui.inputFloat("##spawnYaw",yaw);
-        if (changed) clip.setYawDeg(yaw.get()); gesture.observe("yaw",changed);
+        if (changed) {
+            if (Float.isFinite(yaw.get())) clip.setYawDeg(yaw.get());
+            else gesture.report("偏航角必须是有限数值。");
+        }
+        gesture.observe("yaw",changed);
         float[] pitch = {clip.getPitchDeg()};
         PropertyRow.field(tr("pitch"));
         changed = ImGui.sliderFloat("##spawnPitch",pitch,-90,90);
@@ -42,7 +50,11 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         var roll = new ImFloat(clip.getRollDeg());
         PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit.roll"));
         changed = ImGui.inputFloat("##spawnRoll", roll);
-        if (changed) clip.setRollDeg(roll.get()); gesture.observe("roll", changed);
+        if (changed) {
+            if (Float.isFinite(roll.get())) clip.setRollDeg(roll.get());
+            else gesture.report("翻滚角必须是有限数值。");
+        }
+        gesture.observe("roll", changed);
         float[] scale = {clip.getScale().x, clip.getScale().y, clip.getScale().z};
         PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.scale"));
         changed = ImGui.inputFloat3("##spawnScale", scale);

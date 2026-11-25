@@ -214,6 +214,8 @@ public final class ActorClipPropertyEditSession {
     public void cancel() { finished = true; }
     public boolean commit() {
         if (!isCurrent(model, source)) { cancel(); return false; }
+        if (draft instanceof EntitySpawnClip spawn && spawn.hasInvalidTransform())
+            throw new IllegalArgumentException("出生位置或朝向包含非有限数值");
         State after = capture(draft);
         if (before.equals(after)) { cancel(); return true; }
         if (source instanceof EntityTransformClip && !common.keys.isEmpty())

@@ -197,7 +197,7 @@ public final class ActorRootKeyframeEditing {
                 && key.getScale().x > 0 && key.getScale().y > 0 && key.getScale().z > 0;
     }
     public static boolean remove(TimelineModel model, TimelineTrack owner, EntityClip clip) {
-        if (!editable(model, owner, clip)) return false;
+        if (!editable(model, owner, clip) || ActorMovementSource.routeOwnsInterval(model, owner)) return false;
         var matching = clip.getKeyframes().stream().filter(k -> Math.abs(k.getTime() - model.getCurrentTime()) <= 1e-4f).toList();
         if (matching.size() != 1) return false;
         var key = matching.getFirst();

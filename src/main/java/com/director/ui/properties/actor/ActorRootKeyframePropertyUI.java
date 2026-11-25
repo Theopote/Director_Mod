@@ -28,7 +28,7 @@ public final class ActorRootKeyframePropertyUI {
         ImGui.endDisabled();
         ImGui.sameLine();
         boolean hasKey = clip.getKeyframes().stream().anyMatch(k -> Math.abs(k.getTime() - model.getCurrentTime()) <= 1e-4f);
-        ImGui.beginDisabled(!hasKey);
+        ImGui.beginDisabled(!hasKey || route);
         if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.root_keys.remove")))
             ActorRootKeyframeEditing.remove(model, owner, clip);
         ImGui.endDisabled(); ImGui.endDisabled();
