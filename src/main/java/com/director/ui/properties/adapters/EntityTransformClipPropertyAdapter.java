@@ -2,7 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.ui.properties.actor.ActorClipInspectorGesture;
 import com.director.ui.theme.Icons;
@@ -25,7 +25,7 @@ public class EntityTransformClipPropertyAdapter implements IPropertyAdapter<Enti
         boolean keyed = !source.getKeyframes().isEmpty();
         if (keyed) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.keyed"));
         ImGui.beginDisabled(keyed);
-        if (Section.header("entity_transform_clip.interpolation_section", ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.interpolation_section"))) {
+        if (Card.begin("entity_transform_clip.interpolation_section", ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.interpolation_section"))) {
             var modes = TimelineInterpolation.values();
             var index = new ImInt(clip.getInterpolation().ordinal());
             String[] labels = java.util.Arrays.stream(modes).map(TimelineInterpolation::getDisplayName).toArray(String[]::new);
@@ -34,16 +34,19 @@ public class EntityTransformClipPropertyAdapter implements IPropertyAdapter<Enti
             if (changed) clip.setInterpolation(modes[index.get()]);
             gesture.observe("interpolation", changed);
         }
-        if (Section.header("entity_transform_clip.from", ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.from"))) {
+        Card.end();
+        if (Card.begin("entity_transform_clip.from", ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.from"))) {
             vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.position") + "##transformFromPosition", clip.getFromPos());
             vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.rotation") + "##transformFromRotation", clip.getFromRot());
             vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.scale") + "##transformFromScale", clip.getFromScale());
         }
-        if (Section.header("entity_transform_clip.to", ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.to"))) {
+        Card.end();
+        if (Card.begin("entity_transform_clip.to", ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.to"))) {
             vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.position") + "##transformToPosition", clip.getToPos());
             vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.rotation") + "##transformToRotation", clip.getToRot());
             vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.scale") + "##transformToScale", clip.getToScale());
         }
+        Card.end();
         ImGui.endDisabled();
         // Legacy followPath metadata is not consumed by EntityClipSampler.
         ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.route_hint"));

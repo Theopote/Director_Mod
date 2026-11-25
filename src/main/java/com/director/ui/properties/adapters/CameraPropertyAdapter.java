@@ -4,7 +4,7 @@ import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.theme.UITheme;
@@ -39,7 +39,7 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.TITLE));
 
         try {
-            if (Section.header("camera.section_transform", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_TRANSFORM))) {
+            if (Card.begin("camera.section_transform", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_TRANSFORM))) {
                 Object position = PropertyReflection.readProperty(camera, "position", "getPosition");
                 if (position != null) {
                     var posAdapter = PropertyAdapterRegistry.getAdapterFor(position);
@@ -66,8 +66,9 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                     }
                 }
             }
+            Card.end();
 
-            if (Section.header("camera.section_projection", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_PROJECTION))) {
+            if (Card.begin("camera.section_projection", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_PROJECTION))) {
                 float currentFOV = PropertyReflection.getFloat(camera, "fov", "getFov", 70.0f);
                 float[] fov = {currentFOV};
                 PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FOV));
@@ -130,8 +131,9 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                     ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FAR_TOOLTIP));
                 }
             }
+            Card.end();
 
-            if (Section.header("camera.section_lens", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_LENS), false)) {
+            if (Card.begin("camera.section_lens", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_LENS), false)) {
                 boolean currentDOF = PropertyReflection.getBoolean(camera, "depthOfFieldEnabled", "isDepthOfFieldEnabled", false);
                 ImBoolean enableDOF = new ImBoolean(currentDOF);
                 PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.DOF_ENABLED));
@@ -186,8 +188,9 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                     ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.BOKEH_TOOLTIP));
                 }
             }
+            Card.end();
 
-            if (Section.header("camera.section_animation", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_ANIMATION), false)) {
+            if (Card.begin("camera.section_animation", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_ANIMATION), false)) {
                 String currentName = PropertyReflection.getString(camera, "animationName", "getAnimationName", "");
                 ImString nameBuffer = new ImString(currentName, 256);
                 PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.ANIMATION_NAME));
@@ -235,6 +238,7 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                     ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SMOOTH_TOOLTIP));
                 }
             }
+            Card.end();
 
             UITheme.separator();
 

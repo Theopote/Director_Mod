@@ -5,7 +5,7 @@ import com.director.i18n.DirectorLang;
 import com.director.i18n.TimelinePropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
@@ -87,7 +87,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
         
         try {
             // ========== 基础信息 ==========
-            if (Section.header("timeline_sequence.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_BASIC))) {
+            if (Card.begin("timeline_sequence.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_BASIC))) {
                 // 序列名称
                 String currentName = PropertyReflection.getString(sequence, "name", "getName",
                         TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.DEFAULT_NAME));
@@ -146,9 +146,10 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                             UITheme.DarkTheme.TEXT_DISABLED);
                 }
             }
+            Card.end();
             
             // ========== 播放控制 ==========
-            if (Section.header("timeline_sequence.section_playback", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_PLAYBACK))) {
+            if (Card.begin("timeline_sequence.section_playback", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_PLAYBACK))) {
                 // 循环播放
                 boolean currentLoop = PropertyReflection.getBoolean(sequence, "loop", "isLoop", false);
                 ImBoolean loop = new ImBoolean(currentLoop);
@@ -202,9 +203,10 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                                 Icons.PAUSE);
                 UITheme.label(playStatus, UITheme.DarkTheme.TEXT_DISABLED);
             }
+            Card.end();
             
             // ========== 轨道管理 ==========
-            if (Section.header("timeline_sequence.section_tracks", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_TRACKS))) {
+            if (Card.begin("timeline_sequence.section_tracks", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_TRACKS))) {
                 // 获取轨道列表
                 Object tracksObj = PropertyReflection.readProperty(sequence, "tracks", "getTracks");
                 
@@ -332,9 +334,10 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                             DirectorLang.Properties.AdapterTimelineSequence.CLEAR_ALL_TRACKS_TOOLTIP));
                 }
             }
+            Card.end();
             
             // ========== 统计信息 ==========
-            if (Section.header("timeline_sequence.section_stats", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_STATS), false)) {
+            if (Card.begin("timeline_sequence.section_stats", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_STATS), false)) {
                 // 轨道统计
                 Object tracksObj = PropertyReflection.readProperty(sequence, "tracks", "getTracks");
                 int trackCount = 0;
@@ -372,6 +375,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                         DirectorLang.Properties.AdapterTimelineSequence.ACTUAL_DURATION, actualDuration, timeScale), 
                     UITheme.DarkTheme.TEXT_DISABLED);
             }
+            Card.end();
             
             UITheme.separator();
             

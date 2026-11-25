@@ -3,7 +3,7 @@ package com.director.ui.properties.adapters;
 import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -61,25 +61,30 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
                 + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.TITLE));
         UITheme.spacingSmall();
 
-        if (Section.header("camera.track.section_aspect", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_ASPECT))) {
+        if (Card.begin("camera.track.section_aspect", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_ASPECT))) {
             renderAspectRatioSection(profile, modifiedRef);
         }
+        Card.end();
 
-        if (Section.header("camera.track.section_safe_area", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_SAFE_AREA))) {
+        if (Card.begin("camera.track.section_safe_area", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_SAFE_AREA))) {
             renderSafeAreaSection(profile, modifiedRef);
         }
+        Card.end();
 
-        if (Section.header("camera.track.section_preview_res", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_PREVIEW_RES))) {
+        if (Card.begin("camera.track.section_preview_res", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_PREVIEW_RES))) {
             renderPreviewResolutionSection(profile, modifiedRef);
         }
+        Card.end();
 
-        if (Section.header("camera.track.section_preview_opts", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_PREVIEW_OPTS), false)) {
+        if (Card.begin("camera.track.section_preview_opts", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_PREVIEW_OPTS), false)) {
             renderPreviewOptionsSection(profile, modifiedRef);
         }
+        Card.end();
 
-        if (Section.header("camera.track.section_guides", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_GUIDES), false)) {
+        if (Card.begin("camera.track.section_guides", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Track.SECTION_GUIDES), false)) {
             renderGuideLinesSection(profile, modifiedRef);
         }
+        Card.end();
 
         return modifiedRef[0];
     }

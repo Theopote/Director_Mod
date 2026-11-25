@@ -18,6 +18,7 @@ import com.director.core.selection.tools.lassoselecttool.LassoSelectTool;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.Section;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -153,7 +154,7 @@ public final class ToolPropertyRendering {
         @Override
         public void render(FaceSelectTool tool, IToolPropertyRenderContext ctx) {
             // 1) 传播设置（与魔棒「连通性与传播」同级）
-            if (Section.header("selection_tool.face.spread", "传播设置")) {
+            if (Card.begin("selection_tool.face.spread", "传播设置")) {
                 ImGui.indent();
                 int idx = switch (tool.getPlaneMode()) {
                     case AUTO -> 0; case XY -> 1; case XZ -> 2; case YZ -> 3;
@@ -182,8 +183,9 @@ public final class ToolPropertyRendering {
                 ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "步数越大扩散越快，但可能带来瞬时卡顿。");
                 ImGui.unindent();
             }
+            Card.end();
             // 2) 匹配规则
-            if (Section.header("selection_tool.face.match", "匹配规则")) {
+            if (Card.begin("selection_tool.face.match", "匹配规则")) {
                 ImGui.indent();
                 PropertyRow.label("忽略透明方块");
                 if (ImGui.checkbox("##faceIgnoreTransparent", tool.isIgnoreTransparent())) tool.setIgnoreTransparent(!tool.isIgnoreTransparent());
@@ -196,6 +198,7 @@ public final class ToolPropertyRendering {
                 if (ImGui.isItemHovered()) ImGui.setTooltip("仅传播到完全相同 BlockState 的方块。");
                 ImGui.unindent();
             }
+            Card.end();
             // 3) 底部：选中预览（与魔棒一致）
             ImGui.spacing();
             ImGui.separator();
@@ -214,12 +217,13 @@ public final class ToolPropertyRendering {
         @Override
         public void render(LassoSelectTool tool, IToolPropertyRenderContext ctx) {
             // 1) 套索设置（与魔棒「匹配规则」同级）
-            if (Section.header("selection_tool.lasso", "套索设置")) {
+            if (Card.begin("selection_tool.lasso", "套索设置")) {
                 ImGui.indent();
                 ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "当前采样点: " + tool.getPathSampleCount());
                 ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "绘制状态: " + (tool.isDrawing() ? "进行中" : "已结束/空闲"));
                 ImGui.unindent();
             }
+            Card.end();
             // 2) 底部：选中预览（与魔棒一致）
             ImGui.spacing();
             ImGui.separator();
@@ -238,7 +242,7 @@ public final class ToolPropertyRendering {
         @Override
         public void render(BrushSelectTool tool, IToolPropertyRenderContext ctx) {
             // 1) 几何形状（与魔棒「匹配规则」同级，进退关系）
-            if (Section.header("selection_tool.brush.geometry", "几何形状")) {
+            if (Card.begin("selection_tool.brush.geometry", "几何形状")) {
                 ImGui.indent();
                 GeometryShape s = tool.getShape();
                 PropertyRow.field("形状");
@@ -266,6 +270,7 @@ public final class ToolPropertyRendering {
                 UITheme.label("提示: 生成后可通过操作模式执行叠加/相减/交集等操作。", UITheme.DarkTheme.TEXT_DISABLED);
                 ImGui.unindent();
             }
+            Card.end();
             // 2) 底部：选中预览（与魔棒一致）
             ImGui.spacing();
             ImGui.separator();
@@ -377,7 +382,7 @@ public final class ToolPropertyRendering {
         public void render(ContainerCullTool tool, IToolPropertyRenderContext ctx) {
             tool.refreshActiveContainer();
 
-            if (Section.header("selection_tool.container_cull", "容器剔除")) {
+            if (Card.begin("selection_tool.container_cull", "容器剔除")) {
                 ImGui.indent();
                 if (tool.hasActiveContainer()) {
                     UITheme.label("目标容器: " + tool.getActiveContainerName(), UITheme.DarkTheme.TEXT);
@@ -399,6 +404,7 @@ public final class ToolPropertyRendering {
                 }
                 ImGui.unindent();
             }
+            Card.end();
 
             ImGui.spacing();
             boolean canConfirm = tool.canConfirmCull();
@@ -426,7 +432,7 @@ public final class ToolPropertyRendering {
         }
         private void renderMagicWand(MagicWandTool tool, IToolPropertyRenderContext ctx) {
             MagicWandConfig c = tool.getConfig();
-            if (Section.header("selection_tool.wand.spread", "选择方式")) {
+            if (Card.begin("selection_tool.wand.spread", "选择方式")) {
                 ImGui.indent();
                 MagicWandConfig.SpreadMode spread = c.getSpreadMode();
                 PropertyRow.field("扩散方式");
@@ -455,7 +461,8 @@ public final class ToolPropertyRendering {
                 }
                 ImGui.unindent();
             }
-            if (Section.header("selection_tool.wand.match", "匹配规则")) {
+            Card.end();
+            if (Card.begin("selection_tool.wand.match", "匹配规则")) {
                 ImGui.indent();
                 MagicWandConfig.CompareMode m = c.getCompareMode();
                 PropertyRow.field("比较模式");
@@ -492,6 +499,7 @@ public final class ToolPropertyRendering {
                 }
                 ImGui.unindent();
             }
+            Card.end();
             if (c.getSpreadMode() == MagicWandConfig.SpreadMode.CONNECTED_FLOOD
                 && Section.header("selection_tool.wand.connectivity", "连通性与传播")) {
                 ImGui.indent();
@@ -515,7 +523,7 @@ public final class ToolPropertyRendering {
                 // 对角传播 checkbox 已移除，融合进 Connectivity 逻辑中
                 ImGui.unindent();
             }
-            if (Section.header("selection_tool.wand.limits", "限制与性能")) {
+            if (Card.begin("selection_tool.wand.limits", "限制与性能")) {
                 ImGui.indent();
                 ctx.getIntBuffer1()[0] = c.getMaxBlocks();
                 PropertyRow.field("最大方块数");
@@ -545,7 +553,8 @@ public final class ToolPropertyRendering {
                 if (ImGui.isItemHovered()) ImGui.setTooltip("只在已有选区内部进行泛洪填充");
                 ImGui.unindent();
             }
-            if (Section.header("selection_tool.wand.advanced", "高级设置", false)) {
+            Card.end();
+            if (Card.begin("selection_tool.wand.advanced", "高级设置", false)) {
                 ImGui.indent();
                 PropertyRow.label("多种子模式");
                 if (ImGui.checkbox("##wandMultiSeed", c.isMultiSeedMode())) {
@@ -569,6 +578,7 @@ public final class ToolPropertyRendering {
                 }
                 ImGui.unindent();
             }
+            Card.end();
             ImGui.spacing();
             ImGui.separator();
             int pc = tool.getLastPreviewCount();
@@ -591,11 +601,12 @@ public final class ToolPropertyRendering {
         @Override
         public void render(BoxSelectTool tool, IToolPropertyRenderContext ctx) {
             // 1) 框选设置（与魔棒结构一致，暂无扩展参数）
-            if (Section.header("selection_tool.box", "框选设置")) {
+            if (Card.begin("selection_tool.box", "框选设置")) {
                 ImGui.indent();
                 ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "拖拽绘制立方体区域，支持 Gizmo 调整。");
                 ImGui.unindent();
             }
+            Card.end();
             // 2) 底部：选中预览（与魔棒一致）
             ImGui.spacing();
             ImGui.separator();

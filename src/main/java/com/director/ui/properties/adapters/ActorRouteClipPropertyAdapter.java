@@ -4,6 +4,7 @@ import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.Section;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -104,7 +105,7 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
         ActorRouteClip clip = session.draft();
         UITheme.title(getAdapterName());
 
-        if (Section.header("actor_route_clip.section_basic", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC))) {
+        if (Card.begin("actor_route_clip.section_basic", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC))) {
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.START_FMT, clip.getStartTime()));
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.END_FMT, clip.getEndTime()));
             imgui.type.ImFloat duration = new imgui.type.ImFloat(clip.getLength());
@@ -124,8 +125,9 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.WAYPOINT_COUNT_FMT,
                     clip.getWaypoints().size()));
         }
+        Card.end();
 
-        if (Section.header("actor_route_clip.section_settings", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SECTION_SETTINGS))) {
+        if (Card.begin("actor_route_clip.section_settings", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SECTION_SETTINGS))) {
             ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.exact_curve_hint"));
             boolean fitDuration = clip.getLoopMode() == ActorRouteClip.LoopMode.ONCE;
             ImGui.beginDisabled(!fitDuration);
@@ -189,6 +191,7 @@ public final class ActorRouteClipPropertyAdapter implements IPropertyAdapter<Act
             observe("align");
 
         }
+        Card.end();
 
         if (Section.header("actor_route_clip.section_waypoints", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Route.SECTION_WAYPOINTS))) {
             if (source.getSourcePathId() != null) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.route.linked_hint"));

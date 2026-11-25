@@ -3,7 +3,7 @@ package com.director.ui.properties.adapters;
 import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.TimelineModel;
@@ -131,7 +131,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         // ==========================================================
         // ⏱ 基础信息
         // ==========================================================
-        if (Section.header("weather.basic", "基础信息")) {
+        if (Card.begin("weather.basic", "基础信息")) {
             timeFloat.set(kf.getTime());
             PropertyRow.field("时间");
             if (ImGui.dragFloat("##时间 (秒)", timeFloat.getData(), 0.02f, 0, 10_000f, "%.2f s")) {
@@ -182,11 +182,12 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
             UITheme.spacingSmall();
         }
+        Card.end();
 
         // ==========================================================
         // 🌧 降水 (Precipitation)
         // ==========================================================
-        if (Section.header("weather.precipitation", "降水")) {
+        if (Card.begin("weather.precipitation", "降水")) {
 
             // 雨强度
             rainFloat.set(kf.getRainIntensity());
@@ -275,6 +276,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
             UITheme.spacingSmall();
         }
+        Card.end();
 
         // ==========================================================
         // 🌫 雾 (Fog) - ⚠️ 已禁用：雾功能无法实现理想效果
@@ -324,7 +326,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         // ==========================================================
         // 云层 (Clouds)
         // ==========================================================
-        if (Section.header("weather.clouds", "云层")) {
+        if (Card.begin("weather.clouds", "云层")) {
 
             cloudDensityFloat.set(kf.getCloudDensity());
             PropertyRow.field("云量");
@@ -378,11 +380,12 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
             UITheme.spacingSmall();
         }
+        Card.end();
 
         // ==========================================================
         // 🌬 风 (Wind)
         // ==========================================================
-        if (Section.header("weather.wind", "风")) {
+        if (Card.begin("weather.wind", "风")) {
 
             // 风强度
             windFloat.set(kf.getWindStrength());
@@ -435,11 +438,12 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
             UITheme.spacingSmall();
         }
+        Card.end();
 
         // ==========================================================
         // ⛈ 雷暴 (Thunderstorm)
         // ==========================================================
-        if (Section.header("weather.thunder", "雷暴", false)) {
+        if (Card.begin("weather.thunder", "雷暴", false)) {
 
             // 雷暴强度
             thunderFloat.set(kf.getThunderIntensity());
@@ -492,11 +496,12 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
             UITheme.spacingSmall();
         }
+        Card.end();
 
         // ==========================================================
         // 🌌 天空/光照 (Sky / Lighting)
         // ==========================================================
-        if (Section.header("weather.sky", "天空/光照", false)) {
+        if (Card.begin("weather.sky", "天空/光照", false)) {
 
             // 天空变暗（使用 stormDarkness，这是现有的字段）
             stormDarknessFloat.set(kf.getStormDarkness());
@@ -518,6 +523,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
             UITheme.spacingSmall();
         }
+        Card.end();
 
         // ==========================================================
         // 触发天气控制器刷新

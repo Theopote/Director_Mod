@@ -4,7 +4,7 @@ import com.director.i18n.DirectorLang;
 import com.director.i18n.TimelinePropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.theme.UITheme;
@@ -89,7 +89,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
         
         try {
             // ========== 基本信息 ==========
-            if (Section.header("timeline_track.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.SECTION_BASIC))) {
+            if (Card.begin("timeline_track.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.SECTION_BASIC))) {
                 // 轨道名称
                 String currentName = PropertyReflection.getString(track, "name", "getName",
                         TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.DEFAULT_NAME));
@@ -137,9 +137,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                             UITheme.DarkTheme.TEXT_DISABLED);
                 }
             }
+            Card.end();
             
             // ========== 容器绑定 ==========
-            if (Section.header("timeline_track.section_container_binding", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.SECTION_CONTAINER_BINDING), false)) {
+            if (Card.begin("timeline_track.section_container_binding", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.SECTION_CONTAINER_BINDING), false)) {
                 String currentContainer = PropertyReflection.getString(track, "boundContainerName", "getBoundContainerName",
                         TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineCommon.UNBOUND));
                 ImString containerBuffer = new ImString(currentContainer, 256);
@@ -182,9 +183,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                             DirectorLang.Properties.AdapterTimelineTrack.CLEAR_BINDING_TOOLTIP));
                 }
             }
+            Card.end();
             
             // ========== 混合与权重 ==========
-            if (Section.header("timeline_track.section_blend", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.SECTION_BLEND))) {
+            if (Card.begin("timeline_track.section_blend", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.SECTION_BLEND))) {
                 // 混合模式
                 String[] blendModes = TimelinePropertyAdapterI18n.trackBlendModes();
                 int currentBlendMode = PropertyReflection.getInt(track, "blendMode", "getBlendMode", 0);
@@ -241,9 +243,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                             DirectorLang.Properties.AdapterTimelineTrack.ADDITIVE_MODE_TOOLTIP));
                 }
             }
+            Card.end();
             
             // ========== 对齐与范围 ==========
-            if (Section.header("timeline_track.section_alignment", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.SECTION_ALIGNMENT))) {
+            if (Card.begin("timeline_track.section_alignment", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.SECTION_ALIGNMENT))) {
                 // 对齐模式
                 String[] alignmentModes = TimelinePropertyAdapterI18n.trackAlignmentModes();
                 int currentAlignment = PropertyReflection.getInt(track, "alignmentMode", "getAlignmentMode", 0);
@@ -302,9 +305,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 UITheme.label(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.DURATION, duration),
                         UITheme.DarkTheme.TEXT_SELECTED);
             }
+            Card.end();
             
             // ========== 可视化参数 ==========
-            if (Section.header("timeline_track.section_visual", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.SECTION_VISUAL), false)) {
+            if (Card.begin("timeline_track.section_visual", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.SECTION_VISUAL), false)) {
                 // 轨道颜色
                 float[] colorRGBA = PropertyReflection.getFloatArray(track, "color", "getColor");
                 if (colorRGBA == null || colorRGBA.length < 4) {
@@ -339,9 +343,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                     }
                 }
             }
+            Card.end();
             
             // ========== 统计信息 ==========
-            if (Section.header("timeline_track.section_stats", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.SECTION_STATS), false)) {
+            if (Card.begin("timeline_track.section_stats", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.SECTION_STATS), false)) {
                 // 关键帧统计
                 int keyframeCount = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount", 0);
                 UITheme.label(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.KEYFRAME_TOTAL, keyframeCount),
@@ -368,6 +373,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 UITheme.label(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.CURRENT_WEIGHT, weight * 100),
                     UITheme.DarkTheme.TEXT_DISABLED);
             }
+            Card.end();
             
             UITheme.separator();
             

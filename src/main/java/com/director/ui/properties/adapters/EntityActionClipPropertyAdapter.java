@@ -8,7 +8,7 @@ import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.ui.actor.edit.ActorClipPropertyEditSession;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.timeline.model.entity.EntityActionClip;
 import imgui.ImGui;
 import imgui.type.ImFloat;
@@ -93,12 +93,13 @@ public class EntityActionClipPropertyAdapter implements IPropertyAdapter<EntityA
                 number(params,"arcHeight",tr("arc"),1.5f); number(params,"flightTime",tr("flight"),1);
             }
         }
-        if (Section.header("entity_action_clip.extras", tr("extras"), false)) {
+        if (Card.begin("entity_action_clip.extras", tr("extras"), false)) {
             var known = Set.of("slot","oldSlot","newSlot","propId","newPropId","offsetX","offsetY","offsetZ",
                     "rotationX","rotationY","rotationZ","propScale","itemPose","targetX","targetY","targetZ","arcHeight","flightTime");
             params.entrySet().stream().filter(entry -> !known.contains(entry.getKey())).sorted(Map.Entry.comparingByKey())
                     .forEach(entry -> ImGui.text(entry.getKey()+": "+entry.getValue()));
         }
+        Card.end();
         if (ImGui.button(tr("apply")+"##propEventApply")) {
             var edit = session;
             try { error = edit.commit() ? "" : tr("cancelled"); session = null; }

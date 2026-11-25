@@ -4,6 +4,7 @@ import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.Section;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -35,13 +36,14 @@ public final class ActorPoseClipPropertyAdapter implements IPropertyAdapter<Acto
         ImGui.beginDisabled(!supported);
         UITheme.title(getAdapterName());
 
-        if (Section.header("actor_pose_clip.section_basic", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC))) {
+        if (Card.begin("actor_pose_clip.section_basic", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC))) {
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.START_FMT, clip.getStartTime()));
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.END_FMT, clip.getEndTime()));
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION_FMT, clip.getLength()));
         }
+        Card.end();
 
-        if (Section.header("actor_pose_clip.section_override", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.SECTION_OVERRIDE))) {
+        if (Card.begin("actor_pose_clip.section_override", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.SECTION_OVERRIDE))) {
             boolean body = clip.isOverrideBody();
             PropertyRow.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY));
             boolean toggleBody = ImGui.checkbox("##poseBodyEnabled", body);
@@ -63,6 +65,7 @@ public final class ActorPoseClipPropertyAdapter implements IPropertyAdapter<Acto
             if (toggleLegs) clip.setOverrideLegs(!clip.isOverrideLegs());
             gesture.observe("overrideLegs",toggleLegs);
         }
+        Card.end();
 
         if (clip.isOverrideHead() && Section.header("actor_pose_clip.section_head", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.SECTION_HEAD))) {
             radSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.HEAD_PITCH) + "##poseHeadPitch",

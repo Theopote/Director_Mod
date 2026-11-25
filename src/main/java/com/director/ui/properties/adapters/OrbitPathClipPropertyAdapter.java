@@ -6,7 +6,7 @@ import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyEditCommit;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.Vec3Field;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -241,7 +241,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
     private boolean renderCenterSection(OrbitPathClip clip) {
         boolean modified = false;
         
-        if (Section.header("orbit.center", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.SECTION_CENTER))) {
+        if (Card.begin("orbit.center", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.SECTION_CENTER))) {
             // Center
             Vec3d center = clip.getCenter();
             PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.CENTER_LABEL));
@@ -319,6 +319,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 }
             }
         }
+        Card.end();
         
         return modified;
     }
@@ -329,7 +330,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
     private boolean renderMotionSection(OrbitPathClip clip) {
         boolean modified = false;
         
-        if (Section.header("orbit.motion", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.SECTION_MOTION))) {
+        if (Card.begin("orbit.motion", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.SECTION_MOTION))) {
             // Radius（模式选择 + Slider）
             
             // ⭐ 半径模式选择（From Current Position / Custom Radius）
@@ -469,6 +470,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 }
             }
         }
+        Card.end();
         
         return modified;
     }
@@ -502,7 +504,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
     private boolean renderAngleSection(OrbitPathClip clip) {
         boolean modified = false;
         
-        if (Section.header("orbit.angle", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.SECTION_ANGLE))) {
+        if (Card.begin("orbit.angle", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.SECTION_ANGLE))) {
             // ⭐ 快捷按钮：Full Orbit / 90° Sweep / 180° Sweep
             if (ImGui.button(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.FULL_ORBIT_BTN))) {
                 clip.setStartAngle(0f);
@@ -618,6 +620,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             // ⭐ 注意：起始角模式选择已在上面实现（From Current Camera Position / Custom Angle）
             // 移除了旧的 checkbox，现在起始角、半径、高度都使用统一的模式选择 UI
         }
+        Card.end();
         
         return modified;
     }

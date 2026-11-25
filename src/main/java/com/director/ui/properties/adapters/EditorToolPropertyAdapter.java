@@ -10,6 +10,7 @@ import com.director.ui.actor.gizmo.ActorGizmoController;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.Section;
 import com.director.ui.properties.PropertyContext;
 import com.director.ui.properties.actor.ActorLiveTransformPropertyUI;
@@ -104,13 +105,14 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     }
 
     private void renderGenericToolProperties(EditorTool tool) {
-        if (Section.header("editor_tool.section_status", tr(DirectorLang.Properties.AdapterEditorTool.SECTION_STATUS))) {
+        if (Card.begin("editor_tool.section_status", tr(DirectorLang.Properties.AdapterEditorTool.SECTION_STATUS))) {
             ImGui.text(tr(DirectorLang.Properties.AdapterEditorTool.ID_FMT, tool.id()));
             ImGui.text(tr(DirectorLang.Properties.AdapterEditorTool.GROUP_FMT, tool.getGroup()));
             ImGui.text(tool.isEnabled()
                     ? tr(DirectorLang.Properties.AdapterEditorTool.STATUS_AVAILABLE)
                     : tr(DirectorLang.Properties.AdapterEditorTool.STATUS_UNAVAILABLE));
         }
+        Card.end();
     }
 
     private void renderActorToolProperties(EditorTool tool) {
@@ -120,7 +122,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
             ImGui.textColored(1f, .65f, .2f, 1f, "只读：" + unavailable);
             ImGui.separator();
         }
-        if (Section.header("editor_tool.current_actor", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CURRENT_ACTOR))) {
+        if (Card.begin("editor_tool.current_actor", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CURRENT_ACTOR))) {
             if (actor == null) {
                 ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.NO_ACTOR_SELECTED));
                 ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.SELECT_ACTOR_HINT));
@@ -133,6 +135,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
                                 .orElseGet(() -> ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.RIG_NONE))));
             }
         }
+        Card.end();
 
         if (actor != null && actor.getRigProfile() != null) {
             if (ImGui.treeNode(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.authoring.style"))) {
@@ -470,12 +473,13 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     }
 
     private void renderTransformHint() {
-        if (Section.header("editor_tool.transform_and_look_at", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.TRANSFORM_AND_LOOK_AT))) {
+        if (Card.begin("editor_tool.transform_and_look_at", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.TRANSFORM_AND_LOOK_AT))) {
             ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.TRANSFORM_HINT_1));
             ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.TRANSFORM_HINT_2));
             ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.TRANSFORM_HINT_3));
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.TRANSFORM_HINT_4));
         }
+        Card.end();
     }
 
     private Actor resolveSelectedActor() {

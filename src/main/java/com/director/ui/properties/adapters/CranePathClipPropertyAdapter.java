@@ -4,6 +4,7 @@ import com.director.core.DirectorServices;
 import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.Section;
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
@@ -136,7 +137,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     private boolean renderTiming(CranePathClip clip) {
         boolean modified = false;
         
-        if (Section.header("camera.crane.timing_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_SECTION))) {
+        if (Card.begin("camera.crane.timing_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_SECTION))) {
             ImGui.indent();
             ImGui.beginDisabled();
             float startTime = clip.getStartTime();
@@ -151,6 +152,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_HINT));
             ImGui.unindent();
         }
+        Card.end();
         
         return modified;
     }
@@ -162,7 +164,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     private boolean renderMotionSection(CranePathClip clip) {
         boolean modified = false;
         
-        if (Section.header("camera.crane.motion_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.MOTION_SECTION))) {
+        if (Card.begin("camera.crane.motion_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.MOTION_SECTION))) {
             ImGui.indent();
             // ⭐ 方向提示：在 slider 上方显示升降语义
             String downLabel = Icons.ARROW_DOWN + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Crane.DOWN);
@@ -213,6 +215,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIP_CTRL_FINE));
             ImGui.unindent();
         }
+        Card.end();
         
         return modified;
     }
@@ -223,7 +226,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     private boolean renderAdvancedSection(CranePathClip clip) {
         boolean modified = false;
         
-        if (Section.header("camera.crane.advanced_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ADVANCED_SECTION), false)) {
+        if (Card.begin("camera.crane.advanced_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ADVANCED_SECTION), false)) {
             ImGui.indent();
             ImBoolean align = new ImBoolean(clip.isAlignStartToCurrentPosition());
             PropertyRow.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ALIGN_START));
@@ -255,6 +258,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             }
             ImGui.unindent(); // Advanced 的缩进
         }
+        Card.end();
         
         return modified;
     }

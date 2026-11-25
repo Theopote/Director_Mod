@@ -2,7 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
@@ -83,7 +83,7 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
         
         try {
             // ========== Bloom 泛光 ==========
-            if (Section.header("post_processing.bloom", "Bloom 泛光")) {
+            if (Card.begin("post_processing.bloom", "Bloom 泛光")) {
                 // 启用 Bloom
                 boolean currentBloom = PropertyReflection.getBoolean(profile, "bloomEnabled", "isBloomEnabled", false);
                 ImBoolean enableBloom = new ImBoolean(currentBloom);
@@ -125,9 +125,10 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
                     ImGui.setTooltip("亮度超过此值的区域才会产生泛光");
                 }
             }
+            Card.end();
             
             // ========== 景深 DOF ==========
-            if (Section.header("post_processing.dof", "景深", false)) {
+            if (Card.begin("post_processing.dof", "景深", false)) {
                 // 启用景深
                 boolean currentDOF = PropertyReflection.getBoolean(profile, "depthOfField", "isDepthOfField", false);
                 ImBoolean enableDOF = new ImBoolean(currentDOF);
@@ -152,9 +153,10 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
                     ImGui.setTooltip("焦点距离");
                 }
             }
+            Card.end();
             
             // ========== 色调映射 ==========
-            if (Section.header("post_processing.tonemap", "色调映射")) {
+            if (Card.begin("post_processing.tonemap", "色调映射")) {
                 // 色调映射模式
                 int currentMode = PropertyReflection.getInt(profile, "toneMapMode", "getToneMapMode", 0);
                 ImInt modeIdx = new ImInt(currentMode);
@@ -170,9 +172,10 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
                     ImGui.setTooltip("HDR 到 LDR 的转换算法");
                 }
             }
+            Card.end();
             
             // ========== 颜色分级 ==========
-            if (Section.header("post_processing.grading", "颜色分级")) {
+            if (Card.begin("post_processing.grading", "颜色分级")) {
                 // 曝光
                 float currentExposure = PropertyReflection.getFloat(profile, "exposure", "getExposure", 1.0f);
                 float[] exposure = {currentExposure};
@@ -213,9 +216,10 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
                     ImGui.setTooltip("颜色饱和度");
                 }
             }
+            Card.end();
             
             // ========== 屏幕空间效果 ==========
-            if (Section.header("post_processing.screen_space", "屏幕空间效果", false)) {
+            if (Card.begin("post_processing.screen_space", "屏幕空间效果", false)) {
                 // SSAO
                 boolean currentSSAO = PropertyReflection.getBoolean(profile, "ssaoEnabled", "isSSAOEnabled", false);
                 ImBoolean enableSSAO = new ImBoolean(currentSSAO);
@@ -236,6 +240,7 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
                     }
                 }
             }
+            Card.end();
             
             UITheme.separator();
             

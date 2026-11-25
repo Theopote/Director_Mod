@@ -10,6 +10,8 @@ import imgui.flag.ImGuiTableColumnFlags;
 import imgui.flag.ImGuiTableFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,7 +30,8 @@ import java.util.Map;
  * 等不换行文本也会在单元格右边缘自动换行。
  *
  * <p>底色块在内容之前绘制，高度取自上一帧（展开/折叠的瞬间会有一帧滞后）。
- * 卡片与表格都不可嵌套；二级分组请继续使用 {@link Section#header}。
+ * 卡片不可嵌套：已在卡片内时再调用 {@code begin} 会退化为普通的 {@link Section#header}，
+ * 对应的 {@link #end()} 为空操作，因此通用的子面板可以放心地同样用 begin/end 书写。
  */
 public final class Card {
     private static final float PAD_X = UITheme.Spacing.NORMAL;
@@ -36,6 +39,9 @@ public final class Card {
     private static final float GAP_AFTER = UITheme.Spacing.NORMAL;
 
     private static final Map<String, Float> LAST_HEIGHT = new HashMap<>();
+
+    /** 每次 begin 压入一项：true 表示这次退化成了普通 Section，end 时不做任何事。 */
+    private static final Deque<Boolean> NESTED = new ArrayDeque<>();
 
     private static boolean active;
     private static boolean tableOpen;
@@ -54,8 +60,10 @@ public final class Card {
 
     public static boolean begin(String id, String title, boolean defaultOpen) {
         if (active) {
-            throw new IllegalStateException("Card 不可嵌套，请先调用 Card.end()");
+            NESTED.push(true);
+            return Section.header(id, title, defaultOpen);
         }
+        NESTED.push(false);
         active = true;
         tableOpen = false;
         currentId = id;
@@ -103,7 +111,7 @@ public final class Card {
     }
 
     public static void end() {
-        if (!active) {
+        if (NESTED.isEmpty() || NESTED.pop() || !active) {
             return;
         }
         if (tableOpen) {

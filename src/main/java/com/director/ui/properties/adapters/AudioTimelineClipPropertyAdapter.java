@@ -10,7 +10,7 @@ import com.director.timeline.model.audio.AudioClipKeyframe;
 import com.director.timeline.model.audio.AudioTimelineClip;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.audio.TimelineAudioService;
 import com.director.util.ParseUtils;
@@ -38,7 +38,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
 
         UITheme.title(TrackType.AUDIO.getIcon() + " 音频片段");
 
-        if (Section.header("audio.clip.basic", "基础")) {
+        if (Card.begin("audio.clip.basic", "基础")) {
             boolean isBound = clip.getBoundContainerId() != null;
             if (isBound) {
                 ImGui.textDisabled("提示：该音频片段已绑定容器。时间范围将自动与容器片段保持一致；若要整体移动请先取消绑定。");
@@ -63,8 +63,9 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                 ImGui.endDisabled();
             }
         }
+        Card.end();
 
-        if (Section.header("audio.clip.link", "链接")) {
+        if (Card.begin("audio.clip.link", "链接")) {
             String boundName = clip.getBoundContainerName();
             if (boundName == null || boundName.isBlank()) {
                 boundName = "（未绑定）";
@@ -81,8 +82,9 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                 ImGui.textDisabled(String.format("当前时间音量倍率: %.2f", volume));
             }
         }
+        Card.end();
 
-        if (Section.header("audio.clip.sync", "音效同步")) {
+        if (Card.begin("audio.clip.sync", "音效同步")) {
             if (clip.getBoundContainerId() == null) {
                 ImGui.textDisabled("未绑定容器：此处无自动放置/破坏音效可同步。");
             } else {
@@ -217,8 +219,9 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                 }
             }
         }
+        Card.end();
 
-        if (Section.header("audio.clip.automation", "音量自动化")) {
+        if (Card.begin("audio.clip.automation", "音量自动化")) {
             int count = 0;
             for (var kf : clip.getClipKeyframes()) {
                 if (kf instanceof AudioClipKeyframe) {
@@ -228,6 +231,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
             ImGui.textDisabled("音量关键帧数量: " + count);
             ImGui.textDisabled("提示：在时间线上双击该音频片段可添加音量关键帧。");
         }
+        Card.end();
 
         return modified;
     }

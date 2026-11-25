@@ -8,7 +8,7 @@ import com.director.i18n.DirectorLang;
 import com.director.timeline.model.entity.ActorRelationClip;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.actor.ActorClipInspectorGesture;
 import com.director.actor.ActorBehaviorCapabilities;
 import com.director.ui.theme.Icons;
@@ -45,13 +45,14 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
         boolean changed = false;
         UITheme.title(getAdapterName());
 
-        if (Section.header("actor_relation_clip.section_basic", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC))) {
+        if (Card.begin("actor_relation_clip.section_basic", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC))) {
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.START_FMT, clip.getStartTime()));
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.END_FMT, clip.getEndTime()));
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION_FMT, clip.getLength()));
         }
+        Card.end();
 
-        if (Section.header("actor_relation_clip.section_relation", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_RELATION))) {
+        if (Card.begin("actor_relation_clip.section_relation", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_RELATION))) {
             PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.RELATION_TYPE));
             if (ImGui.beginCombo("##relationType", ActorPropertyAdapterI18n.relationTypeLabels()[clip.getRelationType().ordinal()])) {
                 for (var type : ActorRelationClip.RelationType.values()) {
@@ -130,8 +131,9 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
             }
             ImGui.endDisabled();
         }
+        Card.end();
 
-        if (Section.header("actor_relation_clip.section_target", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_TARGET))) {
+        if (Card.begin("actor_relation_clip.section_target", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_TARGET))) {
             ActorRegistry registry = ActorRegistryManager.getInstance();
             UUID selfActorId = source.getTimelineClip().getParentTrack().getActorTrackPayload().getActorRef().getActorId();
             List<Actor> actors = new ArrayList<>();
@@ -176,6 +178,7 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
                         clip.getTargetActorId().toString()));
             }
         }
+        Card.end();
 
         gesture.end();
         return false;

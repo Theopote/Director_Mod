@@ -2,7 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.theme.UITheme;
@@ -90,7 +90,7 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
         
         try {
             // ========== 重力系统 ==========
-            if (Section.header("project.physics.gravity", "重力系统")) {
+            if (Card.begin("project.physics.gravity", "重力系统")) {
                 // 重力向量（使用 Vector3fPropertyAdapter）
                 Object gravity = PropertyReflection.readProperty(physics, "gravity", "getGravity");
                 if (gravity != null) {
@@ -121,9 +121,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                     ImGui.popID();
                 }
             }
+            Card.end();
             
             // ========== 风场系统 ==========
-            if (Section.header("project.physics.wind", "风场系统", false)) {
+            if (Card.begin("project.physics.wind", "风场系统", false)) {
                 // 风向量（使用 Vector3fPropertyAdapter）
                 Object wind = PropertyReflection.readProperty(physics, "wind", "getWind");
                 if (wind != null) {
@@ -165,9 +166,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                     ImGui.setTooltip("风的不规则程度");
                 }
             }
+            Card.end();
             
             // ========== 碰撞系统 ==========
-            if (Section.header("project.physics.collision", "碰撞系统", false)) {
+            if (Card.begin("project.physics.collision", "碰撞系统", false)) {
                 // 启用碰撞
                 boolean currentCollision = PropertyReflection.getBoolean(physics, "collisionEnabled", "isCollisionEnabled", true);
                 ImBoolean enableCollision = new ImBoolean(currentCollision);
@@ -208,9 +210,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                     ImGui.setTooltip("表面摩擦力（0 = 光滑，1 = 粗糙）");
                 }
             }
+            Card.end();
             
             // ========== 空气阻力 ==========
-            if (Section.header("project.physics.drag", "空气阻力", false)) {
+            if (Card.begin("project.physics.drag", "空气阻力", false)) {
                 // 阻力系数
                 float currentDrag = PropertyReflection.getFloat(physics, "airResistance", "getAirResistance", 0.01f);
                 float[] airDrag = {currentDrag};
@@ -238,9 +241,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                     ImGui.setTooltip("环境流体的密度（1.0 = 空气，更高 = 水、油等）");
                 }
             }
+            Card.end();
             
             // ========== 物理开关 ==========
-            if (Section.header("project.physics.options", "物理开关", false)) {
+            if (Card.begin("project.physics.options", "物理开关", false)) {
                 // 启用物理系统
                 boolean currentEnabled = PropertyReflection.getBoolean(physics, "enabled", "isEnabled", true);
                 ImBoolean enabled = new ImBoolean(currentEnabled);
@@ -268,6 +272,7 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                     ImGui.setTooltip("显示碰撞体、力场等调试信息");
                 }
             }
+            Card.end();
             
             UITheme.separator();
             

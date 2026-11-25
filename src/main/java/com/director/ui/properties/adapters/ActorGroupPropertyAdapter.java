@@ -7,6 +7,7 @@ import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.Section;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -67,7 +68,7 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
         ImGui.beginDisabled(readOnly);
         UITheme.title(getAdapterName());
 
-        if (Section.header("actor_group.section_basic", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC))) {
+        if (Card.begin("actor_group.section_basic", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC))) {
             PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME));
             ImGui.inputText("##actorGroupName", nameDraft);
             editingDraft |= ImGui.isItemActive();
@@ -77,8 +78,9 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
             }
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.MEMBER_COUNT_FMT, group.size()));
         }
+        Card.end();
 
-        if (Section.header("actor_group.section_formation", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_FORMATION))) {
+        if (Card.begin("actor_group.section_formation", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_FORMATION))) {
             ActorGroup.FormationType[] formationTypes = ActorGroup.FormationType.values();
             ImInt formation = new ImInt(group.getFormationType().ordinal());
             PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.FORMATION_TYPE));
@@ -94,8 +96,9 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
             if (ImGui.isItemDeactivatedAfterEdit()) { commit(group, com.director.ui.actor.ActorProjectEditing.GroupState.capture(group).withSpacing(spacingDraft[0])); changed = true; }
 
         }
+        Card.end();
 
-        if (Section.header("actor_group.section_delay", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_DELAY))) {
+        if (Card.begin("actor_group.section_delay", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_DELAY))) {
             ActorGroup.DelayPolicy[] delayPolicies = ActorGroup.DelayPolicy.values();
             ImInt delay = new ImInt(group.getDelayPolicy().ordinal());
             PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.DELAY_POLICY));
@@ -130,6 +133,7 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
             if (ImGui.isItemDeactivatedAfterEdit()) { commit(group, com.director.ui.actor.ActorProjectEditing.GroupState.capture(group).withStep(stepDraft[0])); changed = true; }
 
         }
+        Card.end();
 
         if (Section.header("actor_group.section_members", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_MEMBERS))) {
             var registry = ActorRegistryManager.getInstance();

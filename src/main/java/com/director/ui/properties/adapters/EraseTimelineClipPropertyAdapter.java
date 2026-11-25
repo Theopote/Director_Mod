@@ -4,6 +4,7 @@ import com.director.core.DirectorServices;
 import com.director.core.animation.effect.EffectInstance;
 import com.director.core.container.Container;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.Section;
 import com.director.timeline.model.TimelineClip;
 import com.director.ui.theme.Icons;
@@ -78,9 +79,10 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         final float oldStartTime = clip.getStartTime();
         final float oldEndTime = clip.getEndTime();
 
-        if (Section.header("erase_timeline_clip.basic", "基础设置")) {
+        if (Card.begin("erase_timeline_clip.basic", "基础设置")) {
             modified |= propertyUi.renderBasicProperties(clip, TimelineClipUiVariant.DEMOLITION);
         }
+        Card.end();
 
         boolean sequenceModified = false;
         boolean animationModified = false;
@@ -90,10 +92,11 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
             modified |= sequenceModified;
         }
 
-        if (Section.header("erase_timeline_clip.animation", "动画设置")) {
+        if (Card.begin("erase_timeline_clip.animation", "动画设置")) {
             animationModified = propertyUi.renderAnimationSettings(clip, TimelineClipUiVariant.DEMOLITION);
             modified |= animationModified;
         }
+        Card.end();
 
         List<EffectInstance> effects = clip.getAnimationConfig() != null
                 ? clip.getAnimationConfig().getEffects() : Collections.emptyList();
@@ -101,9 +104,10 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         if (!clip.getAnimationConfig().isWholeContainer() && !effects.isEmpty()) {
             effectsHeader += " (" + effects.size() + ")";
         }
-        if (Section.header("erase_timeline_clip.effects", effectsHeader)) {
+        if (Card.begin("erase_timeline_clip.effects", effectsHeader)) {
             modified |= propertyUi.renderEffectsSection(clip);
         }
+        Card.end();
 
         propertyUi.queueSoundRefresh(clip, sequenceModified || animationModified);
 

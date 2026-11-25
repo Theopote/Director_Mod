@@ -2,7 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
@@ -76,7 +76,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
         
         try {
             // ========== 材质列表 ==========
-            if (Section.header("material_library.library", "材质列表")) {
+            if (Card.begin("material_library.library", "材质列表")) {
                 // 获取材质列表
                 Object materialsObj = PropertyReflection.readProperty(library, "materials", "getMaterials");
                 
@@ -143,6 +143,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                     ImGui.setTooltip("删除当前选中的材质");
                 }
             }
+            Card.end();
             
             // ========== 材质属性（选中时显示）==========
             Object materialsObj2 = PropertyReflection.readProperty(library, "materials", "getMaterials");
@@ -153,7 +154,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                 if (selectedMaterialIndex >= 0 && selectedMaterialIndex < materials.size()) {
                     Object material = materials.get(selectedMaterialIndex);
                     
-                    if (Section.header("material_library.properties", "材质属性")) {
+                    if (Card.begin("material_library.properties", "材质属性")) {
                         // 材质名称
                         String currentName = PropertyReflection.getString(material, "name", "getName", "未命名材质");
                         ImString nameBuffer = new ImString(currentName, 256);
@@ -227,9 +228,10 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                             ImGui.setTooltip("材质的自发光颜色（用于发光方块）");
                         }
                     }
+                    Card.end();
                     
                     // ========== 纹理管理 ==========
-                    if (Section.header("material_library.textures", "纹理管理", false)) {
+                    if (Card.begin("material_library.textures", "纹理管理", false)) {
                         // 纹理路径
                         String currentPath = PropertyReflection.getString(material, "texturePath", "getTexturePath", "");
                         ImString pathBuffer = new ImString(currentPath, 512);
@@ -270,6 +272,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                         UITheme.spacingSmall();
                         UITheme.label("纹理预览（未实现）", UITheme.DarkTheme.TEXT_DISABLED);
                     }
+                    Card.end();
                 } else {
                     UITheme.spacingLarge();
                     UITheme.label("请在左侧列表中选择一个材质", UITheme.DarkTheme.TEXT_DISABLED);
@@ -277,7 +280,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
             }
             
             // ========== 统计信息 ==========
-            if (Section.header("material_library.stats", "统计信息", false)) {
+            if (Card.begin("material_library.stats", "统计信息", false)) {
                 Object materialsObj = PropertyReflection.readProperty(library, "materials", "getMaterials");
                 int materialCount = 0;
                 
@@ -290,6 +293,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                     (selectedMaterialIndex >= 0 ? "材质 " + selectedMaterialIndex : "无"), 
                     UITheme.DarkTheme.TEXT_DISABLED);
             }
+            Card.end();
             
             UITheme.separator();
             

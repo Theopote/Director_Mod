@@ -9,7 +9,7 @@ import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import com.director.ui.util.UIUtils;
@@ -119,25 +119,30 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         boolean modified = false;
         UITheme.title(Icons.FOLDER + " " + tr(DirectorLang.Properties.AdapterContainer.GROUP_TITLE));
 
-        if (Section.header("container.group.section_basic", tr(DirectorLang.Properties.AdapterContainer.SECTION_BASIC))) {
+        if (Card.begin("container.group.section_basic", tr(DirectorLang.Properties.AdapterContainer.SECTION_BASIC))) {
             modified |= renderNameAndTypeSection(container, false);
         }
+        Card.end();
 
-        if (Section.header("container.group.section_display", tr(DirectorLang.Properties.AdapterContainer.SECTION_DISPLAY))) {
+        if (Card.begin("container.group.section_display", tr(DirectorLang.Properties.AdapterContainer.SECTION_DISPLAY))) {
             modified |= renderVisibilityAndLockSection(container);
         }
+        Card.end();
 
-        if (Section.header("container.group.section_content_stats", tr(DirectorLang.Properties.AdapterContainer.SECTION_CONTENT_STATS))) {
+        if (Card.begin("container.group.section_content_stats", tr(DirectorLang.Properties.AdapterContainer.SECTION_CONTENT_STATS))) {
             renderGroupContentStatistics(container);
         }
+        Card.end();
 
-        if (Section.header("container.group.section_hierarchy", tr(DirectorLang.Properties.AdapterContainer.SECTION_HIERARCHY))) {
+        if (Card.begin("container.group.section_hierarchy", tr(DirectorLang.Properties.AdapterContainer.SECTION_HIERARCHY))) {
             renderHierarchySection(container);
         }
+        Card.end();
 
-        if (Section.header("container.group.section_metadata", tr(DirectorLang.Properties.AdapterContainer.SECTION_METADATA), false)) {
+        if (Card.begin("container.group.section_metadata", tr(DirectorLang.Properties.AdapterContainer.SECTION_METADATA), false)) {
             renderMetadataSection(container);
         }
+        Card.end();
 
         return modified;
     }
@@ -146,11 +151,12 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         boolean modified = false;
         UITheme.title(Icons.CONTAINER + " " + tr(DirectorLang.Properties.AdapterContainer.CONTAINER_TITLE));
 
-        if (Section.header("container.section_basic", tr(DirectorLang.Properties.AdapterContainer.SECTION_BASIC))) {
+        if (Card.begin("container.section_basic", tr(DirectorLang.Properties.AdapterContainer.SECTION_BASIC))) {
             modified |= renderNameAndTypeSection(container, true);
         }
+        Card.end();
 
-        if (Section.header("container.section_visual", tr(DirectorLang.Properties.AdapterContainer.SECTION_VISUAL))) {
+        if (Card.begin("container.section_visual", tr(DirectorLang.Properties.AdapterContainer.SECTION_VISUAL))) {
             modified |= renderVisibilityAndLockSection(container);
 
             float[] opacity = {container.getOpacity()};
@@ -190,33 +196,39 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
                 ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.MARKER_COLOR_TOOLTIP));
             }
         }
+        Card.end();
 
         // 默认动画预设仅作新建片段种子，时间线占用时仍可编辑。
         if (timelineControlled) {
             ImGui.endDisabled();
         }
-        if (Section.header("container.section_animation", tr(DirectorLang.Properties.AdapterContainer.SECTION_ANIMATION), false)) {
+        if (Card.begin("container.section_animation", tr(DirectorLang.Properties.AdapterContainer.SECTION_ANIMATION), false)) {
             modified |= renderAnimationSection(container);
         }
+        Card.end();
         if (timelineControlled) {
             ImGui.beginDisabled();
         }
 
-        if (Section.header("container.section_bounds", tr(DirectorLang.Properties.AdapterContainer.SECTION_BOUNDS), false)) {
+        if (Card.begin("container.section_bounds", tr(DirectorLang.Properties.AdapterContainer.SECTION_BOUNDS), false)) {
             renderBoundingBoxSection(container);
         }
+        Card.end();
 
-        if (Section.header("container.section_stats", tr(DirectorLang.Properties.AdapterContainer.SECTION_STATS), false)) {
+        if (Card.begin("container.section_stats", tr(DirectorLang.Properties.AdapterContainer.SECTION_STATS), false)) {
             renderStatisticsSection(container);
         }
+        Card.end();
 
-        if (Section.header("container.section_hierarchy", tr(DirectorLang.Properties.AdapterContainer.SECTION_HIERARCHY))) {
+        if (Card.begin("container.section_hierarchy", tr(DirectorLang.Properties.AdapterContainer.SECTION_HIERARCHY))) {
             renderHierarchySection(container);
         }
+        Card.end();
 
-        if (Section.header("container.section_metadata", tr(DirectorLang.Properties.AdapterContainer.SECTION_METADATA), false)) {
+        if (Card.begin("container.section_metadata", tr(DirectorLang.Properties.AdapterContainer.SECTION_METADATA), false)) {
             renderMetadataSection(container);
         }
+        Card.end();
 
         UITheme.separator();
         modified |= renderQuickActions(container);

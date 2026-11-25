@@ -2,7 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.time.TimeKeyframe;
@@ -85,7 +85,7 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
         UITheme.title(Icons.CLOCK + " " + TITLE);
         
                // ========== 基础信息 ==========
-        if (Section.header("time.basic", "基础信息")) {
+        if (Card.begin("time.basic", "基础信息")) {
             timeFloat.set(keyframe.getTime());
             PropertyRow.field("时间");
             if (ImGui.dragFloat("##时间", timeFloat.getData(), 0.05f, 0.0f, 10_000f, "%.2fs")) {
@@ -96,9 +96,10 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
             
             UITheme.spacingSmall();
         }
+        Card.end();
         
         // ========== 世界时间设置 ==========
-        if (Section.header("time.world", "世界时间设置")) {
+        if (Card.begin("time.world", "世界时间设置")) {
             // ⭐ v3.0：模式选择 - 明确两种模式的互斥性
             useNaturalTimeBool.set(keyframe.isUseNaturalTime());
             
@@ -226,9 +227,10 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
             
             UITheme.spacingSmall();
         }
+        Card.end();
         
         // ========== 插值设置 ==========
-        if (Section.header("time.interpolation", "插值设置")) {
+        if (Card.begin("time.interpolation", "插值设置")) {
             // 位置/时间插值类型
             TimeKeyframe.TimeInterpolation[] timeTypes = TimeKeyframe.TimeInterpolation.values();
             interpolationIndex.set(keyframe.getPathInterpolation().ordinal());
@@ -250,6 +252,7 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
             
             UITheme.spacingSmall();
         }
+        Card.end();
         
         // ⭐ v3.3：修复问题1 - 参数变化时立即更新冻结状态并预览关键帧所在位置
         // 这样可以确保设置的时间能够持久显示，不会被播放头位置的采样结果覆盖

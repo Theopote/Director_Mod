@@ -3,7 +3,7 @@ package com.director.ui.properties.adapters;
 import com.director.i18n.CameraPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
 import com.director.timeline.model.camera.path.CustomPathClip;
@@ -81,7 +81,7 @@ public class CustomPathClipPropertyAdapter implements IPropertyAdapter<CustomPat
 
     private boolean renderBasicSection(CustomPathClip clip) {
         boolean modified = false;
-        if (Section.header("camera.custom.basic_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.BASIC_SECTION))) {
+        if (Card.begin("camera.custom.basic_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.BASIC_SECTION))) {
             ImGui.indent();
             PropertyRow.field(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.NAME));
             if (ImGui.inputText("##name", nameBuffer)) {
@@ -95,11 +95,12 @@ public class CustomPathClipPropertyAdapter implements IPropertyAdapter<CustomPat
             }
             ImGui.unindent();
         }
+        Card.end();
         return modified;
     }
 
     private void renderTimingSection(CustomPathClip clip) {
-        if (Section.header("camera.custom.timing_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_SECTION))) {
+        if (Card.begin("camera.custom.timing_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_SECTION))) {
             ImGui.indent();
             ImGui.beginDisabled();
             ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_START, clip.getStartTime()));
@@ -109,10 +110,11 @@ public class CustomPathClipPropertyAdapter implements IPropertyAdapter<CustomPat
             ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_HINT));
             ImGui.unindent();
         }
+        Card.end();
     }
 
     private void renderKeyframeSection(CustomPathClip clip) {
-        if (Section.header("camera.custom.keyframes_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.KEYFRAMES_SECTION))) {
+        if (Card.begin("camera.custom.keyframes_section", CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.KEYFRAMES_SECTION))) {
             ImGui.indent();
             int count = clip.getKeyframes().size();
             ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.KEYFRAME_COUNT, count));
@@ -123,6 +125,7 @@ public class CustomPathClipPropertyAdapter implements IPropertyAdapter<CustomPat
             }
             ImGui.unindent();
         }
+        Card.end();
     }
 
     private void syncCacheFromClip(CustomPathClip clip) {

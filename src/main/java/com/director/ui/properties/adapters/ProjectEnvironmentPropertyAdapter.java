@@ -2,7 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
@@ -95,7 +95,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
         
         try {
             // ========== 光照系统 ==========
-            if (Section.header("project.environment.lighting", "光照系统")) {
+            if (Card.begin("project.environment.lighting", "光照系统")) {
                 // 环境光颜色
                 float[] ambientColor = PropertyReflection.getFloatArray(env, "ambientColor", "getAmbientColor");
                 if (ambientColor == null || ambientColor.length < 4) {
@@ -161,9 +161,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                     ImGui.setTooltip("场景整体亮度（1.0 = 正常，>1.0 = 过曝，<1.0 = 欠曝）");
                 }
             }
+            Card.end();
             
             // ========== 天气系统 ==========
-            if (Section.header("project.environment.weather", "天气系统")) {
+            if (Card.begin("project.environment.weather", "天气系统")) {
                 // 雨雪天气
                 boolean currentRain = PropertyReflection.getBoolean(env, "weatherRain", "isWeatherRain", false);
                 ImBoolean enableRain = new ImBoolean(currentRain);
@@ -241,9 +242,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                     ImGui.popID();
                 }
             }
+            Card.end();
             
             // ========== 渲染控制 ==========
-            if (Section.header("project.environment.rendering", "渲染控制", false)) {
+            if (Card.begin("project.environment.rendering", "渲染控制", false)) {
                 // 启用阴影
                 boolean currentShadows = PropertyReflection.getBoolean(env, "shadowsEnabled", "isShadowsEnabled", true);
                 ImBoolean enableShadows = new ImBoolean(currentShadows);
@@ -286,9 +288,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                     ImGui.setTooltip("启用屏幕空间效果（泛光、景深等）");
                 }
             }
+            Card.end();
             
             // ========== 可视层控制 ==========
-            if (Section.header("project.environment.layers", "可视层控制", false)) {
+            if (Card.begin("project.environment.layers", "可视层控制", false)) {
                 // 显示透明方块
                 boolean currentTransparent = PropertyReflection.getBoolean(env, "showTransparentBlocks", "isShowTransparentBlocks", true);
                 ImBoolean showTransparent = new ImBoolean(currentTransparent);
@@ -345,9 +348,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                     ImGui.setTooltip("显示辅助网格线");
                 }
             }
+            Card.end();
             
             // ========== 环境预设 ==========
-            if (Section.header("project.environment.presets", "环境预设", false)) {
+            if (Card.begin("project.environment.presets", "环境预设", false)) {
                 UITheme.label("快速应用环境预设:", UITheme.DarkTheme.TEXT);
                 UITheme.spacingSmall();
                 
@@ -364,6 +368,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                     ImGui.popID();
                 }
             }
+            Card.end();
             
             UITheme.separator();
             

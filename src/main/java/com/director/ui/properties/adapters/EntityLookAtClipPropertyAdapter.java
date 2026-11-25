@@ -4,7 +4,7 @@ import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.actor.ActorClipInspectorGesture;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -41,14 +41,15 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
         if (source != null) {
             ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.END_FMT, source.getEndTime()));
         }
-        if (Section.header("entity_look_at_clip.section_target_mode", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_TARGET_MODE))) {
+        if (Card.begin("entity_look_at_clip.section_target_mode", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_TARGET_MODE))) {
             var modes = EntityLookAtClip.TargetMode.values(); var index = new ImInt(clip.getMode().ordinal());
             PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.TARGET_MODE));
             boolean changed = ImGui.combo("##lookClipMode", index, ActorPropertyAdapterI18n.lookAtTargetModeLabels());
             if (changed) clip.setMode(modes[index.get()]);
             gesture.observe("mode", changed);
         }
-        if (Section.header("entity_look_at_clip.section_target", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_TARGET))) {
+        Card.end();
+        if (Card.begin("entity_look_at_clip.section_target", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_TARGET))) {
             if (clip.getMode() == EntityLookAtClip.TargetMode.WORLD_POINT) {
                 Vector3f point = clip.getWorldPoint(); float[] xyz = {point.x, point.y, point.z};
                 PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.WORLD_COORDS));
@@ -89,7 +90,8 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
                 } catch (IllegalArgumentException invalid) { gesture.report(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.invalid_uuid")); }
             }
         }
-        if (Section.header("entity_look_at_clip.section_strength", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_STRENGTH))) {
+        Card.end();
+        if (Card.begin("entity_look_at_clip.section_strength", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_STRENGTH))) {
             float[] strength = {clip.getStrength()};
             PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY));
             boolean changed = ImGui.sliderFloat("##lookClipStrength", strength, 0, 1);
@@ -97,6 +99,7 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
             gesture.observe("strength", changed);
             if (ImGui.isItemHovered()) ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.STRENGTH_TOOLTIP));
         }
+        Card.end();
         gesture.end();
         return false;
     }

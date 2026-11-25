@@ -3,7 +3,7 @@ package com.director.ui.properties.adapters;
 import com.director.i18n.DirectorLang;
 import com.director.i18n.TimelinePropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -39,7 +39,7 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
 
         UITheme.title(Icons.TAG + " " + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.TITLE));
 
-        if (Section.header("timeline.marker.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.SECTION_BASIC))) {
+        if (Card.begin("timeline.marker.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.SECTION_BASIC))) {
             timeFloat.set(marker.getTime());
             PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.TIME_POSITION));
             if (ImGui.dragFloat("##time_position",
@@ -70,8 +70,9 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
 
             UITheme.spacingSmall();
         }
+        Card.end();
 
-        if (Section.header("timeline.marker.section_appearance", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.SECTION_APPEARANCE))) {
+        if (Card.begin("timeline.marker.section_appearance", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.SECTION_APPEARANCE))) {
             ImGui.text(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.PRESET_COLORS));
             UITheme.spacingSmall();
 
@@ -160,8 +161,9 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
 
             UITheme.spacingSmall();
         }
+        Card.end();
 
-        if (Section.header("timeline.marker.section_description", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.SECTION_DESCRIPTION), false)) {
+        if (Card.begin("timeline.marker.section_description", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineMarker.SECTION_DESCRIPTION), false)) {
             String currentNote = marker.getNote();
             if (currentNote == null) {
                 currentNote = "";
@@ -181,6 +183,7 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
 
             UITheme.spacingSmall();
         }
+        Card.end();
 
         return modified.get();
     }

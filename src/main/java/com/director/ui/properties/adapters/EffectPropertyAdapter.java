@@ -2,7 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.theme.UITheme;
@@ -89,7 +89,7 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
         
         try {
             // ========== 基础信息 ==========
-            if (Section.header("effect.basic", "基础信息")) {
+            if (Card.begin("effect.basic", "基础信息")) {
                 // 名称编辑（尝试反射获取）
                 String currentName = PropertyReflection.getString(effect, "name", "getName", "未命名特效");
                 ImString nameBuffer = new ImString(currentName, 256);
@@ -141,9 +141,10 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                     UITheme.label("ID: " + id, UITheme.DarkTheme.TEXT_DISABLED);
                 }
             }
+            Card.end();
             
             // ========== 时间控制 ==========
-            if (Section.header("effect.timing", "时间控制")) {
+            if (Card.begin("effect.timing", "时间控制")) {
                 // 开始时间
                 float currentStart = PropertyReflection.getFloat(effect, "startTime", "getStartTime", 0.0f);
                 float[] startTime = {currentStart};
@@ -191,9 +192,10 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 UITheme.label(String.format("强度: %.0f%%", intensity[0] * 10), 
                     UITheme.DarkTheme.TEXT_DISABLED);
             }
+            Card.end();
             
             // ========== 通用参数 ==========
-            if (Section.header("effect.common", "通用参数", false)) {
+            if (Card.begin("effect.common", "通用参数", false)) {
                 // 位置偏移（尝试使用 Vector3fPropertyAdapter）
                 Object offset = PropertyReflection.readProperty(effect, "offset", "getOffset");
                 if (offset != null) {
@@ -248,6 +250,7 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                     ImGui.setTooltip("增加随机性可以让特效更自然");
                 }
             }
+            Card.end();
             
             // ========== 类型特定参数 ==========
             int typeIndex = PropertyReflection.getInt(effect, "typeIndex", "getTypeIndex", 0);
@@ -314,7 +317,7 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
      * 粒子特效参数
      */
     private void renderParticleParameters(Object effect, ModifiedCallback callback) {
-        if (Section.header("effect.particles", "粒子参数", false)) {
+        if (Card.begin("effect.particles", "粒子参数", false)) {
             // 粒子数量
             int count = PropertyReflection.getInt(effect, "particleCount", "getParticleCount", 100);
             int[] particleCount = {count};
@@ -355,13 +358,14 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 }
             }
         }
+        Card.end();
     }
     
     /**
      * 光照特效参数
      */
     private void renderLightParameters(Object effect, ModifiedCallback callback) {
-        if (Section.header("effect.lighting", "光照参数", false)) {
+        if (Card.begin("effect.lighting", "光照参数", false)) {
             // 亮度
             float brightness = PropertyReflection.getFloat(effect, "brightness", "getBrightness", 1.0f);
             float[] brightnessArr = {brightness};
@@ -392,13 +396,14 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 }
             }
         }
+        Card.end();
     }
     
     /**
      * 镜头抖动参数
      */
     private void renderCameraShakeParameters(Object effect, ModifiedCallback callback) {
-        if (Section.header("effect.shake", "镜头抖动参数", false)) {
+        if (Card.begin("effect.shake", "镜头抖动参数", false)) {
             // 振幅
             float amplitude = PropertyReflection.getFloat(effect, "amplitude", "getAmplitude", 0.2f);
             float[] amplitudeArr = {amplitude};
@@ -429,13 +434,14 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 }
             }
         }
+        Card.end();
     }
     
     /**
      * 材质渐变参数
      */
     private void renderMaterialFadeParameters(Object effect, ModifiedCallback callback) {
-        if (Section.header("effect.materials", "材质渐变参数", false)) {
+        if (Card.begin("effect.materials", "材质渐变参数", false)) {
             // 起始透明度
             float fromAlpha = PropertyReflection.getFloat(effect, "fromAlpha", "getFromAlpha", 1.0f);
             float[] fromAlphaArr = {fromAlpha};
@@ -466,26 +472,29 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 }
             }
         }
+        Card.end();
     }
     
     /**
      * 物理力场参数
      */
     private void renderPhysicsParameters(Object effect, ModifiedCallback callback) {
-        if (Section.header("effect.physics", "物理力场参数", false)) {
+        if (Card.begin("effect.physics", "物理力场参数", false)) {
             UITheme.label("物理力场特效参数", UITheme.DarkTheme.TEXT_DISABLED);
             UITheme.label("（待实现）", UITheme.DarkTheme.TEXT_DISABLED);
         }
+        Card.end();
     }
     
     /**
      * 音效参数
      */
     private void renderSoundParameters(Object effect, ModifiedCallback callback) {
-        if (Section.header("effect.audio", "音效参数", false)) {
+        if (Card.begin("effect.audio", "音效参数", false)) {
             UITheme.label("音效播放参数", UITheme.DarkTheme.TEXT_DISABLED);
             UITheme.label("（待实现）", UITheme.DarkTheme.TEXT_DISABLED);
         }
+        Card.end();
     }
     @Override
     public Class<Object> getTargetType() {

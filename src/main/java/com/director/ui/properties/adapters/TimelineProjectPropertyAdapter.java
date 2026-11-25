@@ -5,7 +5,7 @@ import com.director.i18n.DirectorLang;
 import com.director.i18n.TimelinePropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
-import com.director.ui.properties.Section;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
@@ -103,7 +103,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
         
         try {
             // ========== 基础信息 ==========
-            if (Section.header("timeline_project.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_BASIC))) {
+            if (Card.begin("timeline_project.section_basic", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_BASIC))) {
                 // 项目名称
                 String currentName = PropertyReflection.getString(project, "name", "getName",
                         TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.DEFAULT_NAME));
@@ -168,9 +168,10 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                             UITheme.DarkTheme.TEXT_DISABLED);
                 }
             }
+            Card.end();
             
             // ========== 全局设置 ==========
-            if (Section.header("timeline_project.section_global", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_GLOBAL))) {
+            if (Card.begin("timeline_project.section_global", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_GLOBAL))) {
                 // 帧率
                 float currentFPS = PropertyReflection.getFloat(project, "frameRate", "getFrameRate", 30.0f);
                 float[] fps = {currentFPS};
@@ -237,9 +238,10 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                             DirectorLang.Properties.AdapterTimelineProject.LOOP_ALL_TOOLTIP));
                 }
             }
+            Card.end();
             
             // ========== 序列管理 ==========
-            if (Section.header("timeline_project.section_sequences", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_SEQUENCES))) {
+            if (Card.begin("timeline_project.section_sequences", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_SEQUENCES))) {
                 // 获取序列列表
                 Object sequencesObj = PropertyReflection.readProperty(project, "sequences", "getSequences");
                 
@@ -381,9 +383,10 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                             DirectorLang.Properties.AdapterTimelineProject.CLEAR_ALL_SEQUENCES_TOOLTIP));
                 }
             }
+            Card.end();
             
             // ========== 导出设置 ==========
-            if (Section.header("timeline_project.section_export", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_EXPORT), false)) {
+            if (Card.begin("timeline_project.section_export", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_EXPORT), false)) {
                 // 导出格式
                 int currentFormat = PropertyReflection.getInt(project, "exportFormat", "getExportFormat", 0);
                 ImInt formatIdx = new ImInt(currentFormat);
@@ -462,9 +465,10 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                     }
                 }
             }
+            Card.end();
             
             // ========== 统计信息 ==========
-            if (Section.header("timeline_project.section_stats", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_STATS), false)) {
+            if (Card.begin("timeline_project.section_stats", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineProject.SECTION_STATS), false)) {
                 // 序列统计
                 Object sequencesObj = PropertyReflection.readProperty(project, "sequences", "getSequences");
                 int sequenceCount = 0;
@@ -529,6 +533,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                         UITheme.DarkTheme.TEXT_DISABLED);
                 }
             }
+            Card.end();
             
             UITheme.separator();
             

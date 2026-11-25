@@ -31,6 +31,7 @@ import com.director.timeline.model.TimelineClip;
 import com.director.ui.theme.Icons;
 import imgui.ImDrawList;
 import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.Section;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -279,7 +280,7 @@ public class TimelineClipPropertyUi {
 
         ImGui.separator();
 
-        if (Section.header("clip.post_animation_fade", ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_POST_ANIMATION_FADE_HEADER), false)) {
+        if (Card.begin("clip.post_animation_fade", ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_POST_ANIMATION_FADE_HEADER), false)) {
             ImGui.indent();
             ImBoolean fadeEnabled = new ImBoolean(clip.isPostAnimationFadeEnabled());
             PropertyRow.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_POST_ANIMATION_FADE_HEADER));
@@ -322,6 +323,7 @@ public class TimelineClipPropertyUi {
 
             ImGui.unindent();
         }
+        Card.end();
 
         return modified;
     }
