@@ -28,6 +28,15 @@ public final class ActorAnimationAssetPanel {
     private ActorAnimationAssetPanel() {}
 
     public static void render(TimelineModel model, UUID actorId) {
+        ImGui.pushTextWrapPos(0f);
+        try {
+            renderStatic(model, actorId);
+        } finally {
+            ImGui.popTextWrapPos();
+        }
+    }
+
+    private static void renderStatic(TimelineModel model, UUID actorId) {
         if (model == null || !ImGui.treeNode("动画资产库##actorAssets")) return;
         var library = AnimationAssetLibrary.getInstance();
         var settings = ActorAnimationAuthoringSettings.getInstance();

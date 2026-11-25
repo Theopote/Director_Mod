@@ -58,6 +58,15 @@ public final class ActorBonePropertiesPanel {
 
 
     public static void render(TimelineModel model, UUID actorId) {
+        ImGui.pushTextWrapPos(0f);
+        try {
+            renderStatic(model, actorId);
+        } finally {
+            ImGui.popTextWrapPos();
+        }
+    }
+
+    private static void renderStatic(TimelineModel model, UUID actorId) {
         PROPERTIES.renderContents(model, actorId);
     }
 

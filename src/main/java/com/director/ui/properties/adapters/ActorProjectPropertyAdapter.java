@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.feedback.InlineNotice;
+import com.director.ui.properties.Card;
 import com.director.actor.animation.AnimationData;
 import com.director.actor.animation.asset.AnimationAsset;
 import com.director.timeline.model.TimelineClip;
@@ -194,81 +195,87 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     
     private boolean renderActorList(ActorRegistry actorRegistry) {
         // 使用 UITheme 的方式显示分隔符文本
-        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTOR_LIST), UITheme.DarkTheme.TEXT);
-        UITheme.separator();
-
-        List<Actor> actors = actorRegistry.getAllActors();
-        if (actors.isEmpty()) {
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NO_ACTORS));
-            return false;
-        }
-        
-        PropertyRow.field("搜索演员");
-        ImGui.inputText("##actorSearch", actorSearch);
-        PropertyRow.field("类型筛选");
-        if (ImGui.beginCombo("##actorTypeFilter", actorTypeFilter == null ? "全部类型" : ActorPropertyAdapterI18n.actorTypeLabel(actorTypeFilter))) {
-            if (ImGui.selectable("全部类型", actorTypeFilter == null)) actorTypeFilter = null;
-            for (var type : ActorType.values()) {
-                if (ImGui.selectable(ActorPropertyAdapterI18n.actorTypeLabel(type), type == actorTypeFilter)) actorTypeFilter = type;
-            }
-            ImGui.endCombo();
-        }
-        String query = actorSearch.get().strip().toLowerCase(java.util.Locale.ROOT);
-        var filtered = actors.stream().filter(actor -> actorTypeFilter == null || actor.getType() == actorTypeFilter)
-                .filter(actor -> (actor.getName() + " (" + ActorPropertyAdapterI18n.actorTypeLabel(actor.getType()) + ")")
-                        .toLowerCase(java.util.Locale.ROOT).contains(query)).toList();
-        if (filtered.isEmpty()) { ImGui.textDisabled("没有匹配的演员"); return false; }
-        ImGui.beginChild("##actorBrowserRows", 0, Math.clamp(ImGui.getContentRegionAvailY() * .6f, 100f, 320f), true);
+        if (!Card.begin("actorProject1", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTOR_LIST))) { Card.end(); return false; }
         try {
-            imgui.ImGuiListClipper.forEach(filtered.size(), new imgui.callback.ImListClipperCallback() {
-                @Override public void accept(int index) {
-                    Actor actor = filtered.get(index);
-                    String label = actor.getName() + " (" + ActorPropertyAdapterI18n.actorTypeLabel(actor.getType()) + ")";
-            ImGui.pushID(actor.getActorId().toString());
-            String placeLabel = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.PLACE);
-            float buttonWidth = ImGui.calcTextSize(placeLabel).x + ImGui.getStyle().getFramePaddingX() * 2;
-            float rowWidth = Math.max(30, ImGui.getContentRegionAvailX() - buttonWidth - ImGui.getStyle().getItemSpacingX());
-            if (ImGui.selectable(label + "###actorRow", actor.getActorId().equals(selectedActorId), 0, rowWidth, 0)) selectActor(actor);
-            if (ImGui.beginPopupContextItem("ActorContextMenu")) {
-                if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.EDIT))) editActor(actor);
-                if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.PLACE))) ActorSelectionHub.beginPlace(actor);
-                if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DELETE))) {
-                    deletingActorId = actor.getActorId();
-                    deleteConfirmOpen = true;
-                }
-                ImGui.endPopup();
+
+            List<Actor> actors = actorRegistry.getAllActors();
+            if (actors.isEmpty()) {
+                ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NO_ACTORS));
+                return false;
             }
-            ImGui.sameLine();
-            if (ImGui.smallButton(placeLabel)) ActorSelectionHub.beginPlace(actor);
-            ImGui.popID();
+        
+            PropertyRow.field("搜索演员");
+            ImGui.inputText("##actorSearch", actorSearch);
+            PropertyRow.field("类型筛选");
+            if (ImGui.beginCombo("##actorTypeFilter", actorTypeFilter == null ? "全部类型" : ActorPropertyAdapterI18n.actorTypeLabel(actorTypeFilter))) {
+                if (ImGui.selectable("全部类型", actorTypeFilter == null)) actorTypeFilter = null;
+                for (var type : ActorType.values()) {
+                    if (ImGui.selectable(ActorPropertyAdapterI18n.actorTypeLabel(type), type == actorTypeFilter)) actorTypeFilter = type;
                 }
-            });
-        } finally { ImGui.endChild(); }
-        return false;
+                ImGui.endCombo();
+            }
+            String query = actorSearch.get().strip().toLowerCase(java.util.Locale.ROOT);
+            var filtered = actors.stream().filter(actor -> actorTypeFilter == null || actor.getType() == actorTypeFilter)
+                    .filter(actor -> (actor.getName() + " (" + ActorPropertyAdapterI18n.actorTypeLabel(actor.getType()) + ")")
+                            .toLowerCase(java.util.Locale.ROOT).contains(query)).toList();
+            if (filtered.isEmpty()) { ImGui.textDisabled("没有匹配的演员"); return false; }
+            ImGui.beginChild("##actorBrowserRows", 0, Math.clamp(ImGui.getContentRegionAvailY() * .6f, 100f, 320f), true);
+            try {
+                imgui.ImGuiListClipper.forEach(filtered.size(), new imgui.callback.ImListClipperCallback() {
+                    @Override public void accept(int index) {
+                        Actor actor = filtered.get(index);
+                        String label = actor.getName() + " (" + ActorPropertyAdapterI18n.actorTypeLabel(actor.getType()) + ")";
+                ImGui.pushID(actor.getActorId().toString());
+                String placeLabel = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.PLACE);
+                float buttonWidth = ImGui.calcTextSize(placeLabel).x + ImGui.getStyle().getFramePaddingX() * 2;
+                float rowWidth = Math.max(30, ImGui.getContentRegionAvailX() - buttonWidth - ImGui.getStyle().getItemSpacingX());
+                if (ImGui.selectable(label + "###actorRow", actor.getActorId().equals(selectedActorId), 0, rowWidth, 0)) selectActor(actor);
+                if (ImGui.beginPopupContextItem("ActorContextMenu")) {
+                    if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.EDIT))) editActor(actor);
+                    if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.PLACE))) ActorSelectionHub.beginPlace(actor);
+                    if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DELETE))) {
+                        deletingActorId = actor.getActorId();
+                        deleteConfirmOpen = true;
+                    }
+                    ImGui.endPopup();
+                }
+                ImGui.sameLine();
+                if (ImGui.smallButton(placeLabel)) ActorSelectionHub.beginPlace(actor);
+                ImGui.popID();
+                    }
+                });
+            } finally { ImGui.endChild(); }
+            return false;
+        } finally {
+            Card.end();
+        }
     }
 
     private boolean renderGroupList(ActorRegistry actorRegistry) {
-        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTOR_GROUPS), UITheme.DarkTheme.TEXT);
-        UITheme.separator();
+        if (!Card.begin("actorProject2", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTOR_GROUPS))) { Card.end(); return false; }
+        try {
 
-        List<ActorGroup> groups = actorRegistry.getAllGroups();
-        if (groups.isEmpty()) {
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NO_GROUPS));
-            return false;
-        }
-
-        for(ActorGroup group:groups) {
-            ImGui.pushID(group.getGroupId().toString());
-            String label=ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_LABEL_FMT,group.getName(),group.size());
-            boolean selected=com.director.ui.properties.PropertyContextService.get().getActorInspection()==group;
-            if(ImGui.selectable(label+"##groupRow",selected)) {
-                ActorSelectionHub.clearSelection();
-                DirectorServices.get().uiSelection().setCurrentSelection(group);
-                com.director.ui.properties.PropertyContextService.get().inspectActorObject(group);
+            List<ActorGroup> groups = actorRegistry.getAllGroups();
+            if (groups.isEmpty()) {
+                ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NO_GROUPS));
+                return false;
             }
-            ImGui.popID();
+
+            for(ActorGroup group:groups) {
+                ImGui.pushID(group.getGroupId().toString());
+                String label=ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_LABEL_FMT,group.getName(),group.size());
+                boolean selected=com.director.ui.properties.PropertyContextService.get().getActorInspection()==group;
+                if(ImGui.selectable(label+"##groupRow",selected)) {
+                    ActorSelectionHub.clearSelection();
+                    DirectorServices.get().uiSelection().setCurrentSelection(group);
+                    com.director.ui.properties.PropertyContextService.get().inspectActorObject(group);
+                }
+                ImGui.popID();
+            }
+            return false;
+        } finally {
+            Card.end();
         }
-        return false;
     }
 
     private record GroupResult(TimelineModel model, ActorGroup group, int count, java.util.List<TimelineClip> clips) {}
@@ -359,141 +366,149 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
 
     private void renderGroupActionAuthoring(ActorGroup group) {
         ImGui.spacing();
-        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ACTION), UITheme.DarkTheme.TEXT);
+        if (!Card.begin("actorProject3", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ACTION))) { Card.end(); return; }
+        try {
 
-        ActorActionType currentBrush = ActionBrushState.get();
-        String currentLabel = currentBrush != null
-                ? ActorPropertyAdapterI18n.actionSemanticLabel(currentBrush)
-                : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NONE);
-        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTION));
-        if (ImGui.beginCombo("##groupAction" + group.getGroupId(), currentLabel)) {
-            for (ActorActionType type : ActorActionType.values()) {
-                boolean selected = type == currentBrush;
-                if (ImGui.selectable(ActorPropertyAdapterI18n.actionSemanticLabel(type), selected)) {
-                    ActionBrushState.set(type);
+            ActorActionType currentBrush = ActionBrushState.get();
+            String currentLabel = currentBrush != null
+                    ? ActorPropertyAdapterI18n.actionSemanticLabel(currentBrush)
+                    : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NONE);
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTION));
+            if (ImGui.beginCombo("##groupAction" + group.getGroupId(), currentLabel)) {
+                for (ActorActionType type : ActorActionType.values()) {
+                    boolean selected = type == currentBrush;
+                    if (ImGui.selectable(ActorPropertyAdapterI18n.actionSemanticLabel(type), selected)) {
+                        ActionBrushState.set(type);
+                    }
+                    if (selected) {
+                        ImGui.setItemDefaultFocus();
+                    }
                 }
-                if (selected) {
-                    ImGui.setItemDefaultFocus();
-                }
+                ImGui.endCombo();
             }
-            ImGui.endCombo();
-        }
 
-        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION));
-        ImGui.sliderFloat("##groupActionDuration" + group.getGroupId(),
-                groupActionDuration.getData(), 0.05f, 20.0f, "%.2fs");
-        PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY));
-        ImGui.sliderFloat("##groupActionIntensity" + group.getGroupId(),
-                groupActionIntensity.getData(), 0.0f, 1.0f, "%.2f");
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION));
+            ImGui.sliderFloat("##groupActionDuration" + group.getGroupId(),
+                    groupActionDuration.getData(), 0.05f, 20.0f, "%.2fs");
+            PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY));
+            ImGui.sliderFloat("##groupActionIntensity" + group.getGroupId(),
+                    groupActionIntensity.getData(), 0.0f, 1.0f, "%.2f");
 
-        PropertyRow.label(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.loop"));
-        ImGui.checkbox("##groupLoop", groupActionLoop);
-        ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.loop_hint"));
-        var preview = ActorGroupTimelineCommandService.getInstance().previewActions(
-                DirectorServices.get().containerTimeline().getTimelineModel(), group, currentBrush, groupActionDuration.get());
-        ImGui.pushID("actionPreview:" + group.getGroupId());
-        renderGroupPreview(preview);
-        ImGui.popID();
-        boolean canCreate = preview.canExecute();
-        if (!canCreate) {
-            ImGui.beginDisabled();
+            PropertyRow.label(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.loop"));
+            ImGui.checkbox("##groupLoop", groupActionLoop);
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.loop_hint"));
+            var preview = ActorGroupTimelineCommandService.getInstance().previewActions(
+                    DirectorServices.get().containerTimeline().getTimelineModel(), group, currentBrush, groupActionDuration.get());
+            ImGui.pushID("actionPreview:" + group.getGroupId());
+            renderGroupPreview(preview);
+            ImGui.popID();
+            boolean canCreate = preview.canExecute();
+            if (!canCreate) {
+                ImGui.beginDisabled();
+            }
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CREATE_ACTION_CLIPS) + "##groupCreateAction" + group.getGroupId())) {
+                var resultModel = DirectorServices.get().containerTimeline().getTimelineModel();
+                var beforeClips = clipSnapshot(resultModel);
+                int created = ActorGroupTimelineCommandService.getInstance().createActionClips(
+                        group,
+                        currentBrush,
+                        groupActionDuration.get(),
+                        groupActionIntensity.get(),
+                        groupActionLoop.get()
+                );
+                rememberGroupResult("actions", group, created, resultModel, beforeClips);
+                LOGGER.info("[ActorProjectPropertyAdapter] Created {} group action clips for {}", created, group.getName());
+            }
+            if (!canCreate) {
+                ImGui.endDisabled();
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ACTION_TOOLTIP));
+            }
+            renderGroupResult("actions", group);
+        } finally {
+            Card.end();
         }
-        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CREATE_ACTION_CLIPS) + "##groupCreateAction" + group.getGroupId())) {
-            var resultModel = DirectorServices.get().containerTimeline().getTimelineModel();
-            var beforeClips = clipSnapshot(resultModel);
-            int created = ActorGroupTimelineCommandService.getInstance().createActionClips(
-                    group,
-                    currentBrush,
-                    groupActionDuration.get(),
-                    groupActionIntensity.get(),
-                    groupActionLoop.get()
-            );
-            rememberGroupResult("actions", group, created, resultModel, beforeClips);
-            LOGGER.info("[ActorProjectPropertyAdapter] Created {} group action clips for {}", created, group.getName());
-        }
-        if (!canCreate) {
-            ImGui.endDisabled();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ACTION_TOOLTIP));
-        }
-        renderGroupResult("actions", group);
     }
 
     private void renderGroupRouteAuthoring(ActorGroup group) {
         ImGui.spacing();
-        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ROUTE), UITheme.DarkTheme.TEXT);
+        if (!Card.begin("actorProject4", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ROUTE))) { Card.end(); return; }
+        try {
 
-        var registry = ActorRegistryManager.getInstance();
-        UUID sourceActorId = routeSources.get(group);
-        if (sourceActorId != null && !registry.contains(sourceActorId)) {
-            routeSources.remove(group);
-            sourceActorId = null;
-        }
-        String sourceName = sourceActorId == null
-                ? ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.choose_actor")
-                : registry.getActor(sourceActorId).map(Actor::getName).orElse("");
-        PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.source_actor"));
-        if (ImGui.beginCombo("##routeSource" + group.getGroupId(), sourceName)) {
-            for (Actor candidate : registry.getAllActors()) {
-                if (ImGui.selectable(candidate.getName() + "##" + candidate.getActorId(), candidate.getActorId().equals(sourceActorId))) {
-                    sourceActorId = candidate.getActorId();
-                    routeSources.put(group, sourceActorId);
-                    routeClips.remove(group);
-                }
+            var registry = ActorRegistryManager.getInstance();
+            UUID sourceActorId = routeSources.get(group);
+            if (sourceActorId != null && !registry.contains(sourceActorId)) {
+                routeSources.remove(group);
+                sourceActorId = null;
             }
-            ImGui.endCombo();
-        }
+            String sourceName = sourceActorId == null
+                    ? ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.choose_actor")
+                    : registry.getActor(sourceActorId).map(Actor::getName).orElse("");
+            PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.source_actor"));
+            if (ImGui.beginCombo("##routeSource" + group.getGroupId(), sourceName)) {
+                for (Actor candidate : registry.getAllActors()) {
+                    if (ImGui.selectable(candidate.getName() + "##" + candidate.getActorId(), candidate.getActorId().equals(sourceActorId))) {
+                        sourceActorId = candidate.getActorId();
+                        routeSources.put(group, sourceActorId);
+                        routeClips.remove(group);
+                    }
+                }
+                ImGui.endCombo();
+            }
 
-        var sourceRoute = sourceActorId == null ? null : ActorGroupTimelineCommandService.getInstance().findLatestRouteClip(
-                DirectorServices.get().containerTimeline().getTimelineModel(), sourceActorId);
-        var routeModel = DirectorServices.get().containerTimeline().getTimelineModel();
-        var routeService = ActorGroupTimelineCommandService.getInstance();
-        UUID routeId = routeClips.get(group);
-        if (routeId != null) sourceRoute = routeService.availableRoutes(routeModel, sourceActorId).stream()
-                .filter(c -> c.getId().equals(routeClips.get(group))).findFirst().orElse(null);
-        String routeLabel = sourceRoute == null ? ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.choose")
-                : String.format("%s (%.2f–%.2f)", sourceRoute.getName(), sourceRoute.getStartTime(), sourceRoute.getEndTime());
-        PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.clip"));
-        if (ImGui.beginCombo("##actor_project_clip", routeLabel)) {
-            for (var candidate : routeService.availableRoutes(routeModel, sourceActorId)) {
-                if (ImGui.selectable(String.format("%s (%.2f–%.2f)##%s", candidate.getName(), candidate.getStartTime(), candidate.getEndTime(), candidate.getId()), candidate == sourceRoute)) {
-                    routeClips.put(group, candidate.getId()); sourceRoute = candidate;
+            var sourceRoute = sourceActorId == null ? null : ActorGroupTimelineCommandService.getInstance().findLatestRouteClip(
+                    DirectorServices.get().containerTimeline().getTimelineModel(), sourceActorId);
+            var routeModel = DirectorServices.get().containerTimeline().getTimelineModel();
+            var routeService = ActorGroupTimelineCommandService.getInstance();
+            UUID routeId = routeClips.get(group);
+            if (routeId != null) sourceRoute = routeService.availableRoutes(routeModel, sourceActorId).stream()
+                    .filter(c -> c.getId().equals(routeClips.get(group))).findFirst().orElse(null);
+            String routeLabel = sourceRoute == null ? ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.choose")
+                    : String.format("%s (%.2f–%.2f)", sourceRoute.getName(), sourceRoute.getStartTime(), sourceRoute.getEndTime());
+            PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.clip"));
+            if (ImGui.beginCombo("##actor_project_clip", routeLabel)) {
+                for (var candidate : routeService.availableRoutes(routeModel, sourceActorId)) {
+                    if (ImGui.selectable(String.format("%s (%.2f–%.2f)##%s", candidate.getName(), candidate.getStartTime(), candidate.getEndTime(), candidate.getId()), candidate == sourceRoute)) {
+                        routeClips.put(group, candidate.getId()); sourceRoute = candidate;
+                    }
                 }
+                ImGui.endCombo();
             }
-            ImGui.endCombo();
+            routeId = routeClips.get(group);
+            if (sourceRoute != null && !groupRouteAtPlayhead.get()) ImGui.textWrapped(ActorPropertyAdapterI18n.tr(
+                    "gui.director.properties.adapter.actor.group_preview.route_source", sourceRoute.getName(), sourceRoute.getStartTime(), sourceRoute.getEndTime()));
+            PropertyRow.label(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.at_playhead"));
+            ImGui.checkbox("##actor_project_at_playhead", groupRouteAtPlayhead);
+            if (sourceRoute != null && groupRouteAtPlayhead.get() && routeModel != null)
+                ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.output_range",
+                        routeModel.getCurrentTime(), routeModel.getCurrentTime() + sourceRoute.getLength()));
+            var preview = ActorGroupTimelineCommandService.getInstance().previewRoutes(
+                    DirectorServices.get().containerTimeline().getTimelineModel(), group, sourceActorId, routeId, groupRouteAtPlayhead.get());
+            ImGui.pushID("routePreview:" + group.getGroupId());
+            renderGroupPreview(preview);
+            ImGui.popID();
+            boolean canCreate = preview.canExecute();
+            if (!canCreate) {
+                ImGui.beginDisabled();
+            }
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.COPY_SELECTED_ROUTE) + "##groupCopyRoute" + group.getGroupId())) {
+                var beforeClips = clipSnapshot(routeModel);
+                int created = ActorGroupTimelineCommandService.getInstance()
+                        .copyRouteFromActor(routeModel, group, sourceActorId, routeId, groupRouteAtPlayhead.get());
+                rememberGroupResult("routes", group, created, routeModel, beforeClips);
+                LOGGER.info("[ActorProjectPropertyAdapter] Copied selected actor route to {} group members", created);
+            }
+            if (!canCreate) {
+                ImGui.endDisabled();
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ROUTE_TOOLTIP));
+            }
+            renderGroupResult("routes", group);
+        } finally {
+            Card.end();
         }
-        routeId = routeClips.get(group);
-        if (sourceRoute != null && !groupRouteAtPlayhead.get()) ImGui.textWrapped(ActorPropertyAdapterI18n.tr(
-                "gui.director.properties.adapter.actor.group_preview.route_source", sourceRoute.getName(), sourceRoute.getStartTime(), sourceRoute.getEndTime()));
-        PropertyRow.label(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.at_playhead"));
-        ImGui.checkbox("##actor_project_at_playhead", groupRouteAtPlayhead);
-        if (sourceRoute != null && groupRouteAtPlayhead.get() && routeModel != null)
-            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.group_route.output_range",
-                    routeModel.getCurrentTime(), routeModel.getCurrentTime() + sourceRoute.getLength()));
-        var preview = ActorGroupTimelineCommandService.getInstance().previewRoutes(
-                DirectorServices.get().containerTimeline().getTimelineModel(), group, sourceActorId, routeId, groupRouteAtPlayhead.get());
-        ImGui.pushID("routePreview:" + group.getGroupId());
-        renderGroupPreview(preview);
-        ImGui.popID();
-        boolean canCreate = preview.canExecute();
-        if (!canCreate) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.COPY_SELECTED_ROUTE) + "##groupCopyRoute" + group.getGroupId())) {
-            var beforeClips = clipSnapshot(routeModel);
-            int created = ActorGroupTimelineCommandService.getInstance()
-                    .copyRouteFromActor(routeModel, group, sourceActorId, routeId, groupRouteAtPlayhead.get());
-            rememberGroupResult("routes", group, created, routeModel, beforeClips);
-            LOGGER.info("[ActorProjectPropertyAdapter] Copied selected actor route to {} group members", created);
-        }
-        if (!canCreate) {
-            ImGui.endDisabled();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ROUTE_TOOLTIP));
-        }
-        renderGroupResult("routes", group);
     }
 
     private static void renderGroupPreview(ActorGroupTimelineCommandService.Preview preview) {
@@ -522,31 +537,35 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     private void renderGroupPlacement(ActorGroup group) {
         ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.group_preview.placement_scope"));
         ImGui.spacing();
-        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_PLACEMENT), UITheme.DarkTheme.TEXT);
+        if (!Card.begin("actorProject5", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_PLACEMENT))) { Card.end(); return; }
+        try {
 
-        var preview = ActorGroupTimelineCommandService.getInstance().previewPlacement(
-                DirectorServices.get().containerTimeline().getTimelineModel(), group);
-        ImGui.pushID("placementPreview:" + group.getGroupId());
-        renderGroupPreview(preview);
-        ImGui.popID();
-        boolean canPlace = preview.canExecute();
-        if (!canPlace) {
-            ImGui.beginDisabled();
+            var preview = ActorGroupTimelineCommandService.getInstance().previewPlacement(
+                    DirectorServices.get().containerTimeline().getTimelineModel(), group);
+            ImGui.pushID("placementPreview:" + group.getGroupId());
+            renderGroupPreview(preview);
+            ImGui.popID();
+            boolean canPlace = preview.canExecute();
+            if (!canPlace) {
+                ImGui.beginDisabled();
+            }
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PLACE_GROUP_AT_CAMERA) + "##groupPlaceCamera" + group.getGroupId())) {
+                var resultModel = DirectorServices.get().containerTimeline().getTimelineModel();
+                var beforeClips = clipSnapshot(resultModel);
+                int placed = ActorGroupTimelineCommandService.getInstance().placeGroupAtCamera(group);
+                rememberGroupResult("placement", group, placed, resultModel, beforeClips);
+                LOGGER.info("[ActorProjectPropertyAdapter] Placed {} group actors at camera", placed);
+            }
+            if (!canPlace) {
+                ImGui.endDisabled();
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_PLACEMENT_TOOLTIP));
+            }
+            renderGroupResult("placement", group);
+        } finally {
+            Card.end();
         }
-        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PLACE_GROUP_AT_CAMERA) + "##groupPlaceCamera" + group.getGroupId())) {
-            var resultModel = DirectorServices.get().containerTimeline().getTimelineModel();
-            var beforeClips = clipSnapshot(resultModel);
-            int placed = ActorGroupTimelineCommandService.getInstance().placeGroupAtCamera(group);
-            rememberGroupResult("placement", group, placed, resultModel, beforeClips);
-            LOGGER.info("[ActorProjectPropertyAdapter] Placed {} group actors at camera", placed);
-        }
-        if (!canPlace) {
-            ImGui.endDisabled();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_PLACEMENT_TOOLTIP));
-        }
-        renderGroupResult("placement", group);
     }
     
     // =========================================================
@@ -563,8 +582,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         Actor actor = actorOpt.get();
         boolean modified = false;
         
-        UITheme.separator();
-        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTOR_PROPERTIES), UITheme.DarkTheme.TEXT);
+        Card.begin("actorProperties", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTOR_PROPERTIES));
 
         if (!actor.getActorId().equals(nameDraftActorId) || !actor.getName().equals(nameDraftSource)) {
             nameDraftActorId = actor.getActorId();
@@ -666,6 +684,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         ImGui.spacing();
+
+        Card.end();
 
         modified |= renderSelectedActorGroups(actorRegistry, actor);
 
@@ -835,72 +855,76 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         var registry = ActorRegistryManager.getInstance();
         ImGui.beginDisabled(timeline == null || timeline.isPlaying() || timeline.isScrubbing());
         boolean modified = false;
-        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.SECTION), UITheme.DarkTheme.TEXT);
-        boolean skinPreview = actor.getType() == ActorType.PLAYER || actor.getType() == ActorType.CUSTOM;
-        if (!skinPreview) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.skin_unused"));
+        if (!Card.begin("actorProject6", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.SECTION))) { Card.end(); return false; }
+        try {
+            boolean skinPreview = actor.getType() == ActorType.PLAYER || actor.getType() == ActorType.CUSTOM;
+            if (!skinPreview) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.skin_unused"));
 
-        if (actor.getType() == ActorType.PLAYER) {
-            ImInt model = new ImInt(actor.getPlayerModel().ordinal());
-            String[] labels = {net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.default"),
-                    net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.wide"),
-                    net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.slim")};
-            PropertyRow.field(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model"));
-            if (ImGui.combo("##actor_project_player_model", model, labels)) {
-                com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withModel(Actor.PlayerModel.values()[Math.clamp(model.get(), 0, labels.length - 1)]), () -> ActorSkinTextureManager.invalidate(actor.getActorId()));
-                modified = true;
+            if (actor.getType() == ActorType.PLAYER) {
+                ImInt model = new ImInt(actor.getPlayerModel().ordinal());
+                String[] labels = {net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.default"),
+                        net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.wide"),
+                        net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.slim")};
+                PropertyRow.field(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model"));
+                if (ImGui.combo("##actor_project_player_model", model, labels)) {
+                    com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withModel(Actor.PlayerModel.values()[Math.clamp(model.get(), 0, labels.length - 1)]), () -> ActorSkinTextureManager.invalidate(actor.getActorId()));
+                    modified = true;
+                }
+                ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.hint"));
+                ImInt bendMode=new ImInt(actor.getLimbBendMode().ordinal());
+                PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.limb_bend"));
+                if(ImGui.combo("##actorLimbBend",bendMode,new String[]{
+                        ActorPropertyAdapterI18n.tr("gui.director.actor.identity.limb_smooth"),
+                        ActorPropertyAdapterI18n.tr("gui.director.actor.identity.limb_direct")})) {
+                    com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withBend(com.director.actor.rig.skeleton.LimbBendMode.values()[bendMode.get()]), () -> {});
+                    modified=true;
+                }
+                ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.limb_hint"));
             }
-            ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.player_model.hint"));
-            ImInt bendMode=new ImInt(actor.getLimbBendMode().ordinal());
-            PropertyRow.field(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.limb_bend"));
-            if(ImGui.combo("##actorLimbBend",bendMode,new String[]{
-                    ActorPropertyAdapterI18n.tr("gui.director.actor.identity.limb_smooth"),
-                    ActorPropertyAdapterI18n.tr("gui.director.actor.identity.limb_direct")})) {
-                com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withBend(com.director.actor.rig.skeleton.LimbBendMode.values()[bendMode.get()]), () -> {});
-                modified=true;
+
+            if (!skinPreview && actor.getSkinFileName() == null) {
+                ImGui.endDisabled();
+                return modified;
             }
-            ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.limb_hint"));
-        }
+            String current = actor.getSkinFileName();
+            ImGui.textDisabled(current != null ? current : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.DEFAULT));
 
-        if (!skinPreview && actor.getSkinFileName() == null) {
-            ImGui.endDisabled();
-            return modified;
-        }
-        String current = actor.getSkinFileName();
-        ImGui.textDisabled(current != null ? current : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.DEFAULT));
-
-        if (skinPreview && ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.CHOOSE_PNG))) {
-            String chosen = openPngFileDialog();
-            if (chosen != null && !chosen.isBlank()) {
-                try {
-                    Path source = Paths.get(chosen.trim());
-                    // Keep imported files immutable so undo can restore an earlier skin binding.
-                    String relative = ActorSkinStorage.importSkin(source, UUID.randomUUID());
-                    if (relative != null) {
-                        com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withSkin(relative), () -> ActorSkinTextureManager.invalidate(actor.getActorId()));
-                        modified = true;
+            if (skinPreview && ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.CHOOSE_PNG))) {
+                String chosen = openPngFileDialog();
+                if (chosen != null && !chosen.isBlank()) {
+                    try {
+                        Path source = Paths.get(chosen.trim());
+                        // Keep imported files immutable so undo can restore an earlier skin binding.
+                        String relative = ActorSkinStorage.importSkin(source, UUID.randomUUID());
+                        if (relative != null) {
+                            com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withSkin(relative), () -> ActorSkinTextureManager.invalidate(actor.getActorId()));
+                            modified = true;
+                        }
+                    } catch (Exception e) {
+                        LOGGER.warn("[ActorProjectPropertyAdapter] 导入皮肤失败: {}", chosen, e);
                     }
-                } catch (Exception e) {
-                    LOGGER.warn("[ActorProjectPropertyAdapter] 导入皮肤失败: {}", chosen, e);
                 }
             }
-        }
 
-        if (skinPreview) ImGui.sameLine();
+            if (skinPreview) ImGui.sameLine();
 
-        boolean hasSkin = actor.getSkinFileName() != null;
-        if (!hasSkin) {
-            ImGui.beginDisabled();
-        }
-        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.CLEAR))) {
-            UUID id = actor.getActorId();
-            com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withSkin(null), () -> ActorSkinTextureManager.invalidate(id));
-            modified = true;
-        }
-        if (!hasSkin) {
+            boolean hasSkin = actor.getSkinFileName() != null;
+            if (!hasSkin) {
+                ImGui.beginDisabled();
+            }
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.CLEAR))) {
+                UUID id = actor.getActorId();
+                com.director.ui.actor.ActorProjectEditing.appearance(timeline, registry, actor, com.director.ui.actor.ActorProjectEditing.Appearance.capture(actor).withSkin(null), () -> ActorSkinTextureManager.invalidate(id));
+                modified = true;
+            }
+            if (!hasSkin) {
+                ImGui.endDisabled();
+            }
             ImGui.endDisabled();
+            return modified;
+        } finally {
+            Card.end();
         }
-        ImGui.endDisabled();
-        return modified;
     }
 
     private String openPngFileDialog() {
@@ -926,30 +950,34 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (actor == null) {
             return false;
         }
-        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUPS_SECTION), UITheme.DarkTheme.TEXT);
-        List<ActorGroup> groups = actorRegistry.getAllGroups();
-        if (groups.isEmpty()) {
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NO_GROUPS_HINT));
-            return false;
-        }
-
-        var timeline = DirectorServices.get().containerTimeline().getTimelineModel();
-        ImGui.beginDisabled(timeline == null || timeline.isPlaying() || timeline.isScrubbing());
-        boolean modified = false;
-        UUID actorId = actor.getActorId();
-        for (ActorGroup group : groups) {
-            boolean member = group.containsActor(actorId);
-            if (ImGui.checkbox(group.getName() + "##actorGroupMember" + group.getGroupId(), member)) {
-                com.director.ui.actor.ActorProjectEditing.setMembership(
-                        DirectorServices.get().containerTimeline().getTimelineModel(), actorRegistry, group, actorId, !member);
-                modified = true;
+        if (!Card.begin("actorProject7", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUPS_SECTION))) { Card.end(); return false; }
+        try {
+            List<ActorGroup> groups = actorRegistry.getAllGroups();
+            if (groups.isEmpty()) {
+                ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NO_GROUPS_HINT));
+                return false;
             }
+
+            var timeline = DirectorServices.get().containerTimeline().getTimelineModel();
+            ImGui.beginDisabled(timeline == null || timeline.isPlaying() || timeline.isScrubbing());
+            boolean modified = false;
+            UUID actorId = actor.getActorId();
+            for (ActorGroup group : groups) {
+                boolean member = group.containsActor(actorId);
+                if (ImGui.checkbox(group.getName() + "##actorGroupMember" + group.getGroupId(), member)) {
+                    com.director.ui.actor.ActorProjectEditing.setMembership(
+                            DirectorServices.get().containerTimeline().getTimelineModel(), actorRegistry, group, actorId, !member);
+                    modified = true;
+                }
+            }
+            if (modified) {
+                ActorRegistryManager.save();
+            }
+            ImGui.endDisabled();
+            return modified;
+        } finally {
+            Card.end();
         }
-        if (modified) {
-            ActorRegistryManager.save();
-        }
-        ImGui.endDisabled();
-        return modified;
     }
     
     // =========================================================
@@ -1210,26 +1238,29 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     private void renderActorUsage(Actor actor) {
         TimelineModel timeline = DirectorServices.get().containerTimeline().getTimelineModel();
         if (timeline == null) return;
-        UITheme.separator();
-        UITheme.label(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.tracks"), UITheme.DarkTheme.TEXT);
-        var tracks = ActorUsageQuery.findTimelineTracksUsingActor(timeline, actor.getActorId());
-        if (tracks.isEmpty()) {
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.no_track"));
-            ImGui.beginDisabled(timeline.isPlaying() || timeline.isScrubbing());
-            if (ImGui.smallButton(ActorPropertyAdapterI18n.tr("gui.director.actor.binding.create"))) {
-                try {
-                    var created = com.director.ui.actor.ActorTrackBindingEditing.create(timeline, actor);
-                    focusTrack(timeline, created);
-                } catch (IllegalStateException | IllegalArgumentException failure) {
-                    LOGGER.warn("Cannot bind actor track: {}", failure.getMessage());
+        if (!Card.begin("actorProject8", ActorPropertyAdapterI18n.tr("gui.director.actor.identity.tracks"))) { Card.end(); return; }
+        try {
+            var tracks = ActorUsageQuery.findTimelineTracksUsingActor(timeline, actor.getActorId());
+            if (tracks.isEmpty()) {
+                ImGui.textDisabled(ActorPropertyAdapterI18n.tr("gui.director.actor.identity.no_track"));
+                ImGui.beginDisabled(timeline.isPlaying() || timeline.isScrubbing());
+                if (ImGui.smallButton(ActorPropertyAdapterI18n.tr("gui.director.actor.binding.create"))) {
+                    try {
+                        var created = com.director.ui.actor.ActorTrackBindingEditing.create(timeline, actor);
+                        focusTrack(timeline, created);
+                    } catch (IllegalStateException | IllegalArgumentException failure) {
+                        LOGGER.warn("Cannot bind actor track: {}", failure.getMessage());
+                    }
                 }
+                ImGui.endDisabled();
+                return;
             }
-            ImGui.endDisabled();
-            return;
-        }
-        for (int index = 0; index < tracks.size(); index++) {
-            var track = tracks.get(index);
-            if (ImGui.selectable(track.getName() + "##actorTrack" + index)) focusTrack(timeline, track);
+            for (int index = 0; index < tracks.size(); index++) {
+                var track = tracks.get(index);
+                if (ImGui.selectable(track.getName() + "##actorTrack" + index)) focusTrack(timeline, track);
+            }
+        } finally {
+            Card.end();
         }
     }
 

@@ -9,6 +9,7 @@ import com.director.timeline.model.TrackType;
 import com.director.ui.actor.track.ActorTrackClipAuthoringService;
 import com.director.ui.actor.track.ActorTrackClipKind;
 import com.director.ui.feedback.InlineNotice;
+import com.director.ui.properties.Card;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
 import com.director.ui.properties.actor.ActorPathMovementPropertyUI;
@@ -39,6 +40,7 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
         var model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) return false;
         UITheme.title(ActorPropertyAdapterI18n.tr("gui.director.actor.track.title"));
+        if (Card.begin("actorTrack.basic", ActorPropertyAdapterI18n.tr("gui.director.actor.track.section_basic"))) {
         var name = new ImString(track.getName(), 256);
         ImGui.beginDisabled(track.isLocked());
         PropertyRow.field(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.TRACK_NAME));
@@ -55,6 +57,8 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
         if (ImGui.checkbox("##actor_track_lock", track.isLocked())) {
             TimelineCommandBridge.execute(new ToggleTrackLockCommand(model, track));
         }
+        }
+        Card.end();
         var payload = track.getActorTrackPayload();
         var actor = payload == null || payload.getActorRef() == null ? null
                 : com.director.actor.ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
@@ -63,12 +67,15 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
                     ? "gui.director.actor.track.unbound" : "gui.director.actor.track.missing_actor"));
             return false;
         }
+        if (Card.begin("actorTrack.actor", ActorPropertyAdapterI18n.tr("gui.director.actor.track.section_actor"))) {
         ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.track.bound_actor", actor.getName()));
         if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.track.inspect"))) {
             com.director.ui.actor.selection.ActorSelectionHub.selectActor(actor.getActorId());
             com.director.ui.properties.PropertyContextService.get().inspectActorObject(actor);
         }
-        ImGui.separator();
+        }
+        Card.end();
+        if (Card.begin("actorTrack.create", ActorPropertyAdapterI18n.tr("gui.director.actor.track.section_create"))) {
         ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.track.create_at_playhead"));
         ImGui.textDisabled(ActorPropertyAdapterI18n.tr("gui.director.actor.track.current_brush",
                 ActorPropertyAdapterI18n.actionSemanticLabel(ActionBrushState.get())));
@@ -81,6 +88,8 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
         } else {
             createNotice.render(track);
         }
+        }
+        Card.end();
         ActorPathMovementPropertyUI.render(actor.getActorId());
         return false;
     }

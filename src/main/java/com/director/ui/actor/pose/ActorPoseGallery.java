@@ -30,6 +30,15 @@ public final class ActorPoseGallery {
     private boolean deleting;
 
     public void render(TimelineModel model, UUID id) {
+        ImGui.pushTextWrapPos(0f);
+        try {
+            renderWrapped(model, id);
+        } finally {
+            ImGui.popTextWrapPos();
+        }
+    }
+
+    private void renderWrapped(TimelineModel model, UUID id) {
         if(model==null || id==null) return;
         var actor=ActorRegistryManager.getInstance().getActor(id).orElse(null);
         var nextRig=actor==null?null:ActorRigCompatibility.resolveRig(actor).orElse(null);
