@@ -56,4 +56,18 @@ class ActorTrackClipAuthoringServiceTest {
         assertTrue(track.getClips().isEmpty()); assertFalse(history.undo());
         assertNotNull(service.createClip(model, track, ActorTrackClipKind.ACTION, ActorActionType.WALK));
     }
+    @Test void creationBlockReasonExplainsWhyCreationIsUnavailable() {
+        assertNull(service.creationBlockReason(model, track));
+        track.setLocked(true);
+        assertEquals("gui.director.actor.track.create_locked", service.creationBlockReason(model, track));
+        track.setLocked(false); track.setMuted(true);
+        assertEquals("gui.director.actor.track.create_muted", service.creationBlockReason(model, track));
+        track.setMuted(false); model.setPlaying(true);
+        assertEquals("gui.director.actor.track.create_busy", service.creationBlockReason(model, track));
+        model.setPlaying(false);
+        assertEquals("gui.director.actor.track.create_no_project", service.creationBlockReason(null, track));
+        assertEquals("gui.director.actor.track.create_no_track", service.creationBlockReason(model, null));
+        assertEquals("gui.director.actor.track.create_no_track",
+                service.creationBlockReason(new TimelineModel(new TimelineViewportState()), track));
+    }
 }

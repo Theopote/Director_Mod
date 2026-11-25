@@ -76,18 +76,29 @@ public final class ActorTrackClipAuthoringService {
         if(!Float.isFinite(duration)||duration<.1f) return refuse(REFUSE_BAD_VALUES);
         return createConfiguredClip(model,track,ActorTrackClipKind.POSE,null,duration,1,false,c->{configure.accept((ActorPoseClip)c);c.setTimeRange(c.getStartTime(),c.getStartTime()+duration);});
     }
+    /**
+     * 当前能否在这条轨道上创建片段。返回 null 表示可以；否则返回说明原因的翻译键。
+     * 界面用它在按钮被禁用时直接显示原因，而不必等用户点击失败后才看到。
+     */
+    public String creationBlockReason(TimelineModel model, TimelineTrack timelineTrack) {
+        if (model == null) return REFUSE_NO_PROJECT;
+        if (model.isPlaying() || model.isScrubbing()) return REFUSE_BUSY;
+        if (timelineTrack == null || timelineTrack.getType() != TrackType.ACTOR
+                || !model.getAllTracks().contains(timelineTrack)) return REFUSE_NO_TRACK;
+        if (timelineTrack.isLocked()) return REFUSE_LOCKED;
+        if (timelineTrack.isMuted()) return REFUSE_MUTED;
+        return null;
+    }
+
     private EntityTimelineClip refuse(String key) {
         lastRefusal = key;
         return null;
     }
     private EntityTimelineClip createConfiguredClip(TimelineModel model,TimelineTrack timelineTrack,
             ActorTrackClipKind kind,ActorActionType actionType,Float duration,float intensity,boolean loop,java.util.function.Consumer<EntityClip> configure) {
-        if (model == null) return refuse(REFUSE_NO_PROJECT);
-        if (model.isPlaying() || model.isScrubbing()) return refuse(REFUSE_BUSY);
-        if (timelineTrack == null || kind == null || timelineTrack.getType() != TrackType.ACTOR
-                || !model.getAllTracks().contains(timelineTrack)) return refuse(REFUSE_NO_TRACK);
-        if (timelineTrack.isLocked()) return refuse(REFUSE_LOCKED);
-        if (timelineTrack.isMuted()) return refuse(REFUSE_MUTED);
+        String blocked = creationBlockReason(model, timelineTrack);
+        if (blocked != null) return refuse(blocked);
+        if (kind == null) return refuse(REFUSE_NO_TRACK);
         ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
         if (actorTrack == null || actorTrack.getActorRef() == null) return refuse("gui.director.actor.track.unbound");
         var actor = com.director.actor.ActorRegistryManager.getInstance()
