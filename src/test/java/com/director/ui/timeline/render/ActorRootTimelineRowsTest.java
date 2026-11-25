@@ -33,9 +33,11 @@ class ActorRootTimelineRowsTest {
         var rows = new ActorBoneTimelineRows(); rows.setExpanded(a, true); rows.setExpanded(b, true);
         var layout = rows.prepare(model, 30, 4);
         assertTrue(rows.supports(a)); assertTrue(rows.supports(b));
-        assertEquals(30 + 4 + 3 * 24, layout.trackTop(1));
-        // Cow has root rows only; Player expands ArticulatedPlayerRig bone channels.
-        assertEquals(2 * 30 + 4 + (6 + ArticulatedPlayerRig.DEFINITION.boneCount()) * 24, layout.totalHeight());
+        int cowRows = ActorRootTimelineRows.COUNT
+            + com.director.actor.rig.skeleton.QuadrupedRig.DEFINITION.boneCount();
+        int playerRows = ActorRootTimelineRows.COUNT + ArticulatedPlayerRig.DEFINITION.boneCount();
+        assertEquals(30 + 4 + cowRows * 24, layout.trackTop(1));
+        assertEquals(2 * 30 + 4 + (cowRows + playerRows) * 24, layout.totalHeight());
         assertEquals(2, model.getAllTracks().size());
         rows.setExpanded(a, false);
         assertEquals(34, rows.prepare(model, 30, 4).trackTop(1));
