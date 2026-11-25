@@ -36,14 +36,17 @@ class ActorClipPropertyEditSessionTest {
         assertThrows(IllegalArgumentException.class, rejected::commit);
         assertNull(spawn.getSecondaryPreset());
 
-        var secondary = new ActorPresetBinding("wave", false, 2f, com.director.actor.rig.skeleton.PoseScope.UPPER.apply(
-                fullOverride.blend(), com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION));
+        // Same-action OVERRIDE secondaries are rejected; a different action may still OVERRIDE a bone subset.
+        var secondary = new ActorPresetBinding("attack", false, 2f, com.director.actor.rig.skeleton.PoseScope.UPPER.apply(
+                com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT,
+                com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION));
         var edit = new ActorClipPropertyEditSession(model, spawn);
         ((EntitySpawnClip) edit.draft()).setSecondaryPreset(secondary);
         assertTrue(edit.commit());
         assertEquals(primary, spawn.getPreset());
         assertEquals(secondary, spawn.getSecondaryPreset());
-        assertEquals(2, com.director.ui.actor.pose.ActorAnimationAssetEditing.referenceCount(model, "wave"));
+        assertEquals(1, com.director.ui.actor.pose.ActorAnimationAssetEditing.referenceCount(model, "wave"));
+        assertEquals(1, com.director.ui.actor.pose.ActorAnimationAssetEditing.referenceCount(model, "attack"));
         assertTrue(history.undo());
         assertNull(spawn.getSecondaryPreset());
         assertEquals(primary, spawn.getPreset());

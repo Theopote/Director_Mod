@@ -246,6 +246,10 @@ public final class TimelineAudioExporter implements AudioExporter {
             }
         }
 
+        for (var cue : ActorAnimationSoundExport.collect(model, startTimeSec, endTimeSec)) {
+            result.add(new EventClip(cue.timeSec(), cue.volume(), cue.pitch(), true, 1.0f, cue.soundId()));
+        }
+
         result.sort(Comparator.comparingDouble(ev -> ev.timeSec));
         return result;
     }

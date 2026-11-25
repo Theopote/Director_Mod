@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,5 +36,14 @@ class AnimationEventParametersTest {
                 EntityActionClip.ActionType.SPAWN_PARTICLE, Map.of("particle", "UNKNOWN")));
         assertThrows(IllegalArgumentException.class, () -> AnimationEventParameters.validateActor(actor,
                 EntityActionClip.ActionType.CAMERA_SHAKE, Map.of("duration", 0f)));
+    }
+
+    @Test
+    void particleIdsMatchValidationSet() {
+        assertEquals(AnimationEventParameters.PARTICLE_IDS.size(), AnimationEventParameters.PARTICLES.size());
+        assertTrue(AnimationEventParameters.PARTICLES.containsAll(AnimationEventParameters.PARTICLE_IDS));
+        assertTrue(AnimationEventParameters.PARTICLES.contains("CRIT"));
+        assertTrue(AnimationEventParameters.PARTICLES.contains("POOF"));
+        assertTrue(AnimationEventParameters.PARTICLES.contains("END_ROD"));
     }
 }

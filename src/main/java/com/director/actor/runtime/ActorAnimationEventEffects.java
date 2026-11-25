@@ -1,12 +1,11 @@
 package com.director.actor.runtime;
 
-import com.director.timeline.playback.camera.CameraRuntime;
+import com.director.actor.prop.AnimationEventParticles;
 import com.director.timeline.playback.camera.CameraSample;
 import com.director.timeline.playback.entity.EntityActionEvent;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.entity.Entity;
-import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
@@ -23,21 +22,25 @@ public final class ActorAnimationEventEffects {
     public static ActorAnimationEventEffects getInstance() { return INSTANCE; }
 
     public void dispatch(Entity entity, EntityActionEvent event, float timelineTime) {
-        if (entity == null || event == null || event.type() == null) return;
-        var client = MinecraftClient.getInstance();
+        if (event == null || event.type() == null) return;
         switch (event.type()) {
-            case PLAY_SOUND -> playSound(client, event.params());
-            case SPAWN_PARTICLE -> spawnParticles(client, entity, event.params());
-            case CAMERA_SHAKE -> {
-                shake = new Shake(timelineTime, number(event.params(), "duration", .35f),
-                        number(event.params(), "intensity", .25f), number(event.params(), "frequency", 14f));
-                applyCurrent(timelineTime);
+            case PLAY_SOUND -> {
+                if (entity == null) return;
+                playSound(MinecraftClient.getInstance(), event.params());
             }
+            case SPAWN_PARTICLE -> {
+                if (entity == null) return;
+                spawnParticles(MinecraftClient.getInstance(), entity, event.params());
+            }
+            // Visibility is sticky in EntityClipSampler → sample.visibility; do not setInvisible here.
+            case CAMERA_SHAKE -> shake = new Shake(timelineTime, number(event.params(), "duration", .35f),
+                    number(event.params(), "intensity", .25f), number(event.params(), "frequency", 14f));
             case SET_VISIBILITY -> { }
             default -> { }
         }
     }
 
+    /** Sole camera-shake apply point; TimelineCameraController must call this when sampling. */
     public CameraSample decorate(CameraSample sample, float timelineTime) {
         if (sample == null) return null;
         if (shake == null) return sample;
@@ -57,14 +60,6 @@ public final class ActorAnimationEventEffects {
                 sample.depthOfFieldEnabled(), sample.focusDistance(), sample.aperture());
     }
 
-    private void applyCurrent(float timelineTime) {
-        var runtime = CameraRuntime.getInstance();
-        var current = runtime.getCurrentSample();
-        if (current == null) return;
-        var decorated = decorate(current, timelineTime);
-        if (decorated != current) runtime.applyTimelineSample(decorated);
-    }
-
     public void reset() { shake = null; }
 
     private static void playSound(MinecraftClient client, Map<String, Object> params) {
@@ -78,14 +73,7 @@ public final class ActorAnimationEventEffects {
     private static void spawnParticles(MinecraftClient client, Entity entity, Map<String, Object> params) {
         if (client.world == null || client.particleManager == null) return;
         String kind = params.get("particle") instanceof String text ? text : "POOF";
-        ParticleEffect effect = switch (kind) {
-            case "CRIT" -> ParticleTypes.CRIT;
-            case "ENCHANT" -> ParticleTypes.ENCHANT;
-            case "CLOUD" -> ParticleTypes.CLOUD;
-            case "ELECTRIC_SPARK" -> ParticleTypes.ELECTRIC_SPARK;
-            case "END_ROD" -> ParticleTypes.END_ROD;
-            default -> ParticleTypes.POOF;
-        };
+        var effect = AnimationEventParticles.get(kind).orElse(ParticleTypes.POOF);
         int count = params.get("count") instanceof Number n ? Math.max(1, Math.min(64, n.intValue())) : 8;
         float spread = number(params, "spread", .25f);
         float speed = number(params, "speed", .02f);

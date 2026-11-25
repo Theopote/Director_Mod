@@ -9,8 +9,11 @@ import java.util.Set;
 
 /** Validation and capability vocabulary for events authored on actor animations. */
 public final class AnimationEventParameters {
-    public static final Set<String> PARTICLES = Set.of("CRIT", "POOF", "ENCHANT", "CLOUD", "ELECTRIC_SPARK",
-            "END_ROD");
+    /** Canonical particle ids; runtime maps these to ParticleEffect in {@link AnimationEventParticles}. */
+    public static final List<String> PARTICLE_IDS = List.of(
+            "CRIT", "POOF", "ENCHANT", "CLOUD", "ELECTRIC_SPARK", "END_ROD");
+    public static final Set<String> PARTICLES = Set.copyOf(PARTICLE_IDS);
+
     private static final List<ActionType> SUPPORTED = List.of(
             ActionType.PLAY_SOUND, ActionType.SPAWN_PARTICLE, ActionType.CAMERA_SHAKE, ActionType.SET_VISIBILITY,
             ActionType.ATTACH_PROP, ActionType.DETACH_PROP, ActionType.SWITCH_PROP, ActionType.THROW_PROP);

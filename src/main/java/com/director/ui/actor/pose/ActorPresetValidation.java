@@ -5,7 +5,9 @@ import com.director.actor.animation.*;
 import com.director.actor.animation.asset.*;
 import com.director.actor.rig.ActorRigCompatibility;
 import com.director.actor.rig.skeleton.HumanoidTopology;
+import com.director.actor.rig.skeleton.PoseLayer;
 import com.director.actor.rig.skeleton.RigPoseComposer;
+import com.director.timeline.model.entity.ActorPresetBinding;
 import com.director.timeline.model.entity.EntitySpawnClip;
 
 /** Every preset attachment entry validates the same reference and skeleton contract. */
@@ -18,9 +20,17 @@ public final class ActorPresetValidation {
         requireDistinctFullOverride(id, spawn.getSecondaryPreset());
     }
 
-    public static void requireDistinctFullOverride(String primaryId, com.director.timeline.model.entity.ActorPresetBinding secondary) {
-        if (secondary != null && secondary.fullyOverridesSameAction(primaryId))
-            throw new IllegalArgumentException("第二预设会完全覆盖同一个主动作。请缩小第二预设的骨骼或通道范围、降低权重，或选择另一个动作。");
+    /**
+     * Rejects a secondary preset that OVERRIDE-drives the same animation as the primary
+     * on any non-empty channel mask (including partial bone sets). Additive / zero-weight
+     * / empty-channel secondaries remain allowed.
+     */
+    public static void requireDistinctFullOverride(String primaryId, ActorPresetBinding secondary) {
+        if (secondary == null || primaryId == null || !primaryId.equals(secondary.animationId())) return;
+        var blend = secondary.blend();
+        if (blend.mode() == PoseLayer.BlendMode.OVERRIDE && blend.weight() > 0f && blend.channels() != 0)
+            throw new IllegalArgumentException(
+                    "第二预设与主动作相同且为覆盖混合时会抢夺同一骨骼通道。请改用叠加、清空通道，或选择另一个动作。");
     }
 
     public static void requireAction(AnimationAssetLibrary library, String id) {
