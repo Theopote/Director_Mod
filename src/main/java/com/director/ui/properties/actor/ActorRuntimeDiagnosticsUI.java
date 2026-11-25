@@ -12,7 +12,7 @@ public final class ActorRuntimeDiagnosticsUI {
     private ActorRuntimeDiagnosticsUI() {}
     public static void render(EntityClip clip) {
         if (clip == null) return;
-        if (!Card.begin("clipDiagnostics", tr("title"))) { Card.end(); return; }
+        if (!Card.begin("clipDiagnostics", tr("title"), false)) { Card.end(); return; }
         try {
             if(!clip.getLoadWarnings().isEmpty()) {
                 ImGui.textWrapped("加载时已恢复此片段的部分混合参数：");

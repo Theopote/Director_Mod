@@ -31,7 +31,7 @@ public final class ActorCoordinationPanel {
                 && payload.findSpawnClipAt(time) == source
                 && !payload.hasCompletedDespawn(time, source, EntityDespawnClip.DespawnMode.REMOVE);
         String summary = !bound ? "no_actor" : outside ? "summary_outside" : active ? "summary_active" : "summary_inactive";
-        if (!Card.begin("actorCoordination", tr("title") + " · " + tr(summary))) { Card.end(); return null; }
+        if (!Card.begin("actorCoordination", tr("title") + " · " + tr(summary), false)) { Card.end(); return null; }
         try {
             if (!bound) return null;
             ImGui.text(tr("clip_range",source.getName(),source.getStartTime(),source.getEndTime(),time));

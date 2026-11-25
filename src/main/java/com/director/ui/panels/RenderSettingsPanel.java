@@ -1,6 +1,7 @@
 package com.director.ui.panels;
 
 import com.director.ui.PanelId;
+import com.director.ui.properties.Card;
 import com.director.ui.PanelWindows;
 import com.director.client.settings.RenderSettings;
 import com.director.ui.theme.Icons;
@@ -106,32 +107,30 @@ public class RenderSettingsPanel extends AbstractPanel {
     @Override
     protected void doRender() {
         // ===== 1. 选区预览 =====
-        if (ImGui.collapsingHeader(Icons.SELECT + " 选区预览（Selection）")) {
+        if (Card.begin("renderSettings.selection", Icons.SELECT + " 选区预览（Selection）", false)) {
             renderSelectionToggles();
-            ImGui.separator();
             renderSelectionStyles();
-            ImGui.separator();
             renderSelectionPerformance();
-            ImGui.separator();
         }
+        Card.end();
 
         // ===== 2. 工具预览 =====
-        if (ImGui.collapsingHeader(Icons.TOOLS + " 工具预览（Tool Preview）")) {
+        if (Card.begin("renderSettings.toolPreview", Icons.TOOLS + " 工具预览（Tool Preview）", false)) {
             renderToolPreviewSettings();
-            ImGui.separator();
         }
+        Card.end();
 
         // ===== 3. 容器预览 =====
-        if (ImGui.collapsingHeader(Icons.BOX + " 容器预览（Container Highlight）")) {
+        if (Card.begin("renderSettings.container", Icons.BOX + " 容器预览（Container Highlight）", false)) {
             renderContainerSettings();
-            ImGui.separator();
         }
+        Card.end();
 
         // ===== 4. 全局性能 / Mesh 设置 =====
-        if (ImGui.collapsingHeader(Icons.SETTINGS + " 全局性能 / Mesh 设置")) {
+        if (Card.begin("renderSettings.mesh", Icons.SETTINGS + " 全局性能 / Mesh 设置", false)) {
             renderGlobalMeshSettings();
-            ImGui.separator();
         }
+        Card.end();
 
         renderActionButtons();
     }
@@ -261,7 +260,7 @@ public class RenderSettingsPanel extends AbstractPanel {
     }
 
     private void renderSelectionPerformance() {
-        if (ImGui.collapsingHeader("选区性能 / 剔除")) {
+        if (Card.begin("renderSettings.cull", "选区性能 / 剔除")) {
             ImGui.indent();
 
             boolean cur = rs.selection_enableFrustumCull;
@@ -286,6 +285,7 @@ public class RenderSettingsPanel extends AbstractPanel {
 
             ImGui.unindent();
         }
+        Card.end();
     }
 
     // ============================================================

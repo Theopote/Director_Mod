@@ -156,7 +156,7 @@ public class ContainerPropertiesPanel {
 
     private void renderBasicProperties(Container container) {
         ImGui.setNextItemOpen(false, ImGuiCond.Once);
-        if (!Card.begin("embeddedContainer1", tr(DirectorLang.Properties.EmbeddedContainer.BASIC_PROPERTIES))) { Card.end(); return; }
+        if (!Card.begin("embeddedContainer1", tr(DirectorLang.Properties.EmbeddedContainer.BASIC_PROPERTIES), false)) { Card.end(); return; }
         try {
 
             boolean nameEnterPressed = ImGui.inputText(tr(DirectorLang.Properties.EmbeddedContainer.NAME), nameBuffer,
@@ -198,7 +198,7 @@ public class ContainerPropertiesPanel {
 
     private void renderAnimationPreset(Container container) {
         ImGui.setNextItemOpen(false, ImGuiCond.Once);
-        if (!Card.begin("embeddedContainer2", tr(DirectorLang.Properties.EmbeddedContainer.ANIMATION_PRESET))) { Card.end(); return; }
+        if (!Card.begin("embeddedContainer2", tr(DirectorLang.Properties.EmbeddedContainer.ANIMATION_PRESET), false)) { Card.end(); return; }
         try {
 
             ContainerAnimationPreset preset = container.getDefaultAnimationPreset();
@@ -249,7 +249,7 @@ public class ContainerPropertiesPanel {
 
     private void renderVisualProperties(Container container) {
         ImGui.setNextItemOpen(false, ImGuiCond.Once);
-        if (!Card.begin("embeddedContainer3", tr(DirectorLang.Properties.EmbeddedContainer.CONTAINER_PROPERTIES))) { Card.end(); return; }
+        if (!Card.begin("embeddedContainer3", tr(DirectorLang.Properties.EmbeddedContainer.CONTAINER_PROPERTIES), false)) { Card.end(); return; }
         try {
 
             ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.UI_TAG_COLOR));
@@ -303,7 +303,7 @@ public class ContainerPropertiesPanel {
 
     private void renderReadonlyInfo(Container container) {
         ImGui.setNextItemOpen(false, ImGuiCond.Once);
-        if (!Card.begin("embeddedContainer4", tr(DirectorLang.Properties.EmbeddedContainer.STATS))) { Card.end(); return; }
+        if (!Card.begin("embeddedContainer4", tr(DirectorLang.Properties.EmbeddedContainer.STATS), false)) { Card.end(); return; }
         try {
 
             ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.BLOCK_COUNT, container.getBlockCount()));

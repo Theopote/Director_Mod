@@ -130,7 +130,7 @@ public final class VideoExportDialog {
         // =============================
         // 输出文件
         // =============================
-        UITheme.title("输出");
+        UITheme.subheading("输出");
 
         ImGui.pushItemWidth(UITheme.Spacing.INPUT_WIDTH_LARGE);
         String outputHint = (settings.format == VideoExportSettings.FORMAT_H264_MP4) ? "输出文件 (.mp4)" : "输出基名（用于 PNG 序列目录命名）";
@@ -147,7 +147,7 @@ public final class VideoExportDialog {
         // =============================
         // 分辨率 / FPS
         // =============================
-        UITheme.title("视频参数");
+        UITheme.subheading("视频参数");
 
         // 同步分辨率到 ImInt（在摄像机选择变化后，这里的值会被自动更新）
         widthInt.set(settings.width);
@@ -213,7 +213,7 @@ public final class VideoExportDialog {
         // 编码（MP4 / x264）
         // =============================
         if (settings.format == VideoExportSettings.FORMAT_H264_MP4) {
-            UITheme.title("编码");
+            UITheme.subheading("编码");
 
             // preset：速度 vs 压缩效率
             String[] presetOptions = { "ultrafast", "fast", "medium", "slow" };
@@ -240,7 +240,7 @@ public final class VideoExportDialog {
         // =============================
         // 导出范围
         // =============================
-        UITheme.title("导出范围");
+        UITheme.subheading("导出范围");
 
         String[] rangeOptions = { "使用时间线范围（预留）", "自定义区间", "整个工程（预留）" };
         if (ImGui.combo("范围模式", rangeModeInt, rangeOptions, rangeOptions.length)) {
@@ -261,7 +261,7 @@ public final class VideoExportDialog {
         // =============================
         // 摄像机
         // =============================
-        UITheme.title("摄像机");
+        UITheme.subheading("摄像机");
 
         String[] cameraOptions = { "玩家摄像机", "时间线摄像机轨道" };
         if (ImGui.combo("来源", cameraModeInt, cameraOptions, cameraOptions.length)) {
@@ -311,7 +311,7 @@ public final class VideoExportDialog {
         // =============================
         // 渲染质量（简化）
         // =============================
-        UITheme.title("渲染质量");
+        UITheme.subheading("渲染质量");
 
         if (ImGui.checkbox("按输出分辨率离屏渲染（实验性）", settings.nativeResolution))
             settings.nativeResolution = !settings.nativeResolution;
@@ -334,7 +334,7 @@ public final class VideoExportDialog {
         // 音频（MP4）
         // =============================
         if (settings.format == VideoExportSettings.FORMAT_H264_MP4) {
-            UITheme.title("音频");
+            UITheme.subheading("音频");
 
             settings.enableAudio = audioEnabledBool.get();
 

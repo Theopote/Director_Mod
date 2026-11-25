@@ -1,6 +1,7 @@
 package com.director.ui.panels;
 
 import com.director.core.DirectorServices;
+import com.director.ui.properties.Card;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.history.SelectionHistoryManager;
@@ -96,17 +97,21 @@ public class SelectionHistoryPanel extends AbstractPanel {
         // 快捷键处理
         handleKeyboardShortcuts();
         
-        if (ImGui.collapsingHeader(Icons.TARGET + " 工具栏", ImGuiTreeNodeFlags.DefaultOpen))
+        if (Card.begin("selHistory1", Icons.TARGET + " 工具栏"))
             toolbar.render();
+        Card.end();
         
-        if (ImGui.collapsingHeader(Icons.LINK + " 时间线视图", ImGuiTreeNodeFlags.DefaultOpen))
+        if (Card.begin("selHistory2", Icons.LINK + " 时间线视图"))
             timeline.render();
+        Card.end();
         
-        if (ImGui.collapsingHeader(Icons.LAYERS + " 历史列表", ImGuiTreeNodeFlags.DefaultOpen))
+        if (Card.begin("selHistory3", Icons.LAYERS + " 历史列表"))
             table.render();
+        Card.end();
         
-        if (ImGui.collapsingHeader(Icons.SETTINGS + " 设置"))
+        if (Card.begin("selHistory4", Icons.SETTINGS + " 设置", false))
             settings.render();
+        Card.end();
     }
     
     // ========== 快捷键处理 ==========

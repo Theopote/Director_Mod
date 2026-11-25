@@ -21,7 +21,7 @@ public final class RigProfileStylePropertyUI {
             owner=actor;modelScope=model;before=current;
             values=new float[]{current.motion(),current.tempo(),current.lean(),current.arms(),current.legs()};message="";
         }
-        if(!Card.begin("rigProfileStyle", com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.title"))) { Card.end(); return false; }
+        if(!Card.begin("rigProfileStyle", com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.title"), false)) { Card.end(); return false; }
         try {
             ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.style.hint"));
             ImGui.beginDisabled(!ActorAppearanceEditing.editable(model));

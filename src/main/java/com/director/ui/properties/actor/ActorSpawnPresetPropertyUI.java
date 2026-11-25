@@ -80,7 +80,7 @@ public final class ActorSpawnPresetPropertyUI {
     public static void render(EntitySpawnClip source,EntitySpawnClip draft,ActorClipInspectorGesture gesture) {
         boolean focus=focusRequest.consume(source);
         if(focus) ImGui.setNextItemOpen(true,imgui.flag.ImGuiCond.Always);
-        if(!Card.begin("spawnPresetCard", presetText("title"))) {Card.end();playbackQuery.clear();return;}
+        if(!Card.begin("spawnPresetCard", presetText("title"), false)) {Card.end();playbackQuery.clear();return;}
         try {
             if(focus) ImGui.setScrollHereY(0);
             ImGui.pushID("spawnPreset");

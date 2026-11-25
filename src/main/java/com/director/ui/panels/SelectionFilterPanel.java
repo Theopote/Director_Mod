@@ -1,6 +1,7 @@
 package com.director.ui.panels;
 
 import com.director.core.selection.block_filters.BlockFilter;
+import com.director.ui.properties.Card;
 import com.director.core.selection.block_filters.FilterIds;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
@@ -108,23 +109,26 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         // ===============================
         // 🟢 层 1：基础内容过滤（普通用户）
         // ===============================
-        if (ImGui.collapsingHeader(Icons.TARGET + " " + t(DirectorLang.SelectionFilterPanel.SECTION_BASIC), ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (Card.begin("selFilter1", Icons.TARGET + " " + t(DirectorLang.SelectionFilterPanel.SECTION_BASIC))) {
             renderBasicFilters(sf);
         }
+        Card.end();
 
         // ===============================
         // 🟣 层 2：选择模式（预设）
         // ===============================
-        if (ImGui.collapsingHeader(Icons.BOOKMARK + " " + t(DirectorLang.SelectionFilterPanel.SECTION_MODES))) {
+        if (Card.begin("selFilter2", Icons.BOOKMARK + " " + t(DirectorLang.SelectionFilterPanel.SECTION_MODES), false)) {
             renderModes(sf);
         }
+        Card.end();
 
         // ===============================
         // 🔵 层 3：高级过滤（专家）
         // ===============================
-        if (ImGui.collapsingHeader(Icons.TOOLS + " " + t(DirectorLang.SelectionFilterPanel.SECTION_ADVANCED))) {
+        if (Card.begin("selFilter3", Icons.TOOLS + " " + t(DirectorLang.SelectionFilterPanel.SECTION_ADVANCED), false)) {
             renderAdvancedFilters(sf);
         }
+        Card.end();
     }
 
     // -------------------------------------------------

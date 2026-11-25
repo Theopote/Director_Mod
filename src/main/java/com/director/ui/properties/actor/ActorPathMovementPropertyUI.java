@@ -20,7 +20,7 @@ public final class ActorPathMovementPropertyUI {
         if (!java.util.Objects.equals(actor, actorId) || scope != model) {
             actor = actorId; scope = model; path = null; error = "";
         }
-        if (!Card.begin("actorPathMovement", tr("header"))) { Card.end(); return; }
+        if (!Card.begin("actorPathMovement", tr("header"), false)) { Card.end(); return; }
         try {
             com.director.timeline.model.TimelineTrack owner;
             try {owner=model==null?null:com.director.ui.actor.pose.ActorAnimationAssetEditing.resolveActorTrack(model,actorId);}
