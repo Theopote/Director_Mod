@@ -564,7 +564,8 @@ public class ContainerManager {
                     LOGGER.warn("[ContainerManager] 批量移动时应用组锁定状态出错: {}", e.getMessage());
                 }
             }
-            if (oldEffectiveVisibility.get(i) != c.isEffectivelyVisible()) c.refreshEffectiveVisibility();
+            if (oldEffectiveVisibility.get(i) != c.isEffectivelyVisible())
+                c.refreshEffectiveVisibility(oldEffectiveVisibility.get(i));
             fireContainerMoved(c, newParent);
         }
     }
@@ -606,7 +607,8 @@ public class ContainerManager {
                 LOGGER.warn("[ContainerManager] 应用组锁定状态到子容器时出错: {}", e.getMessage());
             }
         }
-        if (oldEffectiveVisibility != container.isEffectivelyVisible()) container.refreshEffectiveVisibility();
+        if (oldEffectiveVisibility != container.isEffectivelyVisible())
+            container.refreshEffectiveVisibility(oldEffectiveVisibility);
         fireContainerMoved(container, newParent);
     }
 

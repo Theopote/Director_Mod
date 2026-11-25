@@ -81,7 +81,8 @@ public class MergeContainersCommand implements ContainerCommand {
             }
 
             // 并入方块集合
-            mergedContainer.addBlocks(container.getBlocks());
+            Set<net.minecraft.util.math.BlockPos> sourceBlocks = container.getBlocksView();
+            mergedContainer.addBlocks(sourceBlocks);
 
             // 同步方块快照与世界归属，使可见性服务能在显示时正确还原方块
             if (mergedContainer.getLevelKey() == null && container.getLevelKey() != null) {
@@ -90,14 +91,17 @@ public class MergeContainersCommand implements ContainerCommand {
             // 拷贝或补全方块快照：优先复用源容器快照，若缺失则尝试从当前世界读取补齐
             net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
             net.minecraft.world.World world = mc != null ? mc.world : null;
-            for (net.minecraft.util.math.BlockPos pos : container.getBlocks()) {
+            List<net.minecraft.util.math.BlockPos> missingSnapshots = new ArrayList<>();
+            for (net.minecraft.util.math.BlockPos pos : sourceBlocks) {
                 var entry = container.getBlockStore().get(pos);
                 if (entry != null) {
-                    mergedContainer.getBlockStore().add(pos, entry);
+                    mergedContainer.getBlockStore().add(pos, entry.copy());
                 } else if (world != null) {
-                    // 回退方案：从世界捕获该方块的快照，避免合并后显示只剩线框
-                    mergedContainer.getBlockStore().addAllFromWorld(java.util.Collections.singleton(pos), world);
+                    missingSnapshots.add(pos);
                 }
+            }
+            if (!missingSnapshots.isEmpty()) {
+                mergedContainer.getBlockStore().addAllFromWorld(missingSnapshots, world);
             }
             
             // 仅当结果为组时才迁移子容器；否则合并仅包含方块

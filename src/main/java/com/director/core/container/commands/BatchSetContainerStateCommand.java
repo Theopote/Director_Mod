@@ -24,16 +24,37 @@ public class BatchSetContainerStateCommand implements ContainerCommand {
         oldStates.clear();
         for (Container container : containers) {
             if (container == null) continue;
-            oldStates.put(container, container.getState());
-            container.setState(newState);
+            oldStates.putIfAbsent(container, container.getState());
         }
+        Map<Container, ContainerState> newStates = new LinkedHashMap<>();
+        for (Container container : oldStates.keySet()) newStates.put(container, newState);
+        applyStates(newStates);
     }
 
     @Override
     public void undo() {
-        for (Map.Entry<Container, ContainerState> entry : oldStates.entrySet()) {
-            entry.getKey().setState(entry.getValue());
+        applyStates(oldStates);
+    }
+
+    private static void applyStates(Map<Container, ContainerState> states) {
+        Set<Container> affectedLeaves = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Container container : states.keySet()) collectLeaves(container, affectedLeaves);
+
+        Map<Container, Boolean> oldVisibility = new IdentityHashMap<>();
+        for (Container leaf : affectedLeaves) oldVisibility.put(leaf, leaf.isEffectivelyVisible());
+        for (Map.Entry<Container, ContainerState> entry : states.entrySet()) {
+            entry.getKey().setState(entry.getValue(), false);
         }
+        for (Container leaf : affectedLeaves) leaf.refreshEffectiveVisibility(oldVisibility.get(leaf));
+    }
+
+    private static void collectLeaves(Container container, Set<Container> leaves) {
+        if (container == null) return;
+        if (!container.isGroup()) {
+            leaves.add(container);
+            return;
+        }
+        for (Container child : container.getChildrenView()) collectLeaves(child, leaves);
     }
 
     @Override

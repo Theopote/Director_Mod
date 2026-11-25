@@ -30,6 +30,10 @@ public class BlockStore {
             this.state = state;
             this.beNbt = beNbt;
         }
+
+        public Entry copy() {
+            return new Entry(state, beNbt == null ? null : beNbt.copy());
+        }
     }
 
     private final Map<BlockPos, Entry> data = new HashMap<>();

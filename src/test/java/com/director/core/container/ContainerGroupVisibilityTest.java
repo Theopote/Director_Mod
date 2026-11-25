@@ -1,6 +1,10 @@
 package com.director.core.container;
 
 import org.junit.jupiter.api.Test;
+import com.director.core.container.commands.BatchSetContainerStateCommand;
+import net.minecraft.nbt.NbtCompound;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -36,5 +40,37 @@ class ContainerGroupVisibilityTest {
         visibleChild.setState(ContainerState.VISIBLE, false);
         assertFalse(visibleChild.isHidden());
         assertTrue(hiddenChild.isHidden());
+    }
+
+    @Test
+    void batchVisibilityUpdatesLocalPreferencesAndUndoRestoresThem() {
+        Container group = new Container("group", ContainerType.GROUP);
+        Container child = new Container("child", ContainerType.GENERAL);
+        group.addChild(child);
+        child.setState(ContainerState.HIDDEN, false);
+
+        var command = new BatchSetContainerStateCommand(List.of(group, child), ContainerState.VISIBLE);
+        command.execute();
+        assertEquals(ContainerState.VISIBLE, group.getState());
+        assertEquals(ContainerState.VISIBLE, child.getState());
+        assertFalse(child.isHidden());
+
+        command.undo();
+        assertEquals(ContainerState.VISIBLE, group.getState());
+        assertEquals(ContainerState.HIDDEN, child.getState());
+        assertTrue(child.isHidden());
+    }
+
+    @Test
+    void blockStoreEntryCopyOwnsItsBlockEntityNbt() {
+        NbtCompound originalNbt = new NbtCompound();
+        originalNbt.putString("name", "source");
+        var original = new BlockStore.Entry(null, originalNbt);
+        var copy = original.copy();
+
+        originalNbt.putString("name", "changed source");
+        assertEquals("source", copy.beNbt.getString("name").orElseThrow());
+        copy.beNbt.putString("name", "changed copy");
+        assertEquals("changed source", original.beNbt.getString("name").orElseThrow());
     }
 }

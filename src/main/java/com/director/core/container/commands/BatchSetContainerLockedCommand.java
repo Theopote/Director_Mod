@@ -31,28 +31,35 @@ public class BatchSetContainerLockedCommand implements ContainerCommand {
     @Override
     public void execute() {
         oldLockedStates.clear();
+        List<Container> selected = new ArrayList<>();
         for (UUID id : containerIds) {
             Container container = manager.getContainer(id);
-            if (container == null) continue;
-            oldLockedStates.put(id, container.isLocked());
-            container.setLocked(newLocked);
+            if (container != null) selected.add(container);
         }
+        List<Container> roots = manager.getTopLevelSelection(selected);
+        Set<Container> affected = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Container root : roots) collectAffected(root, affected);
+        for (Container container : affected) oldLockedStates.put(container.getId(), container.isLocked());
+        for (Container root : roots) root.setLocked(newLocked);
     }
 
     @Override
     public void undo() {
-        for (UUID id : containerIds) {
+        for (Map.Entry<UUID, Boolean> entry : oldLockedStates.entrySet()) {
+            UUID id = entry.getKey();
             Container container = manager.getContainer(id);
             if (container == null) continue;
-            Boolean old = oldLockedStates.get(id);
-            if (old != null) {
-                container.setLocked(old);
-            }
+            container.setLocked(entry.getValue(), false);
         }
     }
 
     @Override
     public String getDescription() {
         return (newLocked ? "批量锁定" : "批量解锁") + " " + containerIds.size() + " 个容器";
+    }
+
+    private static void collectAffected(Container container, Set<Container> affected) {
+        if (!affected.add(container)) return;
+        for (Container child : container.getChildrenView()) collectAffected(child, affected);
     }
 }

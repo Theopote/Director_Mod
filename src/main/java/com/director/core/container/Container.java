@@ -348,7 +348,7 @@ public class Container {
         for (Map.Entry<BlockPos, BlockStore.Entry> entry : this.blockStore.raw().entrySet()) {
             BlockStore.Entry value = entry.getValue();
             if (entry.getKey() != null && value != null) {
-                copy.blockStore.add(entry.getKey(), new BlockStore.Entry(value.state, value.beNbt));
+                copy.blockStore.add(entry.getKey(), value.copy());
             }
         }
         
@@ -462,11 +462,17 @@ public class Container {
     }
     
     public boolean isLocked() { return locked; }
-    public void setLocked(boolean locked) { 
-        this.locked = locked; 
-        markModified();
+    public void setLocked(boolean locked) {
+        setLocked(locked, true);
+    }
+
+    public void setLocked(boolean locked, boolean cascade) {
+        if (this.locked != locked) {
+            this.locked = locked;
+            markModified();
+        }
         // 组的锁定状态应级联到子容器
-        if (isGroup()) {
+        if (cascade && isGroup()) {
             for (Container child : getChildrenInternal()) {
                 child.setLocked(locked);
             }
@@ -505,6 +511,7 @@ public class Container {
      * @param syncVisibility {@code false} 时仅更新逻辑状态，不触发 {@link com.director.core.container.visibility.ContainerVisibilityService} 全量隐藏/显示（时间线接管方块时使用）
      */
     public void setState(ContainerState state, boolean syncVisibility) {
+        boolean previouslyVisible = isEffectivelyVisible();
         if (this.state != state) {
             ContainerState oldState = this.state;
             this.state = state;
@@ -512,7 +519,9 @@ public class Container {
             
             LOGGER.debug("[Container] 容器 {} 状态变更: {} -> {}，方块数量: {}", 
                 name, oldState.getDisplayName(), state.getDisplayName(), getBlockCount());
-            if (syncVisibility) refreshEffectiveVisibility();
+            if (syncVisibility && previouslyVisible != isEffectivelyVisible()) {
+                refreshEffectiveVisibility(previouslyVisible);
+            }
         }
     }
     
@@ -536,6 +545,22 @@ public class Container {
             for (Container child : getChildrenInternal()) child.refreshEffectiveVisibility();
             return;
         }
+        syncVisibility(isEffectivelyVisible());
+    }
+
+    /** Applies visibility only to leaves whose effective state changed across a hierarchy update. */
+    public void refreshEffectiveVisibility(boolean previouslyVisible) {
+        boolean effectivelyVisible = isEffectivelyVisible();
+        if (!isGroup()) {
+            if (previouslyVisible != effectivelyVisible) syncVisibility(effectivelyVisible);
+            return;
+        }
+        for (Container child : getChildrenInternal()) {
+            child.refreshEffectiveVisibility(previouslyVisible && child.isLocallyVisible());
+        }
+    }
+
+    private void syncVisibility(boolean effectivelyVisible) {
         try {
             if (!DirectorServices.isInitialized()) return;
             var visibilityService = DirectorServices.get().visibilityOrNull();
@@ -543,7 +568,7 @@ public class Container {
                 LOGGER.warn("[Container] ContainerVisibilityService未初始化，无法切换可见性");
                 return;
             }
-            if (isEffectivelyVisible()) visibilityService.showContainer(this);
+            if (effectivelyVisible) visibilityService.showContainer(this);
             else visibilityService.hideContainer(this);
         } catch (IllegalStateException e) {
             LOGGER.warn("[Container] 切换容器可见性跳过（服务未就绪）: {}", e.getMessage());

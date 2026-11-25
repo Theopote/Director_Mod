@@ -391,7 +391,7 @@ public class ContainerVisibilityService {
                 used++;
                 if (!store.contains(pos)) {
                     BlockStore.Entry source = container.getBlockStore().get(pos);
-                    if (source != null) store.add(pos, new BlockStore.Entry(source.state, source.beNbt));
+                    if (source != null) store.add(pos, source.copy());
                     else store.capture(world, pos);
                 }
                 if (!world.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)
@@ -454,7 +454,7 @@ public class ContainerVisibilityService {
         BlockStore snapshot = new BlockStore();
         for (Map.Entry<net.minecraft.util.math.BlockPos, com.director.core.container.BlockStore.Entry> e
                 : src.raw().entrySet()) {
-            snapshot.add(e.getKey(), new BlockStore.Entry(e.getValue().state, e.getValue().beNbt));
+            snapshot.add(e.getKey(), e.getValue().copy());
         }
         snapshots.put(container.getId(), snapshot);
 
@@ -489,7 +489,7 @@ public class ContainerVisibilityService {
             BlockPos pos = entry.getKey();
             BlockStore.Entry value = entry.getValue();
             if (pos == null || value == null || snapshot.contains(pos)) continue;
-            snapshot.add(pos, new BlockStore.Entry(value.state, value.beNbt));
+            snapshot.add(pos, value.copy());
             added++;
         }
         if (added > 0 && LOGGER.isDebugEnabled()) {
