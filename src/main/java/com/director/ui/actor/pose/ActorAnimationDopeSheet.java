@@ -144,7 +144,6 @@ public final class ActorAnimationDopeSheet {
             ImGui.textWrapped(net.minecraft.client.resource.language.I18n.translate("gui.director.actor.keys.loop_seek_hint"));
         if(renderContext.distanceDriven()) ImGui.textWrapped("路径距离时钟：当前键时间跟随实际步态相位；请在独立动画预览中调整键的时间位置。");
         ImGui.textWrapped("双击通道空白处按动画层求值插键；Ctrl+Q 为所选部位打帧；Ctrl+[ / Ctrl+] 跳转关键帧。");
-        eventPanel.renderTimeline(model,renderContext.track(),clip);
         if(ImGui.beginChild("actorDopeSheetScroll",0,320,true)) renderCanvas(model, clip, asset);
         ImGui.endChild();
         if(!seekMessage.isEmpty()) ImGui.textWrapped(seekMessage);
@@ -298,10 +297,11 @@ public final class ActorAnimationDopeSheet {
 
         final float labelWidth = 140f;
         final float rulerHeight = 18f;
+        final float eventHeight = 42f;
         final float rowHeight = 22f;
         final float keyRadius = 5f;
         float width = Math.max(220f, ImGui.getContentRegionAvailX());
-        float height = rulerHeight + rows.size() * rowHeight;
+        float height = rulerHeight + eventHeight + rows.size() * rowHeight;
         float x = ImGui.getCursorScreenPosX();
         float y = ImGui.getCursorScreenPosY();
         float timeX = x + labelWidth;
@@ -321,11 +321,18 @@ public final class ActorAnimationDopeSheet {
             draw.addText(tx + 2f, y + 2f, TimelineColors.rgba(165, 170, 180, 255),
                     String.format("%.1f", view.startTime + visibleDuration * tick / 4f));
         }
+        float eventY = y + rulerHeight;
+        draw.addLine(x,eventY,x+width,eventY,TimelineColors.rgba(70,75,85,180));
+        draw.addLine(x,eventY+eventHeight,x+width,eventY+eventHeight,TimelineColors.rgba(70,75,85,180));
+        draw.addText(x+4,eventY+4,TimelineColors.COLOR_TEXT_LIGHT,"片段事件");
+        draw.addText(x+4,eventY+24,TimelineColors.COLOR_TEXT_LIGHT,"动画源事件");
+        eventPanel.renderCanvasLane(model, renderContext.track(), clip, asset.duration(),
+                view.startTime, view.startTime + visibleDuration, timeX, eventY, timeWidth, hovered);
         for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
             Row row = rows.get(rowIndex);
-            float cy = y + rulerHeight + rowIndex * rowHeight + rowHeight * 0.5f;
-            draw.addLine(x, y + rulerHeight + (rowIndex + 1) * rowHeight,
-                    x + width, y + rulerHeight + (rowIndex + 1) * rowHeight,
+            float cy = y + rulerHeight + eventHeight + rowIndex * rowHeight + rowHeight * 0.5f;
+            draw.addLine(x, y + rulerHeight + eventHeight + (rowIndex + 1) * rowHeight,
+                    x + width, y + rulerHeight + eventHeight + (rowIndex + 1) * rowHeight,
                     TimelineColors.rgba(55, 60, 68, 180), 1f);
             draw.pushClipRect(x,y,timeX,y+height,true);
             draw.addText(x + 4f, cy - 7f, TimelineColors.rgba(200, 205, 215, 255),
@@ -365,7 +372,7 @@ public final class ActorAnimationDopeSheet {
         }
 
         handleCanvasInput(model, clip, asset, rows, x, y, timeX, timeWidth,
-                rulerHeight, rowHeight, keyRadius, pixelsPerSecond, view.startTime, hovered, draw);
+                rulerHeight + eventHeight, rowHeight, keyRadius, pixelsPerSecond, view.startTime, hovered, draw);
     }
 
     private static void handleCanvasInput(TimelineModel model, EntityAnimationClip clip, AnimationAsset asset,
@@ -377,7 +384,7 @@ public final class ActorAnimationDopeSheet {
         float my = ImGui.getMousePosY();
         var viewport=new ActorDopeSheetViewport(x,y,timeX,timeWidth,rulerHeight+rows.size()*rowHeight,
                 pixelsPerSecond,viewStartTime,model.getFrameRate(),rows);
-        if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Left)
+        if (hovered && my >= y + rulerHeight && ImGui.isMouseClicked(ImGuiMouseButton.Left)
                 && !ActorBoneGizmoController.getInstance().isDragging() && !ActorBonePropertiesPanel.hasNumericDraft()) {
             com.director.ui.timeline.render.ActorBoneTimelineRows.cancelAllKeyInteractions();
             ActorKeyframeTimePanel.cancelAll();

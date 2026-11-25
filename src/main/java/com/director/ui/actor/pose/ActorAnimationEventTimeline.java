@@ -18,6 +18,7 @@ import java.util.function.Consumer;
 /** Scene-time event strip: source-clock events display every occurrence, including loops. */
 public final class ActorAnimationEventTimeline {
     private Drag drag;
+    private AssetDrag assetDrag;
     private String message = "";
     private EntityAnimationClip shownClip;
     record Occurrence(AnimationEvent event,float time) {}
@@ -32,9 +33,20 @@ public final class ActorAnimationEventTimeline {
                     && before.equals(clip.getEvents());
         }
     }
+    private record AssetViewport(float start, float end, float x, float y, float width) {}
+    private record AssetDrag(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip, long revision,
+                             AssetViewport viewport, List<AnimationEvent> before, int index,
+                             float initialPhase, float mouseX) {
+        boolean matches(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip, AssetViewport viewport) {
+            return this.model == model && this.owner == owner && this.clip == clip
+                    && revision == model.getActorEditContextRevision() && this.viewport.equals(viewport)
+                    && before.equals(clip.getEvents());
+        }
+    }
 
     void cancel() {
         drag = null;
+        assetDrag = null;
     }
 
     static List<Occurrence> occurrences(TimelineTrack owner,EntityAnimationClip clip,float from,float to) {
@@ -75,12 +87,21 @@ public final class ActorAnimationEventTimeline {
         return clock.phaseAt(timing, time).map(phase -> new DraftSeed(timing, phase));
     }
 
+    static float assetPhase(EntityAnimationClip clip, float assetDuration, AnimationEvent event) {
+        float local = event.getTiming() == AnimationEvent.Timing.CLIP
+                ? event.getNormalizedTime() * clip.getLength() * Math.max(.01f, clip.getSpeed())
+                : event.getNormalizedTime() * assetDuration;
+        if (local <= assetDuration) return Math.max(0, local);
+        return clip.isLoop() ? local % Math.max(.0001f, assetDuration) : assetDuration;
+    }
+
     void render(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip, Consumer<DraftSeed> openDraft) {
         if (shownClip != clip) {
             cancel();
             message = "";
             shownClip = clip;
         }
+
         float start=clip.getStartTime(),length=clip.getLength();
         if(!Float.isFinite(length) || length<=0) { cancel(); return; }
         float x=ImGui.getCursorScreenPosX(),y=ImGui.getCursorScreenPosY();
@@ -149,6 +170,97 @@ public final class ActorAnimationEventTimeline {
         if (!message.isEmpty()) ImGui.textWrapped(message);
         else if (markers.isEmpty() && ActorAnimationEventEditing.editable(model, owner, clip))
             ImGui.textWrapped(ActorAnimationEventPanel.tr("double_click_add"));
+    }
+
+    void renderAssetLane(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip, float assetDuration,
+                         float start, float end, float x, float y, float width, boolean hovered,
+                         Consumer<DraftSeed> openDraft) {
+        if (shownClip != clip) {
+            cancel();
+            message = "";
+            shownClip = clip;
+        }
+        float visible = end - start;
+        if (visible <= 0 || assetDuration <= 0) return;
+        var viewport = new AssetViewport(start, end, x, y, width);
+        var draw = ImGui.getWindowDrawList();
+        float clipAssetLength = clip.getLength() * Math.max(.01f, clip.getSpeed());
+        Hit hit = null;
+        for (int i = 0; i < clip.getEvents().size(); i++) {
+            var event = clip.getEvents().get(i);
+            float local = assetPhase(clip, assetDuration, event);
+            if (local < start - 6 / width * visible || local > end + 6 / width * visible) continue;
+            float px = x + (local - start) / visible * width;
+            float cy = y + (event.getTiming() == AnimationEvent.Timing.CLIP ? 11 : 31);
+            draw.addTriangleFilled(px, cy - 5, px - 5, cy + 4, px + 5, cy + 4,
+                    TimelineColors.rgba(255, 190, 70, 255));
+            float distance = Math.abs(ImGui.getMousePosX() - px);
+            if (hovered && Math.abs(ImGui.getMousePosY() - cy) <= 8
+                    && (hit == null || distance < hit.distance())) hit = new Hit(event, i, local, distance);
+        }
+        if (hit != null) {
+            var marker = hit;
+            ImGui.setTooltip(marker.event().getAction().type().getDisplayName()
+                    + String.format(" · %.3fs\n拖动调整", marker.local()));
+            if (canSeek(model) && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
+                if (ActorAnimationEventEditing.editable(model, owner, clip)) {
+                    assetDrag = new AssetDrag(model, owner, clip, model.getActorEditContextRevision(), viewport,
+                            ActorAnimationEventEditing.copy(clip.getEvents()), marker.index(),
+                            marker.event().getNormalizedTime(), ImGui.getMousePosX());
+                } else ActorAnimationEventTimeline.seek(model, owner, clip, marker.event());
+            }
+        }
+        if (assetDrag != null) updateAssetDrag(model, owner, clip, assetDuration, clipAssetLength, viewport, hovered, draw);
+        else if (hit == null && hovered && canSeek(model) && ActorAnimationEventEditing.editable(model, owner, clip)
+                && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) {
+            float local = Math.clamp(start + (ImGui.getMousePosX() - x) / width * visible, 0, assetDuration);
+            var timing = ImGui.getMousePosY() - y < 20
+                    ? AnimationEvent.Timing.CLIP : AnimationEvent.Timing.ANIMATION;
+            float phase = timing == AnimationEvent.Timing.CLIP
+                    ? local / Math.max(.0001f, clipAssetLength) : local / assetDuration;
+            if (phase >= 0 && phase <= 1) openDraft.accept(new DraftSeed(timing, phase));
+        }
+    }
+
+    private record Hit(AnimationEvent event, int index, float local, float distance) {}
+
+    private void updateAssetDrag(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip,
+                                 float assetDuration, float clipAssetLength, AssetViewport viewport,
+                                 boolean hovered, imgui.ImDrawList draw) {
+        boolean released = ImGui.isMouseReleased(ImGuiMouseButton.Left);
+        if (!assetDrag.matches(model, owner, clip, viewport) || !canSeek(model)
+                || !ActorAnimationEventEditing.editable(model, owner, clip) || ImGui.isKeyPressed(ImGuiKey.Escape)
+                || (!released && (!ImGui.isMouseDown(ImGuiMouseButton.Left) || !ImGui.isItemActive()))) {
+            assetDrag = null;
+            return;
+        }
+        float dx = ImGui.getMousePosX() - assetDrag.mouseX();
+        boolean moved = ImGui.isMouseDragging(ImGuiMouseButton.Left, 4f) || Math.abs(dx) >= 4f;
+        var event = assetDrag.before().get(assetDrag.index());
+        float local = assetDrag.initialPhase() * (event.getTiming() == AnimationEvent.Timing.CLIP
+                ? clipAssetLength : assetDuration);
+        local = Math.clamp(local + dx / viewport.width() * (viewport.end() - viewport.start()), 0, assetDuration);
+        float phase = Math.clamp(event.getTiming() == AnimationEvent.Timing.CLIP
+                ? local / Math.max(.0001f, clipAssetLength) : local / assetDuration, 0, 1);
+        if (released) {
+            var gesture = assetDrag;
+            assetDrag = null;
+            if (!hovered || !moved) {
+                if (hovered && !moved) ActorAnimationEventTimeline.seek(model, owner, clip, event);
+                return;
+            }
+            try {
+                ActorAnimationEventEditing.move(model, owner, clip, gesture.before(), gesture.index(), phase);
+            } catch (IllegalArgumentException failure) {
+                message = failure.getMessage();
+            }
+            return;
+        }
+        if (!moved) return;
+        float px = viewport.x() + (local - viewport.start()) / (viewport.end() - viewport.start()) * viewport.width();
+        float cy = viewport.y() + (event.getTiming() == AnimationEvent.Timing.CLIP ? 11 : 31);
+        draw.addTriangleFilled(px, cy - 6, px - 6, cy + 5, px + 6, cy + 5,
+                TimelineColors.rgba(100, 220, 255, 255));
     }
 
     private void updateDrag(TimelineModel model, TimelineTrack owner, EntityAnimationClip clip,

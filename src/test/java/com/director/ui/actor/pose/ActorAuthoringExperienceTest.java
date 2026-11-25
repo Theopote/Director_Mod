@@ -97,6 +97,19 @@ class ActorAuthoringExperienceTest {
         assertEquals(4.25f,model.getCurrentTime());assertEquals(0,history.getUndoSize());
     }
 
+    @Test void assetLaneMapsClipAndAnimationEventsIntoAssetSpace() {
+        var asset=asset();var clip=add(new EntityAnimationClip("Animation",1,5));clip.setAnimationId(asset.id());clip.setLoop(false);
+        clip.setSpeed(2);
+        var action=new EntityActionEvent(EntityActionClip.ActionType.PLAY_SOUND,
+                Map.of("soundId","minecraft:entity.player.attack.sweep"));
+        clip.addEvent(new AnimationEvent(.25f,action,AnimationEvent.Timing.CLIP));
+        clip.addEvent(new AnimationEvent(.5f,action,AnimationEvent.Timing.ANIMATION));
+        var clipLane=ActorAnimationEventTimeline.assetPhase(clip,asset.duration(),clip.getEvents().getFirst());
+        var sourceLane=ActorAnimationEventTimeline.assetPhase(clip,asset.duration(),clip.getEvents().getLast());
+        assertEquals(1,clipLane,.0001f);
+        assertEquals(.5f,sourceLane,.0001f);
+    }
+
     @Test void keyNavigationIsStrictAndDoesNotWrapOrAlterKeys() {
         model.setCurrentTime(2);
         var times=List.of(1f,2f,3f,3f,Float.NaN);
