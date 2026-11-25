@@ -2595,6 +2595,7 @@
   "gui.director.actor.curve.scale": "Scale",
   "gui.director.actor.curve.rotation": "Rotation",
   "gui.director.actor.curve.quaternion": "Rotation shows quaternion components XYZW rather than angles.",
+  "gui.director.actor.dope.flat_key_list": "Keyframe text list",
   "gui.director.actor.keys.loop_seek_hint": "Loop keys seek to the nearest occurrence. Time dragging and frame nudging are disabled for repeats. Keys outside the trimmed reference do not move the playhead.",
   "gui.director.actor.detail.target": "Actor: %s · Track: %s",
   "gui.director.actor.detail.reference": "Animation reference: %s · Asset: %s",

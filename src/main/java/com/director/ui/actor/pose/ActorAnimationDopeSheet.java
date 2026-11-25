@@ -15,9 +15,11 @@ import org.joml.Quaternionf;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -71,14 +73,18 @@ public final class ActorAnimationDopeSheet {
     private static String interactionAssetId;
     private static float interactionFrameRate;
     private static ActorDopeSheetViewport interactionViewport;
-    private static final Map<String, ViewState> views = new HashMap<>();
+    private static final int MAX_VIEWS = 64;
+    private static final Map<String, ViewState> views = new LinkedHashMap<>(16, .75f, true) {
+        @Override protected boolean removeEldestEntry(Map.Entry<String, ViewState> eldest) {
+            return size() > MAX_VIEWS;
+        }
+    };
 
     private ActorAnimationDopeSheet() {}
 
     private static long observedSelectionRevision=-1;
     private static List<ActorAnimationAuthoringService.Key> importedKeys=List.of();
     private static String seekMessage="";
-    private static final BoneTrack EMPTY_TRACK=new BoneTrack();
     private static final imgui.type.ImInt snapMode=new imgui.type.ImInt(1);
     public static void render(TimelineModel model, UUID actorId) {
         try { renderInternal(model,actorId); }
@@ -143,6 +149,8 @@ public final class ActorAnimationDopeSheet {
         ImGui.endChild();
         if(!seekMessage.isEmpty()) ImGui.textWrapped(seekMessage);
 
+        if (ImGui.collapsingHeader(net.minecraft.client.resource.language.I18n.translate(
+                "gui.director.actor.dope.flat_key_list") + "##dopeFlatKeyList")) {
         for (Map.Entry<String, BoneTrack> entry : asset.boneTracks().entrySet()) {
             if (entry.getValue().translation().isEmpty()) continue;
             if (ImGui.treeNode(Icons.MOVE + " " + entry.getKey() + " · 位移##dopeTranslation:" + asset.id())) {
@@ -191,6 +199,7 @@ public final class ActorAnimationDopeSheet {
                 }
                 ImGui.treePop();
             }
+        }
         }
 
         renderContext = ActorAnimationEditContext.capture(model, renderContext.track(), clip);
@@ -672,10 +681,11 @@ public final class ActorAnimationDopeSheet {
     }
 
     private static List<Float> frameTimes(Row row) {
+        if (row.track().isEmpty()) return List.of();
         return switch (row.channel()) {
-            case ROTATION -> row.track().rotation().keyframes().stream().map(ChannelKeyframe::time).toList();
-            case TRANSLATION -> row.track().translation().keyframes().stream().map(ChannelKeyframe::time).toList();
-            case SCALE -> row.track().scale().keyframes().stream().map(ChannelKeyframe::time).toList();
+            case ROTATION -> row.track().orElseThrow().rotation().keyframes().stream().map(ChannelKeyframe::time).toList();
+            case TRANSLATION -> row.track().orElseThrow().translation().keyframes().stream().map(ChannelKeyframe::time).toList();
+            case SCALE -> row.track().orElseThrow().scale().keyframes().stream().map(ChannelKeyframe::time).toList();
         };
     }
 
@@ -685,9 +695,9 @@ public final class ActorAnimationDopeSheet {
 
     private static void renderCurve(List<Row> rows, ViewState view, float duration) {
         var keyed = rows.stream().filter(row -> switch (row.channel()) {
-            case ROTATION -> !row.track().rotation().isEmpty();
-            case TRANSLATION -> !row.track().translation().isEmpty();
-            case SCALE -> !row.track().scale().isEmpty();
+            case ROTATION -> row.track().isPresent() && !row.track().orElseThrow().rotation().isEmpty();
+            case TRANSLATION -> row.track().isPresent() && !row.track().orElseThrow().translation().isEmpty();
+            case SCALE -> row.track().isPresent() && !row.track().orElseThrow().scale().isEmpty();
         }).toList();
         if (keyed.isEmpty()) {
             ImGui.textDisabled(curveText("empty"));
@@ -717,7 +727,7 @@ public final class ActorAnimationDopeSheet {
         List<Row> rows=new ArrayList<>();
         for(var bone:asset.rig().bones()) for(var channel:Channel.values())
             if(ActorBoneInspector.supports(asset.rig(),bone.id(),channelMask(channel)))
-                rows.add(new Row(bone.id(),asset.findBoneTrack(bone.id()).orElse(EMPTY_TRACK),channel));
+                rows.add(new Row(bone.id(),asset.findBoneTrack(bone.id()),channel));
         return rows;
     }
     private static int channelMask(Channel channel) {
@@ -729,7 +739,7 @@ public final class ActorAnimationDopeSheet {
     }
     enum Channel { ROTATION, TRANSLATION, SCALE }
     private record KeyId(String boneId, Channel channel, float time) {}
-    record Row(String boneId, BoneTrack track, Channel channel) {}
+    record Row(String boneId, Optional<BoneTrack> track, Channel channel) {}
     private static final class ViewState {
         private float zoom = 1f;
         private float startTime;

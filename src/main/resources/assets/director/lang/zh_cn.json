@@ -2595,6 +2595,7 @@
   "gui.director.actor.curve.scale": "缩放",
   "gui.director.actor.curve.rotation": "旋转",
   "gui.director.actor.curve.quaternion": "旋转显示为四元数分量 XYZW，数值不是角度。",
+  "gui.director.actor.dope.flat_key_list": "关键帧文本列表",
   "gui.director.actor.keys.loop_seek_hint": "循环键定位到播放头附近的实际周期；时间拖动和逐帧移动暂不开放。裁切范围外的键不会跳转播放头。",
   "gui.director.actor.detail.target": "演员：%s · 轨道：%s",
   "gui.director.actor.detail.reference": "动画引用：%s · 资产：%s",

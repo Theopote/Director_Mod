@@ -3,6 +3,9 @@ package com.director.ui.actor.pose;
 import com.director.actor.Actor;
 import com.director.actor.animation.*;
 import com.director.actor.animation.asset.*;
+import com.director.actor.rig.ActorRigCompatibility;
+import com.director.actor.rig.skeleton.HumanoidTopology;
+import com.director.actor.rig.skeleton.RigPoseComposer;
 import com.director.timeline.model.entity.EntitySpawnClip;
 
 /** Every preset attachment entry validates the same reference and skeleton contract. */
@@ -29,7 +32,14 @@ public final class ActorPresetValidation {
 
     public static void requireReference(Actor actor, AnimationAssetLibrary library, String id, String manualId) {
         if(id.equals(manualId)) throw new IllegalArgumentException("这是本片段的手工修正动画，不能同时作为预设；请先复制动画或选择其他动作。");
-        if(ActorAnimationCatalog.entries(library,AnimationLibrary.getInstance().getAllAnimations(),actor).stream()
-                .noneMatch(e->e.id().equals(id) && e.compatible())) throw new IllegalArgumentException("动作不存在或与演员骨架不兼容");
+        var rig = ActorRigCompatibility.resolveRig(actor).orElse(null);
+        var asset = library.find(id).orElse(null);
+        boolean compatible = asset != null
+                ? rig != null && ActorRigCompatibility.accepts(actor, asset.rigId())
+                    && RigPoseComposer.sameLayout(rig, asset.rig())
+                : AnimationLibrary.getInstance().get(id)
+                    .map(animation -> HumanoidTopology.matches(rig))
+                    .orElse(false);
+        if (!compatible) throw new IllegalArgumentException("动作不存在或与演员骨架不兼容");
     }
 }

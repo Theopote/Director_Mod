@@ -32,10 +32,11 @@ final class ActorAnimationCurvePreview {
     }
 
     static void render(ActorAnimationDopeSheet.Row row, float start, float duration, float playhead) {
+        var track = row.track().orElseThrow();
         switch (row.channel()) {
-            case TRANSLATION -> plot(row.track().translation(), new Vector3f(), ActorAnimationCurvePreview::components, start, duration, playhead);
-            case SCALE -> plot(row.track().scale(), new Vector3f(1), ActorAnimationCurvePreview::components, start, duration, playhead);
-            case ROTATION -> plot(row.track().rotation(), new Quaternionf(), q -> new float[]{q.x, q.y, q.z, q.w},
+            case TRANSLATION -> plot(track.translation(), new Vector3f(), ActorAnimationCurvePreview::components, start, duration, playhead);
+            case SCALE -> plot(track.scale(), new Vector3f(1), ActorAnimationCurvePreview::components, start, duration, playhead);
+            case ROTATION -> plot(track.rotation(), new Quaternionf(), q -> new float[]{q.x, q.y, q.z, q.w},
                     start, duration, playhead);
         }
     }

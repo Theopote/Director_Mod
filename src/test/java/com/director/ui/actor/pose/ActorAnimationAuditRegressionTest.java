@@ -74,5 +74,13 @@ class ActorAnimationAuditRegressionTest {
         assertEquals(.01f,clip.getSpeed());
         clip.setSpeed(Float.NaN);assertEquals(1,clip.getSpeed());
     }
+
+    @Test void emptyDopeSheetRowsDoNotExposeSharedMutableTracks() {
+        var empty = new AnimationAsset("audit:"+UUID.randomUUID(),"Empty",ArticulatedPlayerRig.DEFINITION,
+                5,AnimationLoopMode.ONCE);
+        var rows = ActorAnimationDopeSheet.rows(empty);
+        assertFalse(rows.isEmpty());
+        assertTrue(rows.stream().allMatch(row -> row.track().isEmpty()));
+    }
 }
 

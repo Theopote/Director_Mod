@@ -107,6 +107,10 @@ public final class ActorRuntimeController {
 
     /** 上一帧时间（用于计算 deltaTime） */
     private float lastUpdateTime = 0f;
+    private int lastUpdateTimeBits;
+    private long lastUpdateEditRevision = Long.MIN_VALUE;
+    private long lastUpdateSamplingRevision = Long.MIN_VALUE;
+    private boolean hasUpdateSnapshot;
     private long previewWorldRevision=-1;
 
     private boolean synchronizePreviewWorld() {
@@ -130,6 +134,7 @@ public final class ActorRuntimeController {
         com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
         for(var runtime:runtimes.values()) runtime.resetWorldResources();
         lastUpdateTime=timelineSource==null?0:timelineSource.getCurrentTime();
+        hasUpdateSnapshot=false;
     }
 
 
@@ -237,6 +242,7 @@ public final class ActorRuntimeController {
      */
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+        hasUpdateSnapshot = false;
         if (!enabled) {
             diagnostics.clear();
             ActorPreviewManager.getInstance().clear();
@@ -279,6 +285,15 @@ public final class ActorRuntimeController {
         }
 
         float time = timelineSource.getCurrentTime();
+        int timeBits = Float.floatToIntBits(time);
+        long editRevision = timelineSource.getActorEditContextRevision();
+        long samplingRevision = com.director.timeline.model.entity.ActorTrack.globalSamplingRevision();
+        if (hasUpdateSnapshot && lastUpdateTimeBits == timeBits
+                && lastUpdateEditRevision == editRevision && lastUpdateSamplingRevision == samplingRevision) return;
+        lastUpdateTimeBits = timeBits;
+        lastUpdateEditRevision = editRevision;
+        lastUpdateSamplingRevision = samplingRevision;
+        hasUpdateSnapshot = true;
         diagnostics.begin(time);
         if (!Float.isFinite(time) || time < 0) {
             propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
@@ -335,6 +350,7 @@ public final class ActorRuntimeController {
     }
 
     private void rebuildRuntimes() {
+        hasUpdateSnapshot = false;
         diagnostics.clear();
         runtimes.clear();
         pruneDeadTracks();
