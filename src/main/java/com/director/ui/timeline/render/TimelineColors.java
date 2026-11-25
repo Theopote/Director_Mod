@@ -34,29 +34,29 @@ public final class TimelineColors {
     public static final int COLOR_SELECTED_BORDER = rgba(255, 255, 80, 255);
     
     // 背景颜色
-    public static final int COLOR_BG_DARK = rgba(30, 30, 30, 220);
-    public static final int COLOR_BG_MEDIUM = rgba(45, 45, 45, 200);
-    public static final int COLOR_RULER_BG = rgba(40, 40, 40, 220);
+    public static final int COLOR_BG_DARK = rgba(26, 28, 33, 245);
+    public static final int COLOR_BG_MEDIUM = rgba(40, 43, 51, 245);
+    public static final int COLOR_RULER_BG = rgba(62, 67, 82, 255);
     
     // 轨道标签背景颜色
-    public static final int COLOR_TRACK_LABEL_BG = rgba(24, 24, 24, 220);
+    public static final int COLOR_TRACK_LABEL_BG = rgba(22, 24, 29, 245);
     /** 轨道名称区域交替行背景色（偶数行），用于斑马纹效果 (Zebra Striping) */
-    public static final int COLOR_TRACK_LABEL_BG_ALT = rgba(32, 32, 32, 220);
+    public static final int COLOR_TRACK_LABEL_BG_ALT = rgba(32, 35, 42, 245);
     
     // 分割线和控件颜色
     /** 轨道分割线颜色（深色缝隙，全贯通） */
-    public static final int COLOR_SEPARATOR_LINE = rgba(0, 0, 0, 150);
+    public static final int COLOR_SEPARATOR_LINE = rgba(0, 0, 0, 200);
     // Expanded actor rows share the same contrast across labels and keyframe lanes.
     public static final int COLOR_ACTOR_CHILD_BG = rgba(29, 32, 37, 255);
     public static final int COLOR_ACTOR_CHILD_BG_ALT = rgba(34, 37, 43, 255);
     public static final int COLOR_ACTOR_CHILD_SEPARATOR = rgba(60, 65, 74, 255);
     public static final int COLOR_ACTOR_BONE_SEPARATOR = rgba(79, 86, 98, 255);
-    public static final int COLOR_RESIZE_HANDLE = rgba(180, 180, 180, 150);
+    public static final int COLOR_RESIZE_HANDLE = rgba(200, 206, 220, 190);
     public static final int COLOR_DROP_HIGHLIGHT = rgba(100, 200, 255, 80);
     
     // 文本颜色
-    public static final int COLOR_TEXT_LIGHT = rgba(220, 220, 220, 255);
-    public static final int COLOR_TEXT_MEDIUM = rgba(200, 200, 200, 255);
+    public static final int COLOR_TEXT_LIGHT = rgba(240, 243, 250, 255);
+    public static final int COLOR_TEXT_MEDIUM = rgba(214, 218, 228, 255);
     public static final int COLOR_TEXT_DARK = rgba(10, 10, 10, 255);
 
     /** Consistent TRS colors for actor row buttons and the active channel marker. */

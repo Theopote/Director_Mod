@@ -72,12 +72,12 @@ public final class TimelineRulerRenderer {
 
         drawList.addRectFilledMultiColor(
             contentX, topY, contentX + contentW, topY + 1,
-            TimelineColors.rgba(65,65,65,200), TimelineColors.rgba(65,65,65,200),
-            TimelineColors.rgba(45,45,45,100), TimelineColors.rgba(45,45,45,100)
+            TimelineColors.rgba(110,118,140,220), TimelineColors.rgba(110,118,140,220),
+            TimelineColors.rgba(62,67,82,100), TimelineColors.rgba(62,67,82,100)
         );
 
         drawList.addLine(contentX, topY + rulerHeight, contentX + contentW, topY + rulerHeight,
-                        TimelineColors.rgba(20,20,20,180), 1.0f);
+                        TimelineColors.rgba(8,9,12,255), 1.0f);
 
         float pps = viewport.getPixelsPerSecond();
         float[] visibleRange = math.getVisibleTimeRange();
@@ -100,7 +100,7 @@ public final class TimelineRulerRenderer {
             boolean isMajor = Math.abs(ratio - Math.round(ratio)) < 0.001f;
             if (!isMajor) {
                 drawList.addLine(x, topY + rulerHeight - 6, x, topY + rulerHeight,
-                        TimelineColors.rgba(100,100,100,150), 1.0f);
+                        TimelineColors.rgba(150,158,178,200), 1.0f);
             }
         }
 
@@ -111,7 +111,7 @@ public final class TimelineRulerRenderer {
             if (x < contentX || x > contentX + contentW) continue;
 
             drawList.addLine(x, topY + 2, x, topY + rulerHeight,
-                    TimelineColors.rgba(160,160,160,220), 1.5f);
+                    TimelineColors.rgba(214,220,236,255), 1.5f);
 
             String timeText = timeFormatter.formatTimeLabel(t);
             String frameText = timeFormatter.formatFrameLabel(t);
@@ -123,7 +123,7 @@ public final class TimelineRulerRenderer {
             final float FRAME_TEXT_MARGIN = 2f;
             float frameTextY = topY + FRAME_TEXT_OFFSET_Y;
             if (frameTextY + FRAME_TEXT_MIN_SPACE < topY + rulerHeight - FRAME_TEXT_MARGIN) {
-                drawList.addText(x + 3, frameTextY, TimelineColors.rgba(140,140,140,200), frameText);
+                drawList.addText(x + 3, frameTextY, TimelineColors.rgba(170,177,196,235), frameText);
             }
         }
 

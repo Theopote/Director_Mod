@@ -24,7 +24,7 @@ public class UITheme {
     public static final class Semantic {
         public static final int SUCCESS = DarkTheme.RENDER_ENABLED;
         public static final int WARNING = DarkTheme.TEXT_WARNING;
-        public static final int DANGER = rgba(255, 102, 102, 255);
+        public static final int DANGER = rgba(255, 110, 110, 255);
         public static final int INFO = DarkTheme.CHECK_MARK;
 
         private Semantic() {}
@@ -32,68 +32,68 @@ public class UITheme {
 
     public static class DarkTheme {
         // 背景色（窗口最暗，子区域逐级提亮）
-        public static final int WINDOW_BG = rgba(16, 16, 18, 220);           // 主窗口背景（更透明）
-        public static final int CHILD_BG = rgba(38, 38, 42, 230);            // 子窗口 / 内容区（更透明）
-        public static final int POPUP_BG = rgba(44, 44, 50, 225);            // 弹出窗口背景（更透明）
+        public static final int WINDOW_BG = rgba(18, 19, 23, 246);           // 主窗口背景（更透明）
+        public static final int CHILD_BG = rgba(30, 32, 38, 250);            // 子窗口 / 内容区（更透明）
+        public static final int POPUP_BG = rgba(38, 41, 50, 252);            // 弹出窗口背景（更透明）
         
         // 文本色
-        public static final int TEXT = rgba(236, 236, 240, 255);             // 主文本
-        public static final int TEXT_DISABLED = rgba(142, 142, 152, 255);    // 禁用文本
+        public static final int TEXT = rgba(230, 233, 240, 255);             // 主文本
+        public static final int TEXT_DISABLED = rgba(130, 136, 150, 255);    // 禁用文本
         public static final int TEXT_SELECTED = rgba(255, 255, 255, 255);    // 选中文本
-        public static final int TEXT_WARNING = rgba(255, 200, 0, 255);        // 警告文本（黄色）
+        public static final int TEXT_WARNING = rgba(255, 196, 64, 255);        // 警告文本（黄色）
         
         // 边框色（描边已关闭时仍供分隔线等使用，略弱化）
-        public static final int BORDER = rgba(72, 74, 82, 180);
+        public static final int BORDER = rgba(96, 104, 126, 190);
         public static final int BORDER_SHADOW = rgba(0, 0, 0, 48);
         
         // 按钮色（与输入框底色区分，略偏冷灰）
-        public static final int BUTTON = rgba(55, 58, 66, 255);
-        public static final int BUTTON_HOVERED = rgba(72, 76, 88, 255);
-        public static final int BUTTON_ACTIVE = rgba(88, 94, 108, 255);
+        public static final int BUTTON = rgba(66, 72, 90, 255);
+        public static final int BUTTON_HOVERED = rgba(84, 96, 124, 255);
+        public static final int BUTTON_ACTIVE = rgba(66, 120, 204, 255);
         
         // 标题栏
-        public static final int TITLE_BG = rgba(30, 30, 34, 255);
-        public static final int TITLE_BG_ACTIVE = rgba(40, 40, 46, 255);
-        public static final int TITLE_BG_COLLAPSED = rgba(26, 26, 30, 255);
+        public static final int TITLE_BG = rgba(24, 25, 30, 255);
+        public static final int TITLE_BG_ACTIVE = rgba(34, 36, 44, 255);
+        public static final int TITLE_BG_COLLAPSED = rgba(22, 23, 28, 255);
 
         /** 普通面板标题栏 */
-        public static final int TITLE_BG_PANEL = rgba(72, 74, 82, 255);
-        public static final int TITLE_BG_PANEL_ACTIVE = rgba(86, 88, 98, 255);
-        public static final int TITLE_BG_PANEL_COLLAPSED = rgba(60, 62, 70, 255);
+        public static final int TITLE_BG_PANEL = rgba(64, 70, 88, 255);
+        public static final int TITLE_BG_PANEL_ACTIVE = rgba(72, 78, 96, 255);
+        public static final int TITLE_BG_PANEL_COLLAPSED = rgba(48, 52, 64, 255);
         
         // 输入框、滑块槽等 frame 背景（相对 CHILD_BG 明显更亮）
-        public static final int FRAME_BG = rgba(48, 50, 58, 255);
-        public static final int FRAME_BG_HOVERED = rgba(58, 60, 70, 255);
-        public static final int FRAME_BG_ACTIVE = rgba(68, 70, 82, 255);
+        public static final int FRAME_BG = rgba(14, 15, 19, 255);
+        public static final int FRAME_BG_HOVERED = rgba(28, 33, 46, 255);
+        public static final int FRAME_BG_ACTIVE = rgba(36, 46, 68, 255);
         
         // 滑块和进度条
-        public static final int SLIDER_GRAB = rgba(100, 168, 255, 255);
-        public static final int SLIDER_GRAB_ACTIVE = rgba(130, 196, 255, 255);
+        public static final int SLIDER_GRAB = rgba(110, 176, 255, 255);
+        public static final int SLIDER_GRAB_ACTIVE = rgba(160, 205, 255, 255);
         
         // 复选框和单选按钮
-        public static final int CHECK_MARK = rgba(100, 168, 255, 255);
+        public static final int CHECK_MARK = rgba(92, 160, 255, 255);
         
         // 标签页
-        public static final int TAB = rgba(42, 44, 52, 255);
-        public static final int TAB_HOVERED = rgba(55, 58, 68, 255);
-        public static final int TAB_ACTIVE = rgba(72, 130, 210, 255);
-        public static final int TAB_UNFOCUSED = rgba(34, 36, 42, 255);
+        public static final int TAB = rgba(44, 48, 60, 255);
+        public static final int TAB_HOVERED = rgba(58, 74, 104, 255);
+        public static final int TAB_ACTIVE = rgba(56, 108, 188, 255);
+        public static final int TAB_UNFOCUSED = rgba(28, 30, 36, 255);
         
         // 滚动条
-        public static final int SCROLLBAR_BG = rgba(20, 20, 22, 220);
-        public static final int SCROLLBAR_GRAB = rgba(96, 98, 108, 255);
-        public static final int SCROLLBAR_GRAB_HOVERED = rgba(118, 120, 132, 255);
+        public static final int SCROLLBAR_BG = rgba(12, 13, 16, 235);
+        public static final int SCROLLBAR_GRAB = rgba(120, 126, 144, 255);
+        public static final int SCROLLBAR_GRAB_HOVERED = rgba(146, 154, 176, 255);
         public static final int SCROLLBAR_GRAB_ACTIVE = rgba(138, 140, 154, 255);
         
         // 分割线
-        public static final int SEPARATOR = rgba(62, 64, 72, 255);
+        public static final int SEPARATOR = rgba(84, 90, 108, 255);
         public static final int SEPARATOR_HOVERED = rgba(82, 84, 94, 255);
         public static final int SEPARATOR_ACTIVE = rgba(100, 102, 114, 255);
         
         // 表头（折叠区块、可选列表项等与选中态统一的蓝色系）
-        public static final int HEADER = rgba(52, 54, 62, 255);
-        public static final int HEADER_HOVERED = rgba(64, 72, 88, 255);
-        public static final int HEADER_ACTIVE = rgba(56, 96, 160, 255);
+        public static final int HEADER = rgba(56, 62, 80, 255);
+        public static final int HEADER_HOVERED = rgba(58, 72, 100, 255);
+        public static final int HEADER_ACTIVE = rgba(52, 100, 176, 255);
         
         // 高亮色（选择、激活等）
         public static final int HIGHLIGHT = rgba(72, 130, 210, 130);
@@ -119,13 +119,13 @@ public class UITheme {
         public static final int BUTTON_DEBUG = rgba(51, 153, 204, 255);       // 调试按钮
         public static final int BUTTON_DEBUG_HOVERED = rgba(77, 179, 230, 255);
         public static final int BUTTON_DEBUG_ACTIVE = rgba(26, 128, 179, 255);
-        public static final int BUTTON_DANGER = rgba(204, 51, 51, 255);       // 危险按钮（关闭）
-        public static final int BUTTON_DANGER_HOVERED = rgba(255, 77, 77, 255);
-        public static final int BUTTON_DANGER_ACTIVE = rgba(179, 26, 26, 255);
+        public static final int BUTTON_DANGER = rgba(198, 62, 62, 255);       // 危险按钮（关闭）
+        public static final int BUTTON_DANGER_HOVERED = rgba(236, 88, 88, 255);
+        public static final int BUTTON_DANGER_ACTIVE = rgba(164, 40, 40, 255);
 
         // 渲染开关颜色
-        public static final int RENDER_ENABLED = rgba(51, 204, 51, 255);      // 渲染启用（绿色）
-        public static final int RENDER_ENABLED_HOVERED = rgba(77, 255, 77, 255);
+        public static final int RENDER_ENABLED = rgba(72, 200, 120, 255);      // 渲染启用（绿色）
+        public static final int RENDER_ENABLED_HOVERED = rgba(104, 224, 148, 255);
     }
     
     // ==================== 间距规范 ====================
@@ -287,6 +287,17 @@ public class UITheme {
         setStyleColor(style, ImGuiCol.ResizeGripHovered, DarkTheme.RESIZE_GRIP_HOVERED);
         setStyleColor(style, ImGuiCol.ResizeGripActive, DarkTheme.RESIZE_GRIP_ACTIVE);
         
+        setStyleColor(style, ImGuiCol.TableHeaderBg, DarkTheme.TITLE_BG_ACTIVE);
+        setStyleColor(style, ImGuiCol.TableBorderStrong, DarkTheme.SEPARATOR);
+        setStyleColor(style, ImGuiCol.TableBorderLight, DarkTheme.BORDER_SHADOW);
+        setStyleColor(style, ImGuiCol.TableRowBg, 0);
+        setStyleColor(style, ImGuiCol.TableRowBgAlt, rgba(255, 255, 255, 8));
+        setStyleColor(style, ImGuiCol.DragDropTarget, DarkTheme.SLIDER_GRAB_ACTIVE);
+        setStyleColor(style, ImGuiCol.NavHighlight, DarkTheme.SLIDER_GRAB);
+        setStyleColor(style, ImGuiCol.ModalWindowDimBg, rgba(0, 0, 0, 120));
+        setStyleColor(style, ImGuiCol.PlotHistogram, DarkTheme.SLIDER_GRAB);
+        setStyleColor(style, ImGuiCol.PlotLines, DarkTheme.SLIDER_GRAB);
+
         setStyleColor(style, ImGuiCol.Tab, DarkTheme.TAB);
         setStyleColor(style, ImGuiCol.TabHovered, DarkTheme.TAB_HOVERED);
         setStyleColor(style, ImGuiCol.TabActive, DarkTheme.TAB_ACTIVE);
@@ -312,22 +323,22 @@ public class UITheme {
         
         // 圆角
         style.setWindowRounding(Rounding.NORMAL);
-        style.setChildRounding(Rounding.SMALL);
-        style.setFrameRounding(Rounding.SMALL);
-        style.setPopupRounding(Rounding.NORMAL);
+        style.setChildRounding(Rounding.NORMAL);
+        style.setFrameRounding(Rounding.NORMAL);
+        style.setPopupRounding(Rounding.MEDIUM);
         style.setScrollbarRounding(Rounding.NORMAL);
-        style.setGrabRounding(Rounding.SMALL);
+        style.setGrabRounding(Rounding.NORMAL);
         style.setTabRounding(Rounding.SMALL);
         
-        // 无边框描边；层次靠底色与圆角区分
+        // 窗口/子区域无描边，层次靠底色区分；输入框、按钮与弹出层用 1px 弱描边提升轮廓清晰度
         style.setWindowBorderSize(0.0f);
         style.setChildBorderSize(0.0f);
-        style.setPopupBorderSize(0.0f);
-        style.setFrameBorderSize(0.0f);
+        style.setPopupBorderSize(1.0f);
+        style.setFrameBorderSize(1.0f);
         style.setTabBorderSize(0.0f);
         
         // 滚动条
-        style.setScrollbarSize(14.0f);
+        style.setScrollbarSize(12.0f);
         
         // 抗锯齿
         style.setAntiAliasedLines(true);
