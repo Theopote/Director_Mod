@@ -31,10 +31,10 @@ public final class OverlayRenderHelper {
 
     private OverlayRenderHelper() {}
 
-    /** 面中心锚点（框选面手柄）的视觉大小：未激活 / 激活（悬停或拖拽）。 */
+    /** 面中心锚点（框选面手柄）的基础视觉大小：未激活 / 激活（悬停或拖拽）。 */
     private static final float HANDLE_SIZE_IDLE = 0.2f;
     private static final float HANDLE_SIZE_ACTIVE = 0.28f;
-    /** 拾取半宽：与视觉手柄对齐并略放大，供 {@link com.director.core.selection.tools.FaceHandleManager} 使用。 */
+    /** 拾取半宽基准：与视觉手柄对齐并略放大，供 {@link com.director.core.selection.tools.FaceHandleManager} 使用。 */
     public static final float HANDLE_PICK_HALF_SIZE = HANDLE_SIZE_IDLE / 2.0f + 0.01f;
 
     private static final int[][] CUBE_FACES = {
@@ -46,12 +46,29 @@ public final class OverlayRenderHelper {
         {1, 3, 7, 5}  // +X
     };
 
+    /** 世界空间手柄边长 = 基础尺寸 × 视距系数（与 Actor Gizmo 一致，远近屏幕大小近似恒定）。 */
+    public static float handleWorldSize(boolean active, double distanceScale) {
+        float base = active ? HANDLE_SIZE_ACTIVE : HANDLE_SIZE_IDLE;
+        float scale = (float) Math.max(0.05, distanceScale);
+        return base * scale;
+    }
+
+    /** 世界空间拾取半宽，随视距缩放，与 {@link #handleWorldSize} 对齐。 */
+    public static float handlePickHalf(double distanceScale) {
+        return HANDLE_PICK_HALF_SIZE * (float) Math.max(0.05, distanceScale);
+    }
+
     public static void drawHandle(VertexConsumer consumer, Matrix4f matrix, Vec3d pos, float[] color, boolean active) {
+        drawHandle(consumer, matrix, pos, color, active, 1.0);
+    }
+
+    public static void drawHandle(VertexConsumer consumer, Matrix4f matrix, Vec3d pos, float[] color,
+                                  boolean active, double distanceScale) {
         if (consumer == null || pos == null || color == null || color.length < 4) {
             return;
         }
 
-        float size = active ? HANDLE_SIZE_ACTIVE : HANDLE_SIZE_IDLE;
+        float size = handleWorldSize(active, distanceScale);
         drawWireCube(consumer, matrix, pos, size, color[0], color[1], color[2],
                 active ? Math.min(1.0f, color[3] + 0.2f) : color[3]);
     }
@@ -61,11 +78,16 @@ public final class OverlayRenderHelper {
      */
     public static void drawSolidHandle(VertexConsumer consumer, Matrix4f matrix, Vec3d pos,
                                        float[] color, boolean active) {
+        drawSolidHandle(consumer, matrix, pos, color, active, 1.0);
+    }
+
+    public static void drawSolidHandle(VertexConsumer consumer, Matrix4f matrix, Vec3d pos,
+                                       float[] color, boolean active, double distanceScale) {
         if (consumer == null || pos == null || color == null || color.length < 4) {
             return;
         }
 
-        float size = active ? HANDLE_SIZE_ACTIVE : HANDLE_SIZE_IDLE;
+        float size = handleWorldSize(active, distanceScale);
         double halfSize = size / 2.0;
         populateCorners(
             pos.x - halfSize, pos.y - halfSize, pos.z - halfSize,

@@ -1,6 +1,7 @@
 package com.director.core.selection.tools;
 
 import com.director.client.gizmo.Axis;
+import com.director.client.gizmo.util.GizmoVisualScale;
 import com.director.client.input.DirectorInputSystem;
 import com.director.client.renderer.OverlayRenderHelper;
 import com.director.core.DirectorServices;
@@ -21,12 +22,10 @@ public class FaceHandleManager {
     /** 全局共享实例：用于所有选择工具的包围盒面手柄交互状态。 */
     public static final FaceHandleManager SHARED = new FaceHandleManager();
 
-    /** 与 {@link OverlayRenderHelper} 视觉手柄对齐，略放大便于点击。 */
-    private static final double HANDLE_PICK_HALF = OverlayRenderHelper.HANDLE_PICK_HALF_SIZE;
     private static final double PARALLEL_EPSILON = 1e-6;
     /** 屏幕空间悬停半径下限/上限（帧缓冲像素），仅鼠标靠近手柄中心时才显示双向箭头。 */
     private static final double SCREEN_HOVER_RADIUS_MIN_PX = 10.0;
-    private static final double SCREEN_HOVER_RADIUS_MAX_PX = 28.0;
+    private static final double SCREEN_HOVER_RADIUS_MAX_PX = 36.0;
     private static final double SCREEN_HOVER_RADIUS_SCALE = 1.1;
 
     private Integer hoveredFaceIndex;
@@ -67,7 +66,7 @@ public class FaceHandleManager {
                 continue;
             }
 
-            double radiusPx = computeScreenHoverRadius(face, center, projected);
+            double radiusPx = computeScreenHoverRadius(face, center, projected, rayOrigin);
             double dx = mouse.x() - projected.x();
             double dy = mouse.y() - projected.y();
             double screenDistSq = dx * dx + dy * dy;
@@ -250,8 +249,10 @@ public class FaceHandleManager {
     }
 
     private static double computeScreenHoverRadius(int face, Vec3d center,
-                                                   DirectorInputSystem.FramebufferPoint centerScreen) {
-        Vec3d tangentOffset = faceTangentOffset(face);
+                                                   DirectorInputSystem.FramebufferPoint centerScreen,
+                                                   Vec3d cameraPos) {
+        double scale = GizmoVisualScale.distanceMultiplier(center, cameraPos != null ? cameraPos : center);
+        Vec3d tangentOffset = faceTangentOffset(face, OverlayRenderHelper.handlePickHalf(scale));
         DirectorInputSystem.FramebufferPoint edge = DirectorInputSystem.projectWorldToFramebuffer(center.add(tangentOffset));
         double projectedHalf = SCREEN_HOVER_RADIUS_MIN_PX;
         if (edge != null) {
@@ -263,10 +264,10 @@ public class FaceHandleManager {
                 Math.min(SCREEN_HOVER_RADIUS_MAX_PX, projectedHalf * SCREEN_HOVER_RADIUS_SCALE));
     }
 
-    private static Vec3d faceTangentOffset(int face) {
+    private static Vec3d faceTangentOffset(int face, double pickHalf) {
         return switch (face) {
-            case 0, 1 -> new Vec3d(0, FaceHandleManager.HANDLE_PICK_HALF, 0);
-            case 2, 3, 4, 5 -> new Vec3d(FaceHandleManager.HANDLE_PICK_HALF, 0, 0);
+            case 0, 1 -> new Vec3d(0, pickHalf, 0);
+            case 2, 3, 4, 5 -> new Vec3d(pickHalf, 0, 0);
             default -> Vec3d.ZERO;
         };
     }

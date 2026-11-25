@@ -1,5 +1,6 @@
 package com.director.client.renderer;
 
+import com.director.client.gizmo.util.GizmoVisualScale;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.tools.FaceHandleManager;
 import com.director.client.settings.RenderSettings;
@@ -116,6 +117,7 @@ public final class InteractionHintRenderer {
         for (int faceIndex = 0; faceIndex < 6; faceIndex++) {
             Vec3d center = OverlayRenderHelper.faceCenter(handleBox, faceIndex);
             Vec3d rel = center.subtract(camPos);
+            double scale = GizmoVisualScale.distanceMultiplier(center, camPos);
 
             float[] base = axisBaseColor(faceIndex);
             boolean hovered = hoveredFace != null && hoveredFace == faceIndex;
@@ -132,13 +134,14 @@ public final class InteractionHintRenderer {
                 fillColor = new float[]{base[0], base[1], base[2], 0.62f};
             }
 
-            OverlayRenderHelper.drawSolidHandle(fillBuffer, matrix, rel, fillColor, active);
+            OverlayRenderHelper.drawSolidHandle(fillBuffer, matrix, rel, fillColor, active, scale);
         }
 
         VertexConsumer lineBuffer = consumers.getBuffer(RenderLayers.getLineOverlay());
         for (int faceIndex = 0; faceIndex < 6; faceIndex++) {
             Vec3d center = OverlayRenderHelper.faceCenter(handleBox, faceIndex);
             Vec3d rel = center.subtract(camPos);
+            double scale = GizmoVisualScale.distanceMultiplier(center, camPos);
 
             float[] base = axisBaseColor(faceIndex);
             boolean hovered = hoveredFace != null && hoveredFace == faceIndex;
@@ -154,7 +157,7 @@ public final class InteractionHintRenderer {
                 outlineColor = new float[]{base[0], base[1], base[2], 1.0f};
             }
 
-            OverlayRenderHelper.drawHandle(lineBuffer, matrix, rel, outlineColor, active);
+            OverlayRenderHelper.drawHandle(lineBuffer, matrix, rel, outlineColor, active, scale);
         }
     }
 
@@ -171,6 +174,7 @@ public final class InteractionHintRenderer {
             return;
         }
 
+        double scale = GizmoVisualScale.distanceMultiplier(end, camPos);
         float[] color = axisArrowColor(faceIndex);
         Vec3d startRel = start.subtract(camPos);
         Vec3d endRel = end.subtract(camPos);
@@ -179,7 +183,7 @@ public final class InteractionHintRenderer {
         line(consumer, matrix, startRel, endRel, color);
 
         Vec3d dir = delta.normalize();
-        drawArrowHead(consumer, matrix, endRel, dir, DRAG_ARROW_HEAD, color);
+        drawArrowHead(consumer, matrix, endRel, dir, DRAG_ARROW_HEAD * scale, color);
     }
 
     private static void drawBidirectionalArrow(VertexConsumer consumer,
@@ -190,8 +194,7 @@ public final class InteractionHintRenderer {
         Vec3d faceCenter = OverlayRenderHelper.faceCenter(box, faceIndex);
         Vec3d normal = OverlayRenderHelper.faceNormal(faceIndex).normalize();
 
-        double distance = faceCenter.distanceTo(camPos);
-        double distanceMultiplier = Math.max(distance, 8.0) / 15.0;
+        double distanceMultiplier = GizmoVisualScale.distanceMultiplier(faceCenter, camPos);
         double arrowLength = ARROW_LENGTH_BASE * distanceMultiplier;
         double arrowHeadSize = ARROW_HEAD_BASE * distanceMultiplier;
 
