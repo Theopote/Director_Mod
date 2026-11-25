@@ -14,6 +14,7 @@ import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.playback.entity.EntityClipSampler;
 import com.director.timeline.playback.entity.EntitySample;
+import com.director.timeline.model.entity.EntityActionClip;
 import com.director.timeline.playback.entity.EntityActionEvent;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
@@ -1252,14 +1253,14 @@ public final class ActorRuntimeController {
             }
 
             Entity entity = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
-            if (entity == null) {
-                return;
-            }
-
-            // 处理 Action 事件
             for (EntityActionEvent e : s.actionEvents) {
+                // Particles need a live entity; sound / shake / visibility do not.
+                if (entity == null && e.type() == EntityActionClip.ActionType.SPAWN_PARTICLE) {
+                    continue;
+                }
                 LOGGER.debug("[ActorRuntime] Actor {} 触发 Action: {}", actor.getName(), e.type());
-                ActorAnimationEventEffects.getInstance().dispatch(entity, e, timelineSource.getCurrentTime());
+                ActorAnimationEventEffects.getInstance().dispatch(entity, e, timelineSource.getCurrentTime(),
+                        actor.getActorId());
             }
         }
 

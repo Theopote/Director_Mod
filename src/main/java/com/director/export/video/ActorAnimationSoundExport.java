@@ -59,9 +59,8 @@ public final class ActorAnimationSoundExport {
             if (soundId.isBlank()) continue;
             float volume = number(params.get("volume"), .8f);
             float pitch = number(params.get("pitch"), 1f);
-            for (float at : clock.times(event)) {
-                if (at >= from && at <= to) out.add(new Cue(at, soundId, volume, pitch));
-            }
+            // times(event) is already clipped to the projection [from, to] window.
+            for (float at : clock.times(event)) out.add(new Cue(at, soundId, volume, pitch));
         }
     }
 

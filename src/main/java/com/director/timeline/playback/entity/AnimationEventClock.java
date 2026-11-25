@@ -44,6 +44,10 @@ public final class AnimationEventClock {
             this.animationId=clip.getAnimationId();this.samplerFactory=samplerFactory;
         }
 
+        /**
+         * Occurrence times for {@code event} guaranteed inside the projection window
+         * {@code [from, end]} (and thus {@code [from, to]} of the factory call).
+         */
         public List<Float> times(AnimationEvent event) {
             if(!valid() || !Float.isFinite(event.getNormalizedTime()))return List.of();
             if(event.getTiming()==AnimationEvent.Timing.CLIP) {

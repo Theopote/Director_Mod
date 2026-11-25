@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -45,5 +47,10 @@ class AnimationEventParametersTest {
         assertTrue(AnimationEventParameters.PARTICLES.contains("CRIT"));
         assertTrue(AnimationEventParameters.PARTICLES.contains("POOF"));
         assertTrue(AnimationEventParameters.PARTICLES.contains("END_ROD"));
+    }
+
+    @Test
+    void everyParticleIdHasRuntimeMapping() {
+        assertEquals(Set.copyOf(AnimationEventParameters.PARTICLE_IDS), AnimationEventParticles.mappedIds());
     }
 }
