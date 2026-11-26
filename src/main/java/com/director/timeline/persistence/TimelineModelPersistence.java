@@ -222,6 +222,7 @@ public class TimelineModelPersistence {
         public List<EntityClipDTO> spawnLookTargets;
         public List<EntityClipDTO> spawnStateIntervals;
         public List<EntityClipDTO> spawnActionIntervals;
+        public List<EntityClipDTO> spawnPoseIntervals;
         // Raw optional values isolate malformed blend fields from the rest of the clip DTO.
         public com.google.gson.JsonElement poseBlendMode,poseBlendWeight,poseBlendChannels,poseBlendAllBones,
                 poseBlendBones,poseBlendFadeIn,poseBlendFadeOut;
@@ -1517,6 +1518,8 @@ public class TimelineModelPersistence {
                     cdto.spawnStateIntervals = sc.getStateIntervals().stream().map(TimelineModelPersistence::entityClipToDTO).toList();
                 if (!sc.getActionIntervals().isEmpty())
                     cdto.spawnActionIntervals = sc.getActionIntervals().stream().map(TimelineModelPersistence::entityClipToDTO).toList();
+                if (!sc.getPoseIntervals().isEmpty())
+                    cdto.spawnPoseIntervals = sc.getPoseIntervals().stream().map(TimelineModelPersistence::entityClipToDTO).toList();
                 cdto.setPoseBlend(sc.getBlendSettings());
                 cdto.spawnRoll = sc.getRollDeg();
                 cdto.spawnScaleX = sc.getScale().x; cdto.spawnScaleY = sc.getScale().y; cdto.spawnScaleZ = sc.getScale().z;
@@ -1745,6 +1748,16 @@ public class TimelineModelPersistence {
                             sc.addActionInterval((com.director.timeline.model.entity.ActorActionClip) entityClipFromDTO(action));
                         } catch (RuntimeException invalid) {
                             LOGGER.warn("Unable to restore spawn action interval {}", action.id, invalid);
+                        }
+                    }
+                }
+                if (cdto.spawnPoseIntervals != null) {
+                    for (var pose : cdto.spawnPoseIntervals) {
+                        if (pose == null || !"ACTOR_POSE".equals(pose.clipType)) continue;
+                        try {
+                            sc.addPoseInterval((com.director.timeline.model.entity.ActorPoseClip) entityClipFromDTO(pose));
+                        } catch (RuntimeException invalid) {
+                            LOGGER.warn("Unable to restore spawn pose interval {}", pose.id, invalid);
                         }
                     }
                 }

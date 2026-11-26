@@ -22,7 +22,7 @@ import com.director.timeline.model.TrackType;
 import com.director.timeline.model.entity.EntityAnimationClip;
 import com.director.timeline.model.entity.ActorPoseClip;
 import com.director.timeline.model.entity.ActorTrack;
-import com.director.timeline.model.entity.EntityClip;
+import com.director.timeline.model.entity.EntitySpawnClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.ui.timeline.commands.StateChangeCommand;
 import com.director.ui.timeline.commands.TimelineCommandBridge;
@@ -52,6 +52,8 @@ public final class ActorBoneGizmoController {
     private ActorAnimationAuthoringSettings.EditTarget gestureTarget;
     private com.director.actor.animation.asset.InterpolationMode gestureInterpolation;
     private ActorPoseClip originalPoseClip;
+    private EntitySpawnClip poseOwner;
+    private float poseOwnerStart, poseOwnerEnd;
     private RigPose previewBefore;
     private Pose legacyPreviewBefore;
     private Vec3d previewPositionBefore;
@@ -258,13 +260,27 @@ public final class ActorBoneGizmoController {
             beginAnimationGesture(model, time);
             return;
         }
-        editingClip = findActivePoseClip(actorTrack, time);
+        editingClip = actorTrack.findPoseClipAt(time);
+        var spawn = actorTrack.findSpawnClipAt(time);
+        if (actorTrack.getClips().stream().anyMatch(EntitySpawnClip.class::isInstance)
+                && (spawn == null || !actorTrack.isPresentAt(time) || spawn.getEndTime() <= time
+                    || spawn.getTimelineClip() == null || !timelineTrack.getClips().contains(spawn.getTimelineClip()))) {
+            cancelDraft();
+            return;
+        }
+        poseOwner = spawn == null || (editingClip != null && !spawn.getPoseIntervals().contains(editingClip)) ? null : spawn;
+        if (poseOwner != null) {
+            poseOwnerStart = poseOwner.getStartTime();
+            poseOwnerEnd = poseOwner.getEndTime();
+        }
         originalPoseClip = editingClip;
         createdClip = editingClip == null;
         if (createdClip) {
-            editingClip = new ActorPoseClip("Pose", time, time + DEFAULT_CLIP_DURATION);
+            float end = poseOwner == null ? time + DEFAULT_CLIP_DURATION
+                    : Math.min(poseOwnerEnd, time + DEFAULT_CLIP_DURATION);
+            editingClip = new ActorPoseClip("Pose", time, end);
             seedFromPreview(editingClip);
-            new EntityTimelineClip(editingClip, actorTrack.getColorRgba());
+            if (poseOwner == null) new EntityTimelineClip(editingClip, actorTrack.getColorRgba());
             beforeState = null;
         } else {
             beforeState = PoseClipState.capture(editingClip);
@@ -352,8 +368,15 @@ public final class ActorBoneGizmoController {
                     && animationOwner.getStartTime()==clipStart && animationOwner.getEndTime()==editingAnimationClip.getEndTime()
                     && Objects.equals(previousAnimationId,animationOwner.getBoneAnimationId()))
                 && animationSourceUnchanged()
-                && (originalPoseClip == null || actorTrack.getClips().contains(originalPoseClip)
-                    && !originalPoseClip.isMuted() && beforeState.equals(PoseClipState.capture(originalPoseClip)));
+                && (gestureTarget != ActorAnimationAuthoringSettings.EditTarget.QUICK_POSE || poseSourceUnchanged());
+    }
+
+    private boolean poseSourceUnchanged() {
+        if (poseOwner != null && (actorTrack.findSpawnClipAt(gestureTime) != poseOwner
+                || !actorTrack.isPresentAt(gestureTime) || poseOwner.getStartTime() != poseOwnerStart
+                || poseOwner.getEndTime() != poseOwnerEnd || !timelineTrack.getClips().contains(poseOwner.getTimelineClip()))) return false;
+        return actorTrack.findPoseClipAt(gestureTime) == originalPoseClip
+                && (originalPoseClip == null || beforeState.equals(PoseClipState.capture(originalPoseClip)));
     }
 
     private boolean animationSourceUnchanged() {
@@ -407,6 +430,7 @@ public final class ActorBoneGizmoController {
         resetAnimationGesture();
         editingClip = null;
         originalPoseClip = null;
+        poseOwner = null;
         beforeState = null;
         createdClip = false;
         changed = false;
@@ -643,6 +667,20 @@ public final class ActorBoneGizmoController {
 
     private void registerUndo(TimelineModel model, ActorPoseClip clip) {
         PoseClipState after = PoseClipState.capture(clip);
+        var spawn = poseOwner;
+        if (spawn != null) {
+            if (createdClip) {
+                TimelineCommandBridge.execute(new StateChangeCommand(model, "Pose actor bone",
+                        () -> spawn.removePoseInterval(clip), () -> spawn.addPoseInterval(clip)));
+            } else if (!beforeState.equals(after)) {
+                var before = beforeState;
+                var target = originalPoseClip;
+                TimelineCommandBridge.execute(new StateChangeCommand(model, "Pose actor bone",
+                        () -> spawn.editPoseInterval(target, before::apply),
+                        () -> spawn.editPoseInterval(target, after::apply)));
+            }
+            return;
+        }
         if (createdClip) {
             ActorTrack targetActorTrack = actorTrack;
             TimelineTrack targetTimelineTrack = timelineTrack;
@@ -659,16 +697,6 @@ public final class ActorBoneGizmoController {
         } else {
             model.markDirty();
         }
-    }
-
-    private static ActorPoseClip findActivePoseClip(ActorTrack track, float time) {
-        ActorPoseClip result = null;
-        for (EntityClip clip : track.getClips()) {
-            if (clip instanceof ActorPoseClip pose && !pose.isMuted()
-                    && time >= pose.getStartTime() && time <= pose.getEndTime()
-                    && (result == null || pose.getStartTime() >= result.getStartTime())) result = pose;
-        }
-        return result;
     }
 
     private void resolveTrack() {

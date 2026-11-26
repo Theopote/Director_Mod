@@ -257,7 +257,8 @@ public class EntityClipSampler {
 
         // ========== 处理 ActorPose Clip（局部姿态覆盖）==========
         // 规则：last-wins（取 startTime 最大的那个）
-        applyActorPose(result, actorPoseClips, timeSeconds);
+        if (result.active && presetOwner != null) actorPoseClips.addAll(presetOwner.getPoseIntervals());
+        applyActorPose(result, actorPoseClips, track.findPoseClipAt(timeSeconds), timeSeconds);
 
         // ========== 处理 ActorRelation Clip（多演员关系）==========
         // 规则：last-wins（取 startTime 最大的那个）
@@ -598,18 +599,7 @@ public class EntityClipSampler {
         sampleAction(result, clips, timeSeconds);
     }
 
-    private void applyActorPose(EntitySample result, List<ActorPoseClip> clips, float timeSeconds) {
-        ActorPoseClip active = null;
-        for (ActorPoseClip clip : clips) {
-            if (clip.isMuted()) {
-                continue;
-            }
-            if (timeSeconds >= clip.getStartTime() && timeSeconds <= clip.getEndTime()) {
-                if (active == null || clip.compareTo(active) > 0) {
-                    active = clip;
-                }
-            }
-        }
+    private void applyActorPose(EntitySample result, List<ActorPoseClip> clips, ActorPoseClip active, float timeSeconds) {
         if (active == null) {
             return;
         }

@@ -15,6 +15,8 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
             new java.util.IdentityHashMap<>();
     private final java.util.Map<com.director.timeline.model.entity.ActorActionClip, ActorActionClipPropertyAdapter> actionInspectors =
             new java.util.IdentityHashMap<>();
+    private final java.util.Map<com.director.timeline.model.entity.ActorPoseClip, ActorPoseClipPropertyAdapter> poseInspectors =
+            new java.util.IdentityHashMap<>();
     private final ActorClipInspectorGesture gesture = new ActorClipInspectorGesture();
     @Override public Class<EntitySpawnClip> getTargetType() { return EntitySpawnClip.class; }
     private String tr(String key) { return ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit."+key); }
@@ -81,6 +83,7 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         ownedIntervals.renderLookIntervals(source);
         renderStateIntervals(source);
         renderActionIntervals(source);
+        renderPoseIntervals(source);
         var navigation = com.director.ui.properties.actor.ActorCoordinationPanel.render(source);
         com.director.ui.properties.actor.ActorCoordinationPanel.navigate(source,navigation);
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.renderIndependentAction(source);
@@ -110,6 +113,20 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
             actionInspectors.computeIfAbsent(action, ignored -> new ActorActionClipPropertyAdapter())
                     .renderInterval(action, source);
             ownedIntervals.renderRange(source, action);
+            ImGui.separator();
+            ImGui.popID();
+        }
+    }
+    private void renderPoseIntervals(EntitySpawnClip source) {
+        var poses = source.getPoseIntervals();
+        poseInspectors.keySet().retainAll(poses);
+        if (poses.isEmpty() || !ImGui.collapsingHeader(
+                ActorPropertyAdapterI18n.tr("gui.director.actor.pose_edit.intervals") + "##spawnPoses")) return;
+        for (var pose : poses) {
+            ImGui.pushID(pose.getId().toString());
+            poseInspectors.computeIfAbsent(pose, ignored -> new ActorPoseClipPropertyAdapter())
+                    .renderInterval(pose, source);
+            ownedIntervals.renderRange(source, pose);
             ImGui.separator();
             ImGui.popID();
         }

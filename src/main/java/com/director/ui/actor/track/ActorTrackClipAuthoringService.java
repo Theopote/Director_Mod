@@ -145,6 +145,19 @@ public final class ActorTrackClipAuthoringService {
                 return refuse("gui.director.actor.behavior.require_spawn");
             if (actorTrack.hasActionOverlap(null, null, start, clip.getEndTime())) return refuse(REFUSE_OVERLAP);
         }
+        if (clip instanceof ActorPoseClip pose && actorTrack.getClips().stream().anyMatch(EntitySpawnClip.class::isInstance)) {
+            var spawn = actorTrack.findSpawnClipAt(start);
+            if (spawn == null || !actorTrack.isPresentAt(start) || spawn.getEndTime() <= start
+                    || spawn.getTimelineClip() == null || !timelineTrack.getClips().contains(spawn.getTimelineClip()))
+                return refuse("gui.director.actor.pose_edit.require_spawn");
+            pose.setTimeRange(start, Math.min(pose.getEndTime(), spawn.getEndTime()));
+            com.director.ui.timeline.commands.TimelineCommandBridge.execute(
+                    new com.director.ui.timeline.commands.StateChangeCommand(model, "Create actor pose interval",
+                            () -> spawn.removePoseInterval(pose), () -> spawn.addPoseInterval(pose)));
+            model.selectItem(spawn.getTimelineClip(), false);
+            lastRefusal = null;
+            return spawn.getTimelineClip();
+        }
         if (clip instanceof EntityStateClip state) {
             var spawn = actorTrack.findSpawnClipAt(start);
             if (spawn == null || !actorTrack.isPresentAt(start) || spawn.getEndTime() <= start

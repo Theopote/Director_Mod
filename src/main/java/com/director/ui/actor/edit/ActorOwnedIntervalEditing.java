@@ -3,6 +3,7 @@ package com.director.ui.actor.edit;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.ActorActionClip;
+import com.director.timeline.model.entity.ActorPoseClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
 import com.director.timeline.model.entity.EntityStateClip;
 import com.director.timeline.model.entity.EntitySpawnClip;
@@ -47,6 +48,7 @@ public final class ActorOwnedIntervalEditing {
                     case EntityLookAtClip look -> spawn.getLookTargets().contains(look);
                     case EntityStateClip state -> spawn.getStateIntervals().contains(state);
                     case ActorActionClip action -> spawn.getActionIntervals().contains(action);
+                    case ActorPoseClip pose -> spawn.getPoseIntervals().contains(pose);
                     default -> false;
                 };
     }
@@ -84,6 +86,10 @@ public final class ActorOwnedIntervalEditing {
                 restore = () -> spawn.addActionInterval(action);
                 remove = () -> spawn.removeActionInterval(action);
             }
+            case ActorPoseClip pose -> {
+                restore = () -> spawn.addPoseInterval(pose);
+                remove = () -> spawn.removePoseInterval(pose);
+            }
             case null, default -> {
                 return false;
             }
@@ -97,6 +103,7 @@ public final class ActorOwnedIntervalEditing {
             case EntityLookAtClip look -> spawn.editLookTarget(look, clip -> clip.setTimeRange(start, end));
             case EntityStateClip state -> spawn.editStateInterval(state, clip -> clip.setTimeRange(start, end));
             case ActorActionClip action -> spawn.editActionInterval(action, clip -> clip.setTimeRange(start, end));
+            case ActorPoseClip pose -> spawn.editPoseInterval(pose, clip -> clip.setTimeRange(start, end));
             default -> throw new IllegalArgumentException("Unsupported actor interval");
         }
     }

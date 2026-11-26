@@ -25,10 +25,17 @@ public final class ActorPoseClipPropertyAdapter implements IPropertyAdapter<Acto
 
     @Override
     public boolean renderProperties(ActorPoseClip source) {
-        var draft = gesture.begin(source);
+        return renderInterval(source, null);
+    }
+
+    public boolean renderInterval(ActorPoseClip source, com.director.timeline.model.entity.EntitySpawnClip spawn) {
+        var draft = gesture.begin(source, spawn);
         if (!(draft instanceof ActorPoseClip clip)) { gesture.end(); return false; }
-        var owner = source.getTimelineClip().getParentTrack().getActorTrackPayload();
-        var actor = com.director.actor.ActorRegistryManager.getInstance().getActor(owner.getActorRef().getActorId()).orElse(null);
+        var wrapper = spawn == null ? source.getTimelineClip() : spawn.getTimelineClip();
+        var track = wrapper == null ? null : wrapper.getParentTrack();
+        var owner = track == null ? null : track.getActorTrackPayload();
+        var actor = owner == null || owner.getActorRef() == null ? null
+                : com.director.actor.ActorRegistryManager.getInstance().getActor(owner.getActorRef().getActorId()).orElse(null);
         boolean supported = com.director.actor.ActorBehaviorCapabilities.supportsLegacyPose(actor);
         ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_edit.sampling_hint"));
         if (!supported) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.pose_edit.unsupported"));

@@ -164,4 +164,38 @@ class ActorTrackClipAuthoringServiceTest {
         var copy = (EntityTimelineClip) TimelineClipCopies.copy(wrapper);
         assertNotEquals(run.getId(), ((EntitySpawnClip) copy.getEntityClip()).getActionIntervals().getFirst().getId());
     }
+
+    @Test void poseIntervalsBlendWithinTheirSpawnAndMoveWithIt() {
+        var payload = track.getActorTrackPayload();
+        var spawn = new EntitySpawnClip("Performance", 0, 8);
+        var wrapper = new EntityTimelineClip(spawn, 0);
+        payload.addClip(spawn);
+        track.addClip(wrapper);
+        assertSame(wrapper, service.createPose(model, track, 1, pose -> {
+            pose.setOverrideHead(true);
+            pose.setHeadYaw(.2f);
+        }));
+        model.setCurrentTime(5);
+        assertSame(wrapper, service.createPose(model, track, 2, pose -> {
+            pose.setOverrideHead(true);
+            pose.setHeadYaw(.8f);
+        }));
+        assertEquals(1, track.getClips().size());
+        var sampler = new com.director.timeline.playback.entity.EntityClipSampler(payload);
+        assertEquals(.5f, sampler.sampleSnapshot(6).poseHeadYaw, 1e-5f);
+        assertTrue(history.undo());
+        assertFalse(sampler.sampleSnapshot(6).poseOverrideEnabled);
+        assertTrue(history.redo());
+        assertEquals(.5f, sampler.sampleSnapshot(6).poseHeadYaw, 1e-5f);
+
+        spawn.setTimeRange(10, 18);
+        assertFalse(sampler.sampleSnapshot(6).poseOverrideEnabled);
+        assertEquals(.5f, sampler.sampleSnapshot(16).poseHeadYaw, 1e-5f);
+        var dto = com.director.timeline.persistence.TimelineModelPersistence.entityClipToDTO(spawn);
+        var restored = (EntitySpawnClip) com.director.timeline.persistence.TimelineModelPersistence.entityClipFromDTO(dto);
+        assertEquals(spawn.getPoseIntervals().getLast().getId(), restored.getPoseIntervals().getLast().getId());
+        var copied = (EntityTimelineClip) TimelineClipCopies.copy(wrapper);
+        assertNotEquals(restored.getPoseIntervals().getFirst().getId(),
+                ((EntitySpawnClip) copied.getEntityClip()).getPoseIntervals().getFirst().getId());
+    }
 }

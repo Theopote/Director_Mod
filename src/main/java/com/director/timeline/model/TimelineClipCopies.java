@@ -13,6 +13,7 @@ public final class TimelineClipCopies {
         if (clip.spawnLookTargets != null) clip.spawnLookTargets.forEach(TimelineClipCopies::assignCopyIds);
         if (clip.spawnStateIntervals != null) clip.spawnStateIntervals.forEach(TimelineClipCopies::assignCopyIds);
         if (clip.spawnActionIntervals != null) clip.spawnActionIntervals.forEach(TimelineClipCopies::assignCopyIds);
+        if (clip.spawnPoseIntervals != null) clip.spawnPoseIntervals.forEach(TimelineClipCopies::assignCopyIds);
     }
 
     public static TimelineClip copy(TimelineClip source) {

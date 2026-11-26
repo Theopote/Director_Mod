@@ -225,6 +225,7 @@ public final class ActorClipPropertyEditSession {
                 && switch (source) {
                     case EntityStateClip state -> spawnOwner.getStateIntervals().contains(state);
                     case ActorActionClip action -> spawnOwner.getActionIntervals().contains(action);
+                    case ActorPoseClip pose -> spawnOwner.getPoseIntervals().contains(pose);
                     default -> false;
                 };
     }
@@ -254,6 +255,7 @@ public final class ActorClipPropertyEditSession {
         // Undo may restore an older, malformed value; validate new user input before constructing the command.
         if (spawnOwner == null) next.apply(source);
         else if (source instanceof ActorActionClip action) spawnOwner.editActionInterval(action, next::apply);
+        else if (source instanceof ActorPoseClip pose) spawnOwner.editPoseInterval(pose, next::apply);
         else spawnOwner.editStateInterval((EntityStateClip) source, next::apply);
         if(expected instanceof Spawn beforeSpawn && next instanceof Spawn afterSpawn
                 && !Objects.equals(beforeSpawn.preset,afterSpawn.preset)) model.invalidateActorEditContext();

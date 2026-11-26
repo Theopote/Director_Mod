@@ -138,6 +138,26 @@ public class EntitySpawnClip extends EntityClip {
         samplingChanged();
     }
 
+    private final java.util.List<ActorPoseClip> poseIntervals = new java.util.ArrayList<>();
+
+    public java.util.List<ActorPoseClip> getPoseIntervals() { return java.util.List.copyOf(poseIntervals); }
+
+    public void addPoseInterval(ActorPoseClip pose) {
+        if (poseIntervals.contains(pose)) return;
+        poseIntervals.add(pose);
+        samplingChanged();
+    }
+
+    public void removePoseInterval(ActorPoseClip pose) {
+        if (poseIntervals.remove(pose)) samplingChanged();
+    }
+
+    public void editPoseInterval(ActorPoseClip pose, java.util.function.Consumer<? super ActorPoseClip> edit) {
+        if (!poseIntervals.contains(pose)) throw new IllegalStateException("Missing spawn pose interval");
+        edit.accept(pose);
+        samplingChanged();
+    }
+
     @Override public void setTimeRange(float start,float end) {
         float delta = start - getStartTime();
         boolean translated = Math.abs((end - start) - getLength()) < 1e-4f;
@@ -146,6 +166,7 @@ public class EntitySpawnClip extends EntityClip {
             for (var target : lookTargets) target.setTimeRange(target.getStartTime() + delta, target.getEndTime() + delta);
             for (var state : stateIntervals) state.setTimeRange(state.getStartTime() + delta, state.getEndTime() + delta);
             for (var action : actionIntervals) action.setTimeRange(action.getStartTime() + delta, action.getEndTime() + delta);
+            for (var pose : poseIntervals) pose.setTimeRange(pose.getStartTime() + delta, pose.getEndTime() + delta);
         }
         syncBoneAnimation();
     }

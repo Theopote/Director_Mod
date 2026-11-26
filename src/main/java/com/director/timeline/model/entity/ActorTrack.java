@@ -324,6 +324,23 @@ public class ActorTrack {
         return active;
     }
 
+    public ActorPoseClip findPoseClipAt(float time) {
+        ActorPoseClip best = null;
+        for (var clip : getClips()) {
+            if (clip instanceof ActorPoseClip pose) best = preferredPose(best, pose, time);
+        }
+        var spawn = findSpawnClipAt(time);
+        if (spawn != null && isPresentAt(time)) {
+            for (var pose : spawn.getPoseIntervals()) best = preferredPose(best, pose, time);
+        }
+        return best;
+    }
+
+    private static ActorPoseClip preferredPose(ActorPoseClip best, ActorPoseClip candidate, float time) {
+        return !candidate.isMuted() && time >= candidate.getStartTime() && time <= candidate.getEndTime()
+                && (best == null || candidate.compareTo(best) > 0) ? candidate : best;
+    }
+
     public boolean hasActionOverlap(EntitySpawnClip spawn, EntityClip excluded, float start, float end) {
         for (var clip : getClips()) {
             if (clip instanceof ActorActionClip action && action != excluded && overlapsAction(action, start, end))

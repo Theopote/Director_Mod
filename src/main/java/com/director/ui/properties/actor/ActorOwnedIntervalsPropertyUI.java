@@ -36,7 +36,9 @@ public final class ActorOwnedIntervalsPropertyUI {
         var targets = spawn.getLookTargets();
         var states = spawn.getStateIntervals();
         var actions = spawn.getActionIntervals();
-        drafts.keySet().removeIf(target -> !targets.contains(target) && !states.contains(target) && !actions.contains(target));
+        var poses = spawn.getPoseIntervals();
+        drafts.keySet().removeIf(target -> !targets.contains(target) && !states.contains(target)
+                && !actions.contains(target) && !poses.contains(target));
         if (targets.isEmpty() || !ImGui.collapsingHeader(tr("title") + "##spawnLookIntervals")) return;
         for (var target : targets) {
             ImGui.pushID(target.getId().toString());

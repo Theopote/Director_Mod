@@ -218,7 +218,8 @@ public class TimelineRenderer {
     }
 
     private static String intervalLabel(EntityClip target) {
-        if (target instanceof EntityStateClip) return target.getName();
+        if (target instanceof EntityStateClip || target instanceof com.director.timeline.model.entity.ActorPoseClip)
+            return target.getName();
         if (target instanceof ActorActionClip action)
             return com.director.i18n.ActorPropertyAdapterI18n.actionSemanticLabel(action.getActionType());
         var look = (EntityLookAtClip) target;
@@ -239,9 +240,16 @@ public class TimelineRenderer {
         float y = trackY + 3 * bandHeight + 3;
         for (var clip : track.getClips()) {
             if (!(clip instanceof EntityTimelineClip owner) || !(owner.getEntityClip() instanceof EntitySpawnClip spawn)) continue;
-            for (var action : spawn.getActionIntervals())
-                renderActorInterval(draw, track, owner, spawn, action, contentX, contentW, y - bandHeight, bandHeight,
+            var poses = spawn.getPoseIntervals();
+            var actions = spawn.getActionIntervals();
+            float actionHeight = !poses.isEmpty() && !actions.isEmpty() ? bandHeight / 2f : bandHeight;
+            for (var action : actions)
+                renderActorInterval(draw, track, owner, spawn, action, contentX, contentW, y - bandHeight, actionHeight,
                         ActionTypeColors.getColorForActionType(action.getActionType()));
+            float poseY = actions.isEmpty() ? y - bandHeight : y - bandHeight + actionHeight;
+            for (var pose : poses)
+                renderActorInterval(draw, track, owner, spawn, pose, contentX, contentW, poseY, actionHeight,
+                        TimelineColors.rgba(154, 89, 132, 255));
             if (headerHeight >= 4 * TRACK_HEIGHT) for (var target : spawn.getLookTargets())
                 renderActorInterval(draw, track, owner, spawn, target, contentX, contentW, y, bandHeight,
                         TimelineColors.rgba(105, 75, 156, 255));
