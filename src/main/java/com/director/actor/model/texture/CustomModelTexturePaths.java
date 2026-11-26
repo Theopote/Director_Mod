@@ -19,7 +19,8 @@ public final class CustomModelTexturePaths {
         if (save == null || modelId == null || modelId.isBlank()) {
             return null;
         }
-        return save.resolve("director").resolve("custom_model_textures").resolve(sanitize(modelId));
+        return save.resolve("director").resolve("custom_model_textures")
+                .resolve(DirectorRuntimeResourcePack.sanitize(modelId));
     }
 
     public static Map<String, Path> loadFromWorld(String modelId) {
@@ -46,7 +47,4 @@ public final class CustomModelTexturePaths {
         return textures;
     }
 
-    private static String sanitize(String value) {
-        return value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_\\-]", "_");
-    }
 }

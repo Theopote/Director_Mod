@@ -106,6 +106,15 @@ public final class CustomModelResourceBuilder {
         JsonArray elements = new JsonArray();
         elements.add(element);
         root.add("elements", elements);
+
+        // Override FIXED's default 0.5 scale so ItemDisplay matches bone-local block units.
+        JsonObject fixed = new JsonObject();
+        fixed.add("rotation", jsonFloats(0f, 0f, 0f));
+        fixed.add("translation", jsonFloats(0f, 0f, 0f));
+        fixed.add("scale", jsonFloats(1f, 1f, 1f));
+        JsonObject display = new JsonObject();
+        display.add("fixed", fixed);
+        root.add("display", display);
         return root.toString();
     }
 
@@ -119,16 +128,30 @@ public final class CustomModelResourceBuilder {
         faces.add(name, face);
     }
 
-    private static float[] normalizeUv(float[] uv, int atlasWidth, int atlasHeight) {
+    /**
+     * Blockbench and Minecraft item/block model UVs both use top-left origin with V downward.
+     * BB stores atlas pixels; model JSON expects the texture mapped into [0, 16] on each axis.
+     */
+    static float[] normalizeUv(float[] uv, int atlasWidth, int atlasHeight) {
         if (atlasWidth <= 0 || atlasHeight <= 0) {
             return uv;
         }
+        float sx = PIXELS_PER_BLOCK / atlasWidth;
+        float sy = PIXELS_PER_BLOCK / atlasHeight;
         return new float[] {
-                uv[0],
-                atlasHeight - uv[3],
-                uv[2],
-                atlasHeight - uv[1]
+                uv[0] * sx,
+                uv[1] * sy,
+                uv[2] * sx,
+                uv[3] * sy
         };
+    }
+
+    private static JsonArray jsonFloats(float x, float y, float z) {
+        JsonArray array = new JsonArray();
+        array.add(x);
+        array.add(y);
+        array.add(z);
+        return array;
     }
 
     private static JsonArray pixelArray(Vector3f vector) {

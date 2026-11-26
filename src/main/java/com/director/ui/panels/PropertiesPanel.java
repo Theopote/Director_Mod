@@ -331,7 +331,9 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
         var timeline = commands == null ? null : commands.timeline();
         ImGui.beginDisabled(busy || timeline == null);
         if (ImGui.button(tr(DirectorLang.Properties.Overview.NEW_CAMERA))) {
-            timeline.addCameraTrack(CameraPathType.CUSTOM);
+            if (timeline != null) {
+                timeline.addCameraTrack(CameraPathType.CUSTOM);
+            }
         }
         ImGui.endDisabled();
 

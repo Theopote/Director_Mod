@@ -136,8 +136,10 @@ public final class CustomModelResourceCache {
         if (entry == null) {
             return false;
         }
-        Path modelFile = DirectorRuntimeResourcePack.modelPath(entry.pieceKey());
-        return Files.isRegularFile(modelFile);
+        // writeModel uses generated.modelId().getPath() → custom_model_piece/<pieceKey>
+        Path modelFile = DirectorRuntimeResourcePack.modelPath("custom_model_piece/" + entry.pieceKey());
+        Path itemFile = DirectorRuntimeResourcePack.itemDefinitionPath("custom_model_piece/" + entry.pieceKey());
+        return Files.isRegularFile(modelFile) && Files.isRegularFile(itemFile);
     }
 
     private synchronized void save() {

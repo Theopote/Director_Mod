@@ -289,6 +289,7 @@ public final class BbModelImporter {
 
             try {
                 String textureKey = resolveElementTextureKey(element, textures);
+                if (textureKey != null) textureKey = sanitizeTextureFileName(textureKey);
                 CuboidFaceUvs faceUvs = parseFaceUvs(element);
                 if (textureKey != null && faceUvs != null && faceUvs.hasAnyFace()) {
                     BoneCuboid draft = new BoneCuboid(entry.getValue(), offset, size, defaultBlockStateId, null, textureKey, faceUvs);
@@ -342,10 +343,12 @@ public final class BbModelImporter {
                 warnings.add("贴图 \"" + textureKey + "\" 解码失败，已跳过");
                 continue;
             }
-            Path target = outputRoot.resolve(sanitizeTextureFileName(textureKey) + ".png");
+            String safeTextureKey = sanitizeTextureFileName(textureKey);
+            Path target = outputRoot.resolve(safeTextureKey + ".png");
             try {
                 Files.write(target, pngBytes);
-                extracted.put(textureKey, target);
+                // Key by sanitized id so warmup/loadFromWorld lookups match the on-disk file name.
+                extracted.put(safeTextureKey, target);
             } catch (IOException e) {
                 warnings.add("贴图 \"" + textureKey + "\" 写入失败：" + e.getMessage());
             }
@@ -358,7 +361,8 @@ public final class BbModelImporter {
         if (worldSave == null) {
             return null;
         }
-        return worldSave.resolve("director").resolve("custom_model_textures").resolve(sanitizeTextureFileName(modelId));
+        return worldSave.resolve("director").resolve("custom_model_textures")
+                .resolve(com.director.actor.model.texture.DirectorRuntimeResourcePack.sanitize(modelId));
     }
 
     private static byte[] decodeTextureSource(String source) {
@@ -384,7 +388,7 @@ public final class BbModelImporter {
     }
 
     private static String sanitizeTextureFileName(String value) {
-        return BONE_ID_SANITIZER.matcher(value.toLowerCase(Locale.ROOT)).replaceAll("_");
+        return com.director.actor.model.texture.DirectorRuntimeResourcePack.sanitize(value);
     }
 
     private static Vector3f localTranslation(float[] origin, float[] parentOrigin, int parentIndex) {

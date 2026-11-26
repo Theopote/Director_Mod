@@ -57,19 +57,27 @@ public final class DirectorRuntimeResourcePack {
         return assetsRoot().resolve("models").resolve("item").resolve(modelPath + ".json");
     }
 
+    /** 1.21.4+ {@code ITEM_MODEL} component resolves {@code assets/<ns>/items/<path>.json}. */
+    public static Path itemDefinitionPath(String itemModelPath) {
+        return assetsRoot().resolve("items").resolve(itemModelPath + ".json");
+    }
+
     public static void ensurePackSkeleton() throws IOException {
         Path root = rootDirectory();
         Files.createDirectories(assetsRoot());
         Path packMeta = root.resolve("pack.mcmeta");
-        if (!Files.exists(packMeta)) {
-            Files.writeString(packMeta, """
-                    {
-                      "pack": {
-                        "description": "Director runtime custom models",
-                        "pack_format": 34
-                      }
-                    }
-                    """.trim() + System.lineSeparator(), StandardCharsets.UTF_8);
+        String meta = """
+                {
+                  "pack": {
+                    "description": "Director runtime custom models",
+                    "pack_format": 69,
+                    "min_format": 69,
+                    "max_format": 69
+                  }
+                }
+                """.trim() + System.lineSeparator();
+        if (!Files.exists(packMeta) || !Files.readString(packMeta).contains("\"pack_format\": 69")) {
+            Files.writeString(packMeta, meta, StandardCharsets.UTF_8);
         }
     }
 
@@ -82,9 +90,28 @@ public final class DirectorRuntimeResourcePack {
 
     public static void writeModel(GeneratedItemModel generated) throws IOException {
         ensurePackSkeleton();
-        Path target = modelPath(generated.modelId().getPath());
+        String path = generated.modelId().getPath();
+        Path target = modelPath(path);
         Files.createDirectories(target.getParent());
         Files.writeString(target, generated.modelJson(), StandardCharsets.UTF_8);
+        Path itemDef = itemDefinitionPath(path);
+        Files.createDirectories(itemDef.getParent());
+        // items/<path>.json → models/item/<path>.json
+        String itemJson = """
+                {
+                  "model": {
+                    "type": "minecraft:model",
+                    "model": "director:item/%s"
+                  }
+                }
+                """.formatted(path).trim() + System.lineSeparator();
+        Files.writeString(itemDef, itemJson, StandardCharsets.UTF_8);
+    }
+
+    /** Shared path token sanitizer; keeps {@code -} so reload paths match import. */
+    public static String sanitize(String value) {
+        if (value == null || value.isBlank()) return "_";
+        return value.toLowerCase().replaceAll("[^a-z0-9_\\-]", "_");
     }
 
     public static void registerProfile(Consumer<ResourcePackProfile> consumer) {
@@ -156,9 +183,5 @@ public final class DirectorRuntimeResourcePack {
 
     private static Path assetsRoot() {
         return rootDirectory().resolve("assets").resolve(DirectorMod.MOD_ID);
-    }
-
-    private static String sanitize(String value) {
-        return value.toLowerCase().replaceAll("[^a-z0-9_\\-]", "_");
     }
 }

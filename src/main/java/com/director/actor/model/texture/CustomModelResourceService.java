@@ -109,7 +109,8 @@ public final class CustomModelResourceService {
 
     private static boolean ensureRuntimeTexture(Path sourcePng, String modelId, String textureKey) throws IOException {
         Path target = DirectorRuntimeResourcePack.texturePath(modelId, textureKey);
-        if (Files.isRegularFile(target)) {
+        if (Files.isRegularFile(target)
+                && CustomModelResourceCache.hashFile(sourcePng).equals(CustomModelResourceCache.hashFile(target))) {
             return false;
         }
         DirectorRuntimeResourcePack.writeTexture(sourcePng, modelId, textureKey);

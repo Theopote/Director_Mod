@@ -74,10 +74,21 @@ public final class CustomModelPreviewRenderer {
     private void applyTransform(SpawnedCuboid sc, Matrix4f boneWorldMatrix) {
         Vector3f translation = boneWorldMatrix.getTranslation(new Vector3f());
         Quaternionf rotation = boneWorldMatrix.getNormalizedRotation(new Quaternionf());
+        Vector3f boneScale = boneWorldMatrix.getScale(new Vector3f());
         sc.entity().setPosition(translation.x, translation.y, translation.z);
-        Vector3f rotatedOffset = rotation.transform(new Vector3f(sc.cuboid().offset()));
-        AffineTransformation transform = new AffineTransformation(
-                rotatedOffset, new Quaternionf(rotation), new Vector3f(sc.cuboid().size()), new Quaternionf());
+        AffineTransformation transform;
+        if (sc.entity() instanceof DisplayEntity.ItemDisplayEntity) {
+            // Geometry (offset + size) is already baked into the item model JSON.
+            // Apply bone rotation/scale only; FIXED display scale is forced to 1 in the model.
+            transform = new AffineTransformation(
+                    new Vector3f(), new Quaternionf(rotation), new Vector3f(boneScale), new Quaternionf());
+        } else {
+            Vector3f localOffset = new Vector3f(sc.cuboid().offset()).mul(boneScale);
+            Vector3f rotatedOffset = rotation.transform(localOffset);
+            Vector3f displayScale = new Vector3f(sc.cuboid().size()).mul(boneScale);
+            transform = new AffineTransformation(
+                    rotatedOffset, new Quaternionf(rotation), displayScale, new Quaternionf());
+        }
         ((DisplayEntityAccessor) sc.entity()).director$invokeSetTransformation(transform);
     }
 

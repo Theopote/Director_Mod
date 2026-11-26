@@ -37,7 +37,22 @@ class CustomModelResourceBuilderTest {
         assertTrue(root.getAsJsonArray("elements").size() == 1);
         JsonObject north = root.getAsJsonArray("elements").get(0).getAsJsonObject()
                 .getAsJsonObject("faces").getAsJsonObject("north");
-        assertEquals(49f, north.getAsJsonArray("uv").get(1).getAsFloat(), 1.0e-4f);
+        // Atlas pixels {0,8,6,15} on 64×64 → model UV [0,16] space without V-flip.
+        assertEquals(2f, north.getAsJsonArray("uv").get(1).getAsFloat(), 1.0e-4f);
+        assertEquals(0f, north.getAsJsonArray("uv").get(0).getAsFloat(), 1.0e-4f);
+        assertEquals(1.5f, north.getAsJsonArray("uv").get(2).getAsFloat(), 1.0e-4f);
+        assertEquals(3.75f, north.getAsJsonArray("uv").get(3).getAsFloat(), 1.0e-4f);
+        assertTrue(root.getAsJsonObject("display").getAsJsonObject("fixed")
+                .getAsJsonArray("scale").get(0).getAsFloat() == 1f);
+    }
+
+    @Test
+    void normalizeUvMapsAtlasPixelsIntoModelSpace() {
+        float[] uv = CustomModelResourceBuilder.normalizeUv(new float[] {0, 8, 6, 15}, 64, 64);
+        assertEquals(0f, uv[0], 1e-4f);
+        assertEquals(2f, uv[1], 1e-4f);
+        assertEquals(1.5f, uv[2], 1e-4f);
+        assertEquals(3.75f, uv[3], 1e-4f);
     }
 
     @Test
