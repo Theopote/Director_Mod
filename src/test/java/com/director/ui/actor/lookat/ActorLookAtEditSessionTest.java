@@ -180,4 +180,33 @@ class ActorLookAtEditSessionTest {
         var copiedSpawn = (EntitySpawnClip) copy.getEntityClip();
         assertNotEquals(target.getId(), copiedSpawn.findLookTargetAt(12).getId());
     }
+
+    @Test void ownedLookRangeEditsAndDeletionUndoWithoutCreatingTimelineClips() {
+        var payload = track.getActorTrackPayload();
+        var spawn = new EntitySpawnClip("Spawn", 0, 5);
+        payload.addClip(spawn);
+        track.addClip(new EntityTimelineClip(spawn, 0));
+        var target = create();
+        assertFalse(ActorLookIntervalEditing.resize(model, spawn, target, 3, 6));
+        assertFalse(ActorLookIntervalEditing.resize(model, spawn, target, 4, 3));
+        assertEquals(1, history.getUndoSize());
+        assertTrue(ActorLookIntervalEditing.resize(model, spawn, target, 3, 4));
+        assertNull(payload.findLookAtClipAt(2));
+        assertSame(target, payload.findLookAtClipAt(3.5f));
+        assertNull(payload.findLookAtClipAt(4.5f));
+        track.setLocked(true);
+        assertFalse(ActorLookIntervalEditing.remove(model, spawn, target));
+        track.setLocked(false);
+        assertTrue(ActorLookIntervalEditing.remove(model, spawn, target));
+        assertNull(payload.findLookAtClipAt(3.5f));
+        assertEquals(1, track.getClips().size());
+        assertTrue(history.undo());
+        assertSame(target, payload.findLookAtClipAt(3.5f));
+        assertTrue(history.undo());
+        assertEquals(2f, target.getStartTime());
+        assertEquals(5f, target.getEndTime());
+        assertTrue(history.redo());
+        assertTrue(history.redo());
+        assertTrue(spawn.getLookTargets().isEmpty());
+    }
 }

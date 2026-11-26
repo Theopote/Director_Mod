@@ -9,6 +9,8 @@ import imgui.ImGui;
 import imgui.type.ImFloat;
 
 public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySpawnClip> {
+    private final com.director.ui.properties.actor.ActorLookIntervalsPropertyUI lookIntervals =
+            new com.director.ui.properties.actor.ActorLookIntervalsPropertyUI();
     private final ActorClipInspectorGesture gesture = new ActorClipInspectorGesture();
     @Override public Class<EntitySpawnClip> getTargetType() { return EntitySpawnClip.class; }
     private String tr(String key) { return ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit."+key); }
@@ -72,6 +74,7 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.render(source,clip,gesture);
         com.director.ui.properties.actor.ActorAnimationBlendPropertyUI.render(source,clip.getBlendSettings(),clip::setBlendSettings,gesture);
         gesture.end();
+        lookIntervals.render(source);
         var navigation = com.director.ui.properties.actor.ActorCoordinationPanel.render(source);
         com.director.ui.properties.actor.ActorCoordinationPanel.navigate(source,navigation);
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.renderIndependentAction(source);
