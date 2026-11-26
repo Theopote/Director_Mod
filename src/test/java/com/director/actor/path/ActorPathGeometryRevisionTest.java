@@ -11,12 +11,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ActorPathGeometryRevisionTest {
-    @Test void attachedGeometryEditsBumpAndNamesCopiesAndAddsDoNot() {
+    @Test void addRemoveClearAndGeometryEditsBumpRevisionMonotonically() {
         var library = new ActorPathLibrary();
+        long baseline = library.geometryRevision();
         var path = new ActorPathDefinition("Curve");
-        long added = library.geometryRevision();
         library.add(path);
-        assertEquals(added, library.geometryRevision());
+        assertTrue(library.geometryRevision() > baseline);
+        long added = library.geometryRevision();
 
         path.setName("Renamed");
         path.setLocked(true);
@@ -42,7 +43,8 @@ class ActorPathGeometryRevisionTest {
 
         shaped = library.geometryRevision();
         library.add(new ActorPathDefinition("Second"));
-        assertEquals(shaped, library.geometryRevision());
+        assertTrue(library.geometryRevision() > shaped);
+        shaped = library.geometryRevision();
         assertTrue(library.remove(path.getId()));
         assertTrue(library.geometryRevision() > shaped);
         shaped = library.geometryRevision();
@@ -54,5 +56,8 @@ class ActorPathGeometryRevisionTest {
         shaped = library.geometryRevision();
         library.clear();
         assertEquals(shaped, library.geometryRevision());
+
+        var nextWorld = new ActorPathLibrary();
+        assertTrue(nextWorld.geometryRevision() > shaped);
     }
 }

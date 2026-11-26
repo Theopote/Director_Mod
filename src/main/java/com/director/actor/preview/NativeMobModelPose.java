@@ -74,10 +74,11 @@ public final class NativeMobModelPose {
     private static void apply(ModelPart part, RigPose pose, String bone, boolean followBody) {
         NativeMobPoseAngles.Euler euler = NativeMobPoseAngles.local(pose, bone, followBody);
         if (part == null || euler == null) return;
-        write(part, pose, bone, euler);
+        write(part, pose, bone, followBody, euler);
     }
 
-    private static void write(ModelPart part, RigPose pose, String bone, NativeMobPoseAngles.Euler euler) {
+    private static void write(ModelPart part, RigPose pose, String bone, boolean followBody,
+                              NativeMobPoseAngles.Euler euler) {
         part.resetTransform();
         part.pitch += euler.pitch();
         part.yaw += euler.yaw();
@@ -86,7 +87,8 @@ public final class NativeMobModelPose {
         part.xScale *= scale.x;
         part.yScale *= scale.y;
         part.zScale *= scale.z;
-        Vector3f offset = NativeMobPoseAngles.translationPixels(pose, bone);
+        Vector3f offset = NativeMobPoseAngles.translationPixels(pose, bone)
+                .add(NativeMobPoseAngles.bodyPivotPixels(pose, bone, followBody));
         part.originX += offset.x;
         part.originY += offset.y;
         part.originZ += offset.z;

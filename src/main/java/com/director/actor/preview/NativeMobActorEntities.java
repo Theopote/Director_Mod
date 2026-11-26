@@ -4,11 +4,13 @@ import com.director.actor.ActorType;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.mob.SkeletonEntity;
 import net.minecraft.entity.mob.ZombieEntity;
 import net.minecraft.entity.passive.CowEntity;
 import net.minecraft.entity.passive.SheepEntity;
 import net.minecraft.entity.passive.VillagerEntity;
+import net.minecraft.server.world.ServerWorld;
 
 /** Client previews that keep the vanilla mesh and accept a sampled pose. */
 public final class NativeMobActorEntities {
@@ -31,6 +33,14 @@ public final class NativeMobActorEntities {
         @Override public NativeActorPoseCarrier director$pose() { return pose; }
         @Override public void tick() {}
         @Override public void tickMovement() {}
+        @Override public boolean damage(ServerWorld world, DamageSource source, float amount) {
+            return PreviewEntityGuards.damage(world, source, amount);
+        }
+        @Override public boolean collidesWith(Entity other) { return PreviewEntityGuards.collidesWith(other); }
+        @Override public boolean isAttackable() { return PreviewEntityGuards.isAttackable(); }
+        @Override public boolean isPushable() { return PreviewEntityGuards.isPushable(); }
+        @Override public boolean canBeHitByProjectile() { return PreviewEntityGuards.canBeHitByProjectile(); }
+        @Override public boolean shouldRender(double distance) { return PreviewEntityGuards.shouldRender(distance); }
     }
 
     public static final class Skeleton extends SkeletonEntity implements NativeMobActorPreview {
@@ -39,6 +49,14 @@ public final class NativeMobActorEntities {
         @Override public NativeActorPoseCarrier director$pose() { return pose; }
         @Override public void tick() {}
         @Override public void tickMovement() {}
+        @Override public boolean damage(ServerWorld world, DamageSource source, float amount) {
+            return PreviewEntityGuards.damage(world, source, amount);
+        }
+        @Override public boolean collidesWith(Entity other) { return PreviewEntityGuards.collidesWith(other); }
+        @Override public boolean isAttackable() { return PreviewEntityGuards.isAttackable(); }
+        @Override public boolean isPushable() { return PreviewEntityGuards.isPushable(); }
+        @Override public boolean canBeHitByProjectile() { return PreviewEntityGuards.canBeHitByProjectile(); }
+        @Override public boolean shouldRender(double distance) { return PreviewEntityGuards.shouldRender(distance); }
     }
 
     public static final class Villager extends VillagerEntity implements NativeMobActorPreview {
@@ -47,6 +65,14 @@ public final class NativeMobActorEntities {
         @Override public NativeActorPoseCarrier director$pose() { return pose; }
         @Override public void tick() {}
         @Override public void tickMovement() {}
+        @Override public boolean damage(ServerWorld world, DamageSource source, float amount) {
+            return PreviewEntityGuards.damage(world, source, amount);
+        }
+        @Override public boolean collidesWith(Entity other) { return PreviewEntityGuards.collidesWith(other); }
+        @Override public boolean isAttackable() { return PreviewEntityGuards.isAttackable(); }
+        @Override public boolean isPushable() { return PreviewEntityGuards.isPushable(); }
+        @Override public boolean canBeHitByProjectile() { return PreviewEntityGuards.canBeHitByProjectile(); }
+        @Override public boolean shouldRender(double distance) { return PreviewEntityGuards.shouldRender(distance); }
     }
 
     public static final class Cow extends CowEntity implements NativeMobActorPreview {
@@ -55,6 +81,14 @@ public final class NativeMobActorEntities {
         @Override public NativeActorPoseCarrier director$pose() { return pose; }
         @Override public void tick() {}
         @Override public void tickMovement() {}
+        @Override public boolean damage(ServerWorld world, DamageSource source, float amount) {
+            return PreviewEntityGuards.damage(world, source, amount);
+        }
+        @Override public boolean collidesWith(Entity other) { return PreviewEntityGuards.collidesWith(other); }
+        @Override public boolean isAttackable() { return PreviewEntityGuards.isAttackable(); }
+        @Override public boolean isPushable() { return PreviewEntityGuards.isPushable(); }
+        @Override public boolean canBeHitByProjectile() { return PreviewEntityGuards.canBeHitByProjectile(); }
+        @Override public boolean shouldRender(double distance) { return PreviewEntityGuards.shouldRender(distance); }
     }
 
     public static final class Sheep extends SheepEntity implements NativeMobActorPreview {
@@ -63,5 +97,13 @@ public final class NativeMobActorEntities {
         @Override public NativeActorPoseCarrier director$pose() { return pose; }
         @Override public void tick() {}
         @Override public void tickMovement() {}
+        @Override public boolean damage(ServerWorld world, DamageSource source, float amount) {
+            return PreviewEntityGuards.damage(world, source, amount);
+        }
+        @Override public boolean collidesWith(Entity other) { return PreviewEntityGuards.collidesWith(other); }
+        @Override public boolean isAttackable() { return PreviewEntityGuards.isAttackable(); }
+        @Override public boolean isPushable() { return PreviewEntityGuards.isPushable(); }
+        @Override public boolean canBeHitByProjectile() { return PreviewEntityGuards.canBeHitByProjectile(); }
+        @Override public boolean shouldRender(double distance) { return PreviewEntityGuards.shouldRender(distance); }
     }
 }

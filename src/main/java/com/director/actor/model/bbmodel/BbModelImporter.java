@@ -12,6 +12,8 @@ import com.director.actor.rig.skeleton.RigDefinition;
 import com.director.util.WorldIdentifier;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,6 +31,7 @@ import java.util.regex.Pattern;
 
 /** Converts parsed Blockbench .bbmodel data into Director rig + custom model definitions. */
 public final class BbModelImporter {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BbModelImporter.class);
     private static final float PIXELS_PER_BLOCK = 16f;
     /** Tune after calibrating against a known Blockbench export. */
     private static final boolean MIRROR_X = false;
@@ -288,7 +291,7 @@ public final class BbModelImporter {
             applyMirrorX(offset);
 
             try {
-                String textureKey = resolveElementTextureKey(element, textures);
+                String textureKey = resolveElementTextureKey(element, textures, warnings);
                 if (textureKey != null) textureKey = sanitizeTextureFileName(textureKey);
                 CuboidFaceUvs faceUvs = parseFaceUvs(element);
                 if (textureKey != null && faceUvs != null && faceUvs.hasAnyFace()) {
@@ -498,25 +501,28 @@ public final class BbModelImporter {
         return new float[] {face.uv[0], face.uv[1], face.uv[2], face.uv[3]};
     }
 
-    private static String resolveElementTextureKey(BbModelFile.Element element, List<BbModelFile.Texture> textures) {
+    private static String resolveElementTextureKey(
+            BbModelFile.Element element, List<BbModelFile.Texture> textures, List<String> warnings) {
         if (element.faces == null || element.faces.isEmpty()) {
             return null;
         }
-        Object textureRef = null;
+        Integer firstValid = null;
+        Integer otherValid = null;
         for (BbModelFile.Face face : element.faces.values()) {
-            if (face != null && face.texture != null) {
-                textureRef = face.texture;
-                break;
-            }
+            if (face == null || face.texture == null) continue;
+            int index = parseTextureIndex(face.texture);
+            if (textures == null || index < 0 || index >= textures.size()) continue;
+            if (firstValid == null) firstValid = index;
+            else if (!firstValid.equals(index)) otherValid = index;
         }
-        if (textureRef == null) {
-            return null;
+        if (firstValid == null) return null;
+        if (otherValid != null) {
+            // MVP: one texture per cuboid; multi-atlas cubes keep the first face's texture.
+            String message = "cuboid \"" + element.name + "\" 使用了多张贴图，MVP 仅保留首个有效面";
+            warnings.add(message);
+            LOGGER.warn("[BbModelImporter] {}", message);
         }
-        int index = parseTextureIndex(textureRef);
-        if (textures != null && index >= 0 && index < textures.size()) {
-            return textureKey(textures.get(index));
-        }
-        return String.valueOf(index);
+        return textureKey(textures.get(firstValid));
     }
 
     private static int parseTextureIndex(Object textureRef) {

@@ -10,18 +10,20 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 演员路径库：管理路径定义，保证名称唯一（不区分大小写）。
  */
 public final class ActorPathLibrary {
 
+    private static final AtomicLong GLOBAL_GEOMETRY_REVISION = new AtomicLong();
     private final Map<UUID, ActorPathDefinition> byId = new LinkedHashMap<>();
-    private long geometryRevision;
+    private long geometryRevision = GLOBAL_GEOMETRY_REVISION.incrementAndGet();
 
     public long geometryRevision() { return geometryRevision; }
 
-    void noteGeometry() { geometryRevision++; }
+    void noteGeometry() { geometryRevision = GLOBAL_GEOMETRY_REVISION.incrementAndGet(); }
 
     public List<ActorPathDefinition> getAll() {
         return Collections.unmodifiableList(new ArrayList<>(byId.values()));
@@ -39,7 +41,7 @@ public final class ActorPathLibrary {
         if (byId.isEmpty()) return;
         for (ActorPathDefinition path : byId.values()) path.attachLibrary(null);
         byId.clear();
-        geometryRevision++;
+        noteGeometry();
     }
 
     @Nullable
@@ -100,6 +102,7 @@ public final class ActorPathLibrary {
         ActorPathDefinition previous = byId.put(path.getId(), path);
         if (previous != null && previous != path) previous.attachLibrary(null);
         path.attachLibrary(this);
+        noteGeometry();
         return path;
     }
 
@@ -121,7 +124,7 @@ public final class ActorPathLibrary {
         ActorPathDefinition removed = byId.remove(id);
         if (removed == null) return false;
         removed.attachLibrary(null);
-        geometryRevision++;
+        noteGeometry();
         return true;
     }
 

@@ -118,4 +118,30 @@ class ActorGroupControllerTest {
         assertEquals(3.0f, triggers.get(0).triggerTime(), EPS);
         assertEquals(3.0f, triggers.get(1).triggerTime(), EPS);
     }
+
+    @Test
+    void circleWithSingleActorStaysAtCenter() {
+        ActorGroup group = new ActorGroup("circle-one");
+        group.addActor(UUID.randomUUID());
+        group.setFormationType(ActorGroup.FormationType.CIRCLE);
+        group.setFormationSpacing(3f);
+        var positions = ActorGroupController.getInstance()
+                .calculateFormation(group, new Vec3d(5, 64, 7), 15f);
+        assertEquals(1, positions.size());
+        assertEquals(5.0, positions.getFirst().position().x, EPS);
+        assertEquals(7.0, positions.getFirst().position().z, EPS);
+        assertEquals(15f, positions.getFirst().yaw(), EPS);
+    }
+
+    @Test
+    void waveDelaySpreadsFromCenterOutward() {
+        ActorGroup group = new ActorGroup("wave");
+        for (int i = 0; i < 5; i++) group.addActor(UUID.randomUUID());
+        group.setDelayPolicy(ActorGroup.DelayPolicy.WAVE);
+        group.setDelayStepSeconds(0.1f);
+        var triggers = ActorGroupController.getInstance()
+                .applyDelayPolicy(group, ActorActionType.IDLE, 1.0f);
+        assertEquals(List.of(1.2f, 1.1f, 1.0f, 1.1f, 1.2f),
+                triggers.stream().map(ActorGroupController.ActionTrigger::triggerTime).toList());
+    }
 }

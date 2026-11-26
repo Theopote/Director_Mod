@@ -140,12 +140,22 @@ public class DefaultAnimationPlayer implements AnimationPlayer {
             return null;
         }
 
-        // 从动画数据中采样姿态
         Pose pose = currentAnimation.sampleAt(currentTime);
+        return new AnimationPoseResult(pose, maskFor(currentAnimation));
+    }
 
-        // 创建 AnimationPoseResult
-        // 默认控制所有部位（可以根据动画数据调整）
-        return new AnimationPoseResult(pose, com.director.actor.rig.PoseMask.full());
+    private static com.director.actor.rig.PoseMask maskFor(AnimationData data) {
+        var mask = com.director.actor.rig.PoseMask.none();
+        if (data == null) return mask;
+        for (String bone : data.controlledBones()) {
+            if (com.director.actor.rig.skeleton.HumanoidRig.BODY.equals(bone)) mask.body = true;
+            else if (com.director.actor.rig.skeleton.HumanoidRig.HEAD.equals(bone)) mask.head = true;
+            else if (com.director.actor.rig.skeleton.HumanoidRig.LEFT_ARM.equals(bone)
+                    || com.director.actor.rig.skeleton.HumanoidRig.RIGHT_ARM.equals(bone)) mask.arms = true;
+            else if (com.director.actor.rig.skeleton.HumanoidRig.LEFT_LEG.equals(bone)
+                    || com.director.actor.rig.skeleton.HumanoidRig.RIGHT_LEG.equals(bone)) mask.legs = true;
+        }
+        return mask;
     }
 
     @Override

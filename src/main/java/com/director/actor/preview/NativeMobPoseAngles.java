@@ -60,6 +60,23 @@ public final class NativeMobPoseAngles {
         return delta.mul(16f);
     }
 
+    /**
+     * Extra ModelPart origin shift when a sibling mesh must follow body rotation around the torso pivot.
+     * Vanilla head/arm parts are often not hierarchy children of body, so rotation alone leaves them behind.
+     */
+    public static Vector3f bodyPivotPixels(RigPose pose, String bone, boolean followBody) {
+        Vector3f delta = new Vector3f();
+        if (!followBody || pose == null || bone == null) return delta;
+        int index = pose.rig().findBoneIndex(bone);
+        if (index < 0) return delta;
+        int parent = pose.rig().bone(index).parentIndex();
+        if (parent < 0 || !HumanoidRig.BODY.equals(pose.rig().bone(parent).id())) return delta;
+        Vector3f rest = new Vector3f(pose.rig().bone(index).restLocal().translation()).mul(16f);
+        rest.y = -rest.y;
+        Vector3f rotated = pose.localTransform(parent).rotation().transform(new Vector3f(rest));
+        return rotated.sub(rest);
+    }
+
     public static Vector3f scale(RigPose pose, String bone) {
         if (pose == null || bone == null) return new Vector3f(1);
         int index = pose.rig().findBoneIndex(bone);

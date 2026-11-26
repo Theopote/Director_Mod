@@ -7,6 +7,9 @@ import com.director.actor.runtime.ActorRuntime;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.client.network.OtherClientPlayerEntity;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.server.world.ServerWorld;
 import org.joml.Vector3f;
 
 /** Client-only player silhouette. Timeline is the only source of motion. */
@@ -34,6 +37,14 @@ public final class PreviewPlayerActorEntity extends OtherClientPlayerEntity impl
     }
     @Override public void tick() {} // No vanilla movement, body control, or network interpolation.
     @Override public void tickMovement() {}
+    @Override public boolean damage(ServerWorld world, DamageSource source, float amount) {
+        return PreviewEntityGuards.damage(world, source, amount);
+    }
+    @Override public boolean collidesWith(Entity other) { return PreviewEntityGuards.collidesWith(other); }
+    @Override public boolean isAttackable() { return PreviewEntityGuards.isAttackable(); }
+    @Override public boolean isPushable() { return PreviewEntityGuards.isPushable(); }
+    @Override public boolean canBeHitByProjectile() { return PreviewEntityGuards.canBeHitByProjectile(); }
+    @Override public boolean shouldRender(double distance) { return PreviewEntityGuards.shouldRender(distance); }
     @Override public void setActorRuntime(ActorRuntime value) { runtime=value; }
     @Override public ActorRuntime getActorRuntime() { return runtime; }
     @Override public void setFinalPose(Pose value) { pose=value; setFinalRigPose(value==null ? null : LegacyHumanoidPoseAdapter.convert(value, com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION)); }

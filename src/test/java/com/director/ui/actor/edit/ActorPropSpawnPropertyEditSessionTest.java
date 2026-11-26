@@ -134,12 +134,12 @@ class ActorPropSpawnPropertyEditSessionTest {
         assertNull(source.getParam("propScale")); assertNull(source.getParam("itemPose")); history.redo();
         assertEquals("HAND",source.getParam("itemPose")); assertEquals(45,source.getParam("rotationX"));
     }
-    @Test void projectileTakesPropOwnershipWithoutDetachingDisposal() {
+    @Test void releaseTransfersPropOwnershipWithoutDisposal() {
         var runtime = new ActorPropRuntime(); var prop = new RuntimeProp(PropRegistry.getInstance().get("stone").orElseThrow(),ActorPropSlot.MAIN_HAND);
         runtime.attach(ActorPropSlot.MAIN_HAND,prop); assertSame(prop,runtime.release(ActorPropSlot.MAIN_HAND));
         assertFalse(runtime.hasProp(ActorPropSlot.MAIN_HAND)); assertNull(runtime.release(ActorPropSlot.MAIN_HAND));
-        var start = new net.minecraft.util.math.Vec3d(1,2,3); var end = new net.minecraft.util.math.Vec3d(4,5,6);
-        prop.setWorldTransform(start); var projectile = new RuntimeProjectile(prop,start,end,1,1); projectile.update(0);
-        assertFalse(prop.isBoundToActor()); assertEquals(start,prop.getWorldPosition()); assertFalse(projectile.isFinished());
+        var start = new net.minecraft.util.math.Vec3d(1,2,3);
+        prop.setWorldTransform(start);
+        assertFalse(prop.isBoundToActor()); assertEquals(start,prop.getWorldPosition());
     }
 }

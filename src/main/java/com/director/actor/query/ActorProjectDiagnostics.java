@@ -32,7 +32,8 @@ public final class ActorProjectDiagnostics {
             if (actor == null) issues.add(new Issue(track, Reason.MISSING_ACTOR,
                     payload.getActorRef() == null ? "" : payload.getActorRef().getActorId().toString()));
             if (actor != null && actor.getType() == ActorType.CUSTOM) {
-                if (actor.getCustomRigId() != null && com.director.actor.rig.skeleton.CustomRigLibrary.getInstance().find(actor.getCustomRigId()).isEmpty())
+                if (actor.getCustomRigId() != null
+                        && com.director.actor.rig.skeleton.RigDefinitions.find(actor.getCustomRigId()).isEmpty())
                     issues.add(new Issue(track, Reason.MISSING_CUSTOM_RIG, actor.getCustomRigId()));
                 if (actor.getCustomModelId() != null) {
                     var customModel = com.director.actor.model.CustomModelLibrary.getInstance().find(actor.getCustomModelId()).orElse(null);
@@ -63,7 +64,8 @@ public final class ActorProjectDiagnostics {
                 boolean builtIn = AnimationLibrary.getInstance().get(id).isPresent();
                 if (asset == null && !builtIn) issues.add(new Issue(track, Reason.MISSING_ANIMATION, id, clip));
                 else if (actor != null && (asset != null ? !ActorRigCompatibility.accepts(actor, asset.rigId())
-                        : ActorRigCompatibility.family(actor.getType()) != ActorRigCompatibility.Family.HUMANOID))
+                        : !ActorRigCompatibility.acceptsBuiltin(
+                                ActorRigCompatibility.resolveRig(actor).orElse(null), id)))
                     issues.add(new Issue(track, Reason.INCOMPATIBLE_RIG, id, clip));
             }
         }

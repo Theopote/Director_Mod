@@ -55,7 +55,11 @@ public final class CustomModelPreviewRenderer {
             return;
         }
         String revision = modelRevision(model);
-        if (!model.id().equals(spawnedModelId.get(actorId))
+        var existing = spawned.get(actorId);
+        boolean staleWorld = existing != null && existing.stream().anyMatch(sc ->
+                sc.entity().isRemoved() || sc.entity().getEntityWorld() != world);
+        if (staleWorld
+                || !model.id().equals(spawnedModelId.get(actorId))
                 || !revision.equals(spawnedModelRevision.get(actorId))) {
             remove(actorId);
             var parts=spawnAll(world,model);

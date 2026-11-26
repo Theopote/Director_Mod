@@ -88,8 +88,15 @@ public class AnimationLibrary {
     public void clear() {
         int count = animations.size();
         animations.clear();
-        if(count>0) revision++;
-        LOGGER.info("[AnimationLibrary] 清空所有动画 (共 {} 个)", count);
+        BuiltInAnimations.registerInto(this);
+        if (count > 0) revision++;
+        LOGGER.info("[AnimationLibrary] 清空后已恢复内建动画 (曾有 {} 个)", count);
+    }
+
+    /** Re-registers the built-in clip set without wiping project registrations. */
+    public void resetBuiltIns() {
+        BuiltInAnimations.registerInto(this);
+        revision++;
     }
 
     /**

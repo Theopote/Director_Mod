@@ -103,9 +103,6 @@ public final class ActorRuntimeController {
     /** 每个 Actor 一个 PropRuntime */
     private final Map<UUID, ActorPropRuntime> propRuntimes = new HashMap<>();
 
-    /** 投掷物管理器 */
-    private final ProjectileRuntimeManager projectileManager = ProjectileRuntimeManager.getInstance();
-
     /** 上一帧时间（用于计算 deltaTime） */
     private float lastUpdateTime = 0f;
     private int lastUpdateTimeBits;
@@ -132,7 +129,6 @@ public final class ActorRuntimeController {
         if(timelineSource!=null) timelineSource.invalidateActorEditContext();
         diagnostics.clear();
         propRuntimes.values().forEach(ActorPropRuntime::dispose);propRuntimes.clear();
-        projectileManager.clear();
         com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
         for(var runtime:runtimes.values()) runtime.resetWorldResources();
         lastUpdateTime=timelineSource==null?0:timelineSource.getCurrentTime();
@@ -249,10 +245,9 @@ public final class ActorRuntimeController {
             ActorAnimationEventEffects.getInstance().reset();
             diagnostics.clear();
             ActorPreviewManager.getInstance().clear();
-            ProjectileRuntimeManager.getInstance().clear();
             com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
             propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
-            LOGGER.info("[ActorRuntime] 已禁用，清空所有预览实体和投掷物");
+            LOGGER.info("[ActorRuntime] 已禁用，清空所有预览实体和道具");
         } else {
             LOGGER.info("[ActorRuntime] 已启用");
         }
@@ -319,8 +314,6 @@ public final class ActorRuntimeController {
 
         // Resolve gaze only after every actor has its current-time root position.
         for (TrackRuntime rt : runtimes.values()) rt.updateGaze();
-        // 更新投掷物（每帧更新，使用 deltaTime）
-        projectileManager.update(deltaTime);
     }
 
     // =========================================================

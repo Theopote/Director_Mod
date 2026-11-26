@@ -174,6 +174,11 @@ public final class ActorPropRuntime {
      * @param entity PreviewActorEntity
      */
     public void setActorEntity(Entity entity) {
+        if (entity == null && actorEntity != null
+                && actorEntity.getEntityWorld() instanceof net.minecraft.client.world.ClientWorld world) {
+            for (RuntimeProp prop : props.values()) prop.syncVisual(world, false);
+            for (RuntimeProp prop : sampledFlights.values()) prop.syncVisual(world, false);
+        }
         this.actorEntity = entity;
     }
 

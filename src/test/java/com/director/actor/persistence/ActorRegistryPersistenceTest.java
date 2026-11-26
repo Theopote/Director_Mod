@@ -74,6 +74,43 @@ class ActorRegistryPersistenceTest {
         }
     }
 
+    @Test
+    void legacyFileWithoutGroupsStillLoads(@TempDir Path world) throws Exception {
+        var file = Files.createDirectories(world.resolve("director")).resolve("actor_registry.json");
+        Files.writeString(file, "{\"version\":\"1.0\",\"actors\":[{\"actorId\":\""
+                + java.util.UUID.randomUUID() + "\",\"name\":\"Legacy\",\"type\":\"PLAYER\"}]}");
+        WorldIdentifier.overrideWorldSavePathForTesting(world);
+        try {
+            var restored = new ActorRegistry();
+            ActorRegistryPersistence.loadFromFile(restored);
+            assertEquals(1, restored.size());
+            assertEquals(0, restored.groupSize());
+            assertTrue(ActorRegistryPersistence.saveToFile(restored));
+        } finally {
+            WorldIdentifier.overrideWorldSavePathForTesting(null);
+        }
+    }
+
+    @Test
+    void rigProfileStyleSurvivesRoundTrip() {
+        var registry = new ActorRegistry();
+        var actor = registry.createActor("Expressive", ActorType.PLAYER);
+        var style = actor.getRigProfile().getStyle();
+        style.motionScale = 1.4f;
+        style.tempo = 1.2f;
+        style.leanBias = 0.6f;
+        style.armExpressiveness = 1.5f;
+        style.legExpressiveness = 0.4f;
+        var restored = new ActorRegistry();
+        ActorRegistryPersistence.loadFromJson(restored, ActorRegistryPersistence.getJsonObject(registry));
+        var loaded = restored.getActor(actor.getActorId()).orElseThrow().getRigProfile().getStyle();
+        assertEquals(1.4f, loaded.motionScale, 1e-5f);
+        assertEquals(1.2f, loaded.tempo, 1e-5f);
+        assertEquals(0.6f, loaded.leanBias, 1e-5f);
+        assertEquals(1.5f, loaded.armExpressiveness, 1e-5f);
+        assertEquals(0.4f, loaded.legExpressiveness, 1e-5f);
+    }
+
     @Test void groupRandomSeedAndDelayScheduleSurviveRoundTrip() {
         var registry = new ActorRegistry(); var group = registry.createGroup("Cast");
         group.addActor(registry.createActor("A", ActorType.PLAYER).getActorId());

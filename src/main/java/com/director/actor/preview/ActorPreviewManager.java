@@ -90,6 +90,13 @@ public final class ActorPreviewManager {
         syncWorld();
         if(!hasWorld()) return null;
         var existing=getPreview(actor.getActorId());
+        if (existing != null) {
+            EntityType<?> expected = previewEntityType(actor.getType());
+            if (expected != null && existing.getType() != expected) {
+                removePreview(actor.getActorId());
+                existing = null;
+            }
+        }
         return existing!=null?existing:previews.computeIfAbsent(actor.getActorId(),id->createPreview(actor));
     }
 
@@ -104,6 +111,7 @@ public final class ActorPreviewManager {
         }
 
         Entity entity = previews.remove(actorId);
+        com.director.actor.model.CustomModelPreviewRenderer.getInstance().remove(actorId);
         if (entity != null) {
             try {
                 // 清理反向映射
@@ -167,6 +175,7 @@ public final class ActorPreviewManager {
         previews.clear();
         entityToActor.clear();
         rootScales.clear();
+        com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
         LOGGER.debug("[ActorPreviewManager] 清空所有预览实体");
     }
 

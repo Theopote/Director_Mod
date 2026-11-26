@@ -225,6 +225,36 @@ class BbModelImporterTest {
     }
 
     @Test
+    void ignoresInvalidFaceTextureIndexAsUntextured() throws Exception {
+        String json = """
+                {
+                  "resolution": { "width": 16, "height": 16 },
+                  "elements": [
+                    {
+                      "uuid": "e1",
+                      "name": "blank",
+                      "from": [0, 0, 0],
+                      "to": [8, 8, 8],
+                      "faces": {
+                        "north": { "uv": [0, 0, 8, 8], "texture": -1 }
+                      }
+                    }
+                  ],
+                  "textures": [
+                    { "id": "0", "name": "skin.png", "source": "data:image/png;base64,iVBORw0KGgo=" }
+                  ],
+                  "outliner": [
+                    { "name": "root", "uuid": "b0", "origin": [0, 0, 0], "children": ["e1"] }
+                  ]
+                }
+                """;
+        BbModelImportResult result = BbModelImporter.importFile(
+                writeModel("no_tex.bbmodel", json), "test:rig", "test:model", "minecraft:stone");
+        BoneCuboid cuboid = result.model().cuboids().getFirst();
+        assertTrue(!cuboid.usesCustomTexture());
+    }
+
+    @Test
     void skipsInvalidCuboidsWithWarning() throws Exception {
         Path file = writeModel("invalid_cuboid.bbmodel", INVALID_CUBOID);
         BbModelImportResult result = BbModelImporter.importFile(

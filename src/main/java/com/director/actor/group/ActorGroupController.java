@@ -53,6 +53,10 @@ public class ActorGroupController {
             }
             case CIRCLE -> {
                 int count = actorIds.size();
+                if (count == 1) {
+                    positions.add(new FormationPosition(actorIds.getFirst(), centerPosition, facingYaw));
+                    break;
+                }
                 float radius = spacing * count / (2f * (float) Math.PI);
                 for (int i = 0; i < count; i++) {
                     float angle = 360f * i / count;
@@ -117,7 +121,8 @@ public class ActorGroupController {
             case WAVE -> {
                 int count = actorIds.size();
                 for (int i = 0; i < count; i++) {
-                    int waveIndex = (i % 2 == 0) ? i / 2 : count - 1 - i / 2;
+                    // Distance from the formation center outward (center acts first).
+                    int waveIndex = Math.abs(2 * i - (count - 1)) / 2;
                     triggers.add(new ActionTrigger(actorIds.get(i), action, baseTime + waveIndex * delayStep));
                 }
             }
