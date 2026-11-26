@@ -107,7 +107,7 @@ public final class ActorGroup {
     }
 
     public void setDelayStepSeconds(float delayStepSeconds) {
-        this.delayStepSeconds = Math.max(0.0f, delayStepSeconds);
+        if (Float.isFinite(delayStepSeconds)) this.delayStepSeconds = Math.max(0.0f, delayStepSeconds);
     }
 
     public float getFormationSpacing() {
@@ -115,6 +115,6 @@ public final class ActorGroup {
     }
 
     public void setFormationSpacing(float formationSpacing) {
-        this.formationSpacing = Math.max(0.1f, formationSpacing);
+        if (Float.isFinite(formationSpacing)) this.formationSpacing = Math.max(0.1f, formationSpacing);
     }
 }

@@ -68,6 +68,7 @@ public class EntityClipKeyframe extends ClipKeyframe {
     }
 
     public void setRotation(float yaw, float pitch, float roll) {
+        if (!Float.isFinite(yaw) || !Float.isFinite(pitch) || !Float.isFinite(roll)) return;
         this.rotation.set(yaw, pitch, roll);
         touched();
     }

@@ -39,4 +39,52 @@ class ActorSamplingIsolationTest {
         track.addClip(new ActorActionClip("Run",0,10));var sampler=new EntityClipSampler(track);
         assertTrue(sampler.sampleSnapshot(1).active);assertFalse(sampler.sampleSnapshot(3).active);
     }
+
+    @Test void eventFiresOncePerVisitAndSnapshotsDoNotEndTheVisit() {
+        var track = new ActorTrack("Actor");
+        track.addClip(new EntitySpawnClip("Spawn", 0, 8));
+        var event = new EntityActionClip("Event", 2, 4);
+        track.addClip(event);
+        var sampler = new EntityClipSampler(track);
+        assertEquals(1, sampler.sampleAt(2).actionEvents.size());
+        sampler.sampleSnapshot(5);
+        assertTrue(sampler.sampleAt(3).actionEvents.isEmpty());
+        assertTrue(sampler.sampleAt(2.5f).actionEvents.isEmpty());
+        assertTrue(sampler.sampleAt(5).actionEvents.isEmpty());
+        assertEquals(1, sampler.sampleAt(2).actionEvents.size());
+        assertTrue(sampler.sampleAt(20).actionEvents.isEmpty());
+        assertEquals(1, sampler.sampleAt(2).actionEvents.size());
+        event.setMuted(true);
+        assertTrue(sampler.sampleAt(2).actionEvents.isEmpty());
+        event.setMuted(false);
+        assertEquals(1, sampler.sampleAt(2).actionEvents.size());
+    }
+
+    @Test void angleInterpolationWrapsAndTerminatesForExtremeInputs() {
+        assertEquals(0f, EntitySample.lerpAngle(350, 10, .5f));
+        assertEquals(0f, EntitySample.lerpAngle(10, 350, .5f));
+        assertEquals(10f, EntitySample.lerpAngle(Float.NaN, 20, .5f));
+        assertEquals(10f, EntitySample.lerpAngle(20, Float.POSITIVE_INFINITY, .5f));
+        float extreme = EntitySample.lerpAngle(Float.MAX_VALUE, -Float.MAX_VALUE, .5f);
+        assertTrue(Float.isFinite(extreme) && extreme >= 0f && extreme < 360f);
+        var key = new EntityClipKeyframe(1);
+        key.setRotation(10, 20, 30);
+        key.setRotation(Float.NaN, 0, 0);
+        assertEquals(new Vector3f(10, 20, 30), key.getRotation());
+    }
+
+    @Test void clearingActorKeysInvalidatesTrackSampling() {
+        var track = new ActorTrack("Actor");
+        var spawn = new EntitySpawnClip("Spawn", 0, 4);
+        track.addClip(spawn);
+        var key = new EntityClipKeyframe(2);
+        key.setPosition(3, 0, 0);
+        spawn.addKeyframe(key);
+        var sampler = new EntityClipSampler(track);
+        assertEquals(3f, sampler.sampleSnapshot(2).position.x);
+        long revision = track.samplingRevision();
+        spawn.clearKeyframes();
+        assertTrue(track.samplingRevision() > revision);
+        assertEquals(0f, sampler.sampleSnapshot(2).position.x);
+    }
 }

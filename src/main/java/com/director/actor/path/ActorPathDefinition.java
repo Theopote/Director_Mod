@@ -4,7 +4,6 @@ import com.director.timeline.model.entity.ActorRouteClip;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -51,14 +50,14 @@ public final class ActorPathDefinition {
     }
 
     public List<Vector3f> getWaypoints() {
-        return Collections.unmodifiableList(waypoints);
+        return waypoints.stream().map(Vector3f::new).toList();
     }
 
     public void setWaypoints(List<Vector3f> points) {
         waypoints.clear();
         if (points != null) {
             for (Vector3f point : points) {
-                if (point != null) {
+                if (point != null && point.isFinite()) {
                     waypoints.add(new Vector3f(point));
                 }
             }

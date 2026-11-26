@@ -99,11 +99,13 @@ public class EntityTransformClip extends EntityClip {
     }
 
     public void setFromRot(float yaw, float pitch, float roll) {
+        if (!Float.isFinite(yaw) || !Float.isFinite(pitch) || !Float.isFinite(roll)) return;
         fromRot.set(yaw, pitch, roll);
         samplingChanged();
     }
 
     public void setToRot(float yaw, float pitch, float roll) {
+        if (!Float.isFinite(yaw) || !Float.isFinite(pitch) || !Float.isFinite(roll)) return;
         toRot.set(yaw, pitch, roll);
         samplingChanged();
     }

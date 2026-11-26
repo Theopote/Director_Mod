@@ -328,8 +328,10 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
      * 清除所有关键帧
      */
     public void clearKeyframes() {
+        if (keyframes.isEmpty()) return;
         keyframes.clear();
         syncKeyframesToTimelineClip();
+        samplingChanged();
     }
 
     /**

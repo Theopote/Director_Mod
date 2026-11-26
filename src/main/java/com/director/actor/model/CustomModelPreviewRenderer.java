@@ -42,8 +42,7 @@ public final class CustomModelPreviewRenderer {
     public SelectionTarget selectionTarget(net.minecraft.entity.Entity entity) { return selectionTargets.get(entity); }
 
     private final Map<UUID, List<SpawnedCuboid>> spawned = new HashMap<>();
-    private final Map<UUID, String> spawnedModelId = new HashMap<>();
-    private final Map<UUID, String> spawnedModelRevision = new HashMap<>();
+    private final Map<UUID, CustomModelDefinition> spawnedModels = new HashMap<>();
 
     private CustomModelPreviewRenderer() {}
 
@@ -54,19 +53,15 @@ public final class CustomModelPreviewRenderer {
             remove(actorId);
             return;
         }
-        String revision = modelRevision(model);
         var existing = spawned.get(actorId);
         boolean staleWorld = existing != null && existing.stream().anyMatch(sc ->
                 sc.entity().isRemoved() || sc.entity().getEntityWorld() != world);
-        if (staleWorld
-                || !model.id().equals(spawnedModelId.get(actorId))
-                || !revision.equals(spawnedModelRevision.get(actorId))) {
+        if (staleWorld || spawnedModels.get(actorId) != model) {
             remove(actorId);
             var parts=spawnAll(world,model);
             spawned.put(actorId,parts);
             for(var part:parts) selectionTargets.put(part.entity(),new SelectionTarget(actorId,part.cuboid().boneId()));
-            spawnedModelId.put(actorId, model.id());
-            spawnedModelRevision.put(actorId, revision);
+            spawnedModels.put(actorId, model);
         }
         for (SpawnedCuboid sc : spawned.getOrDefault(actorId, List.of())) {
             int boneIndex = worldPose.rig().findBoneIndex(sc.cuboid().boneId());
@@ -143,21 +138,10 @@ public final class CustomModelPreviewRenderer {
         return block.getDefaultState();
     }
 
-    private static String modelRevision(CustomModelDefinition model) {
-        StringBuilder revision = new StringBuilder();
-        for (BoneCuboid cuboid : model.cuboids()) {
-            revision.append(cuboid.boneId()).append('|')
-                    .append(cuboid.itemModelId()).append('|')
-                    .append(cuboid.textureId()).append(';');
-        }
-        return revision.toString();
-    }
-
     public void remove(UUID actorId) {
         if (actorId == null) return;
         List<SpawnedCuboid> list = spawned.remove(actorId);
-        spawnedModelId.remove(actorId);
-        spawnedModelRevision.remove(actorId);
+        spawnedModels.remove(actorId);
         if (list == null) return;
         for (SpawnedCuboid sc : list) {
             selectionTargets.remove(sc.entity());

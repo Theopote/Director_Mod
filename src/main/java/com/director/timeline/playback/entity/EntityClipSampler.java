@@ -60,7 +60,6 @@ public class EntityClipSampler {
     private final ActionTriggerCache actionCache = new ActionTriggerCache();
 
     /** 用于 AnimationEvent 的"已触发记录"（防止重复触发） */
-    private final AnimationEventTriggerCache animationEventCache = new AnimationEventTriggerCache();
     private float eventFrom=Float.NaN, lastEventSample=Float.NaN;
 
     /**
@@ -111,12 +110,14 @@ public class EntityClipSampler {
         }
         clearScratch();
         if (track == null || !track.isEnabled()) {
+            if (emitEvents) actionCache.clear();
             return EntitySample.disabled();
         }
 
         // 找到覆盖该时间的所有 clips
         List<EntityClip> clipsAtTime = track.findClipsAt(timeSeconds);
         if (clipsAtTime.isEmpty()) {
+            if (emitEvents) actionCache.clear();
             return EntitySample.disabled();
         }
 
@@ -248,7 +249,7 @@ public class EntityClipSampler {
 
         // ========== 处理 Action Clip（行为事件）==========
         // 规则：一次性触发（只在刚进入 Clip 时触发）
-        if(emitEvents) applyActions(result, actionClips, timeSeconds);
+        if(emitEvents) applyActions(result, actionClips);
 
         // ========== 处理 ActorAction Clip（动作语义）==========
         // 规则：last-wins（取 startTime 最大的那个）
@@ -336,7 +337,7 @@ public class EntityClipSampler {
             Vector3f from = channel == 1 ? prev.getPosition() : channel == 2 ? prev.getRotation() : prev.getScale();
             Vector3f to = channel == 1 ? next.getPosition() : channel == 2 ? next.getRotation() : next.getScale();
             Vector3f out = channel == 1 ? result.position : channel == 2 ? result.rotation : result.scale;
-            for (int axis=0; axis<3; axis++) out.setComponent(axis, channel == 2 ? lerpAngle(from.get(axis),to.get(axis),t) : lerp(from.get(axis),to.get(axis),t));
+            for (int axis=0; axis<3; axis++) out.setComponent(axis, channel == 2 ? EntitySample.lerpAngle(from.get(axis),to.get(axis),t) : lerp(from.get(axis),to.get(axis),t));
             applied = true;
         }
         return applied;
@@ -375,9 +376,9 @@ public class EntityClipSampler {
             result.position.z = lerp(clip.getFromPos().z, clip.getToPos().z, t);
 
             // 旋转插值（角度插值，处理 360° 环绕）
-            result.rotation.x = lerpAngle(clip.getFromRot().x, clip.getToRot().x, t);
-            result.rotation.y = lerpAngle(clip.getFromRot().y, clip.getToRot().y, t);
-            result.rotation.z = lerpAngle(clip.getFromRot().z, clip.getToRot().z, t);
+            result.rotation.x = EntitySample.lerpAngle(clip.getFromRot().x, clip.getToRot().x, t);
+            result.rotation.y = EntitySample.lerpAngle(clip.getFromRot().y, clip.getToRot().y, t);
+            result.rotation.z = EntitySample.lerpAngle(clip.getFromRot().z, clip.getToRot().z, t);
 
             // 缩放插值
             result.scale.x = lerp(clip.getFromScale().x, clip.getToScale().x, t);
@@ -522,37 +523,13 @@ public class EntityClipSampler {
     }
 
     /**
-     * 角度插值（处理 360° 环绕，选择最短路径）。
-     */
-    private float lerpAngle(float a, float b, float t) {
-        // 归一化到 [0, 360)
-        while (a < 0f) a += 360f;
-        while (a >= 360f) a -= 360f;
-        while (b < 0f) b += 360f;
-        while (b >= 360f) b -= 360f;
-
-        // 计算两个方向的距离
-        float diff = b - a;
-        if (diff > 180f) {
-            diff -= 360f; // 走反向更短
-        } else if (diff < -180f) {
-            diff += 360f; // 走反向更短
-        }
-
-        float result = a + diff * t;
-        // 归一化结果
-        while (result < 0f) result += 360f;
-        while (result >= 360f) result -= 360f;
-        return result;
-    }
-
-    /**
      * 应用 Action Clip（行为事件）。
      * 规则：一次性触发（只在刚进入 Clip 时触发）
      */
-    private void applyActions(EntitySample result, List<EntityActionClip> clips, float time) {
+    private void applyActions(EntitySample result, List<EntityActionClip> clips) {
+        actionCache.retainActive(clips);
         for (EntityActionClip clip : clips) {
-            if (!clip.isMuted() && actionCache.shouldTrigger(clip, time)) {
+            if (actionCache.enter(clip)) {
                 result.actionEvents.add(
                     new EntityActionEvent(clip.getActionType(), new java.util.HashMap<>(clip.getParams()))
                 );
@@ -822,7 +799,7 @@ public class EntityClipSampler {
      * 清除 AnimationEvent 触发缓存（用于重置/跳转时间）。
      */
     public void clearAnimationEventCache() {
-        animationEventCache.clear(); lastEventSample=Float.NaN;
+        lastEventSample = Float.NaN;
     }
 
     /**
@@ -830,7 +807,7 @@ public class EntityClipSampler {
      */
     public void clearAllCaches() {
         actionCache.clear();
-        animationEventCache.clear(); lastEventSample=Float.NaN;
+        lastEventSample = Float.NaN;
     }
 
     /**

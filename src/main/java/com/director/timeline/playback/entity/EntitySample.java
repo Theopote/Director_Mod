@@ -365,26 +365,20 @@ public class EntitySample {
      * 角度插值（处理 360° 环绕，选择最短路径）。
      * 例如：350° 到 10° 会插值到 0° 而不是 180°
      */
-    private float lerpAngle(float a, float b, float t) {
-        // 归一化到 [0, 360)
-        while (a < 0f) a += 360f;
-        while (a >= 360f) a -= 360f;
-        while (b < 0f) b += 360f;
-        while (b >= 360f) b -= 360f;
+    static float lerpAngle(float from, float to, float t) {
+        float a = normalizeAngle(from);
+        float b = normalizeAngle(to);
+        float delta = b - a;
+        if (delta > 180f) delta -= 360f;
+        if (delta < -180f) delta += 360f;
+        return normalizeAngle((double) a + delta * (double) t);
+    }
 
-        // 计算两个方向的距离
-        float diff = b - a;
-        if (diff > 180f) {
-            diff -= 360f; // 走反向更短
-        } else if (diff < -180f) {
-            diff += 360f; // 走反向更短
-        }
-
-        float result = a + diff * t;
-        // 归一化结果
-        while (result < 0f) result += 360f;
-        while (result >= 360f) result -= 360f;
-        return result;
+    private static float normalizeAngle(double degrees) {
+        if (!Double.isFinite(degrees)) return 0f;
+        double wrapped = degrees % 360;
+        float result = (float) (wrapped < 0 ? wrapped + 360 : wrapped);
+        return result >= 360f ? 0f : result;
     }
 
     /**
