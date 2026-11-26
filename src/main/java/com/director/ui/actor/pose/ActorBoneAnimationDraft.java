@@ -4,7 +4,7 @@ import com.director.actor.rig.skeleton.*;
 import java.util.Objects;
 
 /** Frozen authored input for one gizmo gesture. It never registers an asset or writes keys. */
-public final class ActorBoneAnimationDraft {
+public final class ActorBoneAnimationDraft implements com.director.actor.runtime.ActorAnimationDraftView {
     private final RigPose authored;
     private final String animationId;
     public String animationId() { return animationId; }

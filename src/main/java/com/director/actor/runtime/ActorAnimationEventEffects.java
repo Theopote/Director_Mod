@@ -41,7 +41,8 @@ public final class ActorAnimationEventEffects {
             case CAMERA_SHAKE -> {
                 UUID id = ownerId != null ? ownerId : UUID.randomUUID();
                 shakes.removeIf(s -> id.equals(s.ownerId()));
-                shakes.add(new Shake(id, timelineTime, number(event.params(), "duration", .35f),
+                float duration = Math.max(0.01f, number(event.params(), "duration", .35f));
+                shakes.add(new Shake(id, timelineTime, duration,
                         number(event.params(), "intensity", .25f), number(event.params(), "frequency", 14f)));
             }
             case SET_VISIBILITY -> { }
@@ -77,6 +78,7 @@ public final class ActorAnimationEventEffects {
     public void reset() { shakes.clear(); }
 
     private static void playSound(MinecraftClient client, Map<String, Object> params) {
+        if (client == null || client.getSoundManager() == null) return;
         String raw = params.get("soundId") instanceof String text ? text : "";
         var id = Identifier.tryParse(raw);
         var event = id == null ? null : Registries.SOUND_EVENT.get(id);
@@ -85,7 +87,7 @@ public final class ActorAnimationEventEffects {
     }
 
     private static void spawnParticles(MinecraftClient client, Entity entity, Map<String, Object> params) {
-        if (client.world == null || client.particleManager == null) return;
+        if (client == null || client.world == null || client.particleManager == null) return;
         String kind = params.get("particle") instanceof String text ? text : "POOF";
         var effect = AnimationEventParticles.get(kind).orElse(ParticleTypes.POOF);
         int count = params.get("count") instanceof Number n ? Math.max(1, Math.min(64, n.intValue())) : 8;

@@ -96,7 +96,10 @@ public final class ActorBoneOverlayRenderer {
 
     private static void line(VertexConsumer out, Matrix4f matrix, double[] from, double[] to,
                              float r, float g, float b, float a) {
-        out.vertex(matrix, (float) from[0], (float) from[1], (float) from[2]).color(r, g, b, a).normal(0f, 1f, 0f);
-        out.vertex(matrix, (float) to[0], (float) to[1], (float) to[2]).color(r, g, b, a).normal(0f, 1f, 0f);
+        float dx = (float) (to[0] - from[0]), dy = (float) (to[1] - from[1]), dz = (float) (to[2] - from[2]);
+        float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+        float nx = len > 1e-6f ? dx / len : 0f, ny = len > 1e-6f ? dy / len : 1f, nz = len > 1e-6f ? dz / len : 0f;
+        out.vertex(matrix, (float) from[0], (float) from[1], (float) from[2]).color(r, g, b, a).normal(nx, ny, nz);
+        out.vertex(matrix, (float) to[0], (float) to[1], (float) to[2]).color(r, g, b, a).normal(nx, ny, nz);
     }
 }

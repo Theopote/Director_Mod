@@ -69,12 +69,24 @@ public final class ActorPoseEvaluator {
         stages.add(stage(ActorPoseStage.Kind.MANUAL,manual,diagnostics.size()==previousDiagnostics?null:diagnostics.getLast().detail().reason()));
         pose.setLimbBendMode(bendMode);
         before=ActorPoseSources.capture(pose);
-        boolean contact=pose.rig()!=null && !pose.rig().legs().isEmpty();
+        boolean contact=supportsFootContact(type,pose.rig());
         if(contact) ActorRouteFootContact.apply(pose,sample,profile,weights);
         sources.changed(before,pose,"路径脚底接触修正",true);
         stages.add(ActorPoseStage.contact(before,pose,contact));
         return new Result(pose,weights,diagnostics,sources.snapshot(),stages);
     }
+    /** Foot contact only when the actor type matches the rig's locomotor family. */
+    static boolean supportsFootContact(ActorType type, RigDefinition rig) {
+        if (type == null || rig == null || rig.legs().isEmpty()) return false;
+        return switch (type) {
+            case PLAYER -> HumanoidTopology.matches(rig);
+            case ZOMBIE, SKELETON -> HumanoidRig.DEFINITION.id().equals(rig.id()) || HumanoidTopology.matches(rig);
+            case VILLAGER -> VillagerRig.DEFINITION.id().equals(rig.id());
+            case COW, SHEEP -> QuadrupedRig.DEFINITION.id().equals(rig.id());
+            case CUSTOM -> true;
+        };
+    }
+
     private static ActorPoseStage stage(ActorPoseStage.Kind kind,Layer layer,String rejection) {
         return ActorPoseStage.layer(kind,layer==null?null:layer.pose,layer==null?PoseBlendSettings.DEFAULT:layer.settings,
                 layer==null?0:layer.envelope,rejection);

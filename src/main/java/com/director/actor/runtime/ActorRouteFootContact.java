@@ -44,10 +44,18 @@ public final class ActorRouteFootContact {
         var legs = pose.rig().legs();
         for (int i = 0; i < legs.size(); i++) {
             LegChain chain = legs.get(i);
-            float shift = legs.size() <= 1 ? 0f : (float) i / legs.size();
+            float shift = contactPhaseShift(legs, i);
             correct(pose, sample, chain, distance, stride, shift,
                     contactWeight(authoredWeights, chain));
         }
+    }
+    /** Match LegacyMobPoseAdapter diagonal gait: LF+RH / RF+LH share a phase. */
+    static float contactPhaseShift(java.util.List<LegChain> legs, int index) {
+        if (legs == null || legs.isEmpty()) return 0f;
+        String id = legs.get(index).legBone();
+        if (QuadrupedRig.LEFT_FRONT_LEG.equals(id) || QuadrupedRig.RIGHT_HIND_LEG.equals(id)) return 0f;
+        if (QuadrupedRig.RIGHT_FRONT_LEG.equals(id) || QuadrupedRig.LEFT_HIND_LEG.equals(id)) return .5f;
+        return legs.size() <= 1 ? 0f : (float) index / legs.size();
     }
     /** Bounded support-foot stabilization, released smoothly at each foot exchange. */
     private static void correctTurnSupport(RigPose pose,EntitySample sample,
@@ -55,7 +63,6 @@ public final class ActorRouteFootContact {
         var legs = pose.rig().legs();
         if (legs.isEmpty()) return;
         boolean first=progress<.5f;
-        // Prefer classic biped pairing when present; otherwise first/second declared chain.
         LegChain chain = legs.size() >= 2
                 ? (first ? legs.get(1) : legs.get(0))
                 : legs.getFirst();
@@ -106,7 +113,8 @@ public final class ActorRouteFootContact {
         if(traversal.reversed()) direction.negate();
         float yaw = (float)Math.atan2(-direction.x,direction.z);
         var rest = pose.rig().bone(pose.rig().requireBoneIndex(bone)).restLocal().translation();
-        var side = new Quaternionf().rotateY(-yaw).transform(new Vector3f(rest.x * sample.scale.x, 0, 0));
+        var side = new Quaternionf().rotateY(-yaw).transform(new Vector3f(
+                rest.x * sample.scale.x, 0, rest.z * sample.scale.z));
         var target = new Vector3f(routePoint.position()).add(side).sub(sample.position);
         new Quaternionf().rotateY((float)Math.toRadians(sample.rotation.x)).transform(target);
         target.div(sample.scale);
@@ -143,11 +151,18 @@ public final class ActorRouteFootContact {
         if (chain.hasKnee()) {
             int shin = pose.rig().findBoneIndex(chain.lowerBone());
             if (shin >= 0) {
-                return pose.calculateModelTransform(shin).transformPosition(new Vector3f(0, -.375f, 0));
+                return pose.calculateModelTransform(shin).transformPosition(new Vector3f(0, -segmentLength(pose, shin), 0));
             }
         }
         int index = pose.rig().requireBoneIndex(chain.legBone());
-        float length = chain.hasKnee() ? .375f : .75f;
-        return pose.calculateModelTransform(index).transformPosition(new Vector3f(0, -length, 0));
+        return pose.calculateModelTransform(index).transformPosition(new Vector3f(0, -segmentLength(pose, index), 0));
+    }
+
+    /** Prefer rest height of the limb bone; fall back for degenerate custom rigs. */
+    static float segmentLength(RigPose pose, int boneIndex) {
+        float restY = Math.abs(pose.rig().bone(boneIndex).restLocal().translation().y);
+        if (restY > .01f) return restY;
+        return pose.rig().bone(boneIndex).id().contains("shin")
+                || pose.rig().bone(boneIndex).id().contains("forearm") ? .375f : .55f;
     }
 }

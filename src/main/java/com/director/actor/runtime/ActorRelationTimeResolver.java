@@ -67,7 +67,8 @@ public final class ActorRelationTimeResolver {
         if (!worldLook(s)) return s.rotation.x;
         var d=new org.joml.Vector3f(s.lookAtPoint).sub(s.position);
         float target=(float)Math.toDegrees(Math.atan2(d.z,d.x))-90;
-        return s.rotation.x+(target-s.rotation.x)*Math.max(0,Math.min(1,s.lookAtStrength));
+        float delta=net.minecraft.util.math.MathHelper.wrapDegrees(target-s.rotation.x);
+        return s.rotation.x+delta*Math.clamp(s.lookAtStrength,0f,1f);
     }
     private static final class Cycle extends RuntimeException {}
 }

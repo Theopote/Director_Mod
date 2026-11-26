@@ -28,7 +28,7 @@ class ActorPropSocketResolverTest {
     @Test void bothHandsUseMidpointAndHeadBackUseDifferentBones() {
         near(new Vector3f(0,.75f,0),socket(ActorPropSlot.BOTH_HANDS).getTranslation(new Vector3f()));
         near(new Vector3f(0,1.875f,0),socket(ActorPropSlot.HEAD).getTranslation(new Vector3f()));
-        near(new Vector3f(0,1.25f,.2f),socket(ActorPropSlot.BACK).getTranslation(new Vector3f()));
+        near(new Vector3f(0,1.25f,-.2f),socket(ActorPropSlot.BACK).getTranslation(new Vector3f()));
     }
     @Test void localRotationIsAppliedAfterPositionAndGettersAreDefensive() {
         var prop=new RuntimeProp(PropRegistry.getInstance().get("stone").orElseThrow(),ActorPropSlot.MAIN_HAND);

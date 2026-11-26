@@ -47,6 +47,24 @@ public final class RigPoseComposer {
         }
         return new Result(result,diagnostics);
     }
+    /** Copy matching bone ids onto {@code target} (e.g. 7-bone humanoid → 11-bone articulated player). */
+    public static RigPose promoteByBoneId(RigPose source, RigDefinition target) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(target, "target");
+        if (sameLayout(source.rig(), target)) return source;
+        var result = new RigPose(target);
+        result.setLimbBendMode(source.limbBendMode());
+        for (int i = 0; i < target.boneCount(); i++) {
+            String id = target.bone(i).id();
+            int from = source.rig().findBoneIndex(id);
+            if (from < 0 || !source.isAuthored(from)) continue;
+            int channels = source.authoredChannels(from);
+            if (channels == 0) channels = RigPose.ALL_CHANNELS;
+            result.setLocalTransform(i, source.localTransform(from), channels);
+        }
+        return result;
+    }
+
     public static boolean sameLayout(RigDefinition a,RigDefinition b) {
         if(a==b) return true;
         if(a.boneCount()!=b.boneCount()) return false;

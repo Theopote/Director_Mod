@@ -90,7 +90,7 @@ public final class ContinuousLimbMesh {
             var vertices=new Vertex[4];
             for(int i=0;i<4;i++) {
                 var rest=face.vertices[i];
-                vertices[i]=new Vertex(bend.map(rest.position),mode==LimbBendMode.SMOOTH
+                vertices[i]=new Vertex(bend.map(rest.position,new Vector3f()),mode==LimbBendMode.SMOOTH
                         ?normal(rest.position,bend,face,scratch):new Vector3f(),rest.u,rest.v);
             }
             if(mode==LimbBendMode.SHARP) {
@@ -128,13 +128,13 @@ public final class ContinuousLimbMesh {
         scratch.e1.set(face.e1);
         scratch.e2.set(face.e2);
         scratch.p.set(p).fma(h,scratch.e1);
-        scratch.a.set(bend.map(scratch.p));
+        bend.map(scratch.p,scratch.a);
         scratch.p.set(p).fma(-h,scratch.e1);
-        scratch.a.sub(bend.map(scratch.p));
+        scratch.a.sub(bend.map(scratch.p,new Vector3f()));
         scratch.p.set(p).fma(h,scratch.e2);
-        scratch.b.set(bend.map(scratch.p));
+        bend.map(scratch.p,scratch.b);
         scratch.p.set(p).fma(-h,scratch.e2);
-        scratch.b.sub(bend.map(scratch.p));
+        scratch.b.sub(bend.map(scratch.p,new Vector3f()));
         var n=scratch.n.set(scratch.a).cross(scratch.b).mul(face.sign);
         if(n.lengthSquared()<1e-12f) n.set(face.e1).cross(face.e2).mul(face.sign);
         return new Vector3f(n.normalize());

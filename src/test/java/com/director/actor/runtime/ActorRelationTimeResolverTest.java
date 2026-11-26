@@ -68,4 +68,14 @@ class ActorRelationTimeResolverTest {
                 (id,message)->messages.add(message));
         assertEquals(1,messages.size()); assertEquals(10,s.position.x);
     }
+    @Test void worldLookYawWrapsAcrossPlusMinus180() {
+        var s=base(0,170); s.lookAtEnabled=true; s.lookAtMode="WORLD_POINT"; s.lookAtStrength=.5f;
+        // target yaw -170° ⇒ atan2(z,x)-90 = -170 ⇒ atan2 = -80°.
+        double a=Math.toRadians(-80);
+        s.lookAtPoint.set((float)Math.cos(a)*10,0,(float)Math.sin(a)*10);
+        float yaw=ActorRelationTimeResolver.worldLookYaw(s);
+        // Short arc 20° * 0.5 → 180°, not the unwrapped 0° through ±180.
+        assertEquals(180f,yaw,1f);
+        assertNotEquals(0f,yaw,5f);
+    }
 }

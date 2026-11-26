@@ -14,9 +14,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -32,6 +34,8 @@ public final class ActorSkinTextureManager {
     private static final String PATH_PREFIX = "actor_skins/";
 
     private static final Map<UUID, Identifier> CACHE = new HashMap<>();
+    /** Failed (actorId, skinFileName) pairs — skip disk I/O until invalidate/clear. */
+    private static final Set<String> FAILED = new HashSet<>();
 
     private ActorSkinTextureManager() {
     }
@@ -44,7 +48,6 @@ public final class ActorSkinTextureManager {
     public static Identifier getOrLoad(UUID actorId) {
         Objects.requireNonNull(actorId, "actorId");
 
-        // 如果缓存中已有，直接返回
         Identifier cached = CACHE.get(actorId);
         if (cached != null) {
             return cached;
@@ -64,9 +67,14 @@ public final class ActorSkinTextureManager {
         if (skinFileName == null || skinFileName.isBlank()) {
             return null;
         }
+        String failKey = failKey(actorId, skinFileName);
+        if (FAILED.contains(failKey)) {
+            return null;
+        }
 
         Path skinPath = resolveSkinPath(actorId, skinFileName);
         if (skinPath == null || !Files.exists(skinPath)) {
+            markFailed(failKey, skinPath == null ? "path rejected or missing" : "file missing: " + skinPath);
             return null;
         }
 
@@ -84,12 +92,15 @@ public final class ActorSkinTextureManager {
             texture = new NativeImageBackedTexture(nameSupplier, image);
             textureManager.registerTexture(id, texture);
             CACHE.put(actorId, id);
+            FAILED.remove(failKey);
             LOGGER.debug("[ActorSkinTextureManager] 注册皮肤纹理: {} -> {}", skinPath, id);
             return id;
         } catch (IOException e) {
+            markFailed(failKey, "read failed: " + skinPath);
             LOGGER.error("[ActorSkinTextureManager] 读取皮肤纹理失败: {}", skinPath, e);
             return null;
         } catch (RuntimeException e) {
+            markFailed(failKey, "register failed: " + skinPath);
             LOGGER.error("[ActorSkinTextureManager] 注册皮肤纹理失败: {}", skinPath, e);
             return null;
         } finally {
@@ -118,31 +129,55 @@ public final class ActorSkinTextureManager {
         if (actorId == null) {
             return;
         }
+        FAILED.removeIf(key -> key.startsWith(actorId + "\0"));
         Identifier id = CACHE.remove(actorId);
-        if (id != null) {
-            try {
-                MinecraftClient client = MinecraftClient.getInstance();
-                if (client != null && client.getTextureManager() != null) {
-                    client.getTextureManager().destroyTexture(id);
-                }
-            } catch (Exception e) {
-                LOGGER.debug("[ActorSkinTextureManager] 销毁纹理失败: {}", id, e);
+        destroyTexture(id);
+    }
+
+    /** Destroy every dynamic skin texture and clear positive/negative caches (world switch). */
+    public static void clearAll() {
+        for (Identifier id : new HashMap<>(CACHE).values()) {
+            destroyTexture(id);
+        }
+        CACHE.clear();
+        FAILED.clear();
+    }
+
+    private static void destroyTexture(Identifier id) {
+        if (id == null) return;
+        try {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null && client.getTextureManager() != null) {
+                client.getTextureManager().destroyTexture(id);
             }
+        } catch (Exception e) {
+            LOGGER.debug("[ActorSkinTextureManager] 销毁纹理失败: {}", id, e);
         }
     }
 
-    private static Path resolveSkinPath(UUID actorId, String skinFileName) {
-        // 优先使用 Actor.skinFileName 提供的相对路径；若为空则退回到默认路径。
+    private static void markFailed(String failKey, String detail) {
+        if (FAILED.add(failKey)) {
+            LOGGER.warn("[ActorSkinTextureManager] 皮肤加载失败，已负缓存: {}", detail);
+        }
+    }
+
+    private static String failKey(UUID actorId, String skinFileName) {
+        return actorId + "\0" + skinFileName;
+    }
+
+    static Path resolveSkinPath(UUID actorId, String skinFileName) {
         if (skinFileName != null && !skinFileName.isBlank()) {
-            // 使用 ActorSkinStorage 中的世界目录解析，保证与存档绑定。
             Path root = com.director.util.WorldIdentifier.getWorldSavePath();
             if (root != null) {
-                Path dir = root.resolve("director");
-                return dir.resolve(skinFileName).normalize();
+                Path dir = root.resolve("director").normalize();
+                Path resolved = dir.resolve(skinFileName).normalize();
+                if (!resolved.startsWith(dir)) {
+                    LOGGER.warn("[ActorSkinTextureManager] 拒绝越界皮肤路径: {}", skinFileName);
+                    return null;
+                }
+                return resolved;
             }
         }
-        // 兜底：根据 actorId 计算默认路径
         return ActorSkinStorage.getSkinFile(actorId);
     }
 }
-

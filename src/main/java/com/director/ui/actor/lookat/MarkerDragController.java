@@ -191,6 +191,10 @@ public final class MarkerDragController {
         } catch (IllegalArgumentException unavailable) { return false; }
     }
 
+    public boolean isDragging() {
+        return dragging;
+    }
+
     public Vec3d previewPoint(java.util.UUID actorId, EntityLookAtClip source) {
         if (!dragging || session == null || !isSessionCurrent()
                 || !session.actorId().equals(actorId) || (source != null && session.source() != source)) return null;

@@ -45,4 +45,16 @@ class ActorSkinStorageTest {
         assertTrue(dest.normalize().toString().contains("skins"));
         assertTrue(Files.exists(dest));
     }
+
+    @Test
+    void resolveSkinPathRejectsDirectoryTraversal() throws Exception {
+        Path tmpRoot = Files.createTempDirectory("director-skin-traverse");
+        WorldIdentifier.overrideWorldSavePathForTesting(tmpRoot);
+        Files.createDirectories(tmpRoot.resolve("director"));
+        UUID id = UUID.randomUUID();
+        assertNull(ActorSkinTextureManager.resolveSkinPath(id, "../outside.png"));
+        Path ok = ActorSkinTextureManager.resolveSkinPath(id, "skins/" + id + ".png");
+        assertNotNull(ok);
+        assertTrue(ok.startsWith(tmpRoot.resolve("director").normalize()));
+    }
 }

@@ -24,6 +24,7 @@ public class DirectorClientController {
     
     private DirectorClientController() {
         this.client = MinecraftClient.getInstance();
+        com.director.actor.runtime.ActorEditorOverrides.install(new com.director.ui.actor.UiActorEditorOverrideProvider());
     }
     
     /**

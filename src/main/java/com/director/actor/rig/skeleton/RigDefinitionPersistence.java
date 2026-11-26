@@ -19,6 +19,11 @@ public final class RigDefinitionPersistence {
         JsonArray bones = new JsonArray();
         for (BoneDefinition bone : rig.bones()) bones.add(writeBone(bone));
         out.add("bones", bones);
+        if (!rig.legs().isEmpty()) {
+            JsonArray legs = new JsonArray();
+            for (LegChain leg : rig.legs()) legs.add(writeLeg(leg));
+            out.add("legs", legs);
+        }
         return out;
     }
 
@@ -28,7 +33,30 @@ public final class RigDefinitionPersistence {
         JsonArray bonesArray = required(in, "bones").getAsJsonArray();
         List<BoneDefinition> bones = new ArrayList<>();
         for (var element : bonesArray) bones.add(readBone(element.getAsJsonObject()));
-        return new RigDefinition(id, displayName, bones);
+        List<LegChain> legs = List.of();
+        if (in.has("legs") && in.get("legs").isJsonArray()) {
+            List<LegChain> parsed = new ArrayList<>();
+            for (var element : in.getAsJsonArray("legs")) {
+                if (element != null && element.isJsonObject()) parsed.add(readLeg(element.getAsJsonObject()));
+            }
+            legs = parsed;
+        }
+        return new RigDefinition(id, displayName, bones, legs);
+    }
+
+    private static JsonObject writeLeg(LegChain leg) {
+        JsonObject out = new JsonObject();
+        out.addProperty("legBone", leg.legBone());
+        if (leg.lowerBone() != null) out.addProperty("lowerBone", leg.lowerBone());
+        if (leg.footBone() != null) out.addProperty("footBone", leg.footBone());
+        return out;
+    }
+
+    private static LegChain readLeg(JsonObject in) {
+        String legBone = required(in, "legBone").getAsString();
+        String lower = in.has("lowerBone") && !in.get("lowerBone").isJsonNull() ? in.get("lowerBone").getAsString() : null;
+        String foot = in.has("footBone") && !in.get("footBone").isJsonNull() ? in.get("footBone").getAsString() : null;
+        return new LegChain(legBone, lower, foot);
     }
 
     private static JsonObject writeBone(BoneDefinition bone) {

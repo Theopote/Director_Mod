@@ -7,6 +7,11 @@ public final class PlayerRenderWorldPose {
     private PlayerRenderWorldPose() {}
     public static RigWorldPose resolve(RigPose pose,Vector3f position,float yaw,Vector3f scale) {
         var world=new Matrix4f().translate(position).rotateY((float)Math.toRadians(-yaw));
+        var rootLocal=pose.localTransform(0);
+        // Fold authored ROOT rotation/scale into the world basis (translation stays in entity placement).
+        if(HumanoidRig.ROOT.equals(pose.rig().bone(0).id())) {
+            world.rotate(rootLocal.rotation()).scale(rootLocal.scale());
+        }
         var model=new Matrix4f(world).rotateY((float)Math.PI).scale(-1,-1,1)
                 .scale(.9375f).scale(scale).translate(0,-1.501f,0);
         var rig=pose.rig();

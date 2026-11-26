@@ -1,8 +1,12 @@
 package com.director.actor.visualizer;
 
+import com.director.client.DirectorClientController;
 import com.director.core.DirectorServices;
 import com.director.actor.ActorRef;
 import com.director.actor.preview.ActorPreviewManager;
+import com.director.actor.preview.ActorPosePreview;
+import com.director.actor.preview.PreviewPlayerActorEntity;
+import com.director.actor.runtime.ActorWorldPoseEvaluator;
 import net.minecraft.entity.Entity;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.timeline.container.ContainerTimelineService;
@@ -84,6 +88,9 @@ public final class ActorLookAtVisualizer {
      */
     public void render(MatrixStack matrices, float tickDelta, VertexConsumerProvider vcp) {
         lastMarkerWorldPos = null;
+        if (!DirectorClientController.getInstance().isDirectorModeActive()) {
+            return;
+        }
         // 1️⃣ 检查是否有选中的 Actor
         UUID actorId = ActorSelectionHub.getSelectedActorId();
         if (actorId == null) {
@@ -171,7 +178,15 @@ public final class ActorLookAtVisualizer {
      * @return 眼睛位置（世界坐标）
      */
     private Vec3d getActorEyePos(Entity actor) {
-        // Entity.getEyePos() 返回眼睛位置（考虑眼高）
+        if (actor instanceof ActorPosePreview preview && preview.getFinalRigPose() != null) {
+            boolean player = actor instanceof PreviewPlayerActorEntity;
+            var pose = preview.getFinalRigPose();
+            var world = ActorWorldPoseEvaluator.resolve(pose,
+                    new org.joml.Vector3f((float) actor.getX(), (float) actor.getY(), (float) actor.getZ()),
+                    actor.getYaw(), preview.getActorTransformScale(), player);
+            var eye = ActorWorldPoseEvaluator.eyePosition(pose, world, player);
+            if (eye != null) return new Vec3d(eye.x, eye.y, eye.z);
+        }
         return actor.getEyePos();
     }
 

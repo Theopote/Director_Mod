@@ -32,7 +32,9 @@ public final class ActorPropSocketResolver {
                 socket.setTranslation(right.add(left).mul(.5f));
             }
             case HEAD -> socket=world.transform(world.rig().requireBoneIndex(HumanoidRig.HEAD)).translate(0,player?-.25f:.25f,0);
-            case BACK -> socket=world.transform(world.rig().requireBoneIndex(HumanoidRig.BODY)).translate(0,0,.2f);
+            // LivingEntity player path later scales Z by -1; non-player world axes need -Z for the back.
+            case BACK -> socket=world.transform(world.rig().requireBoneIndex(HumanoidRig.BODY))
+                    .translate(0,0,player?.2f:-.2f);
             default -> throw new IllegalArgumentException("Unknown prop slot");
         }
         if(player) socket.scale(1,-1,-1);

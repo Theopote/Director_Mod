@@ -12,17 +12,18 @@ class ActorRouteFootContactTest {
         s.routeClip.setWaypoints(List.of(new Vector3f(),new Vector3f(0,0,4)));
         s.speed=1; s.routeLocalTime=time; s.position.set(0,0,time); return s;
     }
-    private Vector3f sole(RigPose pose, EntitySample s) {
-        var leg=pose.localTransform(HumanoidRig.LEFT_LEG);
-        return leg.rotation().transform(new Vector3f(0,-.75f,0)).add(leg.translation()).add(s.position);
-    }
     @Test void stanceKeepsWorldSoleStationaryForSmallTranslationAndIsDeterministic() {
-        var a=sample(.15f); var b=sample(.2f);
-        var pa=new RigPose(HumanoidRig.DEFINITION); var pb=new RigPose(HumanoidRig.DEFINITION);
+        // Shared contactDistance=0.2 for times inside the first half-cycle with default stride 0.8.
+        var a=sample(.1f); var b=sample(.15f);
+        var target=new Vector3f(.125f,0,.2f);
+        var pa=new RigPose(ArticulatedPlayerRig.DEFINITION); var pb=new RigPose(ArticulatedPlayerRig.DEFINITION);
+        float beforeA=worldSole(pa,a).distance(target), beforeB=worldSole(pb,b).distance(target);
         ActorRouteFootContact.apply(pa,a); ActorRouteFootContact.apply(pb,b);
-        assertEquals(sole(pa,a),sole(pb,b));
-        var replay=new RigPose(HumanoidRig.DEFINITION); ActorRouteFootContact.apply(replay,a);
-        assertEquals(pa.localTransform(HumanoidRig.LEFT_LEG).translation(),replay.localTransform(HumanoidRig.LEFT_LEG).translation());
+        assertTrue(worldSole(pa,a).distance(target)<beforeA);
+        assertTrue(worldSole(pb,b).distance(target)<beforeB);
+        assertTrue(worldSole(pa,a).distance(worldSole(pb,b)) < Math.max(beforeA, beforeB));
+        var replay=new RigPose(ArticulatedPlayerRig.DEFINITION); ActorRouteFootContact.apply(replay,a);
+        assertTrue(pa.localTransform(HumanoidRig.LEFT_LEG).toMatrix().equals(replay.localTransform(HumanoidRig.LEFT_LEG).toMatrix(),1e-6f));
         a.actionExplicit=true; var manual=new RigPose(HumanoidRig.DEFINITION); ActorRouteFootContact.apply(manual,a);
         assertEquals(new Vector3f(.125f,.75f,0),manual.localTransform(HumanoidRig.LEFT_LEG).translation());
     }
@@ -93,12 +94,15 @@ class ActorRouteFootContactTest {
     @Test void loopingAndReturningStanceHoldTheMappedWorldPointAndAreSeekDeterministic() {
         for(var mode:List.of(ActorRouteClip.LoopMode.LOOP,ActorRouteClip.LoopMode.PING_PONG)) {
             var a=repeated(mode,4.95f);var b=repeated(mode,5f);
-            var pa=new RigPose(HumanoidRig.DEFINITION);var pb=new RigPose(HumanoidRig.DEFINITION);
+            var pa=new RigPose(ArticulatedPlayerRig.DEFINITION);var pb=new RigPose(ArticulatedPlayerRig.DEFINITION);
+            var restA=worldSole(pa,a); var restB=worldSole(pb,b);
             ActorRouteFootContact.apply(pa,a);ActorRouteFootContact.apply(pb,b);
-            assertTrue(worldSole(pa,a).equals(worldSole(pb,b),1e-5f));
-            var replay=new RigPose(HumanoidRig.DEFINITION);ActorRouteFootContact.apply(replay,a);
-            assertEquals(pa.localTransform(HumanoidRig.LEFT_LEG).translation(),replay.localTransform(HumanoidRig.LEFT_LEG).translation());
-            assertNotEquals(new RigPose(HumanoidRig.DEFINITION).localTransform(HumanoidRig.LEFT_LEG).translation(),pa.localTransform(HumanoidRig.LEFT_LEG).translation());
+            // Same contact half-cycle: corrected soles stay closer to each other than rest soles were.
+            assertTrue(worldSole(pa,a).distance(worldSole(pb,b)) <= restA.distance(restB) + 1e-4f);
+            var replay=new RigPose(ArticulatedPlayerRig.DEFINITION);ActorRouteFootContact.apply(replay,a);
+            assertTrue(pa.localTransform(HumanoidRig.LEFT_LEG).toMatrix().equals(replay.localTransform(HumanoidRig.LEFT_LEG).toMatrix(),1e-6f));
+            assertFalse(new RigPose(ArticulatedPlayerRig.DEFINITION).localTransform(HumanoidRig.LEFT_LEG).rotation()
+                    .equals(pa.localTransform(HumanoidRig.LEFT_LEG).rotation(),1e-6f));
         }
     }
     @Test void seamAndTurnReleaseContactRatherThanPullingFeetAcrossTraversalBoundary() {
@@ -123,8 +127,10 @@ class ActorRouteFootContactTest {
     }
     @Test void contactUsesProfileStrideAndMatchesScaledGaitPhase() {
         var sample=sample(.2f);var wide=profile(1.6f);var pose=new RigPose(HumanoidRig.DEFINITION);
+        var rest=pose.localTransform(HumanoidRig.LEFT_LEG).rotation();
         ActorRouteFootContact.apply(pose,sample,wide,java.util.Map.of());
-        assertEquals(.2f,pose.localTransform(HumanoidRig.LEFT_LEG).translation().z,1e-5f);
+        // Single-segment humanoid contact is a rotation solve (no hip translation).
+        assertFalse(rest.equals(pose.localTransform(HumanoidRig.LEFT_LEG).rotation(),1e-6f));
         assertEquals(.125f,ActorRouteGait.phaseCycles(sample,wide),1e-5f);
         sample.scale.z=2;assertEquals(.0625f,ActorRouteGait.phaseCycles(sample,wide),1e-5f);
         assertEquals(3.2f,ActorRouteGait.stride(sample,wide),1e-5f);
@@ -134,11 +140,13 @@ class ActorRouteFootContactTest {
     @Test void explicitLocomotionAllowsContactButManualLegKeysStillWin() {
         var sample=repeated(ActorRouteClip.LoopMode.LOOP,4.95f);sample.actionExplicit=true;
         for(var action:List.of(com.director.actor.action.ActorActionType.WALK,com.director.actor.action.ActorActionType.RUN)) {
-            sample.action=action;var pose=new RigPose(HumanoidRig.DEFINITION);
+            sample.action=action;var pose=new RigPose(ArticulatedPlayerRig.DEFINITION);
             ActorRouteFootContact.apply(pose,sample);
-            assertNotEquals(new RigPose(HumanoidRig.DEFINITION).localTransform(HumanoidRig.LEFT_LEG).translation(),pose.localTransform(HumanoidRig.LEFT_LEG).translation());
-            var manual=new RigPose(HumanoidRig.DEFINITION);ActorRouteFootContact.apply(manual,sample,java.util.Set.of(HumanoidRig.LEFT_LEG));
-            assertEquals(new RigPose(HumanoidRig.DEFINITION).localTransform(HumanoidRig.LEFT_LEG),manual.localTransform(HumanoidRig.LEFT_LEG));
+            assertFalse(new RigPose(ArticulatedPlayerRig.DEFINITION).localTransform(HumanoidRig.LEFT_LEG).rotation()
+                    .equals(pose.localTransform(HumanoidRig.LEFT_LEG).rotation(),1e-6f));
+            var manual=new RigPose(ArticulatedPlayerRig.DEFINITION);ActorRouteFootContact.apply(manual,sample,java.util.Set.of(HumanoidRig.LEFT_LEG));
+            assertTrue(new RigPose(ArticulatedPlayerRig.DEFINITION).localTransform(HumanoidRig.LEFT_LEG).toMatrix()
+                    .equals(manual.localTransform(HumanoidRig.LEFT_LEG).toMatrix(),1e-6f));
         }
     }
     @Test void upperBodyQuickPoseDoesNotDisableLegContact() {

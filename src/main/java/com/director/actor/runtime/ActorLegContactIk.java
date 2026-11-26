@@ -55,7 +55,6 @@ final class ActorLegContactIk {
             inverse.transformDirection(delta);
         }
         if (!delta.isFinite()) return;
-        // Approximate small pitch correction from parent-local Y/Z displacement.
         float pitch = Math.clamp(-delta.z * 2.2f, -.6f, .6f) * weight;
         float roll = Math.clamp(delta.x * 1.4f, -.35f, .35f) * weight;
         var rotation = current.rotation().rotateXYZ(pitch, 0f, roll);
@@ -77,34 +76,58 @@ final class ActorLegContactIk {
         float[] angles = new float[4];
         float error = ActorRouteFootContact.solePosition(pose, chain).distanceSquared(target);
         boolean changed = false;
+
+        // Cosine-theorem seed: interior knee angle maps to fold-from-straight LimbBend delta.
+        float thigh = ActorRouteFootContact.segmentLength(pose, hip);
+        float shin = ActorRouteFootContact.segmentLength(pose, knee);
+        var hipPos = pose.calculateModelTransform(hip).getTranslation(new Vector3f());
+        float reach = Math.clamp(hipPos.distance(target), Math.abs(thigh - shin) + 1e-4f, thigh + shin - 1e-4f);
+        float cosKnee = (thigh * thigh + shin * shin - reach * reach) / Math.max(1e-6f, 2f * thigh * shin);
+        cosKnee = Math.clamp(cosKnee, -1f, 1f);
+        float fold = (float) (Math.PI - Math.acos(cosKnee)); // 0 when fully extended
+        float analytic = Math.clamp(fold * bendSign, minimum, maximum);
+        float[] analyticSeed = {-.35f * analytic, 0, 0, analytic};
+        write(working, hip, knee, hipRest, kneeRest, encoded, analyticSeed);
+        float candidate = sole(working, hip, knee, cache).distanceSquared(target);
+        if (Float.isFinite(candidate) && candidate < error) {
+            System.arraycopy(analyticSeed, 0, angles, 0, 4);
+            error = candidate;
+            changed = true;
+        }
+
+        // Discrete bend seeds cover LimbBend curve bias the analytic seed may miss.
         for (float bend : new float[]{.3f, .6f, .9f}) {
             float[] seed = {-.5f * bend * bendSign, 0, 0, bend * bendSign};
             write(working, hip, knee, hipRest, kneeRest, encoded, seed);
-            float candidate = sole(working, hip, knee, cache).distanceSquared(target);
+            candidate = sole(working, hip, knee, cache).distanceSquared(target);
             if (Float.isFinite(candidate) && candidate < error) {
-                angles = seed;
+                System.arraycopy(seed, 0, angles, 0, 4);
                 error = candidate;
                 changed = true;
             }
         }
         write(working, hip, knee, hipRest, kneeRest, encoded, angles);
-        for (int iteration = 0; iteration < 18 && error > 1e-8f; iteration++) {
-            float step = .12f * (float) Math.pow(.84, iteration / 3);
-            for (int axis = 0; axis < 4; axis++) {
-                float original = angles[axis], best = original, bestError = error;
-                for (int sign : new int[]{-1, 1}) {
-                    angles[axis] = Math.clamp(original + sign * step, axis == 3 ? minimum : -.5f, axis == 3 ? maximum : .5f);
-                    write(working, hip, knee, hipRest, kneeRest, encoded, angles);
-                    float candidate = sole(working, hip, knee, cache).distanceSquared(target);
-                    if (Float.isFinite(candidate) && candidate < bestError) {
-                        best = angles[axis];
-                        bestError = candidate;
+
+        // Three coarse-to-fine polish rounds (each sweeps all axes).
+        for (int round = 0; round < 3 && error > 1e-8f; round++) {
+            float step = .12f * (float) Math.pow(.5, round);
+            for (int sweep = 0; sweep < 3; sweep++) {
+                for (int axis = 0; axis < 4; axis++) {
+                    float original = angles[axis], best = original, bestError = error;
+                    for (int sign : new int[]{-1, 1}) {
+                        angles[axis] = Math.clamp(original + sign * step, axis == 3 ? minimum : -.5f, axis == 3 ? maximum : .5f);
+                        write(working, hip, knee, hipRest, kneeRest, encoded, angles);
+                        candidate = sole(working, hip, knee, cache).distanceSquared(target);
+                        if (Float.isFinite(candidate) && candidate < bestError) {
+                            best = angles[axis];
+                            bestError = candidate;
+                        }
                     }
+                    angles[axis] = best;
+                    if (best != original) changed = true;
+                    error = bestError;
+                    write(working, hip, knee, hipRest, kneeRest, encoded, angles);
                 }
-                angles[axis] = best;
-                error = bestError;
-                changed |= best != original;
-                write(working, hip, knee, hipRest, kneeRest, encoded, angles);
             }
         }
         return changed ? working : null;
@@ -113,7 +136,8 @@ final class ActorLegContactIk {
     private static Vector3f sole(RigPose pose, int hip, int knee, org.joml.Matrix4f[] cache) {
         cache[hip] = null;
         cache[knee] = null;
-        return pose.calculateModelTransform(knee, cache).transformPosition(new Vector3f(0, -.375f, 0));
+        float length = ActorRouteFootContact.segmentLength(pose, knee);
+        return pose.calculateModelTransform(knee, cache).transformPosition(new Vector3f(0, -length, 0));
     }
 
     private static void write(RigPose pose, int hip, int knee, BoneTransform upper, BoneTransform lower,

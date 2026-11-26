@@ -43,25 +43,37 @@ public final class LimbBendTransform {
     }
     public Quaternionf rotation() { return new Quaternionf(swing); }
     public Vector3f map(Vector3f rest) {
-        if(mode==LimbBendMode.SHARP) return sharp(rest);
+        return map(rest, new Vector3f());
+    }
+    /** Zero-alloc map into {@code out} (may alias {@code rest}). */
+    public Vector3f map(Vector3f rest, Vector3f out) {
+        if(mode==LimbBendMode.SHARP) return sharp(rest, out);
         float y=rest.y;
-        if(y<=-half) return new Vector3f(rest);
-        if(y>=half) return lower.transformPosition(new Vector3f(rest));
+        if(y<=-half) return out.set(rest);
+        if(y>=half) return lower.transformPosition(rest, out);
         float u=(y+half)/(2*half);
-        var center=center(u);
+        center(u, out);
         float smooth=u*u*(3-2*u);
-        var frame=new Quaternionf().rotateY(twist).rotateX(angle*u).rotateY(-twist);
-        var cross=new Vector3f(rest.x*(1+(scale.x-1)*smooth),0,rest.z*(1+(scale.z-1)*smooth));
-        return frame.transform(cross).add(center);
+        SCRATCH.get().frame.rotationY(twist).rotateX(angle*u).rotateY(-twist);
+        SCRATCH.get().cross.set(rest.x*(1+(scale.x-1)*smooth),0,rest.z*(1+(scale.z-1)*smooth));
+        SCRATCH.get().frame.transform(SCRATCH.get().cross);
+        return out.add(SCRATCH.get().cross);
+    }
+    private static final ThreadLocal<Scratch> SCRATCH=ThreadLocal.withInitial(Scratch::new);
+    private static final class Scratch {
+        final Quaternionf frame=new Quaternionf();
+        final Vector3f cross=new Vector3f();
+        final Vector3f tmp=new Vector3f();
     }
     /** A short ruled bevel connects rigid ends, without a rounded transition or an unbounded miter. */
-    private Vector3f sharp(Vector3f rest) {
-        if(rest.y<=-SHARP_HALF) return new Vector3f(rest);
-        if(rest.y>=SHARP_HALF) return lower.transformPosition(new Vector3f(rest));
+    private Vector3f sharp(Vector3f rest, Vector3f out) {
+        if(rest.y<=-SHARP_HALF) return out.set(rest);
+        if(rest.y>=SHARP_HALF) return lower.transformPosition(rest, out);
         float u=(rest.y+SHARP_HALF)/(2*SHARP_HALF);
-        var upper=new Vector3f(rest.x,-SHARP_HALF,rest.z);
-        var bottom=lower.transformPosition(new Vector3f(rest.x,SHARP_HALF,rest.z));
-        return upper.lerp(bottom,u);
+        var scratch=SCRATCH.get();
+        scratch.tmp.set(rest.x,-SHARP_HALF,rest.z);
+        lower.transformPosition(scratch.cross.set(rest.x,SHARP_HALF,rest.z), scratch.cross);
+        return scratch.tmp.lerp(scratch.cross,u,out);
     }
     /**
      * Move the fold towards the inside support edge only when the bevel would invert.
@@ -82,6 +94,9 @@ public final class LimbBendTransform {
         return new Vector3f(hinge).sub(swing.transform(new Vector3f(hinge)));
     }
     private Vector3f center(float u) {
+        return center(u, new Vector3f());
+    }
+    private Vector3f center(float u, Vector3f out) {
         double a=angle,k=scale.y-1,L=2*half;
         double y,z;
         if(java.lang.Math.abs(a)<1e-4) { y=-half+L*(u+.5*k*u*u); z=0; }
@@ -90,7 +105,7 @@ public final class LimbBendTransform {
             y=-half+L*(sin/a+k*(u*sin/a+(cos-1)/(a*a)));
             z=L*((1-cos)/a+k*(-u*cos/a+sin/(a*a)));
         }
-        return new Quaternionf().rotateY(twist).transform(new Vector3f(0,(float)y,(float)z));
+        return new Quaternionf().rotateY(twist).transform(out.set(0,(float)y,(float)z));
     }
     /** Maps the lower segment's original rest coordinates to the continuous surface. */
     private Matrix4f createLowerFrame() {

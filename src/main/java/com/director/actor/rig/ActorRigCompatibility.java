@@ -97,10 +97,17 @@ public final class ActorRigCompatibility {
     public static boolean acceptsBuiltin(RigDefinition rig, AnimationData data) {
         if (rig == null || data == null) return false;
         if (HumanoidTopology.matches(rig)) return true;
+        // Partial remap needs a shared limb/control bone — not just torso ids like body/head
+        // that exist on every family (otherwise "wave" would incorrectly bind to cows).
         for (String bone : data.controlledBones()) {
+            if (isGenericAxisBone(bone)) continue;
             if (rig.findBoneIndex(bone) >= 0) return true;
         }
         return false;
+    }
+
+    private static boolean isGenericAxisBone(String bone) {
+        return HumanoidRig.ROOT.equals(bone) || HumanoidRig.BODY.equals(bone) || HumanoidRig.HEAD.equals(bone);
     }
 
     public static Optional<RigDefinition> defaultRig(ActorType type) {
