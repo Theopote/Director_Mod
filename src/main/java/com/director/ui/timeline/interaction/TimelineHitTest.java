@@ -87,7 +87,7 @@ public final class TimelineHitTest {
         // 公式：trackY = trackAreaTop + (trackIndex * rowHeight - scrollY)
         // 这样可以确保第一行轨道（trackIndex=0）当scrollY=0时，trackY = trackAreaTop
         float trackY = trackAreaTop + renderer.getMath().trackContentY(trackIndex) - scrollY;
-        float trackBottom = trackY + TimelineRenderer.getTrackHeight();
+        float trackBottom = trackY + renderer.trackHeight(trackIndex);
 
         // 确保鼠标确实在该轨道垂直范围内
         // ★ 修复：使用 <= 和 >= 而不是 < 和 >，确保边界点也能通过检查
@@ -190,8 +190,10 @@ public final class TimelineHitTest {
                 continue;
             }
 
-            float y1 = trackTop + 3f;
-            float y2 = trackBottom - 3f;
+            float headerHeight = trackBottom - trackTop;
+            float bandTop = trackTop + TimelineRenderer.clipBandOffset(clip, headerHeight);
+            float y1 = bandTop + 3f;
+            float y2 = bandTop + TimelineRenderer.clipBandHeight(headerHeight) - 3f;
 
             if (mouseX >= x1 && mouseX <= x2 && mouseY >= y1 && mouseY <= y2) {
                 return TimelineHitResult.clip(track, clip, timeAtMouse, trackIndex);

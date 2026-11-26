@@ -151,10 +151,9 @@ public final class TimelineMarqueeSelector {
             }
 
             float trackTop = trackAreaTop + renderer.getMath().trackContentY(idx) - scrollY;
-            float centerY = trackTop + (TimelineRenderer.getTrackHeight() / 2.0f);
-            if (centerY < (y1 - r) || centerY > (y2 + r)) {
-                continue;
-            }
+            float headerHeight = renderer.trackHeight(idx);
+            float bandHeight = TimelineRenderer.clipBandHeight(headerHeight);
+            float centerY = trackTop + bandHeight / 2f;
 
             List<TimelineClip> clips = track.getClips();
             if (clips != null) {
@@ -162,6 +161,8 @@ public final class TimelineMarqueeSelector {
                     if (clip == null) {
                         continue;
                     }
+                    float clipCenter = centerY + TimelineRenderer.clipBandOffset(clip, headerHeight);
+                    if (clipCenter < y1 - r || clipCenter > y2 + r) continue;
                     List<com.director.timeline.model.clip.ClipKeyframe> kfs = clip.getClipKeyframes();
                     if (kfs == null || kfs.isEmpty()) {
                         continue;
@@ -178,7 +179,7 @@ public final class TimelineMarqueeSelector {
                 }
             }
 
-            if (track.hasAutomationKeyframes()) {
+            if (centerY >= y1 - r && centerY <= y2 + r && track.hasAutomationKeyframes()) {
                 for (TimelineSelectable kf : track.getAutomationKeyframes()) {
                     if (kf == null) {
                         continue;

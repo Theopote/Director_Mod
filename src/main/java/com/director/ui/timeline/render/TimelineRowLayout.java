@@ -5,23 +5,38 @@ import java.util.Arrays;
 /** Immutable display layout. Child rows belong to a track, not to the persisted track list. */
 public final class TimelineRowLayout {
     private final float[] offsets;
-    private final float headerHeight;
+    private final float[] headerHeights;
     private final float gap;
 
     public TimelineRowLayout(float headerHeight, float gap, float childHeight, int... childCounts) {
-        if (!Float.isFinite(headerHeight) || headerHeight <= 0 || !Float.isFinite(gap) || gap < 0
+        this(uniformHeights(headerHeight, childCounts.length), gap, childHeight, childCounts);
+        if (!Float.isFinite(headerHeight) || headerHeight <= 0) throw new IllegalArgumentException("Invalid header height");
+    }
+
+    public TimelineRowLayout(float[] headerHeights, float gap, float childHeight, int... childCounts) {
+        if (headerHeights.length != childCounts.length || !Float.isFinite(gap) || gap < 0
                 || !Float.isFinite(childHeight) || childHeight <= 0) {
             throw new IllegalArgumentException("Invalid row dimensions");
         }
-        this.headerHeight = headerHeight;
+        this.headerHeights = headerHeights.clone();
         this.gap = gap;
         offsets = new float[childCounts.length + 1];
         for (int i = 0; i < childCounts.length; i++) {
             if (childCounts[i] < 0) throw new IllegalArgumentException("Negative child count");
+            float headerHeight = this.headerHeights[i];
+            if (!Float.isFinite(headerHeight) || headerHeight <= 0) throw new IllegalArgumentException("Invalid header height");
             offsets[i + 1] = offsets[i] + headerHeight + gap + childCounts[i] * childHeight;
             if (!Float.isFinite(offsets[i + 1])) throw new IllegalArgumentException("Layout overflow");
         }
     }
+
+    private static float[] uniformHeights(float height, int count) {
+        float[] heights = new float[count];
+        Arrays.fill(heights, height);
+        return heights;
+    }
+
+    public float headerHeight(int index) { return headerHeights[index]; }
 
     public int trackCount() { return offsets.length - 1; }
     public float trackTop(int index) { return offsets[index]; }
@@ -36,7 +51,7 @@ public final class TimelineRowLayout {
 
     public int headerAt(float contentY) {
         int owner = ownerAt(contentY);
-        return owner >= 0 && contentY < offsets[owner] + headerHeight ? owner : -1;
+        return owner >= 0 && contentY < offsets[owner] + headerHeight(owner) ? owner : -1;
     }
 
     public int[] visibleRange(float scrollY, float height) {

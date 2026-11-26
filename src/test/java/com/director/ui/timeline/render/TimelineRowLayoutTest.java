@@ -33,4 +33,13 @@ class TimelineRowLayoutTest {
         assertThrows(IllegalArgumentException.class, () -> new TimelineRowLayout(30, -1, 20));
         assertThrows(IllegalArgumentException.class, () -> new TimelineRowLayout(30, 2, 20, -1));
     }
+    @Test
+    void tallerActorHeaderMovesChildRowsAndFollowingTracks() {
+        var layout = new TimelineRowLayout(new float[]{22f, 88f, 22f}, 2f, 16f, 0, 3, 0);
+        assertEquals(1, layout.headerAt(111f));
+        assertEquals(-1, layout.headerAt(112f));
+        assertEquals(1, layout.ownerAt(114f));
+        assertEquals(162f, layout.trackTop(2));
+        assertEquals(2, layout.headerAt(162f));
+    }
 }

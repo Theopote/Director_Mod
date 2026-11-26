@@ -41,6 +41,7 @@ import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiFocusedFlags;
 import org.jetbrains.annotations.NotNull;
@@ -701,9 +702,17 @@ public class TimelinePanel extends AbstractPanel
         float trackGap = TimelineRenderer.getTrackGap();
         float rowHeight = trackHeight + trackGap;
         float totalTracksHeight = renderer.prepareTrackRows();
+        var io = ImGui.getIO();
+        float localY = io.getMousePosY() - layout.trackRegionTop();
+        boolean resizeActor = io.getKeyAlt() && !io.getKeyCtrl() && !io.getKeyShift()
+                && Math.abs(io.getMouseWheel()) >= 0.01f && localY >= 0f && localY < layout.trackViewportHeight()
+                && io.getMousePosX() >= layout.winX() && io.getMousePosX() < layout.winX() + layout.winW()
+                && ImGui.isWindowHovered(ImGuiHoveredFlags.ChildWindows)
+                && renderer.resizeActorRow(localY + viewportState.getScrollY(), io.getMouseWheel());
+        if (resizeActor) totalTracksHeight = renderer.prepareTrackRows();
 
         ImGui.setCursorScreenPos(layout.winX(), layout.trackRegionTop());
-        ImGui.beginChild("##TimelineTrackRegion", layout.winW(), layout.trackViewportHeight(), false, ImGuiWindowFlags.None);
+        ImGui.beginChild("##TimelineTrackRegion", layout.winW(), layout.trackViewportHeight(), false, resizeActor ? ImGuiWindowFlags.NoScrollWithMouse : ImGuiWindowFlags.None);
 
         float totalTracksHeightWithPadding = totalTracksHeight + DUMMY_SCROLL_PADDING;
         if (totalTracksHeightWithPadding > layout.trackViewportHeight()) {
@@ -712,7 +721,8 @@ public class TimelinePanel extends AbstractPanel
             ImGui.setCursorPos(0, 0);
         }
 
-        float scrollY = ImGui.getScrollY();
+        float scrollY = resizeActor ? viewportState.getScrollY() : ImGui.getScrollY();
+        if (resizeActor) ImGui.setScrollY(scrollY);
         viewportState.setScrollY(scrollY);
 
         pushClipRectSafe(

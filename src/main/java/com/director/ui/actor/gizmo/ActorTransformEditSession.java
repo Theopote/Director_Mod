@@ -85,7 +85,10 @@ public final class ActorTransformEditSession {
                 && wrapper.getEntityClip() instanceof EntityTransformClip transform) {
             return transform; // Keep the target; isCurrent rejects a muted source instead of creating a replacement.
         }
-        return resolveSource(owner.getActorTrackPayload(), model.getCurrentTime());
+        var payload = owner.getActorTrackPayload();
+        float time = model.getCurrentTime();
+        if (payload.findSpawnClipAt(time) != null) return covering(payload, time);
+        return resolveSource(payload, time);
     }
 
     public static EntityTransformClip resolveSource(ActorTrack payload, float time) {

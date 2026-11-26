@@ -336,6 +336,10 @@ public final class ActorBoneTimelineRows {
     }
 
     public TimelineRowLayout prepare(TimelineModel model, float height, float gap) {
+        return prepare(model, track -> height, gap);
+    }
+
+    public TimelineRowLayout prepare(TimelineModel model, java.util.function.ToDoubleFunction<TimelineTrack> headerHeight, float gap) {
         renderModel = model;
         importSelection(model);
         keyHits.clear();
@@ -348,8 +352,10 @@ public final class ActorBoneTimelineRows {
         supported.clear();
         trackRigs.keySet().retainAll(tracks);
         int[] counts = new int[model.getTrackCount()];
+        float[] heights = new float[counts.length];
         for (int i = 0; i < counts.length; i++) {
             var track = model.getTrackAt(i);
+            heights[i] = (float) headerHeight.applyAsDouble(track);
             var payload = track.getActorTrackPayload();
             if (payload == null || payload.getActorRef() == null) continue;
             var registry = ActorRegistryManager.getInstance();
@@ -362,7 +368,7 @@ public final class ActorBoneTimelineRows {
             else trackRigs.remove(track);
             if (expanded.contains(track)) counts[i] = ActorRootTimelineRows.COUNT + rig.map(r -> boneRows(track,r).size()).orElse(0);
         }
-        return new TimelineRowLayout(height, gap, CHILD_HEIGHT, counts);
+        return new TimelineRowLayout(heights, gap, CHILD_HEIGHT, counts);
     }
 
     public boolean supports(TimelineTrack track) { return supported.contains(track); }
@@ -519,6 +525,7 @@ public final class ActorBoneTimelineRows {
         if (owner < 0) return false;
         var track = model.getTrackAt(owner);
         if (!supports(track)) { keyFocus=false; return false; }
+        height = layout.headerHeight(owner);
         float local = contentY - layout.trackTop(owner);
         if(local<height) { keyFocus=false; rootRows.clearFocus(); }
         if (local < height && mx < Math.min(contentX, x + 26)) {

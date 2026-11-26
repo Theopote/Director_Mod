@@ -65,11 +65,11 @@ public final class TimelineTrackRenderer {
      */
     public void renderTrack(ImDrawList drawList, TimelineTrack track, int trackIndex, float winX,
                              float contentX, float y, float contentW) {
-        renderTrack(drawList, track, trackIndex, winX, contentX, y, contentW, false);
+        renderTrack(drawList, track, trackIndex, winX, contentX, y, contentW, false, TRACK_HEIGHT);
     }
 
     public void renderTrack(ImDrawList drawList, TimelineTrack track, int trackIndex, float winX,
-                            float contentX, float y, float contentW, boolean expandable) {
+                            float contentX, float y, float contentW, boolean expandable, float height) {
         // 1. 准备颜色和状态
         TrackType type = track.getType();
         boolean isEven = (trackIndex % 2 == 0);
@@ -79,16 +79,16 @@ public final class TimelineTrackRenderer {
         // 这里保持原逻辑：内容区使用统一的深色背景，不应用斑马纹，以免干扰 Clip 的色彩判断。
         int bgColor = type != null ? type.getBackgroundColor() : TimelineColors.COLOR_BG_MEDIUM;
         int trackBgColor = TimelineColors.adjustAlpha(bgColor);
-        drawList.addRectFilled(contentX, y, contentX + contentW, y + TRACK_HEIGHT, trackBgColor);
+        drawList.addRectFilled(contentX, y, contentX + contentW, y + height, trackBgColor);
 
         // 3. 绘制左侧标签区域背景（应用斑马纹）
         // 偶数行使用稍亮的背景色，奇数行使用默认背景色，形成经典的斑马纹效果
         int labelBgColor = isEven ? TimelineColors.COLOR_TRACK_LABEL_BG_ALT : TimelineColors.COLOR_TRACK_LABEL_BG;
-        drawList.addRectFilled(winX, y, contentX, y + TRACK_HEIGHT, labelBgColor);
+        drawList.addRectFilled(winX, y, contentX, y + height, labelBgColor);
 
         // 4. 绘制左侧彩色指示条
         int typeIndicatorColor = type != null ? type.getClipColor() : TimelineColors.rgba(100, 100, 100, 255);
-        drawList.addRectFilled(winX, y, winX + 3, y + TRACK_HEIGHT, typeIndicatorColor);
+        drawList.addRectFilled(winX, y, winX + 3, y + height, typeIndicatorColor);
 
         // 5. 绘制全贯通分割线（v9.1 优化：调整绘制顺序）
         // 位置：轨道的底部边缘。
@@ -97,7 +97,7 @@ public final class TimelineTrackRenderer {
         // 关键点：这行代码放在这里（背景绘制之后，文字绘制之前）是安全的。
         // 如果 TRACK_GAP > 0，这条线会画在轨道实体的最下方边缘，视觉上是边框。
         // 如果 TRACK_GAP == 0，这条线会作为行与行之间的分界线。
-        drawList.addLine(winX, y + TRACK_HEIGHT, contentX + contentW, y + TRACK_HEIGHT,
+        drawList.addLine(winX, y + height, contentX + contentW, y + height,
                 TimelineColors.COLOR_SEPARATOR_LINE, 1.0f);
 
         // 6. 计算分割位置（名称和按钮之间的分割线）
@@ -124,7 +124,7 @@ public final class TimelineTrackRenderer {
             // 设置裁剪区域：从 labelX 到 separatorX
             drawList.pushClipRect(
                 labelX, y,
-                separatorX, y + TRACK_HEIGHT,
+                separatorX, y + height,
                 true  // 相交模式
             );
             
@@ -138,7 +138,7 @@ public final class TimelineTrackRenderer {
         }
         
         // 8. 绘制分割线（名称和按钮之间）
-        drawList.addLine(separatorX, y, separatorX, y + TRACK_HEIGHT, 
+        drawList.addLine(separatorX, y, separatorX, y + height,
                 TimelineColors.COLOR_SEPARATOR_LINE, 1.0f);
 
         // 9. 绘制控制图标（关键帧 / 锁 / 激活摄像机）

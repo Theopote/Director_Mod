@@ -92,8 +92,46 @@ public class TimelineRenderer {
     private final TimelineRenderMath math;
     private final ActorBoneTimelineRows actorBoneRows = new ActorBoneTimelineRows();
 
+    private static final float[] ACTOR_HEIGHTS = {TRACK_HEIGHT, 56f, 88f, 128f};
+    private final java.util.WeakHashMap<TimelineTrack, Integer> actorHeightSteps = new java.util.WeakHashMap<>();
+
+    public boolean resizeActorRow(float contentY, float wheel) {
+        var layout = math.getRowLayout();
+        int row = layout == null ? -1 : layout.ownerAt(contentY);
+        if (row < 0) return false;
+        var track = model.getTrackAt(row);
+        if (track == null || track.getType() != com.director.timeline.model.TrackType.ACTOR) return false;
+        int step = actorHeightSteps.getOrDefault(track, 0) + (wheel > 0f ? 1 : -1);
+        actorHeightSteps.put(track, Math.max(0, Math.min(ACTOR_HEIGHTS.length - 1, step)));
+        return true;
+    }
+
+    public float trackHeight(int index) {
+        var layout = math.getRowLayout();
+        return layout == null ? TRACK_HEIGHT : layout.headerHeight(index);
+    }
+
+    public static float clipBandHeight(float headerHeight) {
+        int bands = Math.max(1, Math.min(5, (int) (headerHeight / TRACK_HEIGHT)));
+        return headerHeight / bands;
+    }
+
+    public static float clipBandOffset(TimelineClip clip, float headerHeight) {
+        if (!(clip instanceof com.director.timeline.model.entity.EntityTimelineClip actor)) return 0f;
+        float bandHeight = clipBandHeight(headerHeight);
+        int lastBand = Math.round(headerHeight / bandHeight) - 1;
+        int band = switch (actor.getEntityClip().getClipType()) {
+            case SPAWN, DESPAWN -> 0;
+            case TRANSFORM, ACTOR_ROUTE, ACTOR_RELATION -> 1;
+            case ANIMATION, ACTOR_ACTION, ACTOR_POSE -> 2;
+            case LOOK_AT -> 3;
+            case STATE, ACTION -> 4;
+        };
+        return Math.min(band, lastBand) * bandHeight;
+    }
+
     public float prepareTrackRows() {
-        var layout = actorBoneRows.prepare(model, TRACK_HEIGHT, TRACK_GAP);
+        var layout = actorBoneRows.prepare(model, track -> ACTOR_HEIGHTS[actorHeightSteps.getOrDefault(track, 0)], TRACK_GAP);
         math.setRowLayout(layout);
         return layout.totalHeight();
     }
@@ -338,10 +376,11 @@ public class TimelineRenderer {
                     continue;
                 }
                 float trackY = winY + math.trackContentY(idx) - scrollY;
+                float headerHeight = trackHeight(idx);
                 
                 // 使用 TimelineTrackRenderer 渲染轨道
-                trackRenderer.renderTrack(drawList, track, idx, winX, contentX, trackY, contentW, actorBoneRows.supports(track));
-                actorBoneRows.render(drawList, track, winX, contentX, contentX + contentW, trackY, TRACK_HEIGHT, TRACK_GAP, math);
+                trackRenderer.renderTrack(drawList, track, idx, winX, contentX, trackY, contentW, actorBoneRows.supports(track), headerHeight);
+                actorBoneRows.render(drawList, track, winX, contentX, contentX + contentW, trackY, headerHeight, TRACK_GAP, math);
                 
                 // 注册控制区域（使用 TimelineTrackControlHit）
                 trackControlHit.registerTrackControlAreas(track, winX, trackY, labelWidth);
@@ -349,9 +388,11 @@ public class TimelineRenderer {
                 // 渲染 Clip 内容（使用 TimelineClipRenderer）
                 // ★ 性能优化：在渲染所有 clip 前更新一次鼠标位置
                 clipRenderer.updateMousePosition();
-                drawList.pushClipRect(contentX, trackY, contentX + contentW, trackY + TRACK_HEIGHT, true);
+                drawList.pushClipRect(contentX, trackY, contentX + contentW, trackY + headerHeight, true);
                 for (TimelineClip clip : track.getClips()) {
-                    clipRenderer.renderClip(drawList, clip, track, idx, contentX, trackY, TRACK_HEIGHT, contentW);
+                    float offset = clipBandOffset(clip, headerHeight);
+                    clipRenderer.renderClip(drawList, clip, track, idx, contentX, trackY + offset,
+                            clipBandHeight(headerHeight), contentW);
                 }
                 drawList.popClipRect();
                 
