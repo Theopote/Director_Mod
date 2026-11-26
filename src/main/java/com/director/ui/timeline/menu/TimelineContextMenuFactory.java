@@ -646,6 +646,9 @@ public class TimelineContextMenuFactory {
                             new WeatherKeyframe(tr(DirectorLang.Timeline.DefaultNames.WEATHER_AT, formatTime(time)), time)))
                 .end();
             case ACTOR -> builder
+                        .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_TRANSFORM),
+                                () -> ActorTrackClipAuthoringService.getInstance().openTransformInspector(model, track),
+                                null, ActorTrackClipAuthoringService.getInstance().canOpenTransformInspector(model, track))
                         .submenu(tr(DirectorLang.Timeline.ContextMenu.CREATE_ENTITY_CLIP_SUBMENU))
                             .item(tr("gui.director.actor.spawn_edit.create", (int) EntitySpawnClip.DEFAULT_DURATION_SECONDS), () -> {
                                 float currentTime = model.getCurrentTime();
@@ -655,8 +658,6 @@ public class TimelineContextMenuFactory {
                                         currentTime + EntitySpawnClip.DEFAULT_DURATION_SECONDS);
                                 addEntityClip(track, clip);
                             })
-                            .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_TRANSFORM), () ->
-                                    createAuthoredActorClip(track, ActorTrackClipKind.TRANSFORM))
                             .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_ANIMATION), () -> {
                                 float currentTime = model.getCurrentTime();
                                 EntityAnimationClip clip =

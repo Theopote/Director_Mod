@@ -82,6 +82,14 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
         ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.track.brush_gesture"));
         String blocked = ActorTrackClipAuthoringService.getInstance().creationBlockReason(model, track);
         ImGui.beginDisabled(blocked != null);
+        var service = ActorTrackClipAuthoringService.getInstance();
+        if (ImGui.button(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_TRANSFORM)
+                + "##actorTrackTransform", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (service.openTransformInspector(model, track)) createNotice.clear();
+            else createNotice.show(track, InlineNotice.Level.WARNING, refusalText(service.lastRefusal()));
+        }
+        if (ImGui.isItemHovered()) ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_TRANSFORM_TOOLTIP));
         for (var kind : ActorTrackClipKind.values()) renderActorClipButton(track, kind);
         ImGui.endDisabled();
         if (blocked != null) {
@@ -99,10 +107,6 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
         String label;
         String tooltip;
         switch (kind) {
-            case TRANSFORM:
-                label = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_TRANSFORM);
-                tooltip = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_TRANSFORM_TOOLTIP);
-                break;
             case LOOK_AT_CAMERA:
                 label = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_LOOK_AT);
                 tooltip = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_LOOK_AT_TOOLTIP);

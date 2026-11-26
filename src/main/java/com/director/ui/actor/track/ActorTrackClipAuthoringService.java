@@ -10,22 +10,13 @@ import com.director.timeline.model.entity.ActorActionClip;
 import com.director.timeline.model.entity.ActorPoseClip;
 import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
-import com.director.timeline.model.entity.EntitySpawnClip;
 import com.director.timeline.model.entity.EntityStateClip;
 import com.director.ui.timeline.commands.StateChangeCommand;
 import com.director.ui.timeline.commands.TimelineCommandBridge;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.entity.ActorTrack;
-import com.director.timeline.model.entity.EntityTransformClip;
-import com.director.timeline.playback.camera.CameraAccessor;
-import com.director.timeline.playback.camera.CameraSample;
-import net.minecraft.client.MinecraftClient;
-import org.joml.Vector3f;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class ActorTrackClipAuthoringService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ActorTrackClipAuthoringService.class);
     private static final ActorTrackClipAuthoringService INSTANCE = new ActorTrackClipAuthoringService();
 
     private static final float DEFAULT_DURATION_SECONDS = 2.0f;
@@ -41,7 +32,6 @@ public final class ActorTrackClipAuthoringService {
     private static final String REFUSE_OVERLAP = "gui.director.actor.track.create_action_overlap";
     private static final String REFUSE_REJECTED = "gui.director.actor.track.create_rejected";
     private static final String REFUSE_BAD_VALUES = "gui.director.actor.track.create_bad_values";
-    private static final String NAME_TRANSFORM = "gui.director.properties.adapter.timeline.track.actor_clip_transform";
     private static final String NAME_LOOK_AT = "gui.director.properties.adapter.timeline.track.actor_clip_look_at";
     private static final String NAME_POSE = "gui.director.properties.adapter.timeline.track.actor_clip_pose";
     private static final String NAME_STATE = "gui.director.properties.adapter.timeline.track.actor_clip_state";
@@ -114,7 +104,6 @@ public final class ActorTrackClipAuthoringService {
         if (!Float.isFinite(model.getCurrentTime())) return refuse(REFUSE_BAD_TIME);
         float start = Math.max(0.0f, model.getCurrentTime());
         EntityClip clip = switch (kind) {
-            case TRANSFORM -> createTransformClip(actorTrack, start);
             case LOOK_AT_CAMERA -> createLookAtCameraClip(start);
             case ACTION -> createActionClip(start, actionType);
             case POSE -> createPoseClip(start);
@@ -127,71 +116,71 @@ public final class ActorTrackClipAuthoringService {
             configured.setTimeRange(start,start+duration);configured.setIntensity(intensity);configured.setLoop(loop);
             if(!Float.isFinite(configured.getEndTime())) return refuse(REFUSE_BAD_VALUES);
         }
-        if (!(clip instanceof EntityTransformClip)) {
-            var spawn = actorTrack.findSpawnClipAt(start);
-            if (spawn == null || !actorTrack.isPresentAt(start) || spawn.getEndTime() <= start
-                    || spawn.getTimelineClip() == null || !timelineTrack.getClips().contains(spawn.getTimelineClip()))
-                return refuse("gui.director.actor.track.behavior_requires_spawn");
-            float end = Math.min(clip.getEndTime(), spawn.getEndTime());
-            if (clip instanceof ActorActionClip && (end - start < .1f - 1e-5f
-                    || actorTrack.hasActionOverlap(spawn, null, start, end)))
-                return refuse(end - start < .1f - 1e-5f ? REFUSE_BAD_TIME : REFUSE_OVERLAP);
-            clip.setTimeRange(start, end);
-            Runnable add;
-            Runnable remove;
-            switch (clip) {
-                case ActorActionClip actionClip -> {
-                    add = () -> spawn.addActionInterval(actionClip);
-                    remove = () -> spawn.removeActionInterval(actionClip);
-                }
-                case ActorPoseClip pose -> {
-                    add = () -> spawn.addPoseInterval(pose);
-                    remove = () -> spawn.removePoseInterval(pose);
-                }
-                case EntityStateClip state -> {
-                    add = () -> spawn.addStateInterval(state);
-                    remove = () -> spawn.removeStateInterval(state);
-                }
-                case EntityLookAtClip look -> {
-                    add = () -> spawn.addLookTarget(look);
-                    remove = () -> spawn.removeLookTarget(look);
-                }
-                default -> throw new IllegalStateException("Unsupported actor interval " + kind);
+        var spawn = actorTrack.findSpawnClipAt(start);
+        if (spawn == null || !actorTrack.isPresentAt(start) || spawn.getEndTime() <= start
+                || spawn.getTimelineClip() == null || !timelineTrack.getClips().contains(spawn.getTimelineClip()))
+            return refuse("gui.director.actor.track.behavior_requires_spawn");
+        float end = Math.min(clip.getEndTime(), spawn.getEndTime());
+        if (clip instanceof ActorActionClip && (end - start < .1f - 1e-5f
+                || actorTrack.hasActionOverlap(spawn, null, start, end)))
+            return refuse(end - start < .1f - 1e-5f ? REFUSE_BAD_TIME : REFUSE_OVERLAP);
+        clip.setTimeRange(start, end);
+        Runnable add;
+        Runnable remove;
+        switch (clip) {
+            case ActorActionClip actionClip -> {
+                add = () -> spawn.addActionInterval(actionClip);
+                remove = () -> spawn.removeActionInterval(actionClip);
             }
-            TimelineCommandBridge.execute(new StateChangeCommand(model, "Create actor " + kind + " interval", remove, add));
-            model.selectItem(spawn.getTimelineClip(), false);
-            lastRefusal = null;
-            return spawn.getTimelineClip();
+            case ActorPoseClip pose -> {
+                add = () -> spawn.addPoseInterval(pose);
+                remove = () -> spawn.removePoseInterval(pose);
+            }
+            case EntityStateClip state -> {
+                add = () -> spawn.addStateInterval(state);
+                remove = () -> spawn.removeStateInterval(state);
+            }
+            case EntityLookAtClip look -> {
+                add = () -> spawn.addLookTarget(look);
+                remove = () -> spawn.removeLookTarget(look);
+            }
+            default -> throw new IllegalStateException("Unsupported actor interval " + kind);
         }
-        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, actorTrack.getColorRgba());
-        com.director.ui.timeline.commands.TimelineCommandBridge.execute(
-                new com.director.ui.timeline.commands.StateChangeCommand(model, "Create actor " + kind,
-                        () -> {
-                            actorTrack.removeClip(clip.getId());
-                            timelineTrack.removeClip(timelineClip);
-                            if (model.isSelected(timelineClip)) model.selectItem(timelineTrack, false);
-                        },
-                        () -> {
-                            if (!actorTrack.getClips().contains(clip)) actorTrack.addClip(clip);
-                            if (!timelineTrack.getClips().contains(timelineClip)) timelineTrack.addClip(timelineClip);
-                        }));
-        model.selectItem(timelineClip, false);
-
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Create actor " + kind + " interval", remove, add));
+        model.selectItem(spawn.getTimelineClip(), false);
         lastRefusal = null;
-        LOGGER.info("[ActorTrackClipAuthoringService] Created {} clip on actor track {}", kind, timelineTrack.getName());
-        return timelineClip;
+        return spawn.getTimelineClip();
     }
 
-    private EntityTransformClip createTransformClip(ActorTrack actorTrack, float start) {
-        EntityTransformClip clip = new EntityTransformClip(clipName(NAME_TRANSFORM, "Transform"), start, start + DEFAULT_DURATION_SECONDS);
-        TransformSeed seed = resolveTransformSeed(actorTrack, start);
-        clip.setFromPos(seed.position.x, seed.position.y, seed.position.z);
-        clip.setToPos(seed.position.x, seed.position.y, seed.position.z);
-        clip.setFromRot(seed.yawDeg, seed.pitchDeg, seed.rollDeg);
-        clip.setToRot(seed.yawDeg, seed.pitchDeg, seed.rollDeg);
-        clip.setFromScale(seed.scale.x,seed.scale.y,seed.scale.z);
-        clip.setToScale(seed.scale.x,seed.scale.y,seed.scale.z);
-        return clip;
+    public EntityTimelineClip selectTransformTarget(TimelineModel model, TimelineTrack track) {
+        String blocked = creationBlockReason(model, track);
+        if (blocked != null) return refuse(blocked);
+        var wrapper = transformTarget(model, track);
+        if (wrapper == null) return refuse("gui.director.actor.transform_edit.require_spawn");
+        model.selectItem(wrapper, false);
+        lastRefusal = null;
+        return wrapper;
+    }
+
+    public boolean canOpenTransformInspector(TimelineModel model, TimelineTrack track) {
+        return creationBlockReason(model, track) == null && transformTarget(model, track) != null;
+    }
+
+    private static EntityTimelineClip transformTarget(TimelineModel model, TimelineTrack track) {
+        var payload = track.getActorTrackPayload();
+        float time = model.getCurrentTime();
+        if (payload == null || !payload.isPresentAt(time)) return null;
+        var spawn = payload.findSpawnClipAt(time);
+        var wrapper = spawn.getTimelineClip();
+        return wrapper != null && track.getClips().contains(wrapper) ? wrapper : null;
+    }
+
+    public boolean openTransformInspector(TimelineModel model, TimelineTrack track) {
+        var wrapper = selectTransformTarget(model, track);
+        if (wrapper == null) return false;
+        DirectorServices.get().uiSelection().selectClip(wrapper.getEntityClip());
+        com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(wrapper);
+        return true;
     }
 
     private EntityLookAtClip createLookAtCameraClip(float start) {
@@ -253,54 +242,4 @@ public final class ActorTrackClipAuthoringService {
         return clipName(key, action.name());
     }
 
-    private TransformSeed resolveTransformSeed(ActorTrack actorTrack, float timeSeconds) {
-        var current=new com.director.timeline.playback.entity.EntityClipSampler(actorTrack).sampleSnapshot(timeSeconds);
-        if(current.enabled) return new TransformSeed(new Vector3f(current.position),current.rotation.x,current.rotation.y,current.rotation.z,new Vector3f(current.scale));
-        EntitySpawnClip spawn=findNearestSpawnClip(actorTrack,timeSeconds);
-        if(spawn!=null) return new TransformSeed(new Vector3f(spawn.getPosition()),spawn.getYawDeg(),spawn.getPitchDeg(),spawn.getRollDeg(),new Vector3f(spawn.getScale()));
-
-        CameraSample sample = sampleCamera();
-        if (sample != null) {
-            return new TransformSeed(
-                    new Vector3f((float) sample.position().x, (float) sample.position().y, (float) sample.position().z),
-                    sample.yaw(),
-                    sample.pitch(),0,new Vector3f(1)
-            );
-        }
-
-        return new TransformSeed(new Vector3f(), 0.0f, 0.0f,0,new Vector3f(1));
-    }
-
-    private EntitySpawnClip findNearestSpawnClip(ActorTrack actorTrack, float timeSeconds) {
-        if (actorTrack == null) {
-            return null;
-        }
-        EntitySpawnClip nearestBefore = null;
-        EntitySpawnClip earliestAfter = null;
-        for (EntityClip clip : actorTrack.getClips()) {
-            if (!(clip instanceof EntitySpawnClip spawnClip)) {
-                continue;
-            }
-            if (spawnClip.getStartTime() <= timeSeconds
-                    && (nearestBefore == null || spawnClip.getStartTime() > nearestBefore.getStartTime())) {
-                nearestBefore = spawnClip;
-            }
-            if (spawnClip.getStartTime() > timeSeconds
-                    && (earliestAfter == null || spawnClip.getStartTime() < earliestAfter.getStartTime())) {
-                earliestAfter = spawnClip;
-            }
-        }
-        return nearestBefore != null ? nearestBefore : earliestAfter;
-    }
-
-    private CameraSample sampleCamera() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null) {
-            return null;
-        }
-        return CameraAccessor.sampleFromGameCamera(client);
-    }
-
-    private record TransformSeed(Vector3f position, float yawDeg, float pitchDeg, float rollDeg,Vector3f scale) {
-    }
 }

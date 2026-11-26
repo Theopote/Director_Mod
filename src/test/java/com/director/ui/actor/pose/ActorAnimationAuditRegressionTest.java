@@ -48,12 +48,19 @@ class ActorAnimationAuditRegressionTest {
         assertTrue(ActorAnimationAuthoringService.mirror(context,List.of(1f),InterpolationMode.LINEAR));
         assertTrue(a.findBoneTrack(ArticulatedPlayerRig.LEFT_FOREARM).flatMap(t->t.rotation().findAt(1)).isPresent(),"Mirroring must include opposite elbow");
     }
-    @Test void newTransformShouldPreserveCurrentScaleAndRoll() {
-        spawn.setScale(2,3,4);spawn.setRollDeg(35);
-        var wrapper=ActorTrackClipAuthoringService.getInstance().createClip(model,owner,ActorTrackClipKind.TRANSFORM,null);
-        var c=(EntityTransformClip)wrapper.getEntityClip();
-        assertEquals(new Vector3f(2,3,4),c.getFromScale());
-        assertEquals(35,c.getFromRot().z);
+    @Test void openingTransformSelectsCurrentPerformanceWithoutChangingScaleOrRoll() {
+        spawn.setScale(2, 3, 4);
+        spawn.setRollDeg(35);
+        var service = ActorTrackClipAuthoringService.getInstance();
+        var wrapper = service.selectTransformTarget(model, owner);
+        assertSame(spawn.getTimelineClip(), wrapper);
+        assertSame(wrapper, model.getSelectedClip());
+        assertEquals(1, owner.getClips().size());
+        assertEquals(new Vector3f(2, 3, 4), spawn.getScale());
+        assertEquals(35, spawn.getRollDeg());
+        model.setCurrentTime(spawn.getEndTime() + 1);
+        assertNull(service.selectTransformTarget(model, owner));
+        assertEquals(1, owner.getClips().size());
     }
     @Test void fullPoseMirrorReflectsTranslationAndSwapsScale() {
         var asset = asset();
