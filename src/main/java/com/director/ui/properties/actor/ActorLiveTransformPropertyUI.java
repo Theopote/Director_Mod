@@ -66,7 +66,7 @@ public final class ActorLiveTransformPropertyUI {
         ActorPathMovementPropertyUI.render(actorId);
         float time = model.getCurrentTime();
         var target = ActorTransformEditService.resolveTrack(actorId);
-        boolean readOnly = model.isPlaying() || target == null || target.timelineTrack().isLocked()
+        boolean readOnly = model.isPlaying() || model.isScrubbing() || target == null || target.timelineTrack().isLocked()
                 || target.timelineTrack().isMuted()
                 || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
                 || com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging();
@@ -84,16 +84,20 @@ public final class ActorLiveTransformPropertyUI {
         if (Card.begin("liveTransform.TRANSFORM", Icons.TRANSFORM + " " + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SECTION_TRANSFORM))) {
             ImGui.textWrapped(com.director.i18n.ActorPropertyAdapterI18n.tr("gui.director.actor.track.live_transform"));
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.TIME_HINT_FMT, time));
-            if (target != null) {
+            String transformBlock = target == null ? null : com.director.ui.actor.gizmo.ActorTransformEditSession.liveEditBlock(
+                    model, target.timelineTrack());
+            if (transformBlock != null) {
+                ImGui.textWrapped(ActorPropertyAdapterI18n.tr(transformBlock));
+            } else if (target != null) {
                 var source = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveSource(model, target.timelineTrack());
-                var spawn = source == null ? com.director.ui.actor.gizmo.ActorTransformEditSession.resolveInitialSpawn(
-                        target.actorTrack(), time) : null;
+                var spawn = source == null ? com.director.ui.actor.gizmo.ActorTransformEditSession.resolveLiveSpawn(
+                        model, target.timelineTrack()) : null;
                 ImGui.textWrapped(ActorPropertyAdapterI18n.tr(source == null && (spawn == null || spawn.getKeyframes().isEmpty())
                         ? "gui.director.actor.transform_edit.initial_hint" : "gui.director.actor.transform_edit.animation_hint"));
             }
             boolean routeProtected = target != null && com.director.ui.actor.pose.ActorMovementSource.routeOwnsInterval(model, target.timelineTrack());
             if (routeProtected) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.movement.route_protected"));
-            ImGui.beginDisabled(routeProtected);
+            ImGui.beginDisabled(routeProtected || transformBlock != null);
             ImGui.spacing();
 
             UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.POSITION));
@@ -110,7 +114,7 @@ public final class ActorLiveTransformPropertyUI {
 
             ImGui.endDisabled();
             var covering = target == null ? null : com.director.ui.actor.gizmo.ActorTransformEditSession.covering(target.actorTrack(), time);
-            boolean scaleBlocked = routeProtected && covering != null;
+            boolean scaleBlocked = transformBlock != null || routeProtected && covering != null;
             ImGui.beginDisabled(scaleBlocked);
             UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LiveTransform.SCALE));
             boolean scaleLocked = com.director.ui.actor.edit.ActorScaleEditing.isLocked(actorId);
@@ -124,9 +128,9 @@ public final class ActorLiveTransformPropertyUI {
                 observe("resetScale", scaleKind(), true);
             }
             UITheme.endGroup(); ImGui.endDisabled();
-            if (target != null) {
+            if (target != null && transformBlock == null) {
                 if (routeProtected && covering == null) {
-                    var spawn = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveInitialSpawn(target.actorTrack(), time);
+                    var spawn = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveLiveSpawn(model, target.timelineTrack());
                     if (spawn != null) {
                         ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.live.route_scale"));
                         boolean canKey = com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, target.timelineTrack(), spawn) && gesture == null;
@@ -139,7 +143,7 @@ public final class ActorLiveTransformPropertyUI {
                 } else {
                     com.director.timeline.model.entity.EntityClip root = routeProtected ? covering
                             : com.director.ui.actor.gizmo.ActorTransformEditSession.resolveSource(model, target.timelineTrack());
-                    if (root == null) root = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveInitialSpawn(target.actorTrack(), time);
+                    if (root == null) root = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveLiveSpawn(model, target.timelineTrack());
                     if (root != null) ActorRootKeyframePropertyUI.render(root);
                 }
             }

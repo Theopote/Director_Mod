@@ -27,6 +27,7 @@ public final class ActorTransformEditSession {
     private final long contextRevision;
     private boolean finished;
     private final boolean scaleOnly;
+    private final float spawnStart, spawnEnd;
 
     public ActorTransformEditSession(TimelineModel model, TimelineTrack owner,
                                      EntityTransformClip source) {
@@ -41,7 +42,9 @@ public final class ActorTransformEditSession {
         actorId = Objects.requireNonNull(payload.getActorRef()).getActorId();
         time = model.getCurrentTime();
         this.source = source;
-        initialSpawn = source == null ? resolveInitialSpawn(payload, time) : null;
+        initialSpawn = source == null ? resolveLiveSpawn(model, owner) : null;
+        spawnStart = initialSpawn == null ? Float.NaN : initialSpawn.getStartTime();
+        spawnEnd = initialSpawn == null ? Float.NaN : initialSpawn.getEndTime();
         spawnBefore = initialSpawn == null ? null : SpawnState.of(initialSpawn);
         before = source == null ? null : State.of(source);
         sourceKeys = source != null ? keys(source) : initialSpawn != null ? keys(initialSpawn) : List.of();
@@ -53,7 +56,7 @@ public final class ActorTransformEditSession {
     }
 
     public boolean isCurrent() {
-        return !finished && contextRevision == model.getActorEditContextRevision() && !model.isPlaying() && Float.isFinite(time) && time >= 0
+        return !finished && contextRevision == model.getActorEditContextRevision() && !model.isPlaying() && !model.isScrubbing() && Float.isFinite(time) && time >= 0
                 && Float.compare(time, model.getCurrentTime()) == 0
                 && model.getAllTracks().contains(owner) && owner.getType() == TrackType.ACTOR
                 && !owner.isLocked() && !owner.isMuted()
@@ -61,7 +64,10 @@ public final class ActorTransformEditSession {
                 && payload.getActorRef() != null && Objects.equals(actorId, payload.getActorRef().getActorId())
                 && ActorRegistryManager.getInstance().getActor(actorId).isPresent()
                 && sourceClips.equals(payload.getClips())
-                && (initialSpawn == null || resolveInitialSpawn(payload, time) == initialSpawn && spawnBefore.equals(SpawnState.of(initialSpawn)) && keysAreCurrent())
+                && liveEditBlock(model, owner) == null
+                && (initialSpawn == null || resolveLiveSpawn(model, owner) == initialSpawn
+                    && initialSpawn.getStartTime() == spawnStart && initialSpawn.getEndTime() == spawnEnd
+                    && spawnBefore.equals(SpawnState.of(initialSpawn)) && keysAreCurrent())
                 && (scaleOnly ? source == null && initialSpawn != null && resolveSource(model, owner) == null
                     && com.director.ui.actor.pose.ActorRootKeyframeEditing.editable(model, owner, initialSpawn) : resolveSource(model, owner) == source)
                 && (source == null || (!source.isMuted() && payload.getClips().contains(source)
@@ -78,17 +84,46 @@ public final class ActorTransformEditSession {
     public void arm() { initial = State.of(draft); }
     public void cancel() { finished = true; }
 
-    /** An explicit transform reference remains the target even outside its time interval. */
+    /** An explicit legacy transform remains editable even outside its time interval. */
     public static EntityTransformClip resolveSource(TimelineModel model, TimelineTrack owner) {
-        var selected = model.getSelectedClip();
-        if (selected instanceof EntityTimelineClip wrapper && owner.getClips().contains(wrapper)
-                && wrapper.getEntityClip() instanceof EntityTransformClip transform) {
-            return transform; // Keep the target; isCurrent rejects a muted source instead of creating a replacement.
-        }
+        var selected = selectedEntityClip(model, owner);
+        if (selected instanceof EntityTransformClip transform) return transform;
+        if (selected instanceof EntitySpawnClip) return null;
+
         var payload = owner.getActorTrackPayload();
         float time = model.getCurrentTime();
-        if (payload.findSpawnClipAt(time) != null) return covering(payload, time);
+        if (payload.getClips().stream().anyMatch(EntitySpawnClip.class::isInstance))
+            return payload.isPresentAt(time) ? covering(payload, time) : null;
         return resolveSource(payload, time);
+    }
+
+    public static EntitySpawnClip resolveLiveSpawn(TimelineModel model, TimelineTrack owner) {
+        var payload = owner.getActorTrackPayload();
+        float time = model.getCurrentTime();
+        if (!payload.isPresentAt(time)) return null;
+        var active = payload.findSpawnClipAt(time);
+        var selected = selectedEntityClip(model, owner);
+        return selected instanceof EntitySpawnClip && selected != active ? null : active;
+    }
+
+    public static String liveEditBlock(TimelineModel model, TimelineTrack owner) {
+        var selected = selectedEntityClip(model, owner);
+        if (selected instanceof EntityTransformClip) return null;
+        var payload = owner.getActorTrackPayload();
+        float time = model.getCurrentTime();
+        if (resolveLiveSpawn(model, owner) == null
+                && payload.getClips().stream().anyMatch(EntitySpawnClip.class::isInstance))
+            return selected instanceof EntitySpawnClip
+                    ? "gui.director.actor.transform_edit.selected_spawn_inactive"
+                    : "gui.director.actor.transform_edit.require_spawn";
+        if (selected instanceof EntitySpawnClip && covering(payload, time) != null)
+            return "gui.director.actor.transform_edit.legacy_transform_controls";
+        return null;
+    }
+
+    private static EntityClip selectedEntityClip(TimelineModel model, TimelineTrack owner) {
+        return model.getSelectedClip() instanceof EntityTimelineClip wrapper && owner.getClips().contains(wrapper)
+                ? wrapper.getEntityClip() : null;
     }
 
     public static EntityTransformClip resolveSource(ActorTrack payload, float time) {

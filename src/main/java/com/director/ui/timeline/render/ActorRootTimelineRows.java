@@ -260,7 +260,7 @@ final class ActorRootTimelineRows {
     }
     private static EntityClip editTarget(TimelineModel model, TimelineTrack track) {
         if (model.getSelectedClip() instanceof EntityTimelineClip wrapper && wrapper.getParentTrack()==track && clips(track).contains(wrapper.getEntityClip())) return wrapper.getEntityClip();
-        return com.director.ui.actor.gizmo.ActorTransformEditSession.resolveInitialSpawn(track.getActorTrackPayload(),model.getCurrentTime());
+        return com.director.ui.actor.gizmo.ActorTransformEditSession.resolveLiveSpawn(model, track);
     }
     boolean click(TimelineModel model, TimelineTrack track, float mouseX, float left, int row, TimelineRenderMath math) {
         if (row < 0 || row >= COUNT) return false;

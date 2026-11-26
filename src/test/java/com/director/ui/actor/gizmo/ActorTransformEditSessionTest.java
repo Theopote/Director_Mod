@@ -333,4 +333,53 @@ class ActorTransformEditSessionTest {
         var edit=session(source()); edit.draft().setToPos(9,0,0); model.setCurrentTime(3); model.setCurrentTime(2); assertNull(edit.commit());
         assertEquals(0,history.getUndoSize());
     }
+
+    @Test void liveTransformDoesNotEditAnEarlierOrDifferentSelectedPerformance() {
+        var payload = track.getActorTrackPayload();
+        var first = new EntitySpawnClip("First", 0, 3);
+        var firstWrapper = new EntityTimelineClip(first, 0);
+        var second = new EntitySpawnClip("Second", 5, 8);
+        var secondWrapper = new EntityTimelineClip(second, 0);
+        payload.addClip(first);
+        payload.addClip(second);
+        track.addClip(firstWrapper);
+        track.addClip(secondWrapper);
+
+        model.setCurrentTime(4);
+        assertNull(ActorTransformEditSession.resolveLiveSpawn(model, track));
+        assertThrows(IllegalArgumentException.class, () -> session(null));
+        model.setCurrentTime(6);
+        model.selectItem(firstWrapper, false);
+        assertNull(ActorTransformEditSession.resolveLiveSpawn(model, track));
+        assertThrows(IllegalArgumentException.class, () -> session(null));
+        assertEquals(0, history.getUndoSize());
+
+        model.selectItem(secondWrapper, false);
+        var edit = session(null);
+        edit.arm();
+        edit.draft().setToPos(9, 0, 0);
+        assertNotNull(edit.commit());
+        assertEquals(9f, second.getPosition().x);
+        assertEquals(0f, first.getPosition().x);
+        assertEquals(2, track.getClips().size());
+    }
+
+    @Test void aSelectedPerformanceDoesNotRedirectEditsToItsCoveringLegacyTransform() {
+        var payload = track.getActorTrackPayload();
+        var spawn = new EntitySpawnClip("Performance", 0, 5);
+        var spawnWrapper = new EntityTimelineClip(spawn, 0);
+        var legacy = new EntityTransformClip("Legacy", 0, 5);
+        var legacyWrapper = new EntityTimelineClip(legacy, 0);
+        payload.addClip(spawn);
+        payload.addClip(legacy);
+        track.addClip(spawnWrapper);
+        track.addClip(legacyWrapper);
+
+        model.selectItem(spawnWrapper, false);
+        assertNull(ActorTransformEditSession.resolveSource(model, track));
+        assertThrows(IllegalArgumentException.class, () -> session(null));
+        model.selectItem(legacyWrapper, false);
+        assertSame(legacy, ActorTransformEditSession.resolveSource(model, track));
+        assertNotNull(session(legacy));
+    }
 }
