@@ -229,12 +229,11 @@ class ActorGroupTimelineCommandServiceTest {
         int created = svc.createActionClips(model, group, ActorActionType.IDLE, 1.0f, 1.0f, true);
         assertEquals(5, created);
 
-        // Wave mapping in ActorGroupController:
-        // i=0->0, i=1->4, i=2->1, i=3->3, i=4->2
-        assertSingleActionClip(atA, 3.0f, 4.0f, ActorActionType.IDLE);
-        assertSingleActionClip(atB, 3.4f, 4.4f, ActorActionType.IDLE);
-        assertSingleActionClip(atC, 3.1f, 4.1f, ActorActionType.IDLE);
-        assertSingleActionClip(atD, 3.3f, 4.3f, ActorActionType.IDLE);
+        // The center member triggers first, then both sides of each subsequent wave.
+        assertSingleActionClip(atA, 3.2f, 4.2f, ActorActionType.IDLE);
+        assertSingleActionClip(atB, 3.1f, 4.1f, ActorActionType.IDLE);
+        assertSingleActionClip(atC, 3.0f, 4.0f, ActorActionType.IDLE);
+        assertSingleActionClip(atD, 3.1f, 4.1f, ActorActionType.IDLE);
         assertSingleActionClip(atE, 3.2f, 4.2f, ActorActionType.IDLE);
     }
 
@@ -751,6 +750,46 @@ class ActorGroupTimelineCommandServiceTest {
             }
         }
         return (float) Math.toDegrees(Math.atan2(forward.x, forward.z));
+    }
+
+    @Test void groupActionsUseEachMembersDelayedSpawnAndUndoTogether() {
+        var model = new TimelineModel(new TimelineViewportState());
+        model.setCurrentTime(3);
+        var group = new ActorGroup("Group");
+        group.setDelayPolicy(ActorGroup.DelayPolicy.SEQUENTIAL);
+        group.setDelayStepSeconds(.5f);
+
+        var spawns = new java.util.ArrayList<EntitySpawnClip>();
+        var tracks = new java.util.ArrayList<TimelineTrack>();
+        for (int i = 0; i < 3; i++) {
+            var id = UUID.randomUUID();
+            group.addActor(id);
+            var track = createActorTimelineTrack("Member " + i, createActorTrackPayload(id));
+            var spawn = new EntitySpawnClip("Performance", i == 2 ? 5 : 2, i == 2 ? 8 : 4);
+            track.getActorTrackPayload().addClip(spawn);
+            track.addClip(new com.director.timeline.model.entity.EntityTimelineClip(spawn, 0));
+            model.addTrack(track);
+            spawns.add(spawn);
+            tracks.add(track);
+        }
+
+        var history = new com.director.ui.timeline.commands.TimelineCommandHistory();
+        com.director.ui.timeline.commands.TimelineCommandBridge.bind(history);
+        var service = ActorGroupTimelineCommandService.getInstance();
+        var preview = service.previewActions(model, group, ActorActionType.RUN, 2);
+        assertEquals(2, preview.eligible().size());
+        assertEquals(ActorGroupTimelineCommandService.SkipReason.NO_ACTION_SPAWN, preview.skipped().getFirst().reason());
+        assertEquals(2, service.createActionClips(model, group, ActorActionType.RUN, 2, .6f, true));
+        assertEquals(3f, spawns.get(0).getActionIntervals().getFirst().getStartTime());
+        assertEquals(3.5f, spawns.get(1).getActionIntervals().getFirst().getStartTime());
+        assertEquals(4f, spawns.get(1).getActionIntervals().getFirst().getEndTime());
+        assertTrue(spawns.get(2).getActionIntervals().isEmpty());
+        assertTrue(tracks.stream().allMatch(track -> track.getClips().size() == 1));
+        assertEquals(1, history.getUndoSize());
+        assertTrue(history.undo());
+        assertTrue(spawns.stream().allMatch(spawn -> spawn.getActionIntervals().isEmpty()));
+        assertTrue(history.redo());
+        assertEquals(ActorActionType.RUN, new EntityClipSampler(tracks.get(1).getActorTrackPayload()).sampleSnapshot(3.75f).action);
     }
 }
 

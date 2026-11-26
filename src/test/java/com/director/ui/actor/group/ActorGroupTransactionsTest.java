@@ -65,12 +65,16 @@ class ActorGroupTransactionsTest {
         assertEquals(1, service.previewActions(model, group, ActorActionType.WALK, 2).overwrittenMembers());
         assertEquals(2, service.createActionClips(model, group, ActorActionType.WALK, 2, 1, true));
         var generated = List.copyOf(a.getActorTrackPayload().getActionClips());
-        assertEquals(3, generated.size()); assertTrue(a.getClips().contains(spawnWrapper));
+        assertEquals(2, generated.size()); assertTrue(a.getClips().contains(spawnWrapper));
+        var owned = spawn.getActionIntervals().getFirst();
+        assertEquals(ActorActionType.WALK, owned.getActionType());
         assertTrue(history.undo());
         assertEquals(List.of(old), a.getActorTrackPayload().getActionClips());
+        assertTrue(spawn.getActionIntervals().isEmpty());
         assertTrue(a.getClips().contains(oldWrapper)); assertSame(oldWrapper, old.getTimelineClip());
         assertSame(a, oldWrapper.getParentTrack()); assertTrue(b.getClips().isEmpty()); assertFalse(history.undo());
         assertTrue(history.redo()); assertEquals(generated, a.getActorTrackPayload().getActionClips());
+        assertEquals(List.of(owned), spawn.getActionIntervals());
         assertEquals(1, b.getActorTrackPayload().getActionClips().size());
         assertTrue(a.getClips().contains(spawnWrapper));
     }

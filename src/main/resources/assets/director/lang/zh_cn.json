@@ -2237,6 +2237,7 @@
   "gui.director.properties.adapter.actor.group_preview.no_route": "源演员没有可用路径，请先制作路径。",
   "gui.director.properties.adapter.actor.group_preview.invalid_action": "请选择动作并设置有效时长。",
   "gui.director.properties.adapter.actor.group_preview.invalid_preset": "请选择预设并设置有效时长。",
+  "gui.director.properties.adapter.actor.group_preview.no_action_spawn": "延迟后的起点未落在可编辑的出场片段内。",
   "gui.director.properties.adapter.actor.group_preview.no_preset_spawn": "该时段没有覆盖全程的可见出场片段。",
   "gui.director.properties.adapter.actor.group_preview.preset_conflict": "该时段已有动画片段或出场预设。",
   "gui.director.properties.adapter.actor.group_preview.incompatible_preset": "预设与骨架不兼容，或已用作手工修正。",

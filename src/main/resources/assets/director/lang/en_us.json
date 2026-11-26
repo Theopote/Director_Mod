@@ -2237,6 +2237,7 @@
   "gui.director.properties.adapter.actor.group_preview.no_route": "The source actor has no usable route.",
   "gui.director.properties.adapter.actor.group_preview.invalid_action": "Choose an action and a valid duration.",
   "gui.director.properties.adapter.actor.group_preview.invalid_preset": "Choose a preset and a valid duration.",
+  "gui.director.properties.adapter.actor.group_preview.no_action_spawn": "No editable performance clip covers the delayed start.",
   "gui.director.properties.adapter.actor.group_preview.no_preset_spawn": "No visible spawn covers the entire time window.",
   "gui.director.properties.adapter.actor.group_preview.preset_conflict": "An animation clip or spawn preset already occupies this window.",
   "gui.director.properties.adapter.actor.group_preview.incompatible_preset": "The preset is incompatible with the rig or is already used for manual corrections.",

@@ -93,14 +93,16 @@ public final class ActionClipIntervalResolver {
             float intensity,
             boolean loop
     ) {
-        if (existingClips == null || existingClips.isEmpty()) {
-            // 如果没有已有 Clips，直接创建新的
-            List<ActorActionClip> result = new ArrayList<>();
-            result.add(createActionClip(startTime, endTime, actionType, intensity, loop));
-            return result;
-        }
+        var result = clearRange(existingClips, startTime, endTime);
+        result.add(createActionClip(startTime, endTime, actionType, intensity, loop));
+        result.sort((a, b) -> Float.compare(a.getStartTime(), b.getStartTime()));
+        return result;
+    }
 
+    public static List<ActorActionClip> clearRange(List<ActorActionClip> existingClips, float startTime, float endTime) {
         List<ActorActionClip> result = new ArrayList<>();
+
+        if (existingClips == null) return result;
 
         // 遍历已有 Clips，进行区间切割
         for (ActorActionClip old : existingClips) {
@@ -144,12 +146,6 @@ public final class ActionClipIntervalResolver {
 
             // 重叠部分被新 Action 覆盖，不保留
         }
-
-        // 3. 添加新 Action
-        result.add(createActionClip(startTime, endTime, actionType, intensity, loop));
-
-        // 4. 按时间排序（保证结果有序）
-        result.sort((a, b) -> Float.compare(a.getStartTime(), b.getStartTime()));
 
         return result;
     }

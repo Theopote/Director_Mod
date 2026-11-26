@@ -54,7 +54,7 @@ public final class ActorGroupTimelineCommandService {
     }
 
     public enum SkipReason { MISSING_ACTOR, NO_TRACK, LOCKED, UNSUPPORTED_ACTION, SOURCE_ACTOR, ROUTE_CONFLICT,
-        PLACEMENT_CONTROLLED, MUTED, AMBIGUOUS_TRACK, NO_PRESET_SPAWN, PRESET_CONFLICT, INCOMPATIBLE_PRESET }
+        PLACEMENT_CONTROLLED, MUTED, AMBIGUOUS_TRACK, NO_PRESET_SPAWN, PRESET_CONFLICT, INCOMPATIBLE_PRESET, NO_ACTION_SPAWN }
     public record SkippedMember(UUID actorId, SkipReason reason) {}
     public record Preview(List<UUID> eligible, List<SkippedMember> skipped, String problem, int overwrittenMembers) {
         public Preview { eligible = List.copyOf(eligible); skipped = List.copyOf(skipped); }
@@ -144,19 +144,54 @@ public final class ActorGroupTimelineCommandService {
         return new PresetPlan(new Preview(eligible, skipped, null, 0), List.copyOf(placements));
     }
 
+    private record ActionPlacement(TimelineTrack track, EntitySpawnClip spawn, float start, float end) {}
+    private record ActionPlan(Preview preview, List<ActionPlacement> placements) {}
+
     public Preview previewActions(TimelineModel model, ActorGroup group, ActorActionType action, float duration) {
+        return planActions(model, group, action, duration).preview();
+    }
+
+    private ActionPlan planActions(TimelineModel model, ActorGroup group, ActorActionType action, float duration) {
         Preview members = previewMembers(model, group, action, null);
         if (action == null || !Float.isFinite(duration) || duration <= 0)
-            return new Preview(List.of(), members.skipped(), "invalid_action", 0);
-        if (members.problem() != null) return members;
+            return new ActionPlan(new Preview(List.of(), members.skipped(), "invalid_action", 0), List.of());
+        if (members.problem() != null) return new ActionPlan(members, List.of());
+
         int overwritten = 0;
-        var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, action, Math.max(0, model == null ? 0 : model.getCurrentTime()));
+        List<UUID> eligible = new ArrayList<>();
+        List<SkippedMember> skipped = new ArrayList<>(members.skipped());
+        List<ActionPlacement> placements = new ArrayList<>();
+        float baseStart = model.getCurrentTime();
+        var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, action, baseStart);
         for (UUID id : members.eligible()) {
-            float start = resolveTriggerTime(triggers, id, model.getCurrentTime());
-            if (Objects.requireNonNull(resolveTrack(model, id)).getActorTrackPayload().getActionClips().stream()
-                    .anyMatch(c -> c.getStartTime() < start + Math.max(0.05f, duration) && c.getEndTime() > start)) overwritten++;
+            var track = Objects.requireNonNull(resolveTrack(model, id));
+            var payload = track.getActorTrackPayload();
+            float start = resolveTriggerTime(triggers, id, baseStart);
+            float requestedEnd = start + Math.max(.05f, duration);
+            if (!Float.isFinite(start) || !Float.isFinite(requestedEnd)) {
+                skipped.add(new SkippedMember(id, SkipReason.NO_ACTION_SPAWN));
+                continue;
+            }
+            var spawn = payload.findSpawnClipAt(start);
+            float end = spawn == null ? requestedEnd : Math.min(requestedEnd, spawn.getEndTime());
+            if ((spawn == null && payload.getClips().stream().anyMatch(EntitySpawnClip.class::isInstance))
+                    || (spawn != null && (!payload.isPresentAt(start) || end - start < .05f - 1e-5f
+                        || spawn.getTimelineClip() == null || !track.getClips().contains(spawn.getTimelineClip())))) {
+                skipped.add(new SkippedMember(id, SkipReason.NO_ACTION_SPAWN));
+                continue;
+            }
+            var legacy = payload.getActionClips();
+            if (legacy.stream().anyMatch(clip -> overlapsAction(clip, start, end))
+                    || (spawn != null && spawn.getActionIntervals().stream().anyMatch(clip -> overlapsAction(clip, start, end))))
+                overwritten++;
+            placements.add(new ActionPlacement(track, spawn, start, end));
+            eligible.add(id);
         }
-        return new Preview(members.eligible(), members.skipped(), null, overwritten);
+        return new ActionPlan(new Preview(eligible, skipped, null, overwritten), List.copyOf(placements));
+    }
+
+    private static boolean overlapsAction(ActorActionClip clip, float start, float end) {
+        return !clip.isMuted() && clip.getStartTime() < end && clip.getEndTime() > start;
     }
 
     public Preview previewRoutes(TimelineModel model, ActorGroup group, UUID sourceActorId) {
@@ -258,32 +293,32 @@ public final class ActorGroupTimelineCommandService {
                           float durationSeconds,
                           float intensity,
                           boolean loop) {
-        Preview preview = previewActions(model, group, actionType, durationSeconds);
-        if (!preview.canExecute() || !Float.isFinite(intensity)) return 0;
-        float baseStart = Math.max(0, model.getCurrentTime());
-        float duration = Math.max(0.05f, durationSeconds);
+        var plan = planActions(model, group, actionType, durationSeconds);
+        if (!plan.preview().canExecute() || !Float.isFinite(intensity)) return 0;
         float clampedIntensity = Math.clamp(intensity, 0, 1);
-        var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, actionType, baseStart);
         List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
-        for (UUID actorId : preview.eligible()) {
-            var track = resolveTrack(model, actorId);
+        for (var placement : plan.placements()) {
+            var track = placement.track();
             var payload = track.getActorTrackPayload();
-            var before = List.copyOf(payload.getActionClips());
-            var beforeWrappers = track.getClips().stream()
-                    .filter(c -> c instanceof EntityTimelineClip e && e.getEntityClip() instanceof ActorActionClip).toList();
-            float start = resolveTriggerTime(triggers, actorId, baseStart);
-            var after = ActionClipIntervalResolver.resolve(before, start, start + duration, actionType, clampedIntensity, loop);
-            List<TimelineClip> afterWrappers = new ArrayList<>();
-            for (var clip : after) {
-                var wrapper = beforeWrappers.stream().filter(c -> ((EntityTimelineClip)c).getEntityClip() == clip).findFirst().orElse(null);
-                afterWrappers.add(wrapper == null ? prepareWrapper(clip, payload.getColorRgba()) : wrapper);
+            var spawn = placement.spawn();
+            var before = spawn == null ? List.copyOf(payload.getActionClips()) : spawn.getActionIntervals();
+            var after = ActionClipIntervalResolver.resolve(before, placement.start(), placement.end(),
+                    actionType, clampedIntensity, loop);
+            if (spawn != null) {
+                changes.add(new ActorGroupEditCommand.Change(
+                        () -> spawn.replaceActionIntervals(after, before),
+                        () -> spawn.replaceActionIntervals(before, after)));
+                var legacy = payload.getActionClips();
+                if (legacy.stream().anyMatch(clip -> overlapsAction(clip, placement.start(), placement.end()))) {
+                    changes.add(legacyActionChange(track, payload, legacy,
+                            ActionClipIntervalResolver.clearRange(legacy, placement.start(), placement.end())));
+                }
+                continue;
             }
-            changes.add(new ActorGroupEditCommand.Change(
-                    () -> setActionState(track, payload, before, beforeWrappers),
-                    () -> setActionState(track, payload, after, afterWrappers)));
+            changes.add(legacyActionChange(track, payload, before, after));
         }
         ActorGroupEditCommand.execute(model, "Group actor actions", changes);
-        return changes.size();
+        return plan.placements().size();
     }
 
     int copyLatestRouteFromActor(TimelineModel model, ActorGroup group, UUID sourceActorId) {
@@ -425,6 +460,20 @@ public final class ActorGroupTimelineCommandService {
             if (!payload.getClips().contains(clip)) payload.addClip(clip);
             if (!track.getClips().contains(wrapper)) track.addClip(wrapper);
         });
+    }
+
+    private static ActorGroupEditCommand.Change legacyActionChange(TimelineTrack track, ActorTrack payload,
+            List<ActorActionClip> before, List<ActorActionClip> after) {
+        var beforeWrappers = track.getClips().stream()
+                .filter(c -> c instanceof EntityTimelineClip e && e.getEntityClip() instanceof ActorActionClip).toList();
+        List<TimelineClip> afterWrappers = new ArrayList<>();
+        for (var clip : after) {
+            var wrapper = beforeWrappers.stream().filter(c -> ((EntityTimelineClip)c).getEntityClip() == clip).findFirst().orElse(null);
+            afterWrappers.add(wrapper == null ? prepareWrapper(clip, payload.getColorRgba()) : wrapper);
+        }
+        return new ActorGroupEditCommand.Change(
+                () -> setActionState(track, payload, before, beforeWrappers),
+                () -> setActionState(track, payload, after, afterWrappers));
     }
 
     private static void setActionState(TimelineTrack track, ActorTrack payload, List<ActorActionClip> clips, List<TimelineClip> wrappers) {
