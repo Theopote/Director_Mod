@@ -51,4 +51,19 @@ class ActorGroundTerrainTest {
         var a=terrain(dimensions,blocks); var b=terrain(dimensions,blocks);
         assertEquals(ActorRelationGroundConstraint.project(Vec3d.ZERO,new Vec3d(3,0,0),a),ActorRelationGroundConstraint.project(Vec3d.ZERO,new Vec3d(3,0,0),b));
     }
+    @Test void floorStopsAtHighestClearSurfaceWithoutRecheckingLowerCandidates() {
+        int[] bodyQueries={0};
+        var terrain=new ActorGroundTerrain(new ActorGroundTerrain.CollisionWorld() {
+            public boolean loaded(Box bounds) { return true; }
+            public Iterable<Box> collisions(Box bounds) {
+                return List.of(new Box(-1,-2,-1,1,-1,1), new Box(-1,-1,-1,1,0,1), new Box(-1,0,-1,1,1,1));
+            }
+            public boolean blocked(Box bounds) {
+                bodyQueries[0]++;
+                return false;
+            }
+        }, new ActorCollisionDimensions(.6,1.8));
+        assertEquals(1, terrain.floor(0,0,0.5,1.0,64).orElseThrow());
+        assertEquals(1, bodyQueries[0], "Highest clear surface should short-circuit lower candidates");
+    }
 }

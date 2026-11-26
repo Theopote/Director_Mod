@@ -39,14 +39,14 @@ public final class ActorPathPersistence {
     }
 
     public static boolean saveToFile(ActorPathLibrary library) {
-        if (library == null) {
+        return saveToFile(library, getActorPathsFile());
+    }
+
+    public static boolean saveToFile(ActorPathLibrary library, Path file) {
+        if (library == null || file == null) {
             return false;
         }
         try {
-            Path file = getActorPathsFile();
-            if (file == null) {
-                return false;
-            }
             save(file, library);
             LOGGER.info("[ActorPathPersistence] 保存 {} 条演员路径到 {}", library.size(), file);
             return true;
@@ -54,6 +54,10 @@ public final class ActorPathPersistence {
             LOGGER.error("[ActorPathPersistence] 保存失败", e);
             return false;
         }
+    }
+
+    public static Path currentPathsFile() {
+        return getActorPathsFile();
     }
 
     public static void save(Path file, ActorPathLibrary library) throws IOException {

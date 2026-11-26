@@ -17,10 +17,20 @@ public final class ContinuousLimbMesh {
     public static final class Template {
         private final List<RestQuad> quads;
         private Template(List<RestQuad> quads) { this.quads = List.copyOf(quads); }
+        public int quadCount() { return quads.size(); }
         public float quadCenterY(int index) {
             float y=0; for(var v:quads.get(index).vertices) y+=v.position.y;
             return y/4;
         }
+    }
+    /** Y offsets from the joint pivot: dense in the fold, sparse on the rigid shafts. */
+    private static final float[] SIDE_Y_OFFSETS = {
+            -6f, -4f, -3f, -2.25f, -1.5f, -1f, -0.5f, 0f, 0.5f, 1f, 1.5f, 2.25f, 3f, 4f, 6f
+    };
+    private static final ThreadLocal<Scratch> SCRATCH = ThreadLocal.withInitial(Scratch::new);
+    private static final class Scratch {
+        final Vector3f a = new Vector3f(), b = new Vector3f(), n = new Vector3f();
+        final Vector3f p = new Vector3f(), e1 = new Vector3f(), e2 = new Vector3f();
     }
     private ContinuousLimbMesh() {}
 
@@ -35,7 +45,7 @@ public final class ContinuousLimbMesh {
             float sign=new Vector3f(e1).cross(e2).dot(face.direction())<0?-1:1;
             var cuts=new TreeSet<Float>(); cuts.add(0f); cuts.add(1f);
             if(side) {
-                for(int i=1;i<48;i++) cuts.add((float)i/48);
+                addSideCuts(cuts, a.y(), d.y(), pivot);
                 // Exact boundaries prevent quads straddling a hard crease, including dilated sleeves.
                 for(float y:new float[]{-LimbBendTransform.SHARP_HALF,0,LimbBendTransform.SHARP_HALF}) {
                     float t=(y+pivot-a.y())/(d.y()-a.y());
@@ -51,6 +61,17 @@ public final class ContinuousLimbMesh {
         }
         return new Template(quads);
     }
+    private static void addSideCuts(TreeSet<Float> cuts, float aY, float dY, float pivot) {
+        float span = dY - aY;
+        if (java.lang.Math.abs(span) < 1e-6f) return;
+        float lo = java.lang.Math.min(aY, dY), hi = java.lang.Math.max(aY, dY);
+        for (float offset : SIDE_Y_OFFSETS) {
+            float y = pivot + offset;
+            if (y <= lo || y >= hi) continue;
+            float t = (y - aY) / span;
+            if (t > 0f && t < 1f) cuts.add(t);
+        }
+    }
     private static RestVertex rest(ModelPart.Vertex a,ModelPart.Vertex b,float t,float pivot) {
         return new RestVertex(new Vector3f(a.x(),a.y()-pivot,a.z()).lerp(
                 new Vector3f(b.x(),b.y()-pivot,b.z()),t),a.u()+(b.u()-a.u())*t,a.v()+(b.v()-a.v())*t);
@@ -64,16 +85,18 @@ public final class ContinuousLimbMesh {
     public static List<Vertex[]> deform(Template template,Quaternionf rotation,Vector3f scale,LimbBendMode mode) {
         var bend=new LimbBendTransform(rotation,scale,mode);
         List<Vertex[]> result=new ArrayList<>(template.quads.size());
+        var scratch=SCRATCH.get();
         for(var face:template.quads) {
             var vertices=new Vertex[4];
             for(int i=0;i<4;i++) {
                 var rest=face.vertices[i];
                 vertices[i]=new Vertex(bend.map(rest.position),mode==LimbBendMode.SMOOTH
-                        ?normal(rest.position,bend,face):new Vector3f(),rest.u,rest.v);
+                        ?normal(rest.position,bend,face,scratch):new Vector3f(),rest.u,rest.v);
             }
             if(mode==LimbBendMode.SHARP) {
-                var n=new Vector3f(vertices[1].position).sub(vertices[0].position)
-                        .cross(new Vector3f(vertices[3].position).sub(vertices[0].position)).mul(face.sign);
+                scratch.a.set(vertices[1].position).sub(vertices[0].position);
+                scratch.b.set(vertices[3].position).sub(vertices[0].position);
+                var n=scratch.n.set(scratch.a).cross(scratch.b).mul(face.sign);
                 if(n.lengthSquared()<1e-12f) n.set(face.e1).cross(face.e2).mul(face.sign);
                 n.normalize();
                 for(int i=0;i<4;i++) vertices[i]=new Vertex(vertices[i].position,new Vector3f(n),vertices[i].u,vertices[i].v);
@@ -100,12 +123,20 @@ public final class ContinuousLimbMesh {
         for(int i=0;i<4;i++) result[i]=new Vertex(points[i],new Vector3f(n),face.vertices()[i].u(),face.vertices()[i].v());
         return result;
     }
-    private static Vector3f normal(Vector3f p,LimbBendTransform bend,RestQuad face) {
+    private static Vector3f normal(Vector3f p,LimbBendTransform bend,RestQuad face,Scratch scratch) {
         float h=.001f;
-        var a=bend.map(new Vector3f(p).fma(h,face.e1)).sub(bend.map(new Vector3f(p).fma(-h,face.e1)));
-        var b=bend.map(new Vector3f(p).fma(h,face.e2)).sub(bend.map(new Vector3f(p).fma(-h,face.e2)));
-        var n=a.cross(b).mul(face.sign);
+        scratch.e1.set(face.e1);
+        scratch.e2.set(face.e2);
+        scratch.p.set(p).fma(h,scratch.e1);
+        scratch.a.set(bend.map(scratch.p));
+        scratch.p.set(p).fma(-h,scratch.e1);
+        scratch.a.sub(bend.map(scratch.p));
+        scratch.p.set(p).fma(h,scratch.e2);
+        scratch.b.set(bend.map(scratch.p));
+        scratch.p.set(p).fma(-h,scratch.e2);
+        scratch.b.sub(bend.map(scratch.p));
+        var n=scratch.n.set(scratch.a).cross(scratch.b).mul(face.sign);
         if(n.lengthSquared()<1e-12f) n.set(face.e1).cross(face.e2).mul(face.sign);
-        return n.normalize();
+        return new Vector3f(n.normalize());
     }
 }

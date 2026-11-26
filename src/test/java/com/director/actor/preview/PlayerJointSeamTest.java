@@ -150,12 +150,36 @@ class PlayerJointSeamTest {
         var entry=new net.minecraft.client.util.math.MatrixStack().peek();
         assertFalse(PlayerJointSeam.render(upper,entry,consumer,0,0,-1));
         assertTrue(PlayerJointSeam.render(surface,entry,consumer,0,0,-1));
-        assertEquals((48*4+2)*4,count[0]);
+        int expectedVerts=ContinuousLimbMesh.prepare(full,6).quadCount()*4;
+        assertEquals(expectedVerts,count[0]);
+        assertTrue(expectedVerts < (48*4+2)*4,"Non-uniform seams should emit fewer quads than the old 48-slice grid");
         var smoothPositions=List.copyOf(positions); positions.clear();
         PlayerJointSeam.update(parent,upper,lower,surface,new Quaternionf().rotateY(.2f).rotateX(1),new Vector3f(1),
                 com.director.actor.rig.skeleton.LimbBendMode.SHARP);
         assertTrue(PlayerJointSeam.render(surface,entry,consumer,0,0,-1));
         assertEquals(smoothPositions.size(),positions.size());
         assertNotEquals(smoothPositions,positions,"Switching mode must invalidate the unchanged-pose cache");
+    }
+    @Test void sharedModelPartsKeepPerOwnerMeshes() {
+        var full=cuboid(0);
+        var parent=new ModelPart(List.of(full),Map.of());
+        var upper=new ModelPart(List.of(full),Map.of());
+        var lower=new ModelPart(List.of(full),Map.of()); lower.originY=6;
+        var surface=new ModelPart(List.of(full),Map.of());
+        Object actorA=new Object(); Object actorB=new Object();
+        PlayerJointSeam.beginOwner(actorA);
+        PlayerJointSeam.update(parent,upper,lower,surface,new Quaternionf().rotateX(1),new Vector3f(1));
+        PlayerJointSeam.beginOwner(actorB);
+        PlayerJointSeam.update(parent,upper,lower,surface,new Quaternionf().rotateX(-1),new Vector3f(1));
+        var consumer=(net.minecraft.client.render.VertexConsumer)java.lang.reflect.Proxy.newProxyInstance(
+                net.minecraft.client.render.VertexConsumer.class.getClassLoader(),new Class[]{net.minecraft.client.render.VertexConsumer.class},
+                (proxy,method,args)->method.getReturnType()==net.minecraft.client.render.VertexConsumer.class?proxy:null);
+        var entry=new net.minecraft.client.util.math.MatrixStack().peek();
+        PlayerJointSeam.beginOwner(actorA);
+        assertTrue(PlayerJointSeam.render(surface,entry,consumer,0,0,-1));
+        // Same pose for A must hit cache even after B wrote a different angle on the shared ModelPart.
+        PlayerJointSeam.update(parent,upper,lower,surface,new Quaternionf().rotateX(1),new Vector3f(1));
+        assertTrue(PlayerJointSeam.render(surface,entry,consumer,0,0,-1));
+        PlayerJointSeam.endOwner();
     }
 }

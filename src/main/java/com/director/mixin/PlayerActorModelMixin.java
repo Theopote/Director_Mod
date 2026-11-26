@@ -23,6 +23,8 @@ public abstract class PlayerActorModelMixin {
         var pose=PlayerActorRenderPoses.get(state);
         var model=(PlayerEntityModel)(Object)this;
         var joints=pose!=null && HumanoidTopology.matches(pose.rig())?pose:null;
+        // Keep owner bound through this entity's subsequent ModelPart renders on this thread.
+        com.director.actor.preview.PlayerJointSeam.beginOwner(state);
         com.director.actor.preview.PlayerJointModel.apply(model.leftArm,joints,ArticulatedPlayerRig.LEFT_FOREARM);
         com.director.actor.preview.PlayerJointModel.apply(model.leftSleeve,joints,ArticulatedPlayerRig.LEFT_FOREARM);
         com.director.actor.preview.PlayerJointModel.apply(model.rightArm,joints,ArticulatedPlayerRig.RIGHT_FOREARM);

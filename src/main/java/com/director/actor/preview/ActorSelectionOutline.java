@@ -101,8 +101,14 @@ public final class ActorSelectionOutline {
         if(mask==0 || pose.rig().findBoneIndex(lower)<0) return;
         // Even an unbent, unauthored limb needs a split surface for precise half selection.
         var outlinePose=pose.copy(); outlinePose.setLocalTransform(lower,pose.localTransform(lower));
-        PlayerJointModel.apply(limb,outlinePose,lower); PlayerJointModel.apply(clothing,outlinePose,lower);
-        for(var part:List.of(limb,clothing)) if(part.hasChild("director_joint_connector"))
-            halves.put(part.getChild("director_joint_connector"),mask);
+        Object owner = limb;
+        PlayerJointSeam.beginOwner(owner);
+        try {
+            PlayerJointModel.apply(limb,outlinePose,lower); PlayerJointModel.apply(clothing,outlinePose,lower);
+            for(var part:List.of(limb,clothing)) if(part.hasChild("director_joint_connector"))
+                halves.put(part.getChild("director_joint_connector"),mask);
+        } finally {
+            PlayerJointSeam.endOwner();
+        }
     }
 }

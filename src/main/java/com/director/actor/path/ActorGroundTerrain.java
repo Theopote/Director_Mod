@@ -12,6 +12,10 @@ public final class ActorGroundTerrain implements GroundRoute.Terrain {
     public interface CollisionWorld {
         boolean loaded(Box bounds);
         Iterable<Box> collisions(Box bounds);
+        /** True when any block collision intersects {@code bounds}; may short-circuit. */
+        default boolean blocked(Box bounds) {
+            return collisions(bounds).iterator().hasNext();
+        }
     }
     private final CollisionWorld world;
     private final double width,height;
@@ -35,6 +39,12 @@ public final class ActorGroundTerrain implements GroundRoute.Terrain {
                 for(var shape:world.getBlockCollisions(null,box)) result.addAll(shape.getBoundingBoxes());
                 return result;
             }
+            public boolean blocked(Box box) {
+                for(var shape:world.getBlockCollisions(null,box)) {
+                    if(!shape.isEmpty()) return true;
+                }
+                return false;
+            }
         },dimensions);
     }
     public ActorGroundTerrain(CollisionWorld world,ActorCollisionDimensions dimensions) {
@@ -47,17 +57,25 @@ public final class ActorGroundTerrain implements GroundRoute.Terrain {
         double half=halfWidth();
         var column=new Box(x-half,y-down-.001,z-half,x+half,y+up+.001,z+half);
         if(!world.loaded(column)) return OptionalDouble.empty();
-        double best=Double.NEGATIVE_INFINITY;
+        // Highest clear headroom wins; try candidates from top so the first success is final.
+        var candidates=new ArrayList<Double>();
         for(var box:world.collisions(column)) {
             if(box.maxY>y+up+1e-5 || box.maxY<y-down-1e-5) continue;
-            if(box.maxY>best && clear(new Vec3d(x,box.maxY,z))) best=box.maxY;
+            candidates.add(box.maxY);
         }
-        return Double.isFinite(best)?OptionalDouble.of(best):OptionalDouble.empty();
+        candidates.sort(Comparator.reverseOrder());
+        double last=Double.NaN;
+        for(double surface:candidates) {
+            if(surface==last) continue;
+            last=surface;
+            if(clear(new Vec3d(x,surface,z))) return OptionalDouble.of(surface);
+        }
+        return OptionalDouble.empty();
     }
     @Override public boolean clear(Vec3d feet) {
         if(feet==null || !Double.isFinite(feet.x)||!Double.isFinite(feet.y)||!Double.isFinite(feet.z)) return false;
         double half=halfWidth(),epsilon=Math.min(.001,height/4);
         var body=new Box(feet.x-half,feet.y+epsilon,feet.z-half,feet.x+half,feet.y+height-epsilon,feet.z+half);
-        return world.loaded(body) && !world.collisions(body).iterator().hasNext();
+        return world.loaded(body) && !world.blocked(body);
     }
 }

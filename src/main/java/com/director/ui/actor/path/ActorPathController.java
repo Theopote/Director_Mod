@@ -528,7 +528,7 @@ public final class ActorPathController {
         var library = ActorPathLibraryManager.getInstance();
         return () -> {
             if (library != ActorPathLibraryManager.getInstance()) throw new IllegalArgumentException("路径库已切换，请重新选择");
-            if (!ActorPathLibraryManager.save()) throw new IllegalStateException("路径库保存失败");
+            if (!ActorPathLibraryManager.saveImmediately()) throw new IllegalStateException("路径库保存失败");
         };
     }
 

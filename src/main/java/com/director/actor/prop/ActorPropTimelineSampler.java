@@ -25,6 +25,16 @@ public final class ActorPropTimelineSampler {
     }
     public record Snapshot(Map<ActorPropSlot,Attachment> held, List<Flight> flights) {}
     private record Event(String id, float time, EntityActionEvent action) {}
+    private static final class CompiledEvents {
+        final ActorTrack track;
+        final long revision;
+        final float compiledTo;
+        final List<Event> events;
+        CompiledEvents(ActorTrack track, long revision, float compiledTo, List<Event> events) {
+            this.track = track; this.revision = revision; this.compiledTo = compiledTo; this.events = events;
+        }
+    }
+    private static final ThreadLocal<CompiledEvents> CACHE = new ThreadLocal<>();
     private ActorPropTimelineSampler() {}
     @FunctionalInterface public interface LaunchOrigin {
         Vec3d resolve(float time, ActorPropSlot slot, Attachment attachment);
@@ -51,34 +61,12 @@ public final class ActorPropTimelineSampler {
     public static Snapshot sampleTransforms(ActorTrack track, float time, LaunchTransform launchTransform,
             java.util.function.BiConsumer<Float,ActorDiagnosticReason> diagnostic) {
         if (!Float.isFinite(time) || time < 0) return new Snapshot(Map.of(),List.of());
-        var events = new ArrayList<Event>();
-        for (var clip : track.getClips()) {
-            if (clip.isMuted() || !Float.isFinite(clip.getStartTime()) || !Float.isFinite(clip.getEndTime())
-                    || clip.getStartTime()<0 || clip.getEndTime()<clip.getStartTime()) continue;
-            if (clip instanceof EntityActionClip c && PropEventParameters.supports(c.getActionType()))
-                events.add(new Event(c.getId().toString(),c.getStartTime(),new EntityActionEvent(c.getActionType(),c.getParams())));
-            if (clip instanceof EntityAnimationClip c && c.hasAnimation()) {
-                var clock = com.director.timeline.playback.entity.AnimationEventClock.projection(
-                        track, c, c.getStartTime(), time);
-                int index=0;
-                for (var marker : c.getEvents()) {
-                    if(PropEventParameters.supports(marker.getAction().type()))
-                        for(float at:clock.times(marker))
-                            if(activeAnimation(track,at)==c) events.add(new Event(c.getId()+":"+index+":"+at,at,marker.getAction()));
-                    index++;
-                }
-            }
-        }
-        // Track storage is a TreeSet, so insertion order cannot define simultaneous events.
-        // Equip, switch, detach, then throw; IDs break ties between events of the same type.
-        events.sort(Comparator.comparingDouble(Event::time)
-                .thenComparingInt(e -> switch(e.action.type()) {
-                    case ATTACH_PROP -> 0; case SWITCH_PROP -> 1; case DETACH_PROP -> 2; default -> 3;
-                }).thenComparing(Event::id));
+        var events = eventsUpTo(track, time);
+        int end = upperBound(events, time);
         var held = new EnumMap<ActorPropSlot,Attachment>(ActorPropSlot.class);
         var flights = new ArrayList<Flight>();
-        for (var event : events) {
-            if (event.time>time) break;
+        for (int i = 0; i < end; i++) {
+            var event = events.get(i);
             var params=event.action.params(); var type=event.action.type();
             try { PropEventParameters.validate(type,params); }
             catch (IllegalArgumentException | NullPointerException malformed) { diagnostic.accept(event.time,ActorDiagnosticReason.PROP_PARAMETERS); continue; }
@@ -109,12 +97,73 @@ public final class ActorPropTimelineSampler {
         }
         return new Snapshot(Collections.unmodifiableMap(held),List.copyOf(flights));
     }
-    private static EntityAnimationClip activeAnimation(ActorTrack track,float time) {
-        EntityAnimationClip active=null;
-        for(var clip:track.getClips()) if(clip instanceof EntityAnimationClip c && !c.isMuted() && c.hasAnimation()
-                && time>=c.getStartTime() && time<=c.getEndTime()
-                && (active==null || c.getStartTime()>=active.getStartTime())) active=c;
+    private static List<Event> eventsUpTo(ActorTrack track, float time) {
+        var cached = CACHE.get();
+        if (cached != null && cached.track == track && cached.revision == track.samplingRevision()
+                && time <= cached.compiledTo) {
+            return cached.events;
+        }
+        float compileTo = cached != null && cached.track == track && cached.revision == track.samplingRevision()
+                ? Math.max(time, cached.compiledTo) : time;
+        var events = compileEvents(track, compileTo);
+        CACHE.set(new CompiledEvents(track, track.samplingRevision(), compileTo, events));
+        return events;
+    }
+    private static List<Event> compileEvents(ActorTrack track, float time) {
+        var events = new ArrayList<Event>();
+        var clips = track.getClips();
+        var animationWindows = animationWindows(clips);
+        for (var clip : clips) {
+            if (clip.isMuted() || !Float.isFinite(clip.getStartTime()) || !Float.isFinite(clip.getEndTime())
+                    || clip.getStartTime()<0 || clip.getEndTime()<clip.getStartTime()) continue;
+            if (clip instanceof EntityActionClip c && PropEventParameters.supports(c.getActionType()))
+                events.add(new Event(c.getId().toString(),c.getStartTime(),new EntityActionEvent(c.getActionType(),c.getParams())));
+            if (clip instanceof EntityAnimationClip c && c.hasAnimation()) {
+                var clock = com.director.timeline.playback.entity.AnimationEventClock.projection(
+                        track, c, c.getStartTime(), time);
+                int index=0;
+                for (var marker : c.getEvents()) {
+                    if(PropEventParameters.supports(marker.getAction().type()))
+                        for(float at:clock.times(marker))
+                            if(activeAnimation(animationWindows,at)==c) events.add(new Event(c.getId()+":"+index+":"+at,at,marker.getAction()));
+                    index++;
+                }
+            }
+        }
+        // Track storage is a TreeSet, so insertion order cannot define simultaneous events.
+        // Equip, switch, detach, then throw; IDs break ties between events of the same type.
+        events.sort(Comparator.comparingDouble(Event::time)
+                .thenComparingInt(e -> switch(e.action.type()) {
+                    case ATTACH_PROP -> 0; case SWITCH_PROP -> 1; case DETACH_PROP -> 2; default -> 3;
+                }).thenComparing(Event::id));
+        return List.copyOf(events);
+    }
+    private static List<EntityAnimationClip> animationWindows(List<EntityClip> clips) {
+        var windows = new ArrayList<EntityAnimationClip>();
+        for (var clip : clips) {
+            if (clip instanceof EntityAnimationClip c && !c.isMuted() && c.hasAnimation()
+                    && Float.isFinite(c.getStartTime()) && Float.isFinite(c.getEndTime()))
+                windows.add(c);
+        }
+        windows.sort(Comparator.comparingDouble(EntityAnimationClip::getStartTime));
+        return windows;
+    }
+    private static EntityAnimationClip activeAnimation(List<EntityAnimationClip> windows, float time) {
+        EntityAnimationClip active = null;
+        for (var c : windows) {
+            if (time < c.getStartTime()) break;
+            if (time <= c.getEndTime()) active = c;
+        }
         return active;
+    }
+    private static int upperBound(List<Event> events, float time) {
+        int lo = 0, hi = events.size();
+        while (lo < hi) {
+            int mid = (lo + hi) >>> 1;
+            if (events.get(mid).time <= time) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
     }
     private static float value(Map<String,Object> p,String key,float fallback) {
         return p.containsKey(key)?((Number)p.get(key)).floatValue():fallback;
