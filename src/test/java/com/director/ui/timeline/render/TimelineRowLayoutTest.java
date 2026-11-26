@@ -42,4 +42,16 @@ class TimelineRowLayoutTest {
         assertEquals(162f, layout.trackTop(2));
         assertEquals(2, layout.headerAt(162f));
     }
+
+    @Test void behaviorSummaryFollowsVisibleSpawnBounds() {
+        var spawn = new com.director.timeline.model.entity.EntitySpawnClip("Performance", 2, 6);
+        var clippedAtStart = new com.director.timeline.model.entity.EntityLookAtClip("Look", 1, 4);
+        var clippedAtEnd = new com.director.timeline.model.entity.EntityStateClip("State", 4, 8);
+        var outside = new com.director.timeline.model.entity.ActorPoseClip("Pose", 7, 8);
+        assertEquals(new com.director.ui.actor.edit.ActorOwnedIntervalEditing.Range(2, 4),
+                TimelineRenderer.visibleActorInterval(spawn, clippedAtStart));
+        assertEquals(new com.director.ui.actor.edit.ActorOwnedIntervalEditing.Range(4, 6),
+                TimelineRenderer.visibleActorInterval(spawn, clippedAtEnd));
+        assertNull(TimelineRenderer.visibleActorInterval(spawn, outside));
+    }
 }

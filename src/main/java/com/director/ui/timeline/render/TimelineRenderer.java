@@ -130,6 +130,14 @@ public class TimelineRenderer {
     private record ActorIntervalSummary(EntityTimelineClip owner, EntityClip target,
                                float start, float end, float left, float top, float right, float bottom) {}
 
+    private record CompactActorInterval(EntityTimelineClip owner, EntityClip target,
+                                        float left, float right, float top, float bottom, boolean muted) {}
+
+    private static final int POSE_INTERVAL_COLOR = TimelineColors.rgba(185, 109, 158, 255);
+    private static final int LOOK_INTERVAL_COLOR = TimelineColors.rgba(161, 124, 224, 255);
+    private static final int STATE_INTERVAL_COLOR = TimelineColors.rgba(75, 170, 151, 255);
+    private static final int MUTED_INTERVAL_COLOR = TimelineColors.rgba(98, 100, 113, 255);
+    private final List<CompactActorInterval> compactActorIntervals = new java.util.ArrayList<>();
     private final TimelineTimeFormatter intervalTimeFormatter = new TimelineTimeFormatter();
     private final List<ActorIntervalSummary> actorIntervalSummaries = new java.util.ArrayList<>();
 
@@ -170,7 +178,25 @@ public class TimelineRenderer {
             }
             return true;
         }
+        showCompactActorTooltip(x, y);
         return false;
+    }
+
+    private void showCompactActorTooltip(float x, float y) {
+        EntityTimelineClip owner = null;
+        java.util.Set<String> labels = null;
+        for (var interval : compactActorIntervals.reversed()) {
+            if (x < interval.left || x > interval.right || y < interval.top || y > interval.bottom) continue;
+            if (owner == null) {
+                owner = interval.owner;
+                labels = new java.util.LinkedHashSet<>();
+            }
+            if (interval.owner != owner) continue;
+            String label = intervalLabel(interval.target);
+            if (interval.muted) label += " · " + DirectorI18n.translate("gui.director.actor.clip_inspector.clip_muted");
+            labels.add(label);
+        }
+        if (labels != null) ImGui.setTooltip(owner.getLabel() + "\n" + String.join("\n", labels));
     }
 
     private DragMode actorIntervalDragMode(ActorIntervalSummary summary, float x) {
@@ -235,13 +261,24 @@ public class TimelineRenderer {
 
     private void renderActorIntervalSummaries(ImDrawList draw, TimelineTrack track, float contentX, float contentW,
                                               float trackY, float headerHeight) {
-        if (headerHeight < 3 * TRACK_HEIGHT) return;
         float bandHeight = clipBandHeight(headerHeight);
         float y = trackY + 3 * bandHeight + 3;
         for (var clip : track.getClips()) {
             if (!(clip instanceof EntityTimelineClip owner) || !(owner.getEntityClip() instanceof EntitySpawnClip spawn)) continue;
             var poses = spawn.getPoseIntervals();
             var actions = spawn.getActionIntervals();
+            if (headerHeight < 3 * TRACK_HEIGHT) {
+                for (var action : actions)
+                    renderCompactActorInterval(draw, track, owner, action, contentX, contentW, trackY, bandHeight, 0,
+                            ActionTypeColors.getColorForActionType(action.getActionType()));
+                for (var pose : poses)
+                    renderCompactActorInterval(draw, track, owner, pose, contentX, contentW, trackY, bandHeight, 1, POSE_INTERVAL_COLOR);
+                for (var target : spawn.getLookTargets())
+                    renderCompactActorInterval(draw, track, owner, target, contentX, contentW, trackY, bandHeight, 2, LOOK_INTERVAL_COLOR);
+                for (var state : spawn.getStateIntervals())
+                    renderCompactActorInterval(draw, track, owner, state, contentX, contentW, trackY, bandHeight, 3, STATE_INTERVAL_COLOR);
+                continue;
+            }
             float actionHeight = !poses.isEmpty() && !actions.isEmpty() ? bandHeight / 2f : bandHeight;
             for (var action : actions)
                 renderActorInterval(draw, track, owner, spawn, action, contentX, contentW, y - bandHeight, actionHeight,
@@ -249,23 +286,46 @@ public class TimelineRenderer {
             float poseY = actions.isEmpty() ? y - bandHeight : y - bandHeight + actionHeight;
             for (var pose : poses)
                 renderActorInterval(draw, track, owner, spawn, pose, contentX, contentW, poseY, actionHeight,
-                        TimelineColors.rgba(154, 89, 132, 255));
+                        POSE_INTERVAL_COLOR);
             if (headerHeight >= 4 * TRACK_HEIGHT) for (var target : spawn.getLookTargets())
                 renderActorInterval(draw, track, owner, spawn, target, contentX, contentW, y, bandHeight,
-                        TimelineColors.rgba(105, 75, 156, 255));
+                        LOOK_INTERVAL_COLOR);
             if (headerHeight >= 5 * TRACK_HEIGHT) {
                 for (var state : spawn.getStateIntervals())
                     renderActorInterval(draw, track, owner, spawn, state, contentX, contentW, y + bandHeight, bandHeight,
-                            TimelineColors.rgba(47, 113, 103, 255));
+                            STATE_INTERVAL_COLOR);
             }
         }
+    }
+
+    private void renderCompactActorInterval(ImDrawList draw, TimelineTrack track, EntityTimelineClip owner,
+                                            EntityClip target, float contentX, float contentW,
+                                            float trackY, float bandHeight, int line, int color) {
+        var spawn = (EntitySpawnClip) owner.getEntityClip();
+        var range = visibleActorInterval(spawn, target);
+        if (range == null) return;
+        float left = Math.max(contentX, math.timeToX(range.start()));
+        float right = Math.min(contentX + contentW, math.timeToX(range.end()));
+        if (right <= left) return;
+        float y = trackY + bandHeight - 7 + line;
+        boolean muted = track.isMuted() || spawn.isMuted() || target.isMuted();
+        draw.addRectFilled(left, y, right, y + 1, muted ? MUTED_INTERVAL_COLOR : color);
+        compactActorIntervals.add(new CompactActorInterval(owner, target, left, right, trackY, trackY + bandHeight, muted));
+    }
+
+    static Range visibleActorInterval(EntitySpawnClip spawn, EntityClip target) {
+        float start = Math.max(spawn.getStartTime(), target.getStartTime());
+        float end = Math.min(spawn.getEndTime(), target.getEndTime());
+        return end > start ? new Range(start, end) : null;
     }
 
     private void renderActorInterval(ImDrawList draw, TimelineTrack track, EntityTimelineClip owner,
                                      EntitySpawnClip spawn, EntityClip target, float contentX, float contentW,
                                      float y, float bandHeight, int activeColor) {
-        float start = Math.max(spawn.getStartTime(), target.getStartTime());
-        float end = Math.min(spawn.getEndTime(), target.getEndTime());
+        var range = visibleActorInterval(spawn, target);
+        if (range == null) return;
+        float start = range.start();
+        float end = range.end();
         boolean dragging = actorIntervalDrag != null && actorIntervalDrag.summary.target == target && actorIntervalDragPreview != null;
         if (dragging) {
             start = actorIntervalDragPreview.start();
@@ -276,7 +336,7 @@ public class TimelineRenderer {
         if (right <= left) return;
         float bottom = y + bandHeight - 6;
         boolean muted = track.isMuted() || spawn.isMuted() || target.isMuted();
-        int color = muted ? TimelineColors.rgba(82, 83, 94, 255) : activeColor;
+        int color = muted ? MUTED_INTERVAL_COLOR : activeColor;
         draw.addRectFilled(left, y, right, bottom, color, 2f);
         if (dragging) draw.addRect(left, y, right, bottom, TimelineColors.COLOR_SELECTED_BORDER, 2f);
         if (right - left >= 14f && model.isSelected(owner) && !muted && !track.isLocked()
@@ -522,6 +582,7 @@ public class TimelineRenderer {
         // 保存 trackAreaTop 供简化版本的 getTrackHeaderBounds 使用
         this.trackAreaTop = winY;
         actorIntervalSummaries.clear();
+        compactActorIntervals.clear();
 
         syncViewportFromState();
         float scrollY = viewport.getScrollY();
