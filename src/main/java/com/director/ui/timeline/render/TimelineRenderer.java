@@ -118,8 +118,7 @@ public class TimelineRenderer {
     }
 
     public float trackHeight(int index) {
-        var layout = math.getRowLayout();
-        return layout == null ? TRACK_HEIGHT : layout.headerHeight(index);
+        return math.trackHeaderHeight(index);
     }
 
     public static float clipBandHeight(float headerHeight) {
@@ -1364,9 +1363,8 @@ public class TimelineRenderer {
         }
 
         float x1 = contentX - dividerHandler.getLeftLabelWidth();
-        float rowHeight = TRACK_HEIGHT + TRACK_GAP;
         float y1 = trackAreaTop + math.trackContentY(trackIndex) - scrollY;
-        float y2 = y1 + TRACK_HEIGHT;
+        float y2 = y1 + math.trackHeaderHeight(trackIndex);
 
         return new Rect(x1, y1, contentX, y2);
     }

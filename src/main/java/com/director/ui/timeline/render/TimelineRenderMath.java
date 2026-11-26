@@ -107,6 +107,10 @@ public class TimelineRenderMath {
         return trackContentY(trackIndex) - viewport.getScrollY();
     }
 
+    public float trackHeaderHeight(int trackIndex) {
+        return rowLayout == null ? viewport.getTrackHeight() : rowLayout.headerHeight(trackIndex);
+    }
+
     /** Unscrolled track origin, shared by rendering and interaction code. */
     public float trackContentY(int trackIndex) {
         if (rowLayout != null) return rowLayout.trackTop(trackIndex);

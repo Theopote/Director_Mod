@@ -99,7 +99,7 @@ public class TimelineRenderHitTest {
         // 检查 Y 坐标是否在轨道范围内
         // ★ 修复：轨道顶部位置也应该相对于轨道区域计算
         float trackTopY = trackAreaY + math.trackIndexToY(trackIndex);
-        float trackBottomY = trackTopY + viewport.getTrackHeight();
+        float trackBottomY = trackTopY + math.trackHeaderHeight(trackIndex);
         
         if (mouseY >= trackTopY && mouseY <= trackBottomY) {
             return TimelineHitResult.track(track, trackIndex);
@@ -134,7 +134,7 @@ public class TimelineRenderHitTest {
         // 检查 Y 坐标是否在轨道范围内
         // ★ 修复：轨道顶部位置也应该相对于轨道区域计算
         float trackTopY = trackAreaY + math.trackIndexToY(trackIndex);
-        float trackBottomY = trackTopY + viewport.getTrackHeight();
+        float trackBottomY = trackTopY + math.trackHeaderHeight(trackIndex);
         
         if (mouseY < trackTopY || mouseY > trackBottomY) {
             float time = math.xToTime(mouseX);
@@ -149,8 +149,10 @@ public class TimelineRenderHitTest {
             float clipStartX = math.timeToX(clip.getStartTime());
             float clipEndX = math.timeToX(clip.getEndTime());
 
-            // 检查是否在片段范围内
-            if (mouseX >= clipStartX && mouseX <= clipEndX) {
+            float headerHeight = math.trackHeaderHeight(trackIndex);
+            float bandTop = trackTopY + TimelineRenderer.clipBandOffset(clip, headerHeight);
+            float bandBottom = bandTop + TimelineRenderer.clipBandHeight(headerHeight);
+            if (mouseX >= clipStartX && mouseX <= clipEndX && mouseY >= bandTop && mouseY < bandBottom) {
                 // 检查是否命中关键帧（优先级高于片段）
                 TimelineHitResult keyframeHit = hitKeyframe(clip, mouseX, track, trackIndex);
                 if (keyframeHit.type() == TimelineHitResult.HitType.KEYFRAME) {
@@ -264,10 +266,9 @@ public class TimelineRenderHitTest {
             return new Rect(0, 0, 0, 0);
         }
         
-        float rowHeight = viewport.getTrackHeight() + viewport.getTrackGap();
         float x1 = contentX - leftLabelWidth;
         float y1 = trackAreaTop + math.trackContentY(trackIndex) - scrollY;
-        float y2 = y1 + viewport.getTrackHeight();
+        float y2 = y1 + math.trackHeaderHeight(trackIndex);
         
         return new Rect(x1, y1, contentX, y2);
     }
@@ -292,9 +293,10 @@ public class TimelineRenderHitTest {
         
         float x1 = math.timeToX(clip.getStartTime());
         float x2 = math.timeToX(clip.getEndTime());
-        float rowHeight = viewport.getTrackHeight() + viewport.getTrackGap();
-        float y1 = trackAreaTop + math.trackContentY(trackIndex) - scrollY;
-        float y2 = y1 + viewport.getTrackHeight();
+        float headerHeight = math.trackHeaderHeight(trackIndex);
+        float y1 = trackAreaTop + math.trackContentY(trackIndex) - scrollY
+                + TimelineRenderer.clipBandOffset(clip, headerHeight);
+        float y2 = y1 + TimelineRenderer.clipBandHeight(headerHeight);
         
         return new Rect(x1, y1, x2, y2);
     }
@@ -331,8 +333,9 @@ public class TimelineRenderHitTest {
             return new Circle(0, 0, 0);
         }
         
-        float rowHeight = viewport.getTrackHeight() + viewport.getTrackGap();
-        float y = trackAreaTop + math.trackContentY(trackIndex) - scrollY + viewport.getTrackHeight() / 2.0f;
+        float headerHeight = math.trackHeaderHeight(trackIndex);
+        float y = trackAreaTop + math.trackContentY(trackIndex) - scrollY
+                + TimelineRenderer.clipBandOffset(clip, headerHeight) + TimelineRenderer.clipBandHeight(headerHeight) / 2f;
         
         return new Circle(x, y, KEYFRAME_HIT_RADIUS);
     }
