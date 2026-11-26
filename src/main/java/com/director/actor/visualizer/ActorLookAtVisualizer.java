@@ -2,27 +2,20 @@ package com.director.actor.visualizer;
 
 import com.director.client.DirectorClientController;
 import com.director.core.DirectorServices;
-import com.director.actor.ActorRef;
 import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.preview.ActorPosePreview;
 import com.director.actor.preview.PreviewPlayerActorEntity;
 import com.director.actor.runtime.ActorWorldPoseEvaluator;
 import net.minecraft.entity.Entity;
 import com.director.ui.actor.selection.ActorSelectionHub;
-import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
-import com.director.timeline.model.TimelineTrack;
-import com.director.timeline.model.TrackType;
-import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
-import com.director.timeline.model.entity.ActorTrack;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
-import java.util.List;
-import java.util.Objects;
+
 import java.util.UUID;
 
 /**

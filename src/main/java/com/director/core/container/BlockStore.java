@@ -129,14 +129,21 @@ public class BlockStore {
                 continue; // 确实无法加载时，保底跳过
             }
 
-            // 写回方块
-            world.setBlockState(pos, entry.state, ContainerBlockUpdateFlags.BATCH);
+            // 写回方块（SKIP_BLOCK_ADDED_CALLBACK：避免雕刻南瓜等触发 BlockPattern NPE）
+            try {
+                world.setBlockState(pos, entry.state, ContainerBlockUpdateFlags.BATCH);
+            } catch (Exception writeError) {
+                continue;
+            }
 
             // 写回 BlockEntity
             if (entry.beNbt != null) {
-                BlockEntity newBe = world.getBlockEntity(pos);
-                if (newBe != null) {
-                    BlockEntityNbtIO.restore(newBe, entry.beNbt, world.getRegistryManager());
+                try {
+                    BlockEntity newBe = world.getBlockEntity(pos);
+                    if (newBe != null) {
+                        BlockEntityNbtIO.restore(newBe, entry.beNbt, world.getRegistryManager());
+                    }
+                } catch (Exception ignored) {
                 }
             }
         }

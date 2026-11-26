@@ -33,7 +33,9 @@ class ActorPropSocketResolverTest {
     @Test void localRotationIsAppliedAfterPositionAndGettersAreDefensive() {
         var prop=new RuntimeProp(PropRegistry.getInstance().get("stone").orElseThrow(),ActorPropSlot.MAIN_HAND);
         prop.setLocalRotation(0,0,90); prop.updateSocketTransform(pose,new Matrix4f());
-        var matrix=prop.getWorldTransform(); near(new Vector3f(0,1,0),matrix.transformDirection(new Vector3f(1,0,0)));
+        var matrix=prop.getWorldTransform();
+        assertNotNull(matrix);
+        near(new Vector3f(0,1,0),matrix.transformDirection(new Vector3f(1,0,0)));
         matrix.identity(); near(new Vector3f(-.375f,.75f,0),prop.getWorldTransform().getTranslation(new Vector3f()));
         prop.setWorldTransform(new net.minecraft.util.math.Vec3d(5,6,7)); prop.updateSocketTransform(pose,new Matrix4f());
         near(new Vector3f(5,6,7),prop.getWorldTransform().getTranslation(new Vector3f()));

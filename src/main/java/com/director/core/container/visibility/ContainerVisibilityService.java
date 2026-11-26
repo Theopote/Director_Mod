@@ -535,7 +535,14 @@ public class ContainerVisibilityService {
         if (!store.contains(pos)) store.capture(world, pos);
         net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
         if (be != null) world.removeBlockEntity(pos);
-        if (world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH)) tickWrites++;
+        try {
+            if (world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH)) {
+                tickWrites++;
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[Visibility] Failed to timeline-hide block at {}: {}", pos, e.toString());
+            return false;
+        }
         trackAffectedChunk(affectedChunks, cx, cz);
         return true;
     }
@@ -636,13 +643,26 @@ public class ContainerVisibilityService {
         } catch (Exception ignored) {}
         if (!world.getChunkManager().isChunkLoaded(cx, cz)) return;
 
-        if (world.setBlockState(pos, entry.state, ContainerBlockUpdateFlags.BATCH)) tickWrites++;
+        try {
+            if (world.setBlockState(pos, entry.state, ContainerBlockUpdateFlags.BATCH)) {
+                tickWrites++;
+            }
+        } catch (Exception e) {
+            // Defense in depth: never let one bad block (e.g. pumpkin pattern NPE) crash the server.
+            LOGGER.warn("[Visibility] Failed to restore block at {} to {}: {}",
+                    pos, entry.state, e.toString());
+            return;
+        }
         trackAffectedChunk(affectedChunks, cx, cz);
 
         if (entry.beNbt == null) return;
-        net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
-        if (be == null) return;
-        BlockEntityNbtIO.restore(be, entry.beNbt, world.getRegistryManager());
+        try {
+            net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
+            if (be == null) return;
+            BlockEntityNbtIO.restore(be, entry.beNbt, world.getRegistryManager());
+        } catch (Exception e) {
+            LOGGER.warn("[Visibility] Failed to restore block entity at {}: {}", pos, e.toString());
+        }
     }
 
     // =========================================================================
@@ -708,7 +728,14 @@ public class ContainerVisibilityService {
             if (world.getBlockState(pos).isAir()) return;
             var be = world.getBlockEntity(pos);
             if (be != null) world.removeBlockEntity(pos);
-            if (world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH)) tickWrites++;
+            try {
+                if (world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH)) {
+                    tickWrites++;
+                }
+            } catch (Exception e) {
+                LOGGER.warn("[Visibility] Failed to hide block at {}: {}", pos, e.toString());
+                return;
+            }
             trackAffectedChunk(affectedChunks, cx, cz);
             changed++;
         }

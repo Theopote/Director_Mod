@@ -7,6 +7,7 @@ import com.director.actor.action.ActorActionType;
 import com.director.actor.animation.AnimationDataSampler;
 import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.rig.*;
+import com.director.timeline.playback.camera.CameraSample;
 import net.minecraft.entity.Entity;
 import com.director.actor.prop.*;
 import com.director.timeline.actor.ActorTimelineSource;
@@ -780,7 +781,7 @@ public final class ActorRuntimeController {
             // No current-camera/current-entity fallback for a past-time query.
             var target=at.lookAtEnabled?ActorLookAtTargetResolver.resolve(at.lookAtMode,at.lookAtPoint,
                     at.lookAtEntityUuid,sampled.actor().getActorId(),
-                    ()->com.director.timeline.playback.camera.TimelineCameraController.getInstance().sampleSnapshot(time).map(value->value.position()).orElse(null),
+                    ()->com.director.timeline.playback.camera.TimelineCameraController.getInstance().sampleSnapshot(time).map(CameraSample::position).orElse(null),
                     id->sampleHistoricalActorEye(id,time)):null;
             if(at.lookAtEnabled && at.lookAtStrength>0 && target==null) reportPlacement(sampled.actor().getActorId(),time,"gaze-history",false,
                     "历史注视目标无法在该时刻解析，已保留头部动画。");

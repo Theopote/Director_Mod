@@ -147,12 +147,12 @@ public final class MarkerDragController {
             return;
         }
 
-        HitResult hit = com.director.ui.actor.pick.ActorViewportRay.blockHit();
+        BlockHitResult hit = com.director.ui.actor.pick.ActorViewportRay.blockHit();
         if (hit == null || hit.getType() != HitResult.Type.BLOCK) {
             return;
         }
 
-        BlockHitResult bhr = (BlockHitResult) hit;
+        BlockHitResult bhr = hit;
         Vec3d newPos = bhr.getPos();
 
         // 更新 LookAtClip 的世界坐标
