@@ -38,14 +38,14 @@ public final class TimelineActionPaintHandler {
                 .map(actor -> com.director.actor.ActorBehaviorCapabilities.supportsAction(actor, action)).orElse(false);
     }
 
-    public boolean startActionPaint(TimelineTrack track, float mouseX, float mouseY, float contentX) {
+    public boolean startActionPaint(TimelineTrack track, float mouseX, float mouseY, float contentX, boolean expandedRow) {
         if (track == null) return false;
         float anchor = renderer.xToTime(mouseX, contentX);
         var payload = track.getActorTrackPayload();
         var spawn = payload == null ? null : payload.findSpawnClipAt(anchor);
         var action = ActionBrushState.get();
         if (!editable(model, track, payload, spawn, action, anchor)) return false;
-        var handle = new ActionPaintHandle(track, payload, spawn, action, anchor, model.getActorEditContextRevision());
+        var handle = new ActionPaintHandle(track, payload, spawn, action, anchor, model.getActorEditContextRevision(), expandedRow);
         interactionManager.startInteraction(InteractionMode.PAINT_ACTION, handle, mouseX, mouseY, anchor, anchor);
         return true;
     }

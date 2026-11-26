@@ -2313,7 +2313,7 @@
   "gui.director.actor.track.missing_actor": "此轨道绑定的演员已不存在。",
   "gui.director.actor.track.bound_actor": "绑定演员 · %s",
   "gui.director.actor.track.create_at_playhead": "在播放头创建片段",
-  "gui.director.actor.track.brush_gesture": "按住 Alt 在演员的动作带拖动，即可涂抹当前选中的动作。",
+  "gui.director.actor.track.brush_gesture": "按住 Alt 在展开的动作行或演员片段的动作带拖动，即可涂抹当前动作。",
   "gui.director.actor.track.behavior_requires_spawn": "将播放头移到有效的出场片段内，再添加行为。",
   "gui.director.actor.track.current_brush": "当前语义动作笔刷：%s",
   "gui.director.actor.track.brush_unsupported": "当前笔刷不适用于此演员，请选择下方支持的动作。",

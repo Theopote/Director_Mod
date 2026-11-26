@@ -33,10 +33,14 @@ class ActorRootTimelineRowsTest {
         var rows = new ActorBoneTimelineRows(); rows.setExpanded(a, true); rows.setExpanded(b, true);
         var layout = rows.prepare(model, 30, 4);
         assertTrue(rows.supports(a)); assertTrue(rows.supports(b));
-        int cowRows = ActorRootTimelineRows.COUNT
+        int cowRows = ActorRootTimelineRows.COUNT + ActorBoneTimelineRows.BEHAVIOR_ROW_COUNT
             + com.director.actor.rig.skeleton.QuadrupedRig.DEFINITION.boneCount();
-        int playerRows = ActorRootTimelineRows.COUNT + ArticulatedPlayerRig.DEFINITION.boneCount();
+        int playerRows = ActorRootTimelineRows.COUNT + ActorBoneTimelineRows.BEHAVIOR_ROW_COUNT + ArticulatedPlayerRig.DEFINITION.boneCount();
         assertEquals(30 + 4 + cowRows * 24, layout.trackTop(1));
+        assertEquals(30 + 4 + ActorRootTimelineRows.COUNT * 24, ActorBoneTimelineRows.behaviorRowsOffset(30, 4));
+        float behaviorY = ActorBoneTimelineRows.behaviorRowsOffset(30, 4) + 1;
+        assertEquals(0, layout.ownerAt(behaviorY));
+        assertEquals(-1, layout.headerAt(behaviorY));
         assertEquals(2 * 30 + 4 + (cowRows + playerRows) * 24, layout.totalHeight());
         assertEquals(2, model.getAllTracks().size());
         rows.setExpanded(a, false);

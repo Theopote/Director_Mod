@@ -121,6 +121,43 @@ public class TimelineRenderer {
         return math.trackHeaderHeight(index);
     }
 
+    public record ActionPaintRow(int index, boolean expanded, float top, float height) {
+        public boolean contains(float contentY) {
+            return contentY >= top && contentY < top + height;
+        }
+    }
+
+    public ActionPaintRow actionPaintRowAt(float contentY) {
+        var layout = math.getRowLayout();
+        int index = layout == null ? -1 : layout.ownerAt(contentY);
+        if (index < 0) return null;
+        var expanded = actionPaintRow(index, true);
+        if (expanded != null && expanded.contains(contentY)) return expanded;
+        var main = actionPaintRow(index, false);
+        return main != null && main.contains(contentY) ? main : null;
+    }
+
+    public ActionPaintRow actionPaintRow(int index, boolean expanded) {
+        var track = model.getTrackAt(index);
+        var layout = math.getRowLayout();
+        if (track == null || track.getType() != TrackType.ACTOR || layout == null || index >= layout.trackCount())
+            return null;
+        return actionPaintRow(layout, index, expanded, actorBoneRows.isExpanded(track));
+    }
+
+    static ActionPaintRow actionPaintRow(TimelineRowLayout layout, int index, boolean expanded, boolean trackExpanded) {
+        float top = layout.trackTop(index);
+        float headerHeight = layout.headerHeight(index);
+        if (expanded) {
+            return trackExpanded ? new ActionPaintRow(index, true,
+                    top + ActorBoneTimelineRows.behaviorRowsOffset(headerHeight, TRACK_GAP), ActorBoneTimelineRows.CHILD_HEIGHT) : null;
+        }
+        if (headerHeight < 3 * TRACK_HEIGHT)
+            return new ActionPaintRow(index, false, top, headerHeight);
+        float bandHeight = clipBandHeight(headerHeight);
+        return new ActionPaintRow(index, false, top + 2 * bandHeight, bandHeight);
+    }
+
     public static float clipBandHeight(float headerHeight) {
         int bands = Math.max(1, Math.min(5, (int) (headerHeight / TRACK_HEIGHT)));
         return headerHeight / bands;
@@ -146,6 +183,7 @@ public class TimelineRenderer {
     }
 
     private ActorIntervalDrag actorIntervalDrag;
+    private ActorIntervalSummary selectedActorInterval;
     private Range actorIntervalDragPreview;
     private boolean actorIntervalDragMoved;
 
@@ -177,6 +215,7 @@ public class TimelineRenderer {
             }
             return true;
         }
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) selectedActorInterval = null;
         showCompactActorTooltip(x, y);
         return false;
     }
@@ -206,6 +245,8 @@ public class TimelineRenderer {
     }
 
     private void selectIntervalOwner(ActorIntervalSummary summary) {
+        actorBoneRows.leaveKeyFocus();
+        selectedActorInterval = summary;
         model.selectItem(summary.owner, false);
         com.director.core.DirectorServices.get().uiSelection().selectClip(summary.owner.getEntityClip());
         com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(summary.owner);
@@ -256,6 +297,43 @@ public class TimelineRenderer {
         String prefix = "gui.director.properties.adapter.actor.look_at.";
         return com.director.i18n.ActorPropertyAdapterI18n.tr(prefix + "title") + " · "
                 + com.director.i18n.ActorPropertyAdapterI18n.tr(prefix + mode);
+    }
+
+    private static final String[] ACTOR_BEHAVIOR_LABELS = {
+            "gui.director.actor.behavior.intervals", "gui.director.actor.pose_edit.intervals",
+            "gui.director.actor.look_interval.title", "gui.director.actor.state_edit.intervals"
+    };
+
+    private void renderActorBehaviorRows(ImDrawList draw, TimelineTrack track, float left, float contentX,
+                                         float contentW, float trackY, float headerHeight) {
+        if (!actorBoneRows.isExpanded(track)) return;
+        float rowHeight = ActorBoneTimelineRows.CHILD_HEIGHT;
+        float top = trackY + ActorBoneTimelineRows.behaviorRowsOffset(headerHeight, TRACK_GAP);
+        float right = contentX + contentW;
+        for (int i = 0; i < ACTOR_BEHAVIOR_LABELS.length; i++) {
+            float y = top + i * rowHeight;
+            int background = i % 2 == 0 ? TimelineColors.COLOR_ACTOR_CHILD_BG : TimelineColors.COLOR_ACTOR_CHILD_BG_ALT;
+            draw.addRectFilled(left, y, right, y + rowHeight, background);
+            draw.addLine(left, y + rowHeight - 1, right, y + rowHeight - 1, TimelineColors.COLOR_ACTOR_CHILD_SEPARATOR);
+            draw.addLine(contentX, y, contentX, y + rowHeight, TimelineColors.COLOR_SEPARATOR_LINE);
+            draw.pushClipRect(left, y, contentX, y + rowHeight, true);
+            draw.addText(left + 27, y + 4, TimelineColors.COLOR_TEXT_LIGHT, DirectorI18n.translate(ACTOR_BEHAVIOR_LABELS[i]));
+            draw.popClipRect();
+        }
+
+        for (var clip : track.getClips()) {
+            if (!(clip instanceof EntityTimelineClip owner) || !(owner.getEntityClip() instanceof EntitySpawnClip spawn)) continue;
+            float y = top + 3;
+            for (var action : spawn.getActionIntervals())
+                renderActorInterval(draw, track, owner, spawn, action, contentX, contentW, y, rowHeight,
+                        ActionTypeColors.getColorForActionType(action.getActionType()));
+            for (var pose : spawn.getPoseIntervals())
+                renderActorInterval(draw, track, owner, spawn, pose, contentX, contentW, y + rowHeight, rowHeight, POSE_INTERVAL_COLOR);
+            for (var target : spawn.getLookTargets())
+                renderActorInterval(draw, track, owner, spawn, target, contentX, contentW, y + 2 * rowHeight, rowHeight, LOOK_INTERVAL_COLOR);
+            for (var state : spawn.getStateIntervals())
+                renderActorInterval(draw, track, owner, spawn, state, contentX, contentW, y + 3 * rowHeight, rowHeight, STATE_INTERVAL_COLOR);
+        }
     }
 
     private void renderActorIntervalSummaries(ImDrawList draw, TimelineTrack track, float contentX, float contentW,
@@ -337,7 +415,8 @@ public class TimelineRenderer {
         boolean muted = track.isMuted() || spawn.isMuted() || target.isMuted();
         int color = muted ? MUTED_INTERVAL_COLOR : activeColor;
         draw.addRectFilled(left, y, right, bottom, color, 2f);
-        if (dragging) draw.addRect(left, y, right, bottom, TimelineColors.COLOR_SELECTED_BORDER, 2f);
+        if (dragging || selectedActorInterval != null && selectedActorInterval.target == target && model.isSelected(owner))
+            draw.addRect(left, y, right, bottom, TimelineColors.COLOR_SELECTED_BORDER, 2f);
         if (right - left >= 14f && model.isSelected(owner) && !muted && !track.isLocked()
                 && (dragging || start == target.getStartTime() && end == target.getEndTime())) {
             if (left == math.timeToX(start))
@@ -380,7 +459,16 @@ public class TimelineRenderer {
                 x, contentX, right, top, height, scrollY, TRACK_HEIGHT, TRACK_GAP, math.getPixelsPerSecond(),math);
     }
 
-    public boolean handleActorKeyCommand(String action) { return actorBoneRows.handleKeyCommand(model,action); }
+    public boolean handleActorKeyCommand(String action) {
+        var selection = selectedActorInterval;
+        if (selection != null && model.getSelectedClip() == selection.owner && action.equals("delete")) {
+            var spawn = (EntitySpawnClip) selection.owner.getEntityClip();
+            if (actorIntervalDrag == null && ActorOwnedIntervalEditing.remove(model, spawn, selection.target))
+                selectedActorInterval = null;
+            return true;
+        }
+        return actorBoneRows.handleKeyCommand(model, action);
+    }
     public boolean isActorKeyInteractionActive() { return actorBoneRows.isKeyInteractionActive(); }
     public void cancelActorKeyInteraction() { actorBoneRows.cancelKeyInteraction(); }
 
@@ -620,6 +708,7 @@ public class TimelineRenderer {
                 // 使用 TimelineTrackRenderer 渲染轨道
                 trackRenderer.renderTrack(drawList, track, idx, winX, contentX, trackY, contentW, actorBoneRows.supports(track), headerHeight);
                 actorBoneRows.render(drawList, track, winX, contentX, contentX + contentW, trackY, headerHeight, TRACK_GAP, math);
+                renderActorBehaviorRows(drawList, track, winX, contentX, contentW, trackY, headerHeight);
                 
                 // 注册控制区域（使用 TimelineTrackControlHit）
                 trackControlHit.registerTrackControlAreas(track, winX, trackY, labelWidth);

@@ -361,7 +361,9 @@ public class TimelineInteractionHandler {
         var io = ImGui.getIO();
         float x = io.getMousePosX();
         if (interactionManager.getActiveObject() instanceof ActionPaintHandle handle) {
-            if (ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape) || ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
+            int row = model.getTracks().indexOf(handle.track);
+            if (renderer.actionPaintRow(row, handle.expandedRow) == null
+                    || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape) || ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
                 interactionManager.endInteraction();
                 return true;
             }
@@ -379,24 +381,17 @@ public class TimelineInteractionHandler {
                 || io.getKeyShift() || !ImGui.isMouseClicked(ImGuiMouseButton.Left)) return false;
         float localY = io.getMousePosY() - trackTop;
         if (localY < 0 || localY >= viewportHeight) return false;
-        var rows = renderer.getMath().getRowLayout();
-        int row = rows == null ? -1 : rows.headerAt(localY + scrollY);
-        if (row < 0) return false;
-        float height = rows.headerHeight(row);
-        float bandHeight = TimelineRenderer.clipBandHeight(height);
-        int band = (int) ((localY + scrollY - rows.trackTop(row)) / bandHeight);
-        if (height >= 3 * TimelineRenderer.getTrackHeight() && band != 2) return false;
-        return actionPaintHandler.startActionPaint(model.getTrackAt(row), x, io.getMousePosY(), contentX);
+        var row = renderer.actionPaintRowAt(localY + scrollY);
+        return row != null && actionPaintHandler.startActionPaint(model.getTrackAt(row.index()), x,
+                io.getMousePosY(), contentX, row.expanded());
     }
 
     public void renderActionPaintPreview(imgui.ImDrawList draw, float contentX, float trackTop, float scrollY) {
         if (!(interactionManager.getActiveObject() instanceof ActionPaintHandle handle)) return;
-        int row = model.getTracks().indexOf(handle.track);
-        if (row < 0) return;
-        float height = renderer.trackHeight(row);
-        float bandHeight = TimelineRenderer.clipBandHeight(height);
-        float y = trackTop + renderer.getMath().trackContentY(row) - scrollY;
-        if (height >= 3 * TimelineRenderer.getTrackHeight()) y += 2 * bandHeight;
+        var row = renderer.actionPaintRow(model.getTracks().indexOf(handle.track), handle.expandedRow);
+        if (row == null) return;
+        float bandHeight = row.expanded() ? row.height() : TimelineRenderer.clipBandHeight(renderer.trackHeight(row.index()));
+        float y = trackTop + row.top() - scrollY;
         float left = Math.max(contentX, renderer.getMath().timeToX(Math.min(handle.startTime, handle.currentEndTime)));
         float right = renderer.getMath().timeToX(Math.max(handle.startTime, handle.currentEndTime));
         if (right <= left) return;

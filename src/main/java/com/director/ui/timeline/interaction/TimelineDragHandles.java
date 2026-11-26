@@ -88,6 +88,7 @@ public final class TimelineDragHandles {
         public final ActorTrack actorTrack;
         public final com.director.timeline.model.entity.EntitySpawnClip spawn;
         public final long revision;
+        public final boolean expandedRow;
         public final ActorActionType actionType;
         public final float startTime;
         public float currentEndTime;
@@ -97,11 +98,12 @@ public final class TimelineDragHandles {
                 ActorTrack actorTrack,
                 com.director.timeline.model.entity.EntitySpawnClip spawn,
                 ActorActionType actionType,
-                float startTime, long revision) {
+                float startTime, long revision, boolean expandedRow) {
             this.track = track;
             this.actorTrack = actorTrack;
             this.spawn = spawn;
             this.revision = revision;
+            this.expandedRow = expandedRow;
             this.actionType = actionType;
             this.startTime = startTime;
             this.currentEndTime = startTime;

@@ -2313,7 +2313,7 @@
   "gui.director.actor.track.missing_actor": "The actor bound to this track is missing.",
   "gui.director.actor.track.bound_actor": "Bound actor · %s",
   "gui.director.actor.track.create_at_playhead": "Create a clip at the playhead",
-  "gui.director.actor.track.brush_gesture": "Hold Alt and drag on the actor’s action band to paint the selected action.",
+  "gui.director.actor.track.brush_gesture": "Hold Alt and drag on the expanded Action row or on the actor’s action band.",
   "gui.director.actor.track.behavior_requires_spawn": "Move the playhead inside an active performance clip to add a behavior.",
   "gui.director.actor.track.current_brush": "Current semantic-action brush: %s",
   "gui.director.actor.track.brush_unsupported": "This brush does not apply to this actor. Choose a supported action below.",

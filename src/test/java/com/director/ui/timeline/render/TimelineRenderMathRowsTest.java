@@ -58,4 +58,19 @@ class TimelineRenderMathRowsTest {
         assertEquals(122.4f, clip.y1(), 1e-4f);
         assertEquals(148f, clip.y2(), 1e-4f);
     }
+
+    @Test void actionPaintOnlyHitsTheFirstExpandedBehaviorRow() {
+        float gap = com.director.ui.theme.UITheme.Spacing.TIMELINE_TRACK_GAP;
+        var layout = new TimelineRowLayout(new float[]{22f, 128f}, gap, 24f, 7, 7);
+        var expanded = TimelineRenderer.actionPaintRow(layout, 1, true, true);
+        float expectedTop = layout.trackTop(1) + 128 + gap + ActorRootTimelineRows.COUNT * 24;
+        assertEquals(expectedTop, expanded.top());
+        assertFalse(expanded.contains(expectedTop - 1));
+        assertTrue(expanded.contains(expectedTop));
+        assertFalse(expanded.contains(expectedTop + 24));
+        assertNull(TimelineRenderer.actionPaintRow(layout, 1, true, false));
+        var main = TimelineRenderer.actionPaintRow(layout, 1, false, true);
+        assertEquals(layout.trackTop(1) + 2 * TimelineRenderer.clipBandHeight(128f), main.top());
+        assertFalse(main.contains(expectedTop));
+    }
 }
