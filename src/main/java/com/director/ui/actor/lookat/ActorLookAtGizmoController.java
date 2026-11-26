@@ -244,7 +244,7 @@ public final class ActorLookAtGizmoController {
         var committed = session.commit();
         if (committed != null) {
             ActorLookAtSelectionContext.setActiveLookAtClip(committed);
-            var selection = session.selectionFor(committed);
+            var selection = session.selectionFor();
             if (selection != null) session.model().setSelectedClip(selection);
         }
     }

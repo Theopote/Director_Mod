@@ -142,6 +142,12 @@ public class EntitySpawnClip extends EntityClip {
 
     public java.util.List<ActorPoseClip> getPoseIntervals() { return java.util.List.copyOf(poseIntervals); }
 
+    public ActorPoseClip findPoseIntervalAt(float time) {
+        ActorPoseClip best = null;
+        for (var pose : poseIntervals) best = ActorTrack.preferredPose(best, pose, time);
+        return best;
+    }
+
     public void addPoseInterval(ActorPoseClip pose) {
         if (poseIntervals.contains(pose)) return;
         poseIntervals.add(pose);

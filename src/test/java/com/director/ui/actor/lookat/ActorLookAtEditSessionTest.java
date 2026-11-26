@@ -11,51 +11,41 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorLookAtEditSessionTest {
-    @Test void defaultEditingUsesPlaybackWinnerButExplicitSelectionStillWins() {
-        var payload=track.getActorTrackPayload();
-        payload.addClip(new EntitySpawnClip("Spawn",0,10));
-        var strong=new EntityLookAtClip("Strong",0,10);strong.setStrength(.9f);strong.setWorldPoint(10,0,0);
-        var weak=new EntityLookAtClip("Weak",1,10);weak.setStrength(.2f);weak.setWorldPoint(20,0,0);
-        payload.addClip(strong);track.addClip(new EntityTimelineClip(strong,0));
-        payload.addClip(weak);track.addClip(new EntityTimelineClip(weak,0));
-        var sample=new com.director.timeline.playback.entity.EntityClipSampler(payload).sampleSnapshot(2);
-        assertEquals(strong.getWorldPoint(),sample.lookAtPoint);
-        var session=new ActorLookAtEditSession(model,track);
-        assertSame(strong,session.source());session.draft().setWorldPoint(12,0,0);session.commit();
-        assertEquals(12,strong.getWorldPoint().x);assertEquals(20,weak.getWorldPoint().x);
-        assertTrue(history.undo());assertEquals(10,strong.getWorldPoint().x);
-        model.setSelectedClip(weak.getTimelineClip());
-        assertSame(weak,new ActorLookAtEditSession(model,track).source());
-        weak.setStrength(.9f);
-        assertSame(weak,ActorLookAtEditSession.active(payload,2));
-        weak.setMuted(true);assertSame(strong,ActorLookAtEditSession.active(payload,2));
+    @Test void editingUsesStrongestOwnedLookTarget() {
+        var strong = new EntityLookAtClip("Strong", 0, 5);
+        strong.setStrength(.9f);
+        strong.setWorldPoint(10, 0, 0);
+        var weak = new EntityLookAtClip("Weak", 1, 5);
+        weak.setStrength(.2f);
+        spawn.addLookTarget(strong);
+        spawn.addLookTarget(weak);
+        var session = new ActorLookAtEditSession(model, track);
+        assertSame(strong, session.source());
+        session.draft().setWorldPoint(12, 0, 0);
+        assertSame(strong, session.commit());
+        assertTrue(history.undo());
+        assertEquals(10f, strong.getWorldPoint().x);
+        strong.setMuted(true);
+        assertSame(weak, new ActorLookAtEditSession(model, track).source());
     }
-    @Test void explicitlySelectedLookReferenceWinsOverOverlapEvenOutsideItsInterval() {
-        var first=create();
-        var other=new EntityLookAtClip("Other",1,10);
-        track.getActorTrackPayload().addClip(other);
-        track.addClip(new EntityTimelineClip(other,0));
-        model.setSelectedClip(first.getTimelineClip()); model.setCurrentTime(4);
-        var session=new ActorLookAtEditSession(model,track);
-        assertSame(first,session.source()); session.draft().setWorldPoint(8,9,10);
-        assertSame(first,session.commit());
-        assertEquals(2,track.getActorTrackPayload().getClips().size());
-        assertEquals(8,first.getWorldPoint().x); assertNotEquals(8,other.getWorldPoint().x);
+
+    @Test void cannotCreateLookTargetInAnEmptyTrackOrGap() {
+        model.setCurrentTime(6);
+        assertThrows(IllegalArgumentException.class, () -> new ActorLookAtEditSession(model, track));
+        track.removeClip(spawn.getTimelineClip());
+        track.getActorTrackPayload().removeClip(spawn.getId());
+        assertThrows(IllegalArgumentException.class, () -> new ActorLookAtEditSession(model, track));
+        assertTrue(track.getClips().isEmpty());
+        assertEquals(0, history.getUndoSize());
     }
-    @Test void explicitlySelectedMutedLookDoesNotFallBackOrCreateAnother() {
-        var first=create(); first.setMuted(true); model.setSelectedClip(first.getTimelineClip());
-        var other=new EntityLookAtClip("Other",1,10); track.getActorTrackPayload().addClip(other);
-        track.addClip(new EntityTimelineClip(other,0));
-        assertSame(first,ActorLookAtEditSession.resolveSource(model,track));
-        assertThrows(IllegalArgumentException.class,()->new ActorLookAtEditSession(model,track));
-        assertEquals(2,track.getActorTrackPayload().getClips().size());
-    }
+
     @Test void pendingCreationWritesNothingAndScrubbingCancelsIt() {
         var session=new ActorLookAtEditSession(model,track);
-        assertNull(session.source()); assertTrue(track.getClips().isEmpty());
+        assertNull(session.source()); assertTrue(spawn.getLookTargets().isEmpty());
         model.setScrubbing(true); assertNull(session.commit());
-        assertTrue(track.getActorTrackPayload().getClips().isEmpty()); assertEquals(0,history.getUndoSize());
+        assertTrue(spawn.getLookTargets().isEmpty()); assertEquals(0,history.getUndoSize());
     }
+    EntitySpawnClip spawn;
     TimelineModel model;
     TimelineTrack track;
     TimelineCommandHistory history;
@@ -70,6 +60,9 @@ class ActorLookAtEditSessionTest {
         var payload = new ActorTrack(); payload.setActorRef(new ActorRef(actor.getActorId()));
         track.setActorTrackPayload(payload); model.addTrack(track);
         history = new TimelineCommandHistory(); TimelineCommandBridge.bind(history);
+        spawn = new EntitySpawnClip("Spawn", 0, 5);
+        payload.addClip(spawn);
+        track.addClip(new EntityTimelineClip(spawn, 0));
     }
     @AfterEach void cleanup() { TimelineCommandBridge.bind(null); ActorRegistryManager.setRegistry(null); }
     EntityLookAtClip create() {
@@ -81,12 +74,11 @@ class ActorLookAtEditSessionTest {
     @Test void newDraftStaysDetachedAndCreationIsOneUndo() {
         var session = new ActorLookAtEditSession(model, track);
         session.draft().setWorldPoint(4, 5, 6);
-        assertTrue(track.getClips().isEmpty()); assertTrue(track.getActorTrackPayload().getClips().isEmpty());
+        assertTrue(spawn.getLookTargets().isEmpty());
         var clip = session.commit(); assertNotNull(clip); assertEquals(1, history.getUndoSize());
-        assertTrue(history.undo()); assertTrue(track.getClips().isEmpty());
-        assertTrue(track.getActorTrackPayload().getClips().isEmpty());
-        assertTrue(history.redo()); assertSame(clip, track.getActorTrackPayload().getClips().getFirst());
-        assertSame(clip.getTimelineClip(), track.getClips().getFirst());
+        assertTrue(history.undo()); assertTrue(spawn.getLookTargets().isEmpty());
+        assertTrue(history.redo()); assertSame(clip, spawn.getLookTargets().getFirst());
+        assertEquals(1, track.getClips().size());
     }
     @Test void repeatedDraftMovesDoNotWriteSourceAndCommitRestoresExactStateOnUndo() {
         var clip = create(); clip.setStrength(.4f);
@@ -121,15 +113,15 @@ class ActorLookAtEditSessionTest {
         clip.setStrength(.5f); assertNull(session.commit()); assertEquals(.5f, clip.getStrength());
         model.setCurrentTime(2.5f);
         session = new ActorLookAtEditSession(model, track);
-        track.getActorTrackPayload().addClip(new EntityLookAtClip("Other", 2.25f, 4));
+        spawn.addLookTarget(new EntityLookAtClip("Other", 2.25f, 4));
         assertNull(session.commit()); assertEquals(1, history.getUndoSize());
     }
     @Test void nonFiniteDraftAndDeletedOwnerAreRejected() {
         var session = new ActorLookAtEditSession(model, track);
         session.draft().setWorldPoint(Float.NaN, 0, 0); assertNull(session.commit());
-        assertTrue(track.getClips().isEmpty()); assertEquals(0, history.getUndoSize());
+        assertTrue(spawn.getLookTargets().isEmpty()); assertEquals(0, history.getUndoSize());
         session = new ActorLookAtEditSession(model, track); model.removeTrack(track);
-        assertNull(session.commit()); assertTrue(track.getClips().isEmpty());
+        assertNull(session.commit()); assertTrue(spawn.getLookTargets().isEmpty());
     }
     @Test void playbackAndRemovedActorCancelDraft() {
         var session = new ActorLookAtEditSession(model, track);
@@ -140,8 +132,8 @@ class ActorLookAtEditSessionTest {
     }
     @Test void removedWrapperAndReplacedPayloadCancelDraft() {
         var clip = create(); var session = new ActorLookAtEditSession(model, track);
-        track.removeClip(clip.getTimelineClip()); assertNull(session.commit());
-        track.addClip(clip.getTimelineClip()); session = new ActorLookAtEditSession(model, track);
+        track.removeClip(spawn.getTimelineClip()); assertNull(session.commit());
+        track.addClip(spawn.getTimelineClip()); session = new ActorLookAtEditSession(model, track);
         var other = new ActorTrack(); other.setActorRef(track.getActorTrackPayload().getActorRef());
         track.setActorTrackPayload(other); assertNull(session.commit());
         assertEquals(1, clip.getWorldPoint().x); assertEquals(1, history.getUndoSize());
@@ -153,9 +145,6 @@ class ActorLookAtEditSessionTest {
 
     @Test void newLookTargetBelongsToSpawnAndFollowsItsTime() {
         var payload = track.getActorTrackPayload();
-        var spawn = new EntitySpawnClip("Spawn", 0, 5);
-        payload.addClip(spawn);
-        track.addClip(new EntityTimelineClip(spawn, 0));
         var target = create();
         assertNotNull(target);
         assertEquals(1, track.getClips().size());
@@ -185,9 +174,6 @@ class ActorLookAtEditSessionTest {
 
     @Test void ownedLookRangeEditsAndDeletionUndoWithoutCreatingTimelineClips() {
         var payload = track.getActorTrackPayload();
-        var spawn = new EntitySpawnClip("Spawn", 0, 5);
-        payload.addClip(spawn);
-        track.addClip(new EntityTimelineClip(spawn, 0));
         var target = create();
         assertFalse(ActorOwnedIntervalEditing.resize(model, spawn, target, 3, 6));
         assertFalse(ActorOwnedIntervalEditing.resize(model, spawn, target, 4, 3));

@@ -57,9 +57,19 @@ class ActorNumericEditSessionTest {
         assertEquals(sample.rotation(), source.getToRot()); history.undo(); assertEquals(1, source.getToPos().x);
         history.redo(); assertEquals(49, sampled().position.x);
     }
+    private EntitySpawnClip spawn() {
+        var payload = track.getActorTrackPayload();
+        var spawn = payload.findSpawnClipAt(model.getCurrentTime());
+        if (spawn == null) {
+            spawn = new EntitySpawnClip("Spawn", 0, 5);
+            attach(spawn);
+        }
+        return spawn;
+    }
+
     @Test void strengthPreservesEntityTargetAndCommitsOnlyOnce() {
         var source = new EntityLookAtClip("Look", 1,3); var target = UUID.randomUUID();
-        source.setMode(EntityLookAtClip.TargetMode.ENTITY_UUID); source.setTargetEntityUuid(target); source.setStrength(.8f); attach(source);
+        source.setMode(EntityLookAtClip.TargetMode.ENTITY_UUID); source.setTargetEntityUuid(target); source.setStrength(.8f); spawn().addLookTarget(source);
         var edit = session(ActorNumericEditSession.Kind.LOOK_AT);
         for (int i = 0; i < 50; i++) edit.updateStrength(i / 100f);
         assertEquals(.8f, source.getStrength()); edit.commit(); assertEquals(.49f, source.getStrength());
@@ -71,15 +81,18 @@ class ActorNumericEditSessionTest {
         var edit = session(ActorNumericEditSession.Kind.TRANSFORM);
         edit.updateTransform(new Vector3f(8), sample.rotation(), sample.scale());
         edit.updateTransform(sample.position(), sample.rotation(), sample.scale()); edit.commit();
+        assertTrue(track.getClips().isEmpty());
+        var spawn = spawn();
         edit = session(ActorNumericEditSession.Kind.LOOK_AT); edit.updateStrength(.5f); edit.updateStrength(1); edit.commit();
-        assertEquals(0, history.getUndoSize()); assertTrue(track.getClips().isEmpty());
+        assertEquals(0, history.getUndoSize()); assertTrue(spawn.getLookTargets().isEmpty());
     }
     @Test void explicitCameraTargetCreatesClipButMereActivationDoesNot() {
-        session(ActorNumericEditSession.Kind.LOOK_AT).commit(); assertTrue(track.getClips().isEmpty());
+        var spawn = spawn();
+        session(ActorNumericEditSession.Kind.LOOK_AT).commit(); assertTrue(spawn.getLookTargets().isEmpty());
         var edit = session(ActorNumericEditSession.Kind.LOOK_AT);
         edit.updateLookTarget(EntityLookAtClip.TargetMode.CAMERA, new Vector3f()); edit.commit();
         assertEquals(1, history.getUndoSize()); assertEquals(1, track.getClips().size());
-        history.undo(); assertTrue(track.getClips().isEmpty());
+        history.undo(); assertTrue(spawn.getLookTargets().isEmpty());
     }
     @Test void cancelAndContextChangesNeverWritePendingValues() {
         var source = transform(); var edit = session(ActorNumericEditSession.Kind.TRANSFORM);
@@ -90,6 +103,7 @@ class ActorNumericEditSessionTest {
         assertEquals(1, source.getToPos().x); assertEquals(0, history.getUndoSize());
     }
     @Test void differentOwnerActorPlaybackAndLockInvalidateGesture() {
+        spawn();
         var edit = session(ActorNumericEditSession.Kind.LOOK_AT);
         assertFalse(edit.isCurrent(model, track, UUID.randomUUID()));
         assertFalse(edit.isCurrent(model, new TimelineTrack("Other", TrackType.ACTOR), actorId));
@@ -108,6 +122,7 @@ class ActorNumericEditSessionTest {
         var source = transform(); var edit = session(ActorNumericEditSession.Kind.TRANSFORM);
         edit.updateTransform(new Vector3f(8), sample.rotation(), sample.scale()); source.setToRot(30,40,50);
         assertFalse(edit.isCurrent(model, track, actorId)); edit.commit(); assertEquals(1, source.getToPos().x);
+        spawn();
         var look = session(ActorNumericEditSession.Kind.LOOK_AT);
         assertThrows(IllegalArgumentException.class, () -> look.updateLookTarget(EntityLookAtClip.TargetMode.ENTITY_UUID, new Vector3f()));
         assertThrows(IllegalArgumentException.class, () -> look.updateStrength(Float.NaN));

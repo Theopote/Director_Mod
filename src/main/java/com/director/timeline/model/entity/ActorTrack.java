@@ -336,7 +336,7 @@ public class ActorTrack {
         return best;
     }
 
-    private static ActorPoseClip preferredPose(ActorPoseClip best, ActorPoseClip candidate, float time) {
+    static ActorPoseClip preferredPose(ActorPoseClip best, ActorPoseClip candidate, float time) {
         return !candidate.isMuted() && time >= candidate.getStartTime() && time <= candidate.getEndTime()
                 && (best == null || candidate.compareTo(best) > 0) ? candidate : best;
     }

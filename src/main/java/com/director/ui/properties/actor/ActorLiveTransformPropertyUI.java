@@ -159,7 +159,10 @@ public final class ActorLiveTransformPropertyUI {
                 else if(com.director.ui.actor.lookat.ActorLookAtEditSession.active(target.actorTrack(),time)!=lookSource)
                     ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.live.look_covered"));
             }
-            ImGui.beginDisabled(lookSource!=null && lookSource.isMuted());
+            boolean lookBlocked = target != null && com.director.ui.actor.lookat.ActorLookAtEditSession.resolveSpawn(
+                    model, target.timelineTrack()) == null;
+            if (lookBlocked) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.track.behavior_requires_spawn"));
+            ImGui.beginDisabled(lookBlocked || lookSource != null && lookSource.isMuted());
             EntityLookAtClip.TargetMode[] modes = {
                     EntityLookAtClip.TargetMode.WORLD_POINT,
                     EntityLookAtClip.TargetMode.CAMERA, EntityLookAtClip.TargetMode.ENTITY_UUID

@@ -17,7 +17,7 @@ public final class ActorLookAtEditSession {
     private final float time;
     private final EntityLookAtClip source;
     private final EntitySpawnClip spawn;
-    private final float spawnEnd;
+    private final float spawnStart, spawnEnd;
     private final State before;
     private final EntityLookAtClip draft;
     private final long contextRevision;
@@ -30,25 +30,32 @@ public final class ActorLookAtEditSession {
         payload = Objects.requireNonNull(owner.getActorTrackPayload());
         actorId = Objects.requireNonNull(payload.getActorRef()).getActorId();
         time = model.getCurrentTime();
-        spawn = payload.findSpawnClipAt(time);
-        spawnEnd = spawn == null ? Float.NaN : spawn.getEndTime();
+        spawn = resolveSpawn(model, owner);
+        if (spawn == null) throw new IllegalArgumentException("请将播放头移到有效的出场片段内");
+        spawnStart = spawn.getStartTime();
+        spawnEnd = spawn.getEndTime();
         source = resolveSource(model,owner);
         before = source == null ? null : State.of(source);
         draft = new EntityLookAtClip("LookAt", source == null ? time : source.getStartTime(),
-                source == null ? (spawn == null ? time + 1 : spawn.getEndTime()) : source.getEndTime());
+                source == null ? spawnEnd : source.getEndTime());
         if (before != null) before.apply(draft);
         if (!isCurrent()) throw new IllegalArgumentException("演员注视目标当前不可编辑");
     }
 
     public static EntityLookAtClip resolveSource(TimelineModel model,TimelineTrack owner) {
-        if(model==null || owner==null || owner.getActorTrackPayload()==null) return null;
-        var payload=owner.getActorTrackPayload();
-        if(model.getSelectedClip() instanceof EntityTimelineClip wrapper && wrapper.getParentTrack()==owner
-                && wrapper.getEntityClip() instanceof EntityLookAtClip look
-                && payload.getClips().contains(look) && owner.getClips().contains(wrapper)) return look;
-        var selectedSpawn = selectedSpawn(model, owner);
-        return selectedSpawn == null ? active(payload, model.getCurrentTime())
-                : selectedSpawn.findLookTargetAt(model.getCurrentTime());
+        var spawn = resolveSpawn(model, owner);
+        return spawn == null ? null : spawn.findLookTargetAt(model.getCurrentTime());
+    }
+
+    public static EntitySpawnClip resolveSpawn(TimelineModel model, TimelineTrack owner) {
+        if (model == null || owner == null || owner.getActorTrackPayload() == null) return null;
+        var payload = owner.getActorTrackPayload();
+        float time = model.getCurrentTime();
+        if (!payload.isPresentAt(time)) return null;
+        var spawn = payload.findSpawnClipAt(time);
+        var selected = selectedSpawn(model, owner);
+        return (selected == null || selected == spawn) && spawn.getTimelineClip() != null
+                && owner.getClips().contains(spawn.getTimelineClip()) ? spawn : null;
     }
 
     private static EntitySpawnClip selectedSpawn(TimelineModel model, TimelineTrack owner) {
@@ -69,22 +76,13 @@ public final class ActorLookAtEditSession {
                 && owner.getActorTrackPayload() == payload && payload.getActorRef() != null
                 && Objects.equals(actorId, payload.getActorRef().getActorId())
                 && ActorRegistryManager.getInstance().getActor(actorId).isPresent()
-                && payload.findSpawnClipAt(time) == spawn
-                && (selectedSpawn(model, owner) == null || selectedSpawn(model, owner) == spawn)
-                && (spawn == null || Float.compare(spawnEnd, spawn.getEndTime()) == 0
-                    && !payload.hasCompletedDespawn(time, spawn, EntityDespawnClip.DespawnMode.REMOVE))
-                && (spawn != null || source != null || payload.getClips().stream().noneMatch(EntitySpawnClip.class::isInstance))
-                && resolveSource(model,owner) == source
-                && (source == null || (!source.isMuted() && before.equals(State.of(source))
-                    && (isOwnedSource() || source.getTimelineClip() != null && owner.getClips().contains(source.getTimelineClip()))));
+                && resolveSpawn(model, owner) == spawn
+                && spawn.getStartTime() == spawnStart && spawn.getEndTime() == spawnEnd
+                && resolveSource(model, owner) == source
+                && (source == null || !source.isMuted() && before.equals(State.of(source)));
     }
 
-    private boolean isOwnedSource() { return spawn != null && source != null && spawn.getLookTargets().contains(source); }
-
-    EntityTimelineClip selectionFor(EntityLookAtClip target) {
-        return target.getTimelineClip() != null ? target.getTimelineClip()
-                : spawn == null ? null : spawn.getTimelineClip();
-    }
+    EntityTimelineClip selectionFor() { return spawn.getTimelineClip(); }
 
     public EntityLookAtClip draft() { return draft; }
     public EntityLookAtClip source() { return source; }
@@ -99,31 +97,13 @@ public final class ActorLookAtEditSession {
         if (!after.valid()) { cancel(); return null; }
         finished = true;
         if (source != null) {
-            if (isOwnedSource()) {
-                if (!before.equals(after)) TimelineCommandBridge.execute(new StateChangeCommand(model,
-                        "Edit actor look target", () -> spawn.editLookTarget(source, before::apply),
-                        () -> spawn.editLookTarget(source, after::apply)));
-                return source;
-            }
             if (!before.equals(after)) TimelineCommandBridge.execute(new StateChangeCommand(model,
-                    "Edit actor look target", () -> before.apply(source), () -> after.apply(source)));
+                    "Edit actor look target", () -> spawn.editLookTarget(source, before::apply),
+                    () -> spawn.editLookTarget(source, after::apply)));
             return source;
         }
-        if (spawn != null) {
-            TimelineCommandBridge.execute(new StateChangeCommand(model, "Create actor look target",
-                    () -> spawn.removeLookTarget(draft), () -> spawn.addLookTarget(draft)));
-            return draft;
-        }
-        var wrapper = new EntityTimelineClip(draft, payload.getColorRgba());
-        TimelineCommandBridge.execute(new StateChangeCommand(model, "Create actor look target", () -> {
-            owner.removeClip(wrapper); payload.removeClip(draft.getId());
-        }, () -> {
-            payload.addClip(draft);
-            try { owner.addClip(wrapper); }
-            catch (RuntimeException failure) {
-                owner.removeClip(wrapper); payload.removeClip(draft.getId()); throw failure;
-            }
-        }));
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Create actor look target",
+                () -> spawn.removeLookTarget(draft), () -> spawn.addLookTarget(draft)));
         return draft;
     }
 

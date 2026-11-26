@@ -23,7 +23,6 @@ import com.director.timeline.model.entity.EntityAnimationClip;
 import com.director.timeline.model.entity.ActorPoseClip;
 import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.model.entity.EntitySpawnClip;
-import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.ui.timeline.commands.StateChangeCommand;
 import com.director.ui.timeline.commands.TimelineCommandBridge;
 import net.minecraft.util.math.Box;
@@ -260,27 +259,21 @@ public final class ActorBoneGizmoController {
             beginAnimationGesture(model, time);
             return;
         }
-        editingClip = actorTrack.findPoseClipAt(time);
-        var spawn = actorTrack.findSpawnClipAt(time);
-        if (actorTrack.getClips().stream().anyMatch(EntitySpawnClip.class::isInstance)
-                && (spawn == null || !actorTrack.isPresentAt(time) || spawn.getEndTime() <= time
-                    || spawn.getTimelineClip() == null || !timelineTrack.getClips().contains(spawn.getTimelineClip()))) {
+        poseOwner = com.director.ui.actor.gizmo.ActorTransformEditSession.resolveLiveSpawn(model, timelineTrack);
+        if (poseOwner == null || poseOwner.getTimelineClip() == null || !timelineTrack.getClips().contains(poseOwner.getTimelineClip())
+                || poseOwner.getEndTime() <= time) {
             cancelDraft();
             return;
         }
-        poseOwner = spawn == null || (editingClip != null && !spawn.getPoseIntervals().contains(editingClip)) ? null : spawn;
-        if (poseOwner != null) {
-            poseOwnerStart = poseOwner.getStartTime();
-            poseOwnerEnd = poseOwner.getEndTime();
-        }
+        poseOwnerStart = poseOwner.getStartTime();
+        poseOwnerEnd = poseOwner.getEndTime();
+        editingClip = poseOwner.findPoseIntervalAt(time);
         originalPoseClip = editingClip;
         createdClip = editingClip == null;
         if (createdClip) {
-            float end = poseOwner == null ? time + DEFAULT_CLIP_DURATION
-                    : Math.min(poseOwnerEnd, time + DEFAULT_CLIP_DURATION);
+            float end = Math.min(poseOwnerEnd, time + DEFAULT_CLIP_DURATION);
             editingClip = new ActorPoseClip("Pose", time, end);
             seedFromPreview(editingClip);
-            if (poseOwner == null) new EntityTimelineClip(editingClip, actorTrack.getColorRgba());
             beforeState = null;
         } else {
             beforeState = PoseClipState.capture(editingClip);
@@ -372,10 +365,11 @@ public final class ActorBoneGizmoController {
     }
 
     private boolean poseSourceUnchanged() {
-        if (poseOwner != null && (actorTrack.findSpawnClipAt(gestureTime) != poseOwner
-                || !actorTrack.isPresentAt(gestureTime) || poseOwner.getStartTime() != poseOwnerStart
-                || poseOwner.getEndTime() != poseOwnerEnd || !timelineTrack.getClips().contains(poseOwner.getTimelineClip()))) return false;
-        return actorTrack.findPoseClipAt(gestureTime) == originalPoseClip
+        return poseOwner != null
+                && com.director.ui.actor.gizmo.ActorTransformEditSession.resolveLiveSpawn(gestureModel, timelineTrack) == poseOwner
+                && poseOwner.getStartTime() == poseOwnerStart && poseOwner.getEndTime() == poseOwnerEnd
+                && timelineTrack.getClips().contains(poseOwner.getTimelineClip())
+                && poseOwner.findPoseIntervalAt(gestureTime) == originalPoseClip
                 && (originalPoseClip == null || beforeState.equals(PoseClipState.capture(originalPoseClip)));
     }
 
@@ -668,34 +662,15 @@ public final class ActorBoneGizmoController {
     private void registerUndo(TimelineModel model, ActorPoseClip clip) {
         PoseClipState after = PoseClipState.capture(clip);
         var spawn = poseOwner;
-        if (spawn != null) {
-            if (createdClip) {
-                TimelineCommandBridge.execute(new StateChangeCommand(model, "Pose actor bone",
-                        () -> spawn.removePoseInterval(clip), () -> spawn.addPoseInterval(clip)));
-            } else if (!beforeState.equals(after)) {
-                var before = beforeState;
-                var target = originalPoseClip;
-                TimelineCommandBridge.execute(new StateChangeCommand(model, "Pose actor bone",
-                        () -> spawn.editPoseInterval(target, before::apply),
-                        () -> spawn.editPoseInterval(target, after::apply)));
-            }
-            return;
-        }
         if (createdClip) {
-            ActorTrack targetActorTrack = actorTrack;
-            TimelineTrack targetTimelineTrack = timelineTrack;
-            EntityTimelineClip wrapper = clip.getTimelineClip();
             TimelineCommandBridge.execute(new StateChangeCommand(model, "Pose actor bone",
-                    () -> { targetActorTrack.removeClip(clip.getId()); if (targetTimelineTrack != null && wrapper != null) targetTimelineTrack.removeClip(wrapper); },
-                    () -> { if (!targetActorTrack.getClips().contains(clip)) targetActorTrack.addClip(clip); if (targetTimelineTrack != null && wrapper != null && !targetTimelineTrack.getClips().contains(wrapper)) targetTimelineTrack.addClip(wrapper); after.apply(clip); }));
-        } else if (beforeState != null && !beforeState.equals(after)) {
-
-            PoseClipState before = beforeState;
-            ActorPoseClip target = originalPoseClip;
+                    () -> spawn.removePoseInterval(clip), () -> spawn.addPoseInterval(clip)));
+        } else if (!beforeState.equals(after)) {
+            var before = beforeState;
+            var target = originalPoseClip;
             TimelineCommandBridge.execute(new StateChangeCommand(model, "Pose actor bone",
-                    () -> before.apply(target), () -> after.apply(target)));
-        } else {
-            model.markDirty();
+                    () -> spawn.editPoseInterval(target, before::apply),
+                    () -> spawn.editPoseInterval(target, after::apply)));
         }
     }
 
