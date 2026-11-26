@@ -235,4 +235,44 @@ class ActorTrackClipAuthoringServiceTest {
         track.addClip(wrapper);
         return wrapper;
     }
+
+    @Test void pastingBehaviorUsesSelectedPerformanceTimeAndNewIdentity() {
+        var first = (EntitySpawnClip) addSpawn(0, 5).getEntityClip();
+        var next = (EntitySpawnClip) addSpawn(6, 10).getEntityClip();
+        var source = new EntityStateClip("Glow", 2, 4);
+        source.setGlowing(true);
+        source.setVisibilityOverride(.5f);
+        first.addStateInterval(source);
+        var clipboard = TimelineClipCopies.copyEntityClip(source);
+        source.setGlowing(false);
+
+        model.setCurrentTime(7);
+        var pasted = (EntityStateClip) ActorOwnedIntervalEditing.paste(model, next, clipboard);
+        assertNotNull(pasted);
+        assertNotEquals(source.getId(), pasted.getId());
+        assertNotEquals(clipboard.getId(), pasted.getId());
+        assertEquals(7f, pasted.getStartTime());
+        assertEquals(9f, pasted.getEndTime());
+        assertTrue(pasted.isGlowing());
+        assertEquals(.5f, pasted.getVisibility());
+        assertEquals(2, track.getClips().size());
+        assertTrue(history.undo());
+        assertTrue(next.getStateIntervals().isEmpty());
+        assertTrue(history.redo());
+        assertSame(pasted, next.getStateIntervals().getFirst());
+
+        model.setCurrentTime(9);
+        assertNull(ActorOwnedIntervalEditing.paste(model, next, clipboard));
+        assertEquals(1, history.getUndoSize());
+    }
+
+    @Test void pastingActionRejectsOverlapsWithoutChangingTheTarget() {
+        var spawn = (EntitySpawnClip) addSpawn(0, 10).getEntityClip();
+        var action = new ActorActionClip("Run", 2, 5);
+        action.setActionType(ActorActionType.RUN);
+        spawn.addActionInterval(action);
+        assertNull(ActorOwnedIntervalEditing.paste(model, spawn, action));
+        assertEquals(java.util.List.of(action), spawn.getActionIntervals());
+        assertEquals(0, history.getUndoSize());
+    }
 }

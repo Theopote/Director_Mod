@@ -183,7 +183,10 @@ public class TimelineRenderer {
     }
 
     private ActorIntervalDrag actorIntervalDrag;
-    private ActorIntervalSummary selectedActorInterval;
+    private record ActorIntervalSelection(EntityTimelineClip owner, EntityClip target) {}
+
+    private ActorIntervalSelection selectedActorInterval;
+    private EntityClip actorIntervalClipboard;
     private Range actorIntervalDragPreview;
     private boolean actorIntervalDragMoved;
 
@@ -246,7 +249,7 @@ public class TimelineRenderer {
 
     private void selectIntervalOwner(ActorIntervalSummary summary) {
         actorBoneRows.leaveKeyFocus();
-        selectedActorInterval = summary;
+        selectedActorInterval = new ActorIntervalSelection(summary.owner, summary.target);
         model.selectItem(summary.owner, false);
         com.director.core.DirectorServices.get().uiSelection().selectClip(summary.owner.getEntityClip());
         com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(summary.owner);
@@ -461,10 +464,33 @@ public class TimelineRenderer {
 
     public boolean handleActorKeyCommand(String action) {
         var selection = selectedActorInterval;
-        if (selection != null && model.getSelectedClip() == selection.owner && action.equals("delete")) {
+        if (selection != null && model.getSelectedClip() == selection.owner) {
             var spawn = (EntitySpawnClip) selection.owner.getEntityClip();
-            if (actorIntervalDrag == null && ActorOwnedIntervalEditing.remove(model, spawn, selection.target))
-                selectedActorInterval = null;
+            if (action.equals("copy") || action.equals("cut") || action.equals("delete")) {
+                if (actorIntervalDrag != null) return true;
+                if (action.equals("copy")) {
+                    actorIntervalClipboard = com.director.timeline.model.TimelineClipCopies.copyEntityClip(selection.target);
+                } else {
+                    var copy = action.equals("cut")
+                            ? com.director.timeline.model.TimelineClipCopies.copyEntityClip(selection.target) : null;
+                    if (ActorOwnedIntervalEditing.remove(model, spawn, selection.target)) {
+                        if (copy != null) actorIntervalClipboard = copy;
+                        selectedActorInterval = null;
+                    }
+                }
+                return true;
+            }
+        }
+        if (action.equals("copy") || action.equals("cut")) actorIntervalClipboard = null;
+        if (action.equals("paste") && actorIntervalClipboard != null) {
+            if (actorIntervalDrag == null && model.getSelectedClip() instanceof EntityTimelineClip wrapper
+                    && wrapper.getEntityClip() instanceof EntitySpawnClip spawn) {
+                var pasted = ActorOwnedIntervalEditing.paste(model, spawn, actorIntervalClipboard);
+                if (pasted != null) {
+                    actorBoneRows.leaveKeyFocus();
+                    selectedActorInterval = new ActorIntervalSelection(wrapper, pasted);
+                }
+            }
             return true;
         }
         return actorBoneRows.handleKeyCommand(model, action);

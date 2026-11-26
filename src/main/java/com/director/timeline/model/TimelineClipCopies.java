@@ -13,11 +13,15 @@ public final class TimelineClipCopies {
         if (clip.spawnIntervals != null) clip.spawnIntervals.forEach(TimelineClipCopies::assignCopyIds);
     }
 
+    public static com.director.timeline.model.entity.EntityClip copyEntityClip(com.director.timeline.model.entity.EntityClip source) {
+        var dto = TimelineModelPersistence.entityClipToDTO(source);
+        assignCopyIds(dto);
+        return TimelineModelPersistence.entityClipFromDTO(dto);
+    }
+
     public static TimelineClip copy(TimelineClip source) {
         if (source instanceof EntityTimelineClip wrapper) {
-            var dto = TimelineModelPersistence.entityClipToDTO(wrapper.getEntityClip());
-            assignCopyIds(dto);
-            return new EntityTimelineClip(TimelineModelPersistence.entityClipFromDTO(dto), source.getColor());
+            return new EntityTimelineClip(copyEntityClip(wrapper.getEntityClip()), source.getColor());
         }
         if (source instanceof AudioTimelineClip) {
             var copy = new AudioTimelineClip(source);

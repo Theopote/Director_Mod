@@ -54,8 +54,10 @@ public final class ActorLookAtEditSession {
         if (!payload.isPresentAt(time)) return null;
         var spawn = payload.findSpawnClipAt(time);
         var selected = selectedSpawn(model, owner);
-        return (selected == null || selected == spawn) && spawn.getTimelineClip() != null
-                && owner.getClips().contains(spawn.getTimelineClip()) ? spawn : null;
+        if (spawn != null) {
+            return (selected == null || selected == spawn) && spawn.getTimelineClip() != null
+                    && owner.getClips().contains(spawn.getTimelineClip()) ? spawn : null;
+        }
     }
 
     private static EntitySpawnClip selectedSpawn(TimelineModel model, TimelineTrack owner) {

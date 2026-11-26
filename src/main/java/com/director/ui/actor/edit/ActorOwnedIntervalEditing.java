@@ -38,12 +38,7 @@ public final class ActorOwnedIntervalEditing {
     }
 
     public static boolean editable(TimelineModel model, EntitySpawnClip spawn, EntityClip target) {
-        var wrapper = spawn.getTimelineClip();
-        var track = wrapper == null ? null : wrapper.getParentTrack();
-        return model != null && !model.isPlaying() && !model.isScrubbing()
-                && track != null && !track.isLocked() && !track.isMuted() && !spawn.isMuted()
-                && model.getAllTracks().contains(track) && track.getClips().contains(wrapper)
-                && track.getActorTrackPayload() != null && track.getActorTrackPayload().getClips().contains(spawn)
+        return editableSpawn(model, spawn)
                 && switch (target) {
                     case EntityLookAtClip look -> spawn.getLookTargets().contains(look);
                     case EntityStateClip state -> spawn.getStateIntervals().contains(state);
@@ -51,6 +46,38 @@ public final class ActorOwnedIntervalEditing {
                     case ActorPoseClip pose -> spawn.getPoseIntervals().contains(pose);
                     default -> false;
                 };
+    }
+
+    private static boolean editableSpawn(TimelineModel model, EntitySpawnClip spawn) {
+        var wrapper = spawn.getTimelineClip();
+        var track = wrapper == null ? null : wrapper.getParentTrack();
+        return model != null && !model.isPlaying() && !model.isScrubbing()
+                && track != null && !track.isLocked() && !track.isMuted() && !spawn.isMuted()
+                && model.getAllTracks().contains(track) && track.getClips().contains(wrapper)
+                && track.getActorTrackPayload() != null && track.getActorTrackPayload().getClips().contains(spawn);
+    }
+
+    public static EntityClip paste(TimelineModel model, EntitySpawnClip spawn, EntityClip clipboard) {
+        if (!editableSpawn(model, spawn) || clipboard == null) return null;
+        var payload = spawn.getTimelineClip().getParentTrack().getActorTrackPayload();
+        float start = model.getCurrentTime();
+        float end = start + clipboard.getLength();
+        if (!Float.isFinite(end) || end <= start || end > spawn.getEndTime()
+                || payload.findSpawnClipAt(start) != spawn || !payload.isPresentAt(start) || payload.getActorRef() == null) return null;
+
+        var actor = com.director.actor.ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
+        if (actor == null) return null;
+        if (clipboard instanceof ActorActionClip action
+                && (!com.director.actor.ActorCapabilities.of(actor).supports(action.getActionType())
+                    || payload.hasActionOverlap(spawn, null, start, end))) return null;
+        if (clipboard instanceof ActorPoseClip && !com.director.actor.ActorCapabilities.of(actor).humanoidPose()) return null;
+
+        var copy = com.director.timeline.model.TimelineClipCopies.copyEntityClip(clipboard);
+        copy.setTimeRange(start, end);
+        var change = intervalChange(spawn, copy);
+        if (change == null) return null;
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Paste actor interval", change.remove, change.add));
+        return copy;
     }
 
     public static boolean resize(TimelineModel model, EntitySpawnClip spawn, EntityClip target,
@@ -71,31 +98,22 @@ public final class ActorOwnedIntervalEditing {
 
     public static boolean remove(TimelineModel model, EntitySpawnClip spawn, EntityClip target) {
         if (!editable(model, spawn, target)) return false;
-        Runnable restore;
-        Runnable remove;
-        switch (target) {
-            case EntityLookAtClip look -> {
-                restore = () -> spawn.addLookTarget(look);
-                remove = () -> spawn.removeLookTarget(look);
-            }
-            case EntityStateClip state -> {
-                restore = () -> spawn.addStateInterval(state);
-                remove = () -> spawn.removeStateInterval(state);
-            }
-            case ActorActionClip action -> {
-                restore = () -> spawn.addActionInterval(action);
-                remove = () -> spawn.removeActionInterval(action);
-            }
-            case ActorPoseClip pose -> {
-                restore = () -> spawn.addPoseInterval(pose);
-                remove = () -> spawn.removePoseInterval(pose);
-            }
-            case null, default -> {
-                return false;
-            }
-        }
-        TimelineCommandBridge.execute(new StateChangeCommand(model, "Remove actor interval", restore, remove));
+        var change = intervalChange(spawn, target);
+        if (change == null) return false;
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Remove actor interval", change.add, change.remove));
         return true;
+    }
+
+    private record IntervalChange(Runnable add, Runnable remove) {}
+
+    private static IntervalChange intervalChange(EntitySpawnClip spawn, EntityClip target) {
+        return switch (target) {
+            case EntityLookAtClip look -> new IntervalChange(() -> spawn.addLookTarget(look), () -> spawn.removeLookTarget(look));
+            case EntityStateClip state -> new IntervalChange(() -> spawn.addStateInterval(state), () -> spawn.removeStateInterval(state));
+            case ActorActionClip action -> new IntervalChange(() -> spawn.addActionInterval(action), () -> spawn.removeActionInterval(action));
+            case ActorPoseClip pose -> new IntervalChange(() -> spawn.addPoseInterval(pose), () -> spawn.removePoseInterval(pose));
+            case null, default -> null;
+        };
     }
 
     private static void setRange(EntitySpawnClip spawn, EntityClip target, float start, float end) {
