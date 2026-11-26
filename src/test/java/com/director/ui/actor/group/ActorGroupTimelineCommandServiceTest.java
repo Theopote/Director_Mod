@@ -147,10 +147,11 @@ class ActorGroupTimelineCommandServiceTest {
         var group = new ActorGroup("Group"); group.addActor(id);
         var service = ActorGroupTimelineCommandService.getInstance();
         assertFalse(service.previewActions(model, group, ActorActionType.IDLE, 2).canExecute());
+        addActionSpawn(second);
         model.selectItem(second, false);
         assertEquals(1, service.createActionClips(model, group, ActorActionType.IDLE, 2, 1, false));
         assertTrue(first.getActorTrackPayload().getActionClips().isEmpty());
-        assertEquals(1, second.getActorTrackPayload().getActionClips().size());
+        assertEquals(1, ownedActions(second.getActorTrackPayload()).size());
     }
 
     private static final float EPS = 0.0001f;
@@ -173,9 +174,9 @@ class ActorGroupTimelineCommandServiceTest {
         TimelineTrack tb = createActorTimelineTrack("B", atB);
         TimelineTrack tc = createActorTimelineTrack("C", atC);
 
-        model.addTrack(ta);
-        model.addTrack(tb);
-        model.addTrack(tc);
+        model.addTrack(addActionSpawn(ta));
+        model.addTrack(addActionSpawn(tb));
+        model.addTrack(addActionSpawn(tc));
 
         ActorGroup group = new ActorGroup("g");
         group.addActor(a);
@@ -210,11 +211,11 @@ class ActorGroupTimelineCommandServiceTest {
         ActorTrack atD = createActorTrackPayload(d);
         ActorTrack atE = createActorTrackPayload(e);
 
-        model.addTrack(createActorTimelineTrack("A", atA));
-        model.addTrack(createActorTimelineTrack("B", atB));
-        model.addTrack(createActorTimelineTrack("C", atC));
-        model.addTrack(createActorTimelineTrack("D", atD));
-        model.addTrack(createActorTimelineTrack("E", atE));
+        model.addTrack(addActionSpawn(createActorTimelineTrack("A", atA)));
+        model.addTrack(addActionSpawn(createActorTimelineTrack("B", atB)));
+        model.addTrack(addActionSpawn(createActorTimelineTrack("C", atC)));
+        model.addTrack(addActionSpawn(createActorTimelineTrack("D", atD)));
+        model.addTrack(addActionSpawn(createActorTimelineTrack("E", atE)));
 
         ActorGroup group = new ActorGroup("g");
         group.addActor(a);
@@ -252,10 +253,10 @@ class ActorGroupTimelineCommandServiceTest {
         ActorTrack atC = createActorTrackPayload(c);
         ActorTrack atD = createActorTrackPayload(d);
 
-        model.addTrack(createActorTimelineTrack("A", atA));
-        model.addTrack(createActorTimelineTrack("B", atB));
-        model.addTrack(createActorTimelineTrack("C", atC));
-        model.addTrack(createActorTimelineTrack("D", atD));
+        model.addTrack(addActionSpawn(createActorTimelineTrack("A", atA)));
+        model.addTrack(addActionSpawn(createActorTimelineTrack("B", atB)));
+        model.addTrack(addActionSpawn(createActorTimelineTrack("C", atC)));
+        model.addTrack(addActionSpawn(createActorTimelineTrack("D", atD)));
 
         ActorGroup group = new ActorGroup("g");
         group.addActor(a);
@@ -649,8 +650,19 @@ class ActorGroupTimelineCommandServiceTest {
         return track;
     }
 
+    private static TimelineTrack addActionSpawn(TimelineTrack track) {
+        var spawn = new EntitySpawnClip("Performance", 0, 30);
+        track.getActorTrackPayload().addClip(spawn);
+        track.addClip(new com.director.timeline.model.entity.EntityTimelineClip(spawn, 0));
+        return track;
+    }
+
+    private static List<ActorActionClip> ownedActions(ActorTrack track) {
+        return ((EntitySpawnClip) track.getClips().getFirst()).getActionIntervals();
+    }
+
     private static void assertSingleActionClip(ActorTrack track, float start, float end, ActorActionType type) {
-        List<ActorActionClip> clips = track.getActionClips();
+        List<ActorActionClip> clips = ownedActions(track);
         assertEquals(1, clips.size());
         ActorActionClip clip = clips.getFirst();
         assertEquals(type, clip.getActionType());
@@ -663,7 +675,7 @@ class ActorGroupTimelineCommandServiceTest {
                                                    float maxStartInclusive,
                                                    float duration,
                                                    ActorActionType type) {
-        List<ActorActionClip> clips = track.getActionClips();
+        List<ActorActionClip> clips = ownedActions(track);
         assertEquals(1, clips.size());
         ActorActionClip clip = clips.getFirst();
         assertEquals(type, clip.getActionType());

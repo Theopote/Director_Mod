@@ -42,41 +42,47 @@ class ActorGroupTransactionsTest {
         var wrapper = new EntityTimelineClip(clip, track.getActorTrackPayload().getColorRgba());
         track.addClip(wrapper); return wrapper;
     }
-    @Test void preflightReportsHeterogeneousLockedAndMissingMembersWithoutMutation() {
+    private EntitySpawnClip actionSpawn(TimelineTrack track) {
+        var spawn = new EntitySpawnClip("Performance", 0, 10);
+        attach(track, spawn);
+        return spawn;
+    }
+
+    @Test void preflightReportsUnplacedHeterogeneousLockedAndMissingMembersWithoutMutation() {
         var player = member(ActorType.PLAYER);
+        var spawn = actionSpawn(player);
         var cow = member(ActorType.COW);
+        member(ActorType.PLAYER);
         var locked = member(ActorType.PLAYER); locked.setLocked(true);
         var noTrack = new Actor("Unused", ActorType.PLAYER);
         ActorRegistryManager.getInstance().registerActor(noTrack); group.addActor(noTrack.getActorId());
         group.addActor(UUID.randomUUID());
         var preview = service.previewActions(model, group, ActorActionType.DANCE, 2);
-        assertEquals(1, preview.eligible().size()); assertEquals(4, preview.skipped().size());
-        assertEquals(4, preview.skipped().stream().map(ActorGroupTimelineCommandService.SkippedMember::reason).distinct().count());
-        assertTrue(player.getClips().isEmpty()); assertTrue(cow.getClips().isEmpty());
+        assertEquals(1, preview.eligible().size()); assertEquals(5, preview.skipped().size());
+        assertEquals(5, preview.skipped().stream().map(ActorGroupTimelineCommandService.SkippedMember::reason).distinct().count());
+        assertTrue(spawn.getActionIntervals().isEmpty());
         assertEquals(1, service.createActionClips(model, group, ActorActionType.DANCE, 2, 1, true));
         assertTrue(cow.getClips().isEmpty()); assertTrue(locked.getClips().isEmpty());
-        assertTrue(history.undo()); assertTrue(player.getClips().isEmpty()); assertFalse(history.undo());
+        assertTrue(history.undo()); assertTrue(spawn.getActionIntervals().isEmpty()); assertFalse(history.undo());
     }
-    @Test void actionUndoRestoresOriginalIntervalsWrappersAndUnrelatedClipsForEntireGroup() {
+
+    @Test void actionUndoRestoresOriginalOwnedIntervalsForEntireGroup() {
         var a = member(ActorType.PLAYER); var b = member(ActorType.COW);
-        var old = new ActorActionClip("Old", 0, 10); old.setActionType(ActorActionType.IDLE);
-        var oldWrapper = attach(a, old);
-        var spawn = new EntitySpawnClip("Spawn", 0, 10); var spawnWrapper = attach(a, spawn);
+        var spawn = actionSpawn(a);
+        var other = actionSpawn(b);
+        var old = new ActorActionClip("Old", 0, 10);
+        old.setActionType(ActorActionType.IDLE);
+        spawn.addActionInterval(old);
         assertEquals(1, service.previewActions(model, group, ActorActionType.WALK, 2).overwrittenMembers());
         assertEquals(2, service.createActionClips(model, group, ActorActionType.WALK, 2, 1, true));
-        var generated = List.copyOf(a.getActorTrackPayload().getActionClips());
-        assertEquals(2, generated.size()); assertTrue(a.getClips().contains(spawnWrapper));
-        var owned = spawn.getActionIntervals().getFirst();
-        assertEquals(ActorActionType.WALK, owned.getActionType());
+        var generated = spawn.getActionIntervals();
+        assertEquals(3, generated.size());
+        assertEquals(1, a.getClips().size());
         assertTrue(history.undo());
-        assertEquals(List.of(old), a.getActorTrackPayload().getActionClips());
-        assertTrue(spawn.getActionIntervals().isEmpty());
-        assertTrue(a.getClips().contains(oldWrapper)); assertSame(oldWrapper, old.getTimelineClip());
-        assertSame(a, oldWrapper.getParentTrack()); assertTrue(b.getClips().isEmpty()); assertFalse(history.undo());
-        assertTrue(history.redo()); assertEquals(generated, a.getActorTrackPayload().getActionClips());
-        assertEquals(List.of(owned), spawn.getActionIntervals());
-        assertEquals(1, b.getActorTrackPayload().getActionClips().size());
-        assertTrue(a.getClips().contains(spawnWrapper));
+        assertEquals(List.of(old), spawn.getActionIntervals());
+        assertTrue(other.getActionIntervals().isEmpty()); assertFalse(history.undo());
+        assertTrue(history.redo()); assertEquals(generated, spawn.getActionIntervals());
+        assertEquals(1, other.getActionIntervals().size());
     }
     @Test void routeSkipsSourceAndConflictingOrLockedTracksAndUndoKeepsSource() {
         var sourceTrack = member(ActorType.PLAYER); var target = member(ActorType.COW);
@@ -165,12 +171,13 @@ class ActorGroupTransactionsTest {
     }
     @Test void actionLoopChoiceSurvivesUndoRedo() {
         var track = member(ActorType.PLAYER);
+        var spawn = actionSpawn(track);
         for (boolean loop : new boolean[]{false, true}) {
             assertEquals(1, service.createActionClips(model, group, ActorActionType.WALK, 2, 1, loop));
-            assertEquals(loop, track.getActorTrackPayload().getActionClips().getFirst().isLoop());
-            assertTrue(history.undo()); assertTrue(track.getClips().isEmpty());
+            assertEquals(loop, spawn.getActionIntervals().getFirst().isLoop());
+            assertTrue(history.undo()); assertTrue(spawn.getActionIntervals().isEmpty());
             assertTrue(history.redo());
-            assertEquals(loop, track.getActorTrackPayload().getActionClips().getFirst().isLoop());
+            assertEquals(loop, spawn.getActionIntervals().getFirst().isLoop());
             assertTrue(history.undo());
         }
     }
@@ -205,12 +212,13 @@ class ActorGroupTransactionsTest {
     }
     @Test void groupUndoRejectsReplacedTrackPayloadWithoutChangingData() {
         var track = member(ActorType.PLAYER);
+        var spawn = actionSpawn(track);
         assertEquals(1, service.createActionClips(model, group, ActorActionType.WALK, 2, 1, true));
         var original = track.getActorTrackPayload(); var replacement = new ActorTrack();
         track.setActorTrackPayload(replacement);
         assertThrows(IllegalArgumentException.class, history::undo);
-        assertEquals(1, original.getActionClips().size()); assertTrue(replacement.getClips().isEmpty());
-        track.setActorTrackPayload(original); assertTrue(history.undo()); assertTrue(original.getClips().isEmpty());
+        assertEquals(1, spawn.getActionIntervals().size()); assertTrue(replacement.getClips().isEmpty());
+        track.setActorTrackPayload(original); assertTrue(history.undo()); assertTrue(spawn.getActionIntervals().isEmpty());
     }
     @Test void failedGroupUndoRestoresAlreadyUndoneMembers() {
         int[] values = {0,0}; boolean[] fail = {false};
@@ -223,12 +231,13 @@ class ActorGroupTransactionsTest {
     }
     @Test void groupUndoRejectsModifiedActionValuesWithoutOverwritingThem() {
         var track = member(ActorType.PLAYER);
+        var spawn = actionSpawn(track);
         assertEquals(1, service.createActionClips(model, group, ActorActionType.WALK, 2, 1, true));
-        var action = track.getActorTrackPayload().getActionClips().getFirst();
+        var action = spawn.getActionIntervals().getFirst();
         action.setIntensity(.25f);
         assertThrows(IllegalArgumentException.class, history::undo);
         assertEquals(.25f, action.getIntensity());
-        action.setIntensity(1); assertTrue(history.undo()); assertTrue(track.getClips().isEmpty());
+        action.setIntensity(1); assertTrue(history.undo()); assertTrue(spawn.getActionIntervals().isEmpty());
     }
     @Test void placementUndoRejectsInPlacePositionModification() {
         var track = member(ActorType.PLAYER);

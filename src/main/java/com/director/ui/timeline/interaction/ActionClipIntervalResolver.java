@@ -99,7 +99,7 @@ public final class ActionClipIntervalResolver {
         return result;
     }
 
-    public static List<ActorActionClip> clearRange(List<ActorActionClip> existingClips, float startTime, float endTime) {
+    private static List<ActorActionClip> clearRange(List<ActorActionClip> existingClips, float startTime, float endTime) {
         List<ActorActionClip> result = new ArrayList<>();
 
         if (existingClips == null) return result;

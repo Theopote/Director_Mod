@@ -8,7 +8,6 @@ import com.director.actor.ActorRegistryManager;
 import com.director.actor.action.ActorActionType;
 import com.director.actor.group.ActorGroupController;
 import com.director.ui.timeline.interaction.ActionClipIntervalResolver;
-import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.entity.ActorActionClip;
@@ -144,7 +143,7 @@ public final class ActorGroupTimelineCommandService {
         return new PresetPlan(new Preview(eligible, skipped, null, 0), List.copyOf(placements));
     }
 
-    private record ActionPlacement(TimelineTrack track, EntitySpawnClip spawn, float start, float end) {}
+    private record ActionPlacement(EntitySpawnClip spawn, float start, float end) {}
     private record ActionPlan(Preview preview, List<ActionPlacement> placements) {}
 
     public Preview previewActions(TimelineModel model, ActorGroup group, ActorActionType action, float duration) {
@@ -173,18 +172,18 @@ public final class ActorGroupTimelineCommandService {
                 continue;
             }
             var spawn = payload.findSpawnClipAt(start);
-            float end = spawn == null ? requestedEnd : Math.min(requestedEnd, spawn.getEndTime());
-            if ((spawn == null && payload.getClips().stream().anyMatch(EntitySpawnClip.class::isInstance))
-                    || (spawn != null && (!payload.isPresentAt(start) || end - start < .05f - 1e-5f
-                        || spawn.getTimelineClip() == null || !track.getClips().contains(spawn.getTimelineClip())))) {
+            if (spawn == null || !payload.isPresentAt(start) || spawn.getTimelineClip() == null
+                    || !track.getClips().contains(spawn.getTimelineClip())) {
                 skipped.add(new SkippedMember(id, SkipReason.NO_ACTION_SPAWN));
                 continue;
             }
-            var legacy = payload.getActionClips();
-            if (legacy.stream().anyMatch(clip -> overlapsAction(clip, start, end))
-                    || (spawn != null && spawn.getActionIntervals().stream().anyMatch(clip -> overlapsAction(clip, start, end))))
-                overwritten++;
-            placements.add(new ActionPlacement(track, spawn, start, end));
+            float end = Math.min(requestedEnd, spawn.getEndTime());
+            if (end - start < .05f - 1e-5f) {
+                skipped.add(new SkippedMember(id, SkipReason.NO_ACTION_SPAWN));
+                continue;
+            }
+            if (spawn.getActionIntervals().stream().anyMatch(clip -> overlapsAction(clip, start, end))) overwritten++;
+            placements.add(new ActionPlacement(spawn, start, end));
             eligible.add(id);
         }
         return new ActionPlan(new Preview(eligible, skipped, null, overwritten), List.copyOf(placements));
@@ -298,24 +297,13 @@ public final class ActorGroupTimelineCommandService {
         float clampedIntensity = Math.clamp(intensity, 0, 1);
         List<ActorGroupEditCommand.Change> changes = new ArrayList<>();
         for (var placement : plan.placements()) {
-            var track = placement.track();
-            var payload = track.getActorTrackPayload();
             var spawn = placement.spawn();
-            var before = spawn == null ? List.copyOf(payload.getActionClips()) : spawn.getActionIntervals();
+            var before = spawn.getActionIntervals();
             var after = ActionClipIntervalResolver.resolve(before, placement.start(), placement.end(),
                     actionType, clampedIntensity, loop);
-            if (spawn != null) {
-                changes.add(new ActorGroupEditCommand.Change(
-                        () -> spawn.replaceActionIntervals(after, before),
-                        () -> spawn.replaceActionIntervals(before, after)));
-                var legacy = payload.getActionClips();
-                if (legacy.stream().anyMatch(clip -> overlapsAction(clip, placement.start(), placement.end()))) {
-                    changes.add(legacyActionChange(track, payload, legacy,
-                            ActionClipIntervalResolver.clearRange(legacy, placement.start(), placement.end())));
-                }
-                continue;
-            }
-            changes.add(legacyActionChange(track, payload, before, after));
+            changes.add(new ActorGroupEditCommand.Change(
+                    () -> spawn.replaceActionIntervals(after, before),
+                    () -> spawn.replaceActionIntervals(before, after)));
         }
         ActorGroupEditCommand.execute(model, "Group actor actions", changes);
         return plan.placements().size();
@@ -460,32 +448,6 @@ public final class ActorGroupTimelineCommandService {
             if (!payload.getClips().contains(clip)) payload.addClip(clip);
             if (!track.getClips().contains(wrapper)) track.addClip(wrapper);
         });
-    }
-
-    private static ActorGroupEditCommand.Change legacyActionChange(TimelineTrack track, ActorTrack payload,
-            List<ActorActionClip> before, List<ActorActionClip> after) {
-        var beforeWrappers = track.getClips().stream()
-                .filter(c -> c instanceof EntityTimelineClip e && e.getEntityClip() instanceof ActorActionClip).toList();
-        List<TimelineClip> afterWrappers = new ArrayList<>();
-        for (var clip : after) {
-            var wrapper = beforeWrappers.stream().filter(c -> ((EntityTimelineClip)c).getEntityClip() == clip).findFirst().orElse(null);
-            afterWrappers.add(wrapper == null ? prepareWrapper(clip, payload.getColorRgba()) : wrapper);
-        }
-        return new ActorGroupEditCommand.Change(
-                () -> setActionState(track, payload, before, beforeWrappers),
-                () -> setActionState(track, payload, after, afterWrappers));
-    }
-
-    private static void setActionState(TimelineTrack track, ActorTrack payload, List<ActorActionClip> clips, List<TimelineClip> wrappers) {
-        for (var clip : payload.getActionClips()) clip.setTimelineClip(null);
-        payload.replaceActionClips(clips);
-        for (var clip : clips) clip.setTimelineClip(null);
-        for (var wrapper : new ArrayList<>(track.getClips()))
-            if (wrapper instanceof EntityTimelineClip e && e.getEntityClip() instanceof ActorActionClip) track.removeClip(wrapper);
-        for (var wrapper : wrappers) {
-            ((EntityTimelineClip)wrapper).getEntityClip().setTimelineClip((EntityTimelineClip)wrapper);
-            track.addClip(wrapper);
-        }
     }
 
     public List<ActorRouteClip> availableRoutes(TimelineModel model, UUID actorId) {
