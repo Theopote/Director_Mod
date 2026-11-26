@@ -11,6 +11,8 @@ import imgui.type.ImFloat;
 public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySpawnClip> {
     private final com.director.ui.properties.actor.ActorLookIntervalsPropertyUI lookIntervals =
             new com.director.ui.properties.actor.ActorLookIntervalsPropertyUI();
+    private final java.util.Map<com.director.timeline.model.entity.EntityStateClip, EntityStateClipPropertyAdapter> stateInspectors =
+            new java.util.IdentityHashMap<>();
     private final ActorClipInspectorGesture gesture = new ActorClipInspectorGesture();
     @Override public Class<EntitySpawnClip> getTargetType() { return EntitySpawnClip.class; }
     private String tr(String key) { return ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit."+key); }
@@ -75,9 +77,23 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         com.director.ui.properties.actor.ActorAnimationBlendPropertyUI.render(source,clip.getBlendSettings(),clip::setBlendSettings,gesture);
         gesture.end();
         lookIntervals.render(source);
+        renderStateIntervals(source);
         var navigation = com.director.ui.properties.actor.ActorCoordinationPanel.render(source);
         com.director.ui.properties.actor.ActorCoordinationPanel.navigate(source,navigation);
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.renderIndependentAction(source);
         com.director.ui.properties.actor.ActorRootKeyframePropertyUI.render(source); return false;
+    }
+    private void renderStateIntervals(EntitySpawnClip source) {
+        var states = source.getStateIntervals();
+        stateInspectors.keySet().retainAll(states);
+        if (states.isEmpty() || !ImGui.collapsingHeader(
+                ActorPropertyAdapterI18n.tr("gui.director.actor.state_edit.intervals") + "##spawnStates")) return;
+        for (var state : states) {
+            ImGui.pushID(state.getId().toString());
+            stateInspectors.computeIfAbsent(state, ignored -> new EntityStateClipPropertyAdapter())
+                    .renderInterval(state, source);
+            ImGui.separator();
+            ImGui.popID();
+        }
     }
 }

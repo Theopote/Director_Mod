@@ -70,4 +70,43 @@ class ActorTrackClipAuthoringServiceTest {
         assertEquals("gui.director.actor.track.create_no_track",
                 service.creationBlockReason(new TimelineModel(new TimelineViewportState()), track));
     }
+
+    @Test void stateIsOwnedByActiveSpawnAndKeepsFieldWiseLegacyOverlay() {
+        var payload = track.getActorTrackPayload();
+        assertNull(service.createClip(model, track, ActorTrackClipKind.STATE, null));
+        var spawn = new EntitySpawnClip("Performance", 0, 5);
+        var wrapper = new EntityTimelineClip(spawn, 0);
+        payload.addClip(spawn);
+        track.addClip(wrapper);
+        var legacy = new EntityStateClip("Legacy", 0, 5);
+        legacy.setGlowing(true);
+        legacy.setVisibilityOverride(.5f);
+        payload.addClip(legacy);
+        assertSame(wrapper, service.createClip(model, track, ActorTrackClipKind.STATE, null));
+        var state = spawn.getStateIntervals().getFirst();
+        assertEquals(1, track.getClips().size());
+        assertSame(wrapper, model.getSelectedClip());
+        assertTrue(history.undo());
+        assertTrue(spawn.getStateIntervals().isEmpty());
+        assertTrue(history.redo());
+        assertSame(state, spawn.getStateIntervals().getFirst());
+
+        var edit = new com.director.ui.actor.edit.ActorClipPropertyEditSession(model, state, spawn);
+        ((EntityStateClip) edit.draft()).setGlowing(false);
+        assertTrue(edit.commit());
+        var sampler = new com.director.timeline.playback.entity.EntityClipSampler(payload);
+        assertFalse(sampler.sampleSnapshot(3).glowing);
+        assertEquals(.5f, sampler.sampleSnapshot(3).visibility);
+        assertTrue(history.undo());
+        assertTrue(sampler.sampleSnapshot(3).glowing);
+        assertTrue(history.redo());
+
+        spawn.setTimeRange(10, 15);
+        assertEquals(13f, state.getStartTime());
+        var dto = com.director.timeline.persistence.TimelineModelPersistence.entityClipToDTO(spawn);
+        var loaded = (EntitySpawnClip) com.director.timeline.persistence.TimelineModelPersistence.entityClipFromDTO(dto);
+        assertEquals(Boolean.FALSE, loaded.getStateIntervals().getFirst().getGlowingOverride());
+        var copied = (EntityTimelineClip) TimelineClipCopies.copy(wrapper);
+        assertNotEquals(state.getId(), ((EntitySpawnClip) copied.getEntityClip()).getStateIntervals().getFirst().getId());
+    }
 }

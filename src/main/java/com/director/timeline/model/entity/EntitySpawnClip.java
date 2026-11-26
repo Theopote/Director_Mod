@@ -91,12 +91,33 @@ public class EntitySpawnClip extends EntityClip {
         samplingChanged();
     }
 
+    private final java.util.List<EntityStateClip> stateIntervals = new java.util.ArrayList<>();
+
+    public java.util.List<EntityStateClip> getStateIntervals() { return java.util.List.copyOf(stateIntervals); }
+
+    public void addStateInterval(EntityStateClip state) {
+        if (stateIntervals.contains(state)) return;
+        stateIntervals.add(state);
+        samplingChanged();
+    }
+
+    public void removeStateInterval(EntityStateClip state) {
+        if (stateIntervals.remove(state)) samplingChanged();
+    }
+
+    public void editStateInterval(EntityStateClip state, java.util.function.Consumer<EntityClip> edit) {
+        if (!stateIntervals.contains(state)) throw new IllegalStateException("Missing spawn state interval");
+        edit.accept(state);
+        samplingChanged();
+    }
+
     @Override public void setTimeRange(float start,float end) {
         float delta = start - getStartTime();
         boolean translated = Math.abs((end - start) - getLength()) < 1e-4f;
         super.setTimeRange(start,end);
         if (translated && delta != 0f) {
             for (var target : lookTargets) target.setTimeRange(target.getStartTime() + delta, target.getEndTime() + delta);
+            for (var state : stateIntervals) state.setTimeRange(state.getStartTime() + delta, state.getEndTime() + delta);
         }
         syncBoneAnimation();
     }

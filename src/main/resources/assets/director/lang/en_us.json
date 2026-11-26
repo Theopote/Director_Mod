@@ -2495,6 +2495,8 @@
   "gui.director.actor.look_interval.apply": "Apply",
   "gui.director.actor.look_interval.invalid": "Enter an increasing time range inside this performance clip.",
   "gui.director.actor.spawn_edit.invalid_time": "Spawn duration must be at least 0.1 seconds and times must be finite.",
+  "gui.director.actor.state_edit.intervals": "State intervals",
+  "gui.director.actor.state_edit.require_spawn": "Move the playhead inside an active performance clip to add a state interval.",
   "gui.director.actor.state_edit.runtime_hint": "Sneak, sprint and invulnerability stay on the clip, but preview does not use them. This page edits glow and visibility only.",
   "gui.director.actor.state_edit.visibility_hint": "Preview hides the actor at visibility ≤ 0.01; other values show it. Opacity fading is not implemented.",
   "gui.director.actor.state_edit.inherit": "Inherit",

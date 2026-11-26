@@ -229,6 +229,13 @@ public class EntityClipSampler {
         }
 
         // ========== 处理 State Clip（状态）==========
+        if (result.active && presetOwner != null) {
+            for (var state : presetOwner.getStateIntervals()) {
+                if (!state.isMuted() && timeSeconds >= state.getStartTime() && timeSeconds <= state.getEndTime())
+                    stateClips.add(state);
+            }
+            stateClips.sort(EntityClip::compareTo);
+        }
         applyState(result, stateClips);
 
         // ========== 处理 LookAt Clip（看向目标）==========

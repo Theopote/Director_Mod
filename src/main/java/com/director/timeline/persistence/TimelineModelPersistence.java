@@ -220,6 +220,7 @@ public class TimelineModelPersistence {
         public EntityClipDTO spawnPreset;
         public EntityClipDTO spawnSecondaryPreset;
         public List<EntityClipDTO> spawnLookTargets;
+        public List<EntityClipDTO> spawnStateIntervals;
         // Raw optional values isolate malformed blend fields from the rest of the clip DTO.
         public com.google.gson.JsonElement poseBlendMode,poseBlendWeight,poseBlendChannels,poseBlendAllBones,
                 poseBlendBones,poseBlendFadeIn,poseBlendFadeOut;
@@ -1511,6 +1512,8 @@ public class TimelineModelPersistence {
                 cdto.spawnSecondaryPreset = writeSpawnPreset(sc.getSecondaryPreset());
                 if (!sc.getLookTargets().isEmpty())
                     cdto.spawnLookTargets = sc.getLookTargets().stream().map(TimelineModelPersistence::entityClipToDTO).toList();
+                if (!sc.getStateIntervals().isEmpty())
+                    cdto.spawnStateIntervals = sc.getStateIntervals().stream().map(TimelineModelPersistence::entityClipToDTO).toList();
                 cdto.setPoseBlend(sc.getBlendSettings());
                 cdto.spawnRoll = sc.getRollDeg();
                 cdto.spawnScaleX = sc.getScale().x; cdto.spawnScaleY = sc.getScale().y; cdto.spawnScaleZ = sc.getScale().z;
@@ -1719,6 +1722,16 @@ public class TimelineModelPersistence {
                             sc.addLookTarget((com.director.timeline.model.entity.EntityLookAtClip) entityClipFromDTO(target));
                         } catch (RuntimeException invalid) {
                             LOGGER.warn("Unable to restore spawn look target {}", target.id, invalid);
+                        }
+                    }
+                }
+                if (cdto.spawnStateIntervals != null) {
+                    for (var state : cdto.spawnStateIntervals) {
+                        if (state == null || !"STATE".equals(state.clipType)) continue;
+                        try {
+                            sc.addStateInterval((com.director.timeline.model.entity.EntityStateClip) entityClipFromDTO(state));
+                        } catch (RuntimeException invalid) {
+                            LOGGER.warn("Unable to restore spawn state interval {}", state.id, invalid);
                         }
                     }
                 }

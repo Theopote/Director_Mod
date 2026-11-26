@@ -17,7 +17,11 @@ public final class ActorClipInspectorGesture {
     private boolean readOnlyRendered;
 
     public EntityClip begin(EntityClip source) {
-        ActorRuntimeDiagnosticsUI.render(source);
+        return begin(source, null);
+    }
+
+    public EntityClip begin(EntityClip source, com.director.timeline.model.entity.EntitySpawnClip spawn) {
+        if (spawn == null) ActorRuntimeDiagnosticsUI.render(source);
         var model = DirectorServices.get().containerTimeline().getTimelineModel();
         int frame = ImGui.getFrameCount();
         boolean competing = com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
@@ -32,9 +36,10 @@ public final class ActorClipInspectorGesture {
             cancelledUntilRelease = false;
         }
         if (session == null) {
-            try { session = new ActorClipPropertyEditSession(model, source); widget = null; dirty = false; }
+            try { session = new ActorClipPropertyEditSession(model, source, spawn); widget = null; dirty = false; }
             catch (RuntimeException unavailable) {
-                var owner=source.getTimelineClip()==null?null:source.getTimelineClip().getParentTrack();
+                var wrapper = spawn == null ? source.getTimelineClip() : spawn.getTimelineClip();
+                var owner = wrapper == null ? null : wrapper.getParentTrack();
                 String reason = model == null ? "no_project" : model.isPlaying() ? "playing" : model.isScrubbing() ? "scrubbing"
                         : owner != null && owner.isLocked() ? "locked" : owner != null && owner.isMuted() ? "muted"
                         : source.isMuted() ? "clip_muted" : "unavailable";

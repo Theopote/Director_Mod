@@ -7,15 +7,17 @@ import java.util.UUID;
 
 public final class TimelineClipCopies {
     private TimelineClipCopies() {}
+    private static void assignCopyIds(TimelineModelPersistence.EntityClipDTO clip) {
+        clip.id = UUID.randomUUID().toString();
+        clip.keyframes.forEach(key -> key.id = UUID.randomUUID().toString());
+        if (clip.spawnLookTargets != null) clip.spawnLookTargets.forEach(TimelineClipCopies::assignCopyIds);
+        if (clip.spawnStateIntervals != null) clip.spawnStateIntervals.forEach(TimelineClipCopies::assignCopyIds);
+    }
+
     public static TimelineClip copy(TimelineClip source) {
         if (source instanceof EntityTimelineClip wrapper) {
             var dto = TimelineModelPersistence.entityClipToDTO(wrapper.getEntityClip());
-            dto.id = UUID.randomUUID().toString();
-            dto.keyframes.forEach(key -> key.id = UUID.randomUUID().toString());
-            if (dto.spawnLookTargets != null) for (var target : dto.spawnLookTargets) {
-                target.id = UUID.randomUUID().toString();
-                target.keyframes.forEach(key -> key.id = UUID.randomUUID().toString());
-            }
+            assignCopyIds(dto);
             return new EntityTimelineClip(TimelineModelPersistence.entityClipFromDTO(dto), source.getColor());
         }
         if (source instanceof AudioTimelineClip) {

@@ -14,7 +14,11 @@ public class EntityStateClipPropertyAdapter implements IPropertyAdapter<EntitySt
     private final ActorClipInspectorGesture gesture = new ActorClipInspectorGesture();
     @Override public Class<EntityStateClip> getTargetType() { return EntityStateClip.class; }
     @Override public boolean renderProperties(EntityStateClip source) {
-        var draft = gesture.begin(source);
+        return renderInterval(source, null);
+    }
+
+    public boolean renderInterval(EntityStateClip source, com.director.timeline.model.entity.EntitySpawnClip spawn) {
+        var draft = gesture.begin(source, spawn);
         if (!(draft instanceof EntityStateClip clip)) { gesture.end(); return false; }
         ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.ADAPTER_NAME));
         ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.range",clip.getStartTime(),clip.getEndTime()));

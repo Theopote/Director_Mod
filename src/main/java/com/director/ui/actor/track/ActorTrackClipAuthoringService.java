@@ -127,6 +127,19 @@ public final class ActorTrackClipAuthoringService {
         }
         if(clip instanceof ActorActionClip) for(var existing:actorTrack.getClips())
             if(existing instanceof ActorActionClip && !existing.isMuted() && existing.getEndTime()>clip.getStartTime() && existing.getStartTime()<clip.getEndTime()) return refuse(REFUSE_OVERLAP);
+        if (clip instanceof EntityStateClip state) {
+            var spawn = actorTrack.findSpawnClipAt(start);
+            if (spawn == null || !actorTrack.isPresentAt(start) || spawn.getEndTime() <= start
+                    || spawn.getTimelineClip() == null || !timelineTrack.getClips().contains(spawn.getTimelineClip()))
+                return refuse("gui.director.actor.state_edit.require_spawn");
+            state.setTimeRange(start, Math.min(state.getEndTime(), spawn.getEndTime()));
+            com.director.ui.timeline.commands.TimelineCommandBridge.execute(
+                    new com.director.ui.timeline.commands.StateChangeCommand(model, "Create actor state interval",
+                            () -> spawn.removeStateInterval(state), () -> spawn.addStateInterval(state)));
+            model.selectItem(spawn.getTimelineClip(), false);
+            lastRefusal = null;
+            return spawn.getTimelineClip();
+        }
         EntityTimelineClip timelineClip = new EntityTimelineClip(clip, actorTrack.getColorRgba());
         com.director.ui.timeline.commands.TimelineCommandBridge.execute(
                 new com.director.ui.timeline.commands.StateChangeCommand(model, "Create actor " + kind,

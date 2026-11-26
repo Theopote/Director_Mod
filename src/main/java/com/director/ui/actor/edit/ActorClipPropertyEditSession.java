@@ -156,6 +156,7 @@ public final class ActorClipPropertyEditSession {
     private final UUID actor;
     private final EntityClip source, draft;
     private final EntityTimelineClip wrapper;
+    private final EntitySpawnClip spawnOwner;
     private final State before;
     private final Common common;
     private final float time;
@@ -166,9 +167,15 @@ public final class ActorClipPropertyEditSession {
     private boolean finished;
 
     public ActorClipPropertyEditSession(TimelineModel model, EntityClip source) {
+        this(model, source, null);
+    }
+
+    public ActorClipPropertyEditSession(TimelineModel model, EntityClip source, EntitySpawnClip spawnOwner) {
         this.model = Objects.requireNonNull(model); this.source = Objects.requireNonNull(source);
+        this.spawnOwner = spawnOwner;
         contextRevision = model.getActorEditContextRevision();
-        wrapper = Objects.requireNonNull(source.getTimelineClip()); owner = Objects.requireNonNull(wrapper.getParentTrack());
+        wrapper = Objects.requireNonNull(spawnOwner == null ? source.getTimelineClip() : spawnOwner.getTimelineClip());
+        owner = Objects.requireNonNull(wrapper.getParentTrack());
         payload = Objects.requireNonNull(owner.getActorTrackPayload()); actor = Objects.requireNonNull(payload.getActorRef()).getActorId();
         time = model.getCurrentTime(); before = capture(source); common = Common.capture(source);
         var definition = ActorRegistryManager.getInstance().getActor(actor).orElseThrow();
@@ -199,7 +206,7 @@ public final class ActorClipPropertyEditSession {
                 && validBinding() && common.equals(Common.capture(source)) && before.equals(capture(source));
     }
     private boolean validBinding() {
-        return !model.isPlaying() && Float.isFinite(model.getCurrentTime()) && model.getCurrentTime() >= 0
+        return !model.isPlaying() && !model.isScrubbing() && Float.isFinite(model.getCurrentTime()) && model.getCurrentTime() >= 0
                 && model.getAllTracks().contains(owner) && owner.getType() == TrackType.ACTOR
                 && !owner.isLocked() && !owner.isMuted() && !source.isMuted()
                 && owner.getActorTrackPayload() == payload && payload.getActorRef() != null
@@ -207,10 +214,17 @@ public final class ActorClipPropertyEditSession {
                 && ActorRegistryManager.getInstance().getActor(actor).isPresent()
                 && ActorRegistryManager.getInstance().getActor(actor).map(a -> a.getType() == actorType
                     && a.getRigProfile() == profile && Objects.equals(customRig, a.getCustomRigId())).orElse(false)
-                && payload.getClips().contains(source) && source.getTimelineClip() == wrapper
-                && wrapper.getEntityClip() == source && wrapper.getParentTrack() == owner && owner.getClips().contains(wrapper)
+                && ownsSource() && wrapper.getParentTrack() == owner && owner.getClips().contains(wrapper)
                 && Float.isFinite(common.start) && Float.isFinite(common.end) && common.start >= 0 && common.end >= common.start;
     }
+    private boolean ownsSource() {
+        if (spawnOwner == null)
+            return payload.getClips().contains(source) && source.getTimelineClip() == wrapper && wrapper.getEntityClip() == source;
+        return !spawnOwner.isMuted() && payload.getClips().contains(spawnOwner)
+                && spawnOwner.getTimelineClip() == wrapper && wrapper.getEntityClip() == spawnOwner
+                && source instanceof EntityStateClip state && spawnOwner.getStateIntervals().contains(state);
+    }
+
     public void cancel() { finished = true; }
     public boolean commit() {
         if (!isCurrent(model, source)) { cancel(); return false; }
@@ -234,7 +248,8 @@ public final class ActorClipPropertyEditSession {
             throw new IllegalArgumentException("片段目标或源数据已变化，无法应用属性修改");
         validateBehavior(next, expected, forward);
         // Undo may restore an older, malformed value; validate new user input before constructing the command.
-        next.apply(source);
+        if (spawnOwner == null) next.apply(source);
+        else spawnOwner.editStateInterval((EntityStateClip) source, next::apply);
         if(expected instanceof Spawn beforeSpawn && next instanceof Spawn afterSpawn
                 && !Objects.equals(beforeSpawn.preset,afterSpawn.preset)) model.invalidateActorEditContext();
     }
