@@ -35,7 +35,8 @@ public final class ActorOwnedIntervalsPropertyUI {
     public void renderLookIntervals(EntitySpawnClip spawn) {
         var targets = spawn.getLookTargets();
         var states = spawn.getStateIntervals();
-        drafts.keySet().removeIf(target -> !targets.contains(target) && !states.contains(target));
+        var actions = spawn.getActionIntervals();
+        drafts.keySet().removeIf(target -> !targets.contains(target) && !states.contains(target) && !actions.contains(target));
         if (targets.isEmpty() || !ImGui.collapsingHeader(tr("title") + "##spawnLookIntervals")) return;
         for (var target : targets) {
             ImGui.pushID(target.getId().toString());
@@ -64,7 +65,8 @@ public final class ActorOwnedIntervalsPropertyUI {
         if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.common.delete"))
                 && ActorOwnedIntervalEditing.remove(model, spawn, target)) drafts.remove(target);
         ImGui.endDisabled();
-        if (draft.invalid) ImGui.textWrapped(tr("invalid"));
+        if (draft.invalid) ImGui.textWrapped(target instanceof com.director.timeline.model.entity.ActorActionClip
+                ? ActorPropertyAdapterI18n.tr("gui.director.actor.behavior.owned_range_invalid") : tr("invalid"));
     }
 
     private static String tr(String key) {

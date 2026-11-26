@@ -13,6 +13,8 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
             new com.director.ui.properties.actor.ActorOwnedIntervalsPropertyUI();
     private final java.util.Map<com.director.timeline.model.entity.EntityStateClip, EntityStateClipPropertyAdapter> stateInspectors =
             new java.util.IdentityHashMap<>();
+    private final java.util.Map<com.director.timeline.model.entity.ActorActionClip, ActorActionClipPropertyAdapter> actionInspectors =
+            new java.util.IdentityHashMap<>();
     private final ActorClipInspectorGesture gesture = new ActorClipInspectorGesture();
     @Override public Class<EntitySpawnClip> getTargetType() { return EntitySpawnClip.class; }
     private String tr(String key) { return ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit."+key); }
@@ -78,6 +80,7 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         gesture.end();
         ownedIntervals.renderLookIntervals(source);
         renderStateIntervals(source);
+        renderActionIntervals(source);
         var navigation = com.director.ui.properties.actor.ActorCoordinationPanel.render(source);
         com.director.ui.properties.actor.ActorCoordinationPanel.navigate(source,navigation);
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.renderIndependentAction(source);
@@ -93,6 +96,20 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
             stateInspectors.computeIfAbsent(state, ignored -> new EntityStateClipPropertyAdapter())
                     .renderInterval(state, source);
             ownedIntervals.renderRange(source, state);
+            ImGui.separator();
+            ImGui.popID();
+        }
+    }
+    private void renderActionIntervals(EntitySpawnClip source) {
+        var actions = source.getActionIntervals();
+        actionInspectors.keySet().retainAll(actions);
+        if (actions.isEmpty() || !ImGui.collapsingHeader(
+                ActorPropertyAdapterI18n.tr("gui.director.actor.behavior.intervals") + "##spawnActions")) return;
+        for (var action : actions) {
+            ImGui.pushID(action.getId().toString());
+            actionInspectors.computeIfAbsent(action, ignored -> new ActorActionClipPropertyAdapter())
+                    .renderInterval(action, source);
+            ownedIntervals.renderRange(source, action);
             ImGui.separator();
             ImGui.popID();
         }

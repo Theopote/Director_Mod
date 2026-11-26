@@ -15,6 +15,7 @@ import com.director.timeline.model.camera.path.CameraPathType;
 import com.director.timeline.model.time.TimeKeyframe;
 import com.director.timeline.model.season.SeasonKeyframe;
 import com.director.timeline.model.entity.EntityClip;
+import com.director.timeline.model.entity.ActorActionClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
 import com.director.timeline.model.entity.EntityStateClip;
 import com.director.timeline.model.entity.EntitySpawnClip;
@@ -198,7 +199,8 @@ public class TimelineRenderer {
             actorIntervalDragMoved |= Math.abs(mouseX - drag.pressX) >= 4f;
             if (actorIntervalDragMoved) {
                 float delta = math.xToTime(mouseX) - drag.pressTime;
-                actorIntervalDragPreview = ActorOwnedIntervalEditing.dragRange(drag.original, drag.bounds, drag.mode, delta);
+                actorIntervalDragPreview = ActorOwnedIntervalEditing.dragRange(drag.original, drag.bounds, drag.mode, delta,
+                        target instanceof ActorActionClip ? .1f : .01f);
             }
             if (ImGui.isMouseDown(ImGuiMouseButton.Left)) return true;
             if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
@@ -217,6 +219,8 @@ public class TimelineRenderer {
 
     private static String intervalLabel(EntityClip target) {
         if (target instanceof EntityStateClip) return target.getName();
+        if (target instanceof ActorActionClip action)
+            return com.director.i18n.ActorPropertyAdapterI18n.actionSemanticLabel(action.getActionType());
         var look = (EntityLookAtClip) target;
         String mode = switch (look.getMode()) {
             case CAMERA -> "mode_camera";
@@ -230,12 +234,15 @@ public class TimelineRenderer {
 
     private void renderActorIntervalSummaries(ImDrawList draw, TimelineTrack track, float contentX, float contentW,
                                               float trackY, float headerHeight) {
-        if (headerHeight < 4 * TRACK_HEIGHT) return;
+        if (headerHeight < 3 * TRACK_HEIGHT) return;
         float bandHeight = clipBandHeight(headerHeight);
         float y = trackY + 3 * bandHeight + 3;
         for (var clip : track.getClips()) {
             if (!(clip instanceof EntityTimelineClip owner) || !(owner.getEntityClip() instanceof EntitySpawnClip spawn)) continue;
-            for (var target : spawn.getLookTargets())
+            for (var action : spawn.getActionIntervals())
+                renderActorInterval(draw, track, owner, spawn, action, contentX, contentW, y - bandHeight, bandHeight,
+                        ActionTypeColors.getColorForActionType(action.getActionType()));
+            if (headerHeight >= 4 * TRACK_HEIGHT) for (var target : spawn.getLookTargets())
                 renderActorInterval(draw, track, owner, spawn, target, contentX, contentW, y, bandHeight,
                         TimelineColors.rgba(105, 75, 156, 255));
             if (headerHeight >= 5 * TRACK_HEIGHT) {

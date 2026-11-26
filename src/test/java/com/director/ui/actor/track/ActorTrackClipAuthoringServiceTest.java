@@ -133,4 +133,35 @@ class ActorTrackClipAuthoringServiceTest {
         assertTrue(editing.sampleSnapshot(3).glowing);
         assertEquals(1, track.getClips().size());
     }
+
+    @Test void runIntervalFollowsItsSpawnAndKeepsItsActionClock() {
+        var payload = track.getActorTrackPayload();
+        var spawn = new EntitySpawnClip("Performance", 0, 5);
+        var wrapper = new EntityTimelineClip(spawn, 0);
+        payload.addClip(spawn);
+        track.addClip(wrapper);
+        assertSame(wrapper, service.createAction(model, track, ActorActionType.RUN, 4, .6f, true));
+        var run = spawn.getActionIntervals().getFirst();
+        assertEquals(5f, run.getEndTime());
+        assertEquals(1, track.getClips().size());
+        assertNull(service.createAction(model, track, ActorActionType.RUN, 1, 1, true));
+        assertTrue(history.undo());
+        assertTrue(spawn.getActionIntervals().isEmpty());
+        assertTrue(history.redo());
+        var edit = new com.director.ui.actor.edit.ActorClipPropertyEditSession(model, run, spawn);
+        ((ActorActionClip) edit.draft()).setIntensity(.75f);
+        assertTrue(edit.commit());
+        spawn.setTimeRange(10, 15);
+        var sampler = new com.director.timeline.playback.entity.EntityClipSampler(payload);
+        var sample = sampler.sampleSnapshot(14f);
+        assertEquals(ActorActionType.RUN, sample.action);
+        assertEquals(.75f, sample.actionIntensity);
+        assertEquals(1f, sample.actionLocalTime);
+        assertFalse(sampler.sampleSnapshot(12f).actionExplicit);
+        var dto = com.director.timeline.persistence.TimelineModelPersistence.entityClipToDTO(spawn);
+        var loaded = (EntitySpawnClip) com.director.timeline.persistence.TimelineModelPersistence.entityClipFromDTO(dto);
+        assertEquals(run.getId(), loaded.getActionIntervals().getFirst().getId());
+        var copy = (EntityTimelineClip) TimelineClipCopies.copy(wrapper);
+        assertNotEquals(run.getId(), ((EntitySpawnClip) copy.getEntityClip()).getActionIntervals().getFirst().getId());
+    }
 }

@@ -111,6 +111,26 @@ public class EntitySpawnClip extends EntityClip {
         samplingChanged();
     }
 
+    private final java.util.List<ActorActionClip> actionIntervals = new java.util.ArrayList<>();
+
+    public java.util.List<ActorActionClip> getActionIntervals() { return java.util.List.copyOf(actionIntervals); }
+
+    public void addActionInterval(ActorActionClip action) {
+        if (actionIntervals.contains(action)) return;
+        actionIntervals.add(action);
+        samplingChanged();
+    }
+
+    public void removeActionInterval(ActorActionClip action) {
+        if (actionIntervals.remove(action)) samplingChanged();
+    }
+
+    public void editActionInterval(ActorActionClip action, java.util.function.Consumer<EntityClip> edit) {
+        if (!actionIntervals.contains(action)) throw new IllegalStateException("Missing spawn action interval");
+        edit.accept(action);
+        samplingChanged();
+    }
+
     @Override public void setTimeRange(float start,float end) {
         float delta = start - getStartTime();
         boolean translated = Math.abs((end - start) - getLength()) < 1e-4f;
@@ -118,6 +138,7 @@ public class EntitySpawnClip extends EntityClip {
         if (translated && delta != 0f) {
             for (var target : lookTargets) target.setTimeRange(target.getStartTime() + delta, target.getEndTime() + delta);
             for (var state : stateIntervals) state.setTimeRange(state.getStartTime() + delta, state.getEndTime() + delta);
+            for (var action : actionIntervals) action.setTimeRange(action.getStartTime() + delta, action.getEndTime() + delta);
         }
         syncBoneAnimation();
     }

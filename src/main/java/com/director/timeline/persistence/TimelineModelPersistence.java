@@ -221,6 +221,7 @@ public class TimelineModelPersistence {
         public EntityClipDTO spawnSecondaryPreset;
         public List<EntityClipDTO> spawnLookTargets;
         public List<EntityClipDTO> spawnStateIntervals;
+        public List<EntityClipDTO> spawnActionIntervals;
         // Raw optional values isolate malformed blend fields from the rest of the clip DTO.
         public com.google.gson.JsonElement poseBlendMode,poseBlendWeight,poseBlendChannels,poseBlendAllBones,
                 poseBlendBones,poseBlendFadeIn,poseBlendFadeOut;
@@ -1514,6 +1515,8 @@ public class TimelineModelPersistence {
                     cdto.spawnLookTargets = sc.getLookTargets().stream().map(TimelineModelPersistence::entityClipToDTO).toList();
                 if (!sc.getStateIntervals().isEmpty())
                     cdto.spawnStateIntervals = sc.getStateIntervals().stream().map(TimelineModelPersistence::entityClipToDTO).toList();
+                if (!sc.getActionIntervals().isEmpty())
+                    cdto.spawnActionIntervals = sc.getActionIntervals().stream().map(TimelineModelPersistence::entityClipToDTO).toList();
                 cdto.setPoseBlend(sc.getBlendSettings());
                 cdto.spawnRoll = sc.getRollDeg();
                 cdto.spawnScaleX = sc.getScale().x; cdto.spawnScaleY = sc.getScale().y; cdto.spawnScaleZ = sc.getScale().z;
@@ -1732,6 +1735,16 @@ public class TimelineModelPersistence {
                             sc.addStateInterval((com.director.timeline.model.entity.EntityStateClip) entityClipFromDTO(state));
                         } catch (RuntimeException invalid) {
                             LOGGER.warn("Unable to restore spawn state interval {}", state.id, invalid);
+                        }
+                    }
+                }
+                if (cdto.spawnActionIntervals != null) {
+                    for (var action : cdto.spawnActionIntervals) {
+                        if (action == null || !"ACTOR_ACTION".equals(action.clipType)) continue;
+                        try {
+                            sc.addActionInterval((com.director.timeline.model.entity.ActorActionClip) entityClipFromDTO(action));
+                        } catch (RuntimeException invalid) {
+                            LOGGER.warn("Unable to restore spawn action interval {}", action.id, invalid);
                         }
                     }
                 }

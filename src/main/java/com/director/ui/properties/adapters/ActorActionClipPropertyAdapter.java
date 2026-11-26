@@ -18,10 +18,17 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
     private final ActorClipInspectorGesture gesture = new ActorClipInspectorGesture();
     @Override public Class<ActorActionClip> getTargetType() { return ActorActionClip.class; }
     @Override public boolean renderProperties(ActorActionClip source) {
-        var draft = gesture.begin(source);
+        return renderInterval(source, null);
+    }
+
+    public boolean renderInterval(ActorActionClip source, com.director.timeline.model.entity.EntitySpawnClip spawn) {
+        var draft = gesture.begin(source, spawn);
         if (!(draft instanceof ActorActionClip clip)) { gesture.end(); return false; }
-        var payload = source.getTimelineClip().getParentTrack().getActorTrackPayload();
-        Actor actor = ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
+        var wrapper = spawn == null ? source.getTimelineClip() : spawn.getTimelineClip();
+        var owner = wrapper == null ? null : wrapper.getParentTrack();
+        var payload = owner == null ? null : owner.getActorTrackPayload();
+        Actor actor = payload == null || payload.getActorRef() == null ? null
+                : ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId()).orElse(null);
         UITheme.title(Icons.SMILE + " " + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.TITLE));
         if (Card.begin("actor_action_clip.section_semantics", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.SECTION_SEMANTICS))) {
             PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.ACTION_TYPE));
@@ -55,7 +62,6 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
                     || clip.getActionType()==com.director.actor.action.ActorActionType.RUN;
             if (locomotion) {
                 var model = com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
-                var owner = source.getTimelineClip() == null ? null : source.getTimelineClip().getParentTrack();
                 boolean onRoute = owner != null && model != null
                         && com.director.ui.actor.pose.ActorMovementSource.activeRoute(owner, model.getCurrentTime()) != null;
                 ImGui.textWrapped(ActorPropertyAdapterI18n.tr(onRoute
@@ -63,6 +69,7 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
             }
         }
         Card.end();
+        if (spawn != null) { gesture.end(); return false; }
         if (Card.begin("actor_action_clip.section_time_edit", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.SECTION_TIME_EDIT))) {
             var start = new ImFloat(clip.getStartTime()); var end = new ImFloat(clip.getEndTime());
             PropertyRow.field(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.START_TIME));

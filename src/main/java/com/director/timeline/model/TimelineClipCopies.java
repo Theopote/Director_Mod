@@ -12,6 +12,7 @@ public final class TimelineClipCopies {
         clip.keyframes.forEach(key -> key.id = UUID.randomUUID().toString());
         if (clip.spawnLookTargets != null) clip.spawnLookTargets.forEach(TimelineClipCopies::assignCopyIds);
         if (clip.spawnStateIntervals != null) clip.spawnStateIntervals.forEach(TimelineClipCopies::assignCopyIds);
+        if (clip.spawnActionIntervals != null) clip.spawnActionIntervals.forEach(TimelineClipCopies::assignCopyIds);
     }
 
     public static TimelineClip copy(TimelineClip source) {

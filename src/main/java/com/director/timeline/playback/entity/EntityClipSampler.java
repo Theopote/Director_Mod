@@ -252,6 +252,7 @@ public class EntityClipSampler {
 
         // ========== 处理 ActorAction Clip（动作语义）==========
         // 规则：last-wins（取 startTime 最大的那个）
+        if (result.active && presetOwner != null) actorActionClips.addAll(presetOwner.getActionIntervals());
         applyActorAction(result, actorActionClips, timeSeconds);
 
         // ========== 处理 ActorPose Clip（局部姿态覆盖）==========

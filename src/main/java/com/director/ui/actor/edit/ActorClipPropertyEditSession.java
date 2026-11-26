@@ -222,7 +222,11 @@ public final class ActorClipPropertyEditSession {
             return payload.getClips().contains(source) && source.getTimelineClip() == wrapper && wrapper.getEntityClip() == source;
         return !spawnOwner.isMuted() && payload.getClips().contains(spawnOwner)
                 && spawnOwner.getTimelineClip() == wrapper && wrapper.getEntityClip() == spawnOwner
-                && source instanceof EntityStateClip state && spawnOwner.getStateIntervals().contains(state);
+                && switch (source) {
+                    case EntityStateClip state -> spawnOwner.getStateIntervals().contains(state);
+                    case ActorActionClip action -> spawnOwner.getActionIntervals().contains(action);
+                    default -> false;
+                };
     }
 
     public void cancel() { finished = true; }
@@ -249,6 +253,7 @@ public final class ActorClipPropertyEditSession {
         validateBehavior(next, expected, forward);
         // Undo may restore an older, malformed value; validate new user input before constructing the command.
         if (spawnOwner == null) next.apply(source);
+        else if (source instanceof ActorActionClip action) spawnOwner.editActionInterval(action, next::apply);
         else spawnOwner.editStateInterval((EntityStateClip) source, next::apply);
         if(expected instanceof Spawn beforeSpawn && next instanceof Spawn afterSpawn
                 && !Objects.equals(beforeSpawn.preset,afterSpawn.preset)) model.invalidateActorEditContext();
@@ -295,10 +300,12 @@ public final class ActorClipPropertyEditSession {
             if (forward && !ActorBehaviorCapabilities.supportsAction(ActorRegistryManager.getInstance().getActor(actor).orElse(null), a.type))
                 throw new IllegalArgumentException("当前演员不支持此动作，请选择可用动作");
             var old = (Action) expected;
-            if (a.start != old.start || a.end != old.end)
-                for (var other : payload.getClips()) if (other != source && other instanceof ActorActionClip && !other.isMuted()
-                        && other.getEndTime() > a.start && other.getStartTime() < a.end)
+            if (a.start != old.start || a.end != old.end) {
+                if (forward && spawnOwner != null && (a.start < spawnOwner.getStartTime() || a.end > spawnOwner.getEndTime()))
+                    throw new IllegalArgumentException("动作时间必须在所属出场片段内");
+                if (payload.hasActionOverlap(spawnOwner, source, a.start, a.end))
                     throw new IllegalArgumentException("动作时间范围与已有主动作重叠");
+            }
         } else if (next instanceof Event e) {
             if (forward) PropEventParameters.validateActor(ActorRegistryManager.getInstance().getActor(actor).orElse(null),e.type,e.params);
         } else if (next instanceof Spawn s) {

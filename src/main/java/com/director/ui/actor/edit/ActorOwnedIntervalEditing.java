@@ -2,6 +2,7 @@ package com.director.ui.actor.edit;
 
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.entity.EntityClip;
+import com.director.timeline.model.entity.ActorActionClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
 import com.director.timeline.model.entity.EntityStateClip;
 import com.director.timeline.model.entity.EntitySpawnClip;
@@ -16,8 +17,12 @@ public final class ActorOwnedIntervalEditing {
     public record Range(float start, float end) {}
 
     public static Range dragRange(Range original, Range bounds, DragMode mode, float delta) {
+        return dragRange(original, bounds, mode, delta, 0.01f);
+    }
+
+    public static Range dragRange(Range original, Range bounds, DragMode mode, float delta, float minimum) {
         float length = original.end - original.start;
-        float minLength = Math.min(length, 0.01f);
+        float minLength = Math.min(length, minimum);
         return switch (mode) {
             case MOVE -> {
                 float shift = Math.clamp(delta, bounds.start - original.start, bounds.end - original.end);
@@ -41,6 +46,7 @@ public final class ActorOwnedIntervalEditing {
                 && switch (target) {
                     case EntityLookAtClip look -> spawn.getLookTargets().contains(look);
                     case EntityStateClip state -> spawn.getStateIntervals().contains(state);
+                    case ActorActionClip action -> spawn.getActionIntervals().contains(action);
                     default -> false;
                 };
     }
@@ -49,6 +55,9 @@ public final class ActorOwnedIntervalEditing {
                                  float start, float end) {
         if (!editable(model, spawn, target) || !Float.isFinite(start) || !Float.isFinite(end)
                 || start < spawn.getStartTime() || end > spawn.getEndTime() || end <= start) return false;
+        if (target instanceof ActorActionClip && (end - start < .1f - 1e-5f
+                || spawn.getTimelineClip().getParentTrack().getActorTrackPayload().hasActionOverlap(spawn, target, start, end)))
+            return false;
         float beforeStart = target.getStartTime();
         float beforeEnd = target.getEndTime();
         if (start == beforeStart && end == beforeEnd) return true;
@@ -68,6 +77,9 @@ public final class ActorOwnedIntervalEditing {
         } else if (target instanceof EntityStateClip state) {
             restore = () -> spawn.addStateInterval(state);
             remove = () -> spawn.removeStateInterval(state);
+        } else if (target instanceof ActorActionClip action) {
+            restore = () -> spawn.addActionInterval(action);
+            remove = () -> spawn.removeActionInterval(action);
         } else {
             return false;
         }
@@ -79,6 +91,7 @@ public final class ActorOwnedIntervalEditing {
         switch (target) {
             case EntityLookAtClip look -> spawn.editLookTarget(look, clip -> clip.setTimeRange(start, end));
             case EntityStateClip state -> spawn.editStateInterval(state, clip -> clip.setTimeRange(start, end));
+            case ActorActionClip action -> spawn.editActionInterval(action, clip -> clip.setTimeRange(start, end));
             default -> throw new IllegalArgumentException("Unsupported actor interval");
         }
     }

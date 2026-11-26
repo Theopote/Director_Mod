@@ -125,8 +125,26 @@ public final class ActorTrackClipAuthoringService {
             configured.setTimeRange(start,start+duration);configured.setIntensity(intensity);configured.setLoop(loop);
             if(!Float.isFinite(configured.getEndTime())) return refuse(REFUSE_BAD_VALUES);
         }
-        if(clip instanceof ActorActionClip) for(var existing:actorTrack.getClips())
-            if(existing instanceof ActorActionClip && !existing.isMuted() && existing.getEndTime()>clip.getStartTime() && existing.getStartTime()<clip.getEndTime()) return refuse(REFUSE_OVERLAP);
+        if (clip instanceof ActorActionClip authoredAction) {
+            var spawn = actorTrack.findSpawnClipAt(start);
+            if (spawn != null) {
+                float end = Math.min(authoredAction.getEndTime(), spawn.getEndTime());
+                if (!actorTrack.isPresentAt(start) || end - start < .1f - 1e-5f
+                        || spawn.getTimelineClip() == null || !timelineTrack.getClips().contains(spawn.getTimelineClip()))
+                    return refuse(REFUSE_BAD_TIME);
+                if (actorTrack.hasActionOverlap(spawn, null, start, end)) return refuse(REFUSE_OVERLAP);
+                authoredAction.setTimeRange(start, end);
+                com.director.ui.timeline.commands.TimelineCommandBridge.execute(
+                        new com.director.ui.timeline.commands.StateChangeCommand(model, "Create actor action interval",
+                                () -> spawn.removeActionInterval(authoredAction), () -> spawn.addActionInterval(authoredAction)));
+                model.selectItem(spawn.getTimelineClip(), false);
+                lastRefusal = null;
+                return spawn.getTimelineClip();
+            }
+            if (actorTrack.getClips().stream().anyMatch(EntitySpawnClip.class::isInstance))
+                return refuse("gui.director.actor.behavior.require_spawn");
+            if (actorTrack.hasActionOverlap(null, null, start, clip.getEndTime())) return refuse(REFUSE_OVERLAP);
+        }
         if (clip instanceof EntityStateClip state) {
             var spawn = actorTrack.findSpawnClipAt(start);
             if (spawn == null || !actorTrack.isPresentAt(start) || spawn.getEndTime() <= start

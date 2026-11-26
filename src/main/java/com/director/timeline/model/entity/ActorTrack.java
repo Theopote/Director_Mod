@@ -324,6 +324,22 @@ public class ActorTrack {
         return active;
     }
 
+    public boolean hasActionOverlap(EntitySpawnClip spawn, EntityClip excluded, float start, float end) {
+        for (var clip : getClips()) {
+            if (clip instanceof ActorActionClip action && action != excluded && overlapsAction(action, start, end))
+                return true;
+            if (spawn == null && clip instanceof EntitySpawnClip owner && !owner.isMuted()
+                    && owner.getActionIntervals().stream().anyMatch(action -> action != excluded && overlapsAction(action,
+                            Math.max(start, owner.getStartTime()), Math.min(end, owner.getEndTime())))) return true;
+        }
+        return spawn != null && spawn.getActionIntervals().stream()
+                .anyMatch(action -> action != excluded && overlapsAction(action, start, end));
+    }
+
+    private static boolean overlapsAction(ActorActionClip action, float start, float end) {
+        return !action.isMuted() && start < end && action.getEndTime() > start && action.getStartTime() < end;
+    }
+
     public EntityLookAtClip findLookAtClipAt(float time) {
         EntityLookAtClip best = null;
         for (var clip : getClips()) {
