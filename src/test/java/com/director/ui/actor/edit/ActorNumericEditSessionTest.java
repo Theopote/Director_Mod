@@ -78,11 +78,11 @@ class ActorNumericEditSessionTest {
         history.redo(); assertEquals(.49f, source.getStrength()); assertEquals(target, source.getTargetEntityUuid());
     }
     @Test void noOpAndReturningToInitialValuesNeverCreateClips() {
+        var spawn = spawn();
         var edit = session(ActorNumericEditSession.Kind.TRANSFORM);
         edit.updateTransform(new Vector3f(8), sample.rotation(), sample.scale());
         edit.updateTransform(sample.position(), sample.rotation(), sample.scale()); edit.commit();
-        assertTrue(track.getClips().isEmpty());
-        var spawn = spawn();
+        assertEquals(1, track.getClips().size());
         edit = session(ActorNumericEditSession.Kind.LOOK_AT); edit.updateStrength(.5f); edit.updateStrength(1); edit.commit();
         assertEquals(0, history.getUndoSize()); assertTrue(spawn.getLookTargets().isEmpty());
     }

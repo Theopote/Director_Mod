@@ -10,18 +10,27 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActorTransformEditSessionTest {
-    @Test void repeatedTransformsAtSameTimeReuseOneClipAndNeverCreateAnotherTrack() {
-        var first=new ActorTransformEditSession(model,track,null);
-        first.arm(); first.draft().setToPos(2,3,4); var clip=first.commit();
-        assertNotNull(clip);
-        var second=new ActorTransformEditSession(model,track,
-                ActorTransformEditSession.resolveSource(track.getActorTrackPayload(),model.getCurrentTime()));
-        second.arm(); second.draft().setToRot(45,0,0); assertSame(clip,second.commit());
-        assertEquals(1,model.getAllTracks().size());
-        assertEquals(1,track.getClips().size()); assertEquals(1,track.getActorTrackPayload().getClips().size());
-        assertTrue(history.undo()); assertEquals(0,clip.getToRot().x);
-        assertTrue(history.undo()); assertTrue(track.getClips().isEmpty());
+    @Test void repeatedTransformsWriteOneSpawnWithoutCreatingClips() {
+        var spawn = spawn();
+        var first = session(null);
+        first.arm();
+        first.draft().setToPos(2, 3, 4);
+        assertNotNull(first.commit());
+
+        var second = session(null);
+        second.draft().setToPos(2, 3, 4);
+        second.arm();
+        second.draft().setToRot(45, 0, 0);
+        assertNotNull(second.commit());
+        assertEquals(1, model.getAllTracks().size());
+        assertEquals(1, track.getClips().size());
+        assertEquals(1, track.getActorTrackPayload().getClips().size());
+        assertTrue(history.undo());
+        assertEquals(0f, spawn.getYawDeg());
+        assertTrue(history.undo());
+        assertEquals(new Vector3f(), spawn.getPosition());
     }
+
     @Test void explicitlySelectedReferenceWinsOutsideItsRange() {
         var selected = source();
         var other = new EntityTransformClip("Other", 20, 30);
@@ -193,15 +202,20 @@ class ActorTransformEditSessionTest {
         return clip;
     }
     ActorTransformEditSession session(EntityTransformClip clip) { return new ActorTransformEditSession(model, track, clip); }
-    @Test void creationIsDetachedUntilOneCommitAndBothListsUndoTogether() {
-        var edit = session(null);
-        for (int i = 0; i < 100; i++) edit.draft().setToPos(i, 0, 0);
-        assertTrue(track.getClips().isEmpty()); assertTrue(track.getActorTrackPayload().getClips().isEmpty());
-        var result = edit.commit(); assertNotNull(result); assertEquals(1, history.getUndoSize());
-        history.undo(); assertTrue(track.getClips().isEmpty()); assertTrue(track.getActorTrackPayload().getClips().isEmpty());
-        history.redo(); assertSame(result, track.getActorTrackPayload().getClips().getFirst());
-        assertSame(result.getTimelineClip(), track.getClips().getFirst());
+    private EntitySpawnClip spawn() {
+        var spawn = new EntitySpawnClip("Performance", 0, 5);
+        track.getActorTrackPayload().addClip(spawn);
+        track.addClip(new EntityTimelineClip(spawn, 0));
+        return spawn;
     }
+
+    @Test void emptyTrackRejectsLiveTransformWithoutCreatingData() {
+        assertThrows(IllegalArgumentException.class, () -> session(null));
+        assertTrue(track.getClips().isEmpty());
+        assertTrue(track.getActorTrackPayload().getClips().isEmpty());
+        assertEquals(0, history.getUndoSize());
+    }
+
     @Test void initializationAndZeroMotionDoNotWriteOrCreateHistory() {
         var clip = source(); var edit = session(clip);
         edit.draft().setFromPos(2, 3, 4); edit.draft().setToPos(2, 3, 4); edit.arm();
@@ -225,16 +239,18 @@ class ActorTransformEditSessionTest {
         assertEquals(new Vector3f(4,5,6), clip.getToPos()); history.redo(); assertEquals(4.5f, clip.getEndTime());
     }
     @Test void returnToInitializedStateAndUntouchedNewGestureAreNoOps() {
+        var spawn = spawn();
         var edit = session(null); edit.draft().setFromPos(2,3,4); edit.draft().setToPos(2,3,4); edit.arm();
         edit.draft().setToPos(9,9,9); edit.draft().setToPos(2,3,4); assertNull(edit.commit());
-        assertNull(session(null).commit()); assertEquals(0, history.getUndoSize()); assertTrue(track.getClips().isEmpty());
+        assertNull(session(null).commit()); assertEquals(0, history.getUndoSize()); assertEquals(1, track.getClips().size()); assertEquals(new Vector3f(), spawn.getPosition());
     }
     @Test void locksMutePlaybackAndTimeChangesRejectWithoutCreatingData() {
+        var spawn = spawn();
         var edit = session(null); track.setLocked(true); assertNull(edit.commit());
         assertThrows(IllegalArgumentException.class, () -> session(null)); track.setLocked(false);
         edit = session(null); track.setMuted(true); assertNull(edit.commit()); track.setMuted(false);
         edit = session(null); model.setPlaying(true); assertNull(edit.commit()); model.setPlaying(false);
-        edit = session(null); model.setCurrentTime(3); assertNull(edit.commit()); assertTrue(track.getClips().isEmpty());
+        edit = session(null); model.setCurrentTime(3); assertNull(edit.commit()); assertEquals(1, track.getClips().size()); assertEquals(new Vector3f(), spawn.getPosition());
     }
     @Test void sourceMutationOrNewWinningClipInvalidatesFrozenTarget() {
         var clip = source(); var edit = session(clip); clip.setInterpolation(TimelineInterpolation.SMOOTH);
@@ -275,19 +291,6 @@ class ActorTransformEditSessionTest {
         var clip = source(); model.setCurrentTime(3.5f); var edit = session(clip);
         edit.draft().setTimeRange(1, 4.5f); edit.arm(); assertNull(edit.commit());
         assertEquals(3, clip.getEndTime()); assertEquals(0, history.getUndoSize());
-    }
-    @Test void partialWrapperInsertionFailureRollsBackBothLists() {
-        var payload = track.getActorTrackPayload(); model.removeTrack(track);
-        track = new TimelineTrack("Failing", TrackType.ACTOR) {
-            @Override public boolean addClip(TimelineClip clip) {
-                super.addClip(clip); throw new IllegalStateException("Injected insertion failure");
-            }
-        };
-        track.setActorTrackPayload(payload); model.addTrack(track);
-        var edit = session(null); edit.draft().setToPos(2, 3, 4);
-        assertThrows(IllegalStateException.class, edit::commit);
-        assertTrue(payload.getClips().isEmpty()); assertTrue(track.getClips().isEmpty());
-        assertEquals(0, history.getUndoSize());
     }
     @Test void keyedClipUpdatesTheCurrentKeyAndPreservesUneditedChannelsAndMetadata() {
         var clip = source(); var key = new EntityClipKeyframe(2, TimelineInterpolation.LINEAR);

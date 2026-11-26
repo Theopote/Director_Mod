@@ -64,6 +64,7 @@ public final class ActorTransformEditSession {
                 && payload.getActorRef() != null && Objects.equals(actorId, payload.getActorRef().getActorId())
                 && ActorRegistryManager.getInstance().getActor(actorId).isPresent()
                 && sourceClips.equals(payload.getClips())
+                && (source != null || initialSpawn != null)
                 && liveEditBlock(model, owner) == null
                 && (initialSpawn == null || resolveLiveSpawn(model, owner) == initialSpawn
                     && initialSpawn.getStartTime() == spawnStart && initialSpawn.getEndTime() == spawnEnd
@@ -111,8 +112,7 @@ public final class ActorTransformEditSession {
         if (selected instanceof EntityTransformClip) return null;
         var payload = owner.getActorTrackPayload();
         float time = model.getCurrentTime();
-        if (resolveLiveSpawn(model, owner) == null
-                && payload.getClips().stream().anyMatch(EntitySpawnClip.class::isInstance))
+        if (resolveLiveSpawn(model, owner) == null && resolveSource(model, owner) == null)
             return selected instanceof EntitySpawnClip
                     ? "gui.director.actor.transform_edit.selected_spawn_inactive"
                     : "gui.director.actor.transform_edit.require_spawn";
@@ -200,30 +200,17 @@ public final class ActorTransformEditSession {
                     () -> before.apply(source), () -> after.apply(source)));
             return source;
         }
-        if (initialSpawn != null) {
-            if (!sourceKeys.isEmpty()) {
-                int mask = (!initial.toPos.equals(after.toPos) ? 1 : 0) | (!initial.toRot.equals(after.toRot) ? 2 : 0) | (!initial.toScale.equals(after.toScale) ? 4 : 0);
-                var key = com.director.ui.actor.pose.ActorRootKeyframeEditing.writeChannels(model,owner,initialSpawn,mask,after.toPos,after.toRot,after.toScale);
-                return key == null ? null : draft;
-            }
-            var updated = new SpawnState(new Vector3f(after.toPos), new Vector3f(after.toRot), new Vector3f(after.toScale));
-            if (updated.equals(spawnBefore)) return null;
-            TimelineCommandBridge.execute(new StateChangeCommand(model, "Adjust actor initial transform",
-                    () -> spawnBefore.apply(initialSpawn), () -> updated.apply(initialSpawn)));
-            return draft; // Detached gesture result; no new timeline reference was created.
+        if (!sourceKeys.isEmpty()) {
+            int mask = (!initial.toPos.equals(after.toPos) ? 1 : 0) | (!initial.toRot.equals(after.toRot) ? 2 : 0)
+                    | (!initial.toScale.equals(after.toScale) ? 4 : 0);
+            var key = com.director.ui.actor.pose.ActorRootKeyframeEditing.writeChannels(
+                    model, owner, initialSpawn, mask, after.toPos, after.toRot, after.toScale);
+            return key == null ? null : draft;
         }
-        var wrapper = new EntityTimelineClip(draft, payload.getColorRgba());
-        TimelineCommandBridge.execute(new StateChangeCommand(model, "Transform actor", () -> {
-            owner.removeClip(wrapper); payload.removeClip(draft.getId());
-        }, () -> {
-            payload.addClip(draft);
-            try {
-                if (!owner.addClip(wrapper)) throw new IllegalStateException("Cannot attach actor transform clip");
-            }
-            catch (RuntimeException failure) {
-                owner.removeClip(wrapper); payload.removeClip(draft.getId()); throw failure;
-            }
-        }));
+        var updated = new SpawnState(new Vector3f(after.toPos), new Vector3f(after.toRot), new Vector3f(after.toScale));
+        if (updated.equals(spawnBefore)) return null;
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Adjust actor initial transform",
+                () -> spawnBefore.apply(initialSpawn), () -> updated.apply(initialSpawn)));
         return draft;
     }
 
