@@ -4,6 +4,7 @@ import com.director.actor.*;
 import com.director.actor.Actor;
 import com.director.actor.action.ActorActionType;
 import com.director.ui.actor.edit.ActorOwnedIntervalEditing;
+import com.director.ui.actor.edit.ActorLegacyIntervalAttachment;
 import com.director.timeline.model.*;
 import com.director.timeline.model.entity.*;
 import com.director.ui.timeline.commands.*;
@@ -197,5 +198,50 @@ class ActorTrackClipAuthoringServiceTest {
         var copied = (EntityTimelineClip) TimelineClipCopies.copy(wrapper);
         assertNotEquals(restored.getPoseIntervals().getFirst().getId(),
                 ((EntitySpawnClip) copied.getEntityClip()).getPoseIntervals().getFirst().getId());
+    }
+
+    @Test void legacyIntervalAttachmentPreservesSamplingIdentityAndUndo() {
+        var payload = track.getActorTrackPayload();
+        var spawn = new EntitySpawnClip("Performance", 0, 8);
+        var parent = new EntityTimelineClip(spawn, 0);
+        payload.addClip(spawn);
+        track.addClip(parent);
+        var state = new EntityStateClip("Legacy", 2, 6);
+        state.setGlowing(true);
+        var wrapper = new EntityTimelineClip(state, 0);
+        payload.addClip(state);
+        track.addClip(wrapper);
+        model.selectItem(wrapper, false);
+        var sampler = new com.director.timeline.playback.entity.EntityClipSampler(payload);
+        assertTrue(sampler.sampleSnapshot(3).glowing);
+
+        assertSame(parent, ActorLegacyIntervalAttachment.attach(model, track, wrapper));
+        assertSame(parent, model.getSelectedClip());
+        assertEquals(java.util.List.of(parent), track.getClips());
+        assertSame(state, spawn.getStateIntervals().getFirst());
+        assertTrue(sampler.sampleSnapshot(3).glowing);
+        assertFalse(sampler.sampleSnapshot(7).glowing);
+        assertTrue(history.undo());
+        assertSame(wrapper, state.getTimelineClip());
+        assertSame(wrapper, model.getSelectedClip());
+        assertTrue(track.getClips().contains(wrapper));
+        assertTrue(spawn.getStateIntervals().isEmpty());
+        assertTrue(history.redo());
+        assertSame(state, spawn.getStateIntervals().getFirst());
+    }
+
+    @Test void legacyAttachmentRejectsASecondPerformanceInsideTheInterval() {
+        var payload = track.getActorTrackPayload();
+        for (var spawn : java.util.List.of(new EntitySpawnClip("Long", 0, 9), new EntitySpawnClip("Short", 3, 4))) {
+            payload.addClip(spawn);
+            track.addClip(new EntityTimelineClip(spawn, 0));
+        }
+        var action = new ActorActionClip("Legacy", 2, 6);
+        var wrapper = new EntityTimelineClip(action, 0);
+        payload.addClip(action);
+        track.addClip(wrapper);
+        assertNull(ActorLegacyIntervalAttachment.attach(model, track, wrapper));
+        assertTrue(track.getClips().contains(wrapper));
+        assertEquals(0, history.getUndoSize());
     }
 }

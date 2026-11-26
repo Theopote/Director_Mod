@@ -34,12 +34,14 @@ import com.director.timeline.model.camera.path.DollyPathClip;
 import com.director.timeline.model.camera.path.OrbitPathClip;
 import com.director.timeline.model.entity.EntityActionClip;
 import com.director.timeline.model.entity.ActorRelationClip;
+import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.entity.EntityAnimationClip;
 import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntityDespawnClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
 import com.director.ui.actor.track.ActorTrackClipAuthoringService;
 import com.director.ui.actor.track.ActorTrackClipKind;
+import com.director.ui.actor.edit.ActorLegacyIntervalAttachment;
 import com.director.timeline.model.entity.EntitySpawnClip;
 import com.director.timeline.model.weather.WeatherKeyframe;
 import com.director.timeline.playback.camera.TimelineCameraController;
@@ -196,6 +198,19 @@ public class TimelineContextMenuFactory {
                .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_2S), new SetClipLengthCommand(model, clip, 2.0f))
                .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_5S), new SetClipLengthCommand(model, clip, 5.0f))
                .separator();
+
+        if (clip instanceof EntityTimelineClip entity && ActorLegacyIntervalAttachment.supports(entity.getEntityClip())) {
+            boolean available = ActorLegacyIntervalAttachment.resolve(model, track, entity) != null;
+            builder.item(tr("gui.director.actor.interval.attach"), () -> {
+                var owner = ActorLegacyIntervalAttachment.attach(model, track, entity);
+                if (owner == null) return;
+                model.selectItem(owner, false);
+                DirectorServices.get().uiSelection().selectClip(owner.getEntityClip());
+                com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(owner);
+            }, null, available);
+            if (!available) builder.disabledItem(tr("gui.director.actor.interval.attach_unavailable"));
+            builder.separator();
+        }
 
         // ⭐ 新增：容器片段的"生成音频"菜单项
         if (track.getType() == TrackType.CONTAINER) {

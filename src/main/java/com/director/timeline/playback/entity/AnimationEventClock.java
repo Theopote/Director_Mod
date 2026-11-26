@@ -123,6 +123,16 @@ public final class AnimationEventClock {
             if(sampler!=null)for(var clip:track.getClips()) {
                 if(clip.getStartTime()>boundaries.first() && clip.getStartTime()<end)boundaries.add(clip.getStartTime());
                 if(clip.getEndTime()>boundaries.first() && clip.getEndTime()<end)boundaries.add(clip.getEndTime());
+                if (clip instanceof com.director.timeline.model.entity.EntitySpawnClip spawn && !spawn.isMuted()) {
+                    for (var action : spawn.getActionIntervals()) {
+                        if (action.isMuted()) continue;
+                        float actionStart = Math.max(spawn.getStartTime(), action.getStartTime());
+                        float actionEnd = Math.min(spawn.getEndTime(), action.getEndTime());
+                        if (actionEnd <= actionStart) continue;
+                        if (actionStart > boundaries.first() && actionStart < end) boundaries.add(actionStart);
+                        if (actionEnd > boundaries.first() && actionEnd < end) boundaries.add(actionEnd);
+                    }
+                }
             }
             var points=new ArrayList<>(boundaries);if(points.size()==1)points.add(end);
             for(int i=1;i<points.size();i++) {

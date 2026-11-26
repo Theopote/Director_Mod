@@ -2491,6 +2491,8 @@
   "gui.director.actor.spawn_edit.yaw": "偏航（度）",
   "gui.director.actor.spawn_edit.pitch": "俯仰（度）",
   "gui.director.actor.spawn_edit.visible": "出生时可见",
+  "gui.director.actor.interval.attach": "归入出场片段",
+  "gui.director.actor.interval.attach_unavailable": "整个区间须由同一个可编辑的出场片段覆盖。",
   "gui.director.actor.look_interval.title": "注视区间",
   "gui.director.actor.look_interval.start": "开始（秒）",
   "gui.director.actor.look_interval.end": "结束（秒）",

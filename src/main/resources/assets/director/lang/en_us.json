@@ -2491,6 +2491,8 @@
   "gui.director.actor.spawn_edit.yaw": "Yaw (degrees)",
   "gui.director.actor.spawn_edit.pitch": "Pitch (degrees)",
   "gui.director.actor.spawn_edit.visible": "Visible on spawn",
+  "gui.director.actor.interval.attach": "Attach to performance clip",
+  "gui.director.actor.interval.attach_unavailable": "Requires one editable performance clip covering the full interval.",
   "gui.director.actor.look_interval.title": "Look-at intervals",
   "gui.director.actor.look_interval.start": "Start (s)",
   "gui.director.actor.look_interval.end": "End (s)",
