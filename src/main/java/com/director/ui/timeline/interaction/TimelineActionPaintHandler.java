@@ -1,142 +1,86 @@
 package com.director.ui.timeline.interaction;
 
-import com.director.actor.Actor;
-import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRegistryManager;
 import com.director.actor.action.ActorActionType;
-import com.director.actor.rig.ActorRigProfile;
-import com.director.ui.timeline.interaction.TimelineDragHandles.ActionPaintHandle;
-import com.director.ui.timeline.interaction.TimelineInteractionManager.InteractionMode;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.timeline.model.entity.ActorActionClip;
 import com.director.timeline.model.entity.ActorTrack;
+import com.director.timeline.model.entity.EntitySpawnClip;
+import com.director.ui.timeline.commands.StateChangeCommand;
+import com.director.ui.timeline.commands.TimelineCommandBridge;
+import com.director.ui.timeline.interaction.TimelineDragHandles.ActionPaintHandle;
+import com.director.ui.timeline.interaction.TimelineInteractionManager.InteractionMode;
 import com.director.ui.timeline.render.TimelineRenderer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-/**
- * Actor Action 涂抹（画笔拖区间）逻辑。
- */
 public final class TimelineActionPaintHandler {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(TimelineActionPaintHandler.class);
-
-    public interface DataChangeNotifier {
-        void onDataChanged();
-    }
-
+    private final TimelineModel model;
     private final TimelineInteractionManager interactionManager;
     private final TimelineRenderer renderer;
-    private final DataChangeNotifier dataChangeNotifier;
 
-    public TimelineActionPaintHandler(
-            TimelineInteractionManager interactionManager,
-            TimelineRenderer renderer,
-            DataChangeNotifier dataChangeNotifier) {
+    public TimelineActionPaintHandler(TimelineModel model, TimelineInteractionManager interactionManager,
+                                      TimelineRenderer renderer) {
+        this.model = model;
         this.interactionManager = interactionManager;
         this.renderer = renderer;
-        this.dataChangeNotifier = dataChangeNotifier;
     }
 
-    public boolean canStartActionPaint(TimelineTrack track) {
-        if (track == null || track.getType() != TrackType.ACTOR) {
-            return false;
-        }
-
-        ActorTrack actorTrack = track.getActorTrackPayload();
-        if (actorTrack == null) {
-            return false;
-        }
-
-        ActorActionType brushAction = ActionBrushState.get();
-        if (brushAction == null) {
-            return false;
-        }
-
-        var actorRef = actorTrack.getActorRef();
-        if (actorRef == null) {
-            return true;
-        }
-
-        ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
-        var actorOpt = actorRegistry.getActor(actorRef.getActorId());
-        if (actorOpt.isEmpty()) {
-            return true;
-        }
-
-        Actor actor = actorOpt.get();
-        ActorRigProfile rig = actor.getRigProfile();
-        if (rig == null) {
-            return true;
-        }
-
-        return rig.supports(brushAction);
+    private static boolean editable(TimelineModel model, TimelineTrack track, ActorTrack payload,
+                                    EntitySpawnClip spawn, ActorActionType action, float anchor) {
+        if (track == null || payload == null || spawn == null || action == null
+                || !Float.isFinite(anchor) || !model.getAllTracks().contains(track)
+                || model.isPlaying() || model.isScrubbing() || track.getType() != TrackType.ACTOR
+                || track.isLocked() || track.isMuted() || track.getActorTrackPayload() != payload
+                || payload.getActorRef() == null || payload.findSpawnClipAt(anchor) != spawn
+                || !payload.isPresentAt(anchor) || spawn.getTimelineClip() == null
+                || !track.getClips().contains(spawn.getTimelineClip())) return false;
+        return ActorRegistryManager.getInstance().getActor(payload.getActorRef().getActorId())
+                .map(actor -> com.director.actor.ActorBehaviorCapabilities.supportsAction(actor, action)).orElse(false);
     }
 
-    public void startActionPaint(TimelineHitResult hit, float mouseX, float contentX) {
-        TimelineTrack track = hit.track();
-        if (track == null || track.getType() != TrackType.ACTOR) {
-            return;
-        }
-
-        ActorTrack actorTrack = track.getActorTrackPayload();
-        if (actorTrack == null) {
-            actorTrack = track.getOrCreateActorTrackPayload();
-        }
-
-        ActorActionType actionType = ActionBrushState.get();
-        if (actionType == null) {
-            return;
-        }
-
-        float startTime = Math.max(0f, renderer.xToTime(mouseX, contentX));
-        ActionPaintHandle handle = new ActionPaintHandle(track, actorTrack, actionType, startTime);
-
-        interactionManager.startInteraction(
-                InteractionMode.PAINT_ACTION,
-                handle,
-                mouseX, imgui.ImGui.getMousePosY(),
-                startTime, startTime);
-
-        LOGGER.debug("[Timeline] 开始 Action 涂抹: Action={}, StartTime={:.2f}s", actionType, startTime);
+    public boolean startActionPaint(TimelineTrack track, float mouseX, float mouseY, float contentX) {
+        if (track == null) return false;
+        float anchor = renderer.xToTime(mouseX, contentX);
+        var payload = track.getActorTrackPayload();
+        var spawn = payload == null ? null : payload.findSpawnClipAt(anchor);
+        var action = ActionBrushState.get();
+        if (!editable(model, track, payload, spawn, action, anchor)) return false;
+        var handle = new ActionPaintHandle(track, payload, spawn, action, anchor, model.getActorEditContextRevision());
+        interactionManager.startInteraction(InteractionMode.PAINT_ACTION, handle, mouseX, mouseY, anchor, anchor);
+        return true;
     }
 
     public void paintAction(float mouseX, float contentX) {
-        Object active = interactionManager.getActiveObject();
-        if (!(active instanceof ActionPaintHandle handle)) {
+        if (!(interactionManager.getActiveObject() instanceof ActionPaintHandle handle)) return;
+        if (handle.revision != model.getActorEditContextRevision()
+                || !editable(model, handle.track, handle.actorTrack, handle.spawn, handle.actionType, handle.startTime)) {
+            interactionManager.endInteraction();
             return;
         }
-
-        float endTime = Math.max(0f, renderer.xToTime(mouseX, contentX));
-        if (endTime < handle.startTime) {
-            endTime = handle.startTime;
-        }
-        if (endTime - handle.startTime < 0.1f) {
-            endTime = handle.startTime + 0.1f;
-        }
-
-        handle.currentEndTime = endTime;
+        float time = renderer.xToTime(mouseX, contentX);
+        handle.currentEndTime = Math.clamp(time, handle.spawn.getStartTime(), handle.spawn.getEndTime());
     }
 
     public void applyActionPaint(ActionPaintHandle handle) {
-        ActorTrack actorTrack = handle.actorTrack;
-        ActorActionType actionType = handle.actionType;
-        float startTime = handle.startTime;
-        float endTime = handle.currentEndTime;
-
-        if (endTime <= startTime) {
-            LOGGER.debug("[Timeline] Action 涂抹取消: 时间段过短 ({}s -> {}s)", startTime, endTime);
-            return;
-        }
-
-        var existingClips = actorTrack.getActionClips();
-        var newClips = ActionClipIntervalResolver.resolve(existingClips, startTime, endTime, actionType);
-        actorTrack.replaceActionClips(newClips);
-
-        LOGGER.info("[Timeline] Action 涂抹完成: Action={}, Time=[{:.2f}s, {:.2f}s], Clips={}",
-                actionType, startTime, endTime, newClips.size());
-
-        dataChangeNotifier.onDataChanged();
+        if (handle.revision == model.getActorEditContextRevision()
+                && handle.track.getActorTrackPayload() == handle.actorTrack)
+            paint(model, handle.track, handle.spawn, handle.actionType, handle.startTime, handle.currentEndTime);
     }
+
+    static boolean paint(TimelineModel model, TimelineTrack track, EntitySpawnClip spawn,
+                         ActorActionType action, float anchor, float end) {
+        var payload = track.getActorTrackPayload();
+        if (!editable(model, track, payload, spawn, action, anchor) || !Float.isFinite(end)) return false;
+        float start = Math.max(spawn.getStartTime(), Math.min(anchor, end));
+        float finish = Math.min(spawn.getEndTime(), Math.max(anchor, end));
+        if (finish - start < .1f - 1e-5f || payload.getActionClips().stream().anyMatch(legacy ->
+                !legacy.isMuted() && legacy.getEndTime() > start && legacy.getStartTime() < finish)) return false;
+
+        var before = spawn.getActionIntervals();
+        var after = ActionClipIntervalResolver.resolve(before, start, finish, action);
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Paint actor action interval",
+                () -> spawn.replaceActionIntervals(after, before), () -> spawn.replaceActionIntervals(before, after)));
+        return true;
+    }
+
 }

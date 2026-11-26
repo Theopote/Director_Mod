@@ -21,6 +21,7 @@ import com.director.timeline.model.camera.path.CameraPathClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.selection.TimelineKeyframeMultiSelection;
 import com.director.ui.timeline.render.TimelineRenderer;
+import com.director.ui.timeline.render.TimelineColors;
 import com.director.ui.timeline.render.TimelineTrackControlHit;
 import com.director.timeline.snapping.TimelineSnapping;
 
@@ -122,13 +123,7 @@ public class TimelineInteractionHandler {
                         callbacks.onDataChanged();
                     }
                 });
-        this.actionPaintHandler = new TimelineActionPaintHandler(
-                interactionManager, renderer,
-                () -> {
-                    if (callbacks != null) {
-                        callbacks.onDataChanged();
-                    }
-                });
+        this.actionPaintHandler = new TimelineActionPaintHandler(model, interactionManager, renderer);
         this.contextMenuController = new TimelineContextMenuController(model,
                 new TimelineContextMenuController.SelectionSync() {
                     @Override
@@ -361,6 +356,55 @@ public class TimelineInteractionHandler {
      * @param scrollY      垂直滚动
      * @param rightClickedOnCanvas 是否在画布上右键点击（由 invisibleButton 检测）
      */
+    public boolean handleActionPaintGesture(boolean hovered, float contentX, float trackTop, float viewportHeight,
+                                            float scrollY) {
+        var io = ImGui.getIO();
+        float x = io.getMousePosX();
+        if (interactionManager.getActiveObject() instanceof ActionPaintHandle handle) {
+            if (ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape) || ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
+                interactionManager.endInteraction();
+                return true;
+            }
+            actionPaintHandler.paintAction(x, contentX);
+            if (interactionManager.getActiveObject() != handle) return true;
+            if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
+                actionPaintHandler.applyActionPaint(handle);
+                interactionManager.endInteraction();
+            } else if (!ImGui.isMouseDown(ImGuiMouseButton.Left)) {
+                interactionManager.endInteraction();
+            }
+            return true;
+        }
+        if (!hovered || interactionManager.isInteracting() || x < contentX || !io.getKeyAlt() || io.getKeyCtrl()
+                || io.getKeyShift() || !ImGui.isMouseClicked(ImGuiMouseButton.Left)) return false;
+        float localY = io.getMousePosY() - trackTop;
+        if (localY < 0 || localY >= viewportHeight) return false;
+        var rows = renderer.getMath().getRowLayout();
+        int row = rows == null ? -1 : rows.headerAt(localY + scrollY);
+        if (row < 0) return false;
+        float height = rows.headerHeight(row);
+        float bandHeight = TimelineRenderer.clipBandHeight(height);
+        int band = (int) ((localY + scrollY - rows.trackTop(row)) / bandHeight);
+        if (height >= 3 * TimelineRenderer.getTrackHeight() && band != 2) return false;
+        return actionPaintHandler.startActionPaint(model.getTrackAt(row), x, io.getMousePosY(), contentX);
+    }
+
+    public void renderActionPaintPreview(imgui.ImDrawList draw, float contentX, float trackTop, float scrollY) {
+        if (!(interactionManager.getActiveObject() instanceof ActionPaintHandle handle)) return;
+        int row = model.getTracks().indexOf(handle.track);
+        if (row < 0) return;
+        float height = renderer.trackHeight(row);
+        float bandHeight = TimelineRenderer.clipBandHeight(height);
+        float y = trackTop + renderer.getMath().trackContentY(row) - scrollY;
+        if (height >= 3 * TimelineRenderer.getTrackHeight()) y += 2 * bandHeight;
+        float left = Math.max(contentX, renderer.getMath().timeToX(Math.min(handle.startTime, handle.currentEndTime)));
+        float right = renderer.getMath().timeToX(Math.max(handle.startTime, handle.currentEndTime));
+        if (right <= left) return;
+        int color = com.director.ui.timeline.render.ActionTypeColors.getColorForActionType(handle.actionType);
+        draw.addRectFilled(left, y + 3, right, y + bandHeight - 3, color, 2f);
+        draw.addRect(left, y + 3, right, y + bandHeight - 3, TimelineColors.COLOR_SELECTED_BORDER, 2f);
+    }
+
     public void handleCanvasInteractions(float contentX,
                                          float trackAreaTop,
                                          float contentW,
@@ -697,9 +741,7 @@ public class TimelineInteractionHandler {
         if (!clipDragHandler.finishInteraction(mode, obj)
                 && !keyframeDragHandler.finishInteraction(mode, obj)
                 && !pathClipDragHandler.finishInteraction(mode, obj)) {
-            if (mode == InteractionMode.PAINT_ACTION && obj instanceof ActionPaintHandle handle) {
-                actionPaintHandler.applyActionPaint(handle);
-            } else if (mode == InteractionMode.DRAG_MARKER && obj instanceof MarkerHandle handle) {
+            if (mode == InteractionMode.DRAG_MARKER && obj instanceof MarkerHandle handle) {
                 playheadMarkerController.finishMarkerDragOnRelease(handle);
         } else if (mode == InteractionMode.DRAG_PLAYHEAD) {
                 playheadMarkerController.finishPlayheadDrag();
@@ -734,7 +776,6 @@ public class TimelineInteractionHandler {
             case DRAG_AUTOMATION_KEYFRAME -> keyframeDragHandler.dragAutomationKeyframe(mouseX, contentX, mouseY, trackAreaTop, scrollY);
             case DRAG_MARKER -> playheadMarkerController.dragMarker(mouseX, contentX);
             case DRAG_PLAYHEAD -> playheadMarkerController.dragPlayhead(mouseX, contentX);
-            case PAINT_ACTION -> actionPaintHandler.paintAction(mouseX, contentX);
             case DRAG_PATH_CLIP -> pathClipDragHandler.dragPathClip(mouseX, contentX);
             case RESIZE_PATH_CLIP_LEFT -> pathClipDragHandler.resizePathClipLeft(mouseX, contentX);
             case RESIZE_PATH_CLIP_RIGHT -> pathClipDragHandler.resizePathClipRight(mouseX, contentX);

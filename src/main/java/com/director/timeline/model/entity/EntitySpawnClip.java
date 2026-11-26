@@ -115,6 +115,13 @@ public class EntitySpawnClip extends EntityClip {
 
     public java.util.List<ActorActionClip> getActionIntervals() { return java.util.List.copyOf(actionIntervals); }
 
+    public void replaceActionIntervals(java.util.List<ActorActionClip> expected, java.util.List<ActorActionClip> next) {
+        if (!actionIntervals.equals(expected)) throw new IllegalStateException("Actor action intervals changed");
+        actionIntervals.clear();
+        actionIntervals.addAll(next);
+        samplingChanged();
+    }
+
     public void addActionInterval(ActorActionClip action) {
         if (actionIntervals.contains(action)) return;
         actionIntervals.add(action);

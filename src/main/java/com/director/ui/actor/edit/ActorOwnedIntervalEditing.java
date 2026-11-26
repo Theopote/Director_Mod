@@ -71,17 +71,22 @@ public final class ActorOwnedIntervalEditing {
         if (!editable(model, spawn, target)) return false;
         Runnable restore;
         Runnable remove;
-        if (target instanceof EntityLookAtClip look) {
-            restore = () -> spawn.addLookTarget(look);
-            remove = () -> spawn.removeLookTarget(look);
-        } else if (target instanceof EntityStateClip state) {
-            restore = () -> spawn.addStateInterval(state);
-            remove = () -> spawn.removeStateInterval(state);
-        } else if (target instanceof ActorActionClip action) {
-            restore = () -> spawn.addActionInterval(action);
-            remove = () -> spawn.removeActionInterval(action);
-        } else {
-            return false;
+        switch (target) {
+            case EntityLookAtClip look -> {
+                restore = () -> spawn.addLookTarget(look);
+                remove = () -> spawn.removeLookTarget(look);
+            }
+            case EntityStateClip state -> {
+                restore = () -> spawn.addStateInterval(state);
+                remove = () -> spawn.removeStateInterval(state);
+            }
+            case ActorActionClip action -> {
+                restore = () -> spawn.addActionInterval(action);
+                remove = () -> spawn.removeActionInterval(action);
+            }
+            case null, default -> {
+                return false;
+            }
         }
         TimelineCommandBridge.execute(new StateChangeCommand(model, "Remove actor interval", restore, remove));
         return true;

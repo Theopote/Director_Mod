@@ -108,7 +108,7 @@ public final class ActionClipIntervalResolver {
             float oldEnd = old.getEndTime();
 
             // 1. 完全不相交 → 保留
-            if (oldEnd <= startTime || oldStart >= endTime) {
+            if (old.isMuted() || oldEnd <= startTime || oldStart >= endTime) {
                 result.add(old);
                 continue;
             }
@@ -123,7 +123,8 @@ public final class ActionClipIntervalResolver {
                     old.getIntensity(),
                     old.isLoop()
                 );
-                left.setName(old.getName() + " (left)");
+                left.setName(old.getName());
+                left.setWeight(old.getWeight());
                 result.add(left);
             }
 
@@ -136,7 +137,8 @@ public final class ActionClipIntervalResolver {
                     old.getIntensity(),
                     old.isLoop()
                 );
-                right.setName(old.getName() + " (right)");
+                right.setName(old.getName());
+                right.setWeight(old.getWeight());
                 result.add(right);
             }
 

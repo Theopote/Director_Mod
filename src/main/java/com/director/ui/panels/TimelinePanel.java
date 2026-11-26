@@ -785,7 +785,9 @@ public class TimelinePanel extends AbstractPanel
         dropTargetTrackIndex = dragDropHandler.handleDragDropTarget(
                 layout.trackRegionTop(), scrollY, layout.contentX(), renderer.getMath()
         );
-        boolean actorRowClick = renderer.handleActorIntervalSummary(canvasHovered)
+        boolean actorRowClick = interactionHandler.handleActionPaintGesture(canvasHovered, layout.contentX(),
+                layout.trackRegionTop(), layout.trackViewportHeight(), scrollY)
+                || renderer.handleActorIntervalSummary(canvasHovered)
                 || renderer.handleActorRowClick(layout.winX(), layout.contentX(),
                 layout.winX() + layout.winW(), layout.trackRegionTop(), layout.trackViewportHeight(), scrollY);
         if (!actorRowClick) interactionHandler.handleCanvasInteractions(
@@ -800,6 +802,7 @@ public class TimelinePanel extends AbstractPanel
                 layout.winX(), layout.trackRegionTop(),
                 layout.winX() + layout.winW(), layout.trackRegionTop() + layout.trackViewportHeight()
         );
+        interactionHandler.renderActionPaintPreview(drawList, layout.contentX(), layout.trackRegionTop(), scrollY);
         interactionHandler.renderMarqueeOverlay(drawList);
         drawList.popClipRect();
 

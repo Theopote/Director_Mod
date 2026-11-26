@@ -86,6 +86,8 @@ public final class TimelineDragHandles {
     public static final class ActionPaintHandle {
         public final TimelineTrack track;
         public final ActorTrack actorTrack;
+        public final com.director.timeline.model.entity.EntitySpawnClip spawn;
+        public final long revision;
         public final ActorActionType actionType;
         public final float startTime;
         public float currentEndTime;
@@ -93,10 +95,13 @@ public final class TimelineDragHandles {
         public ActionPaintHandle(
                 TimelineTrack track,
                 ActorTrack actorTrack,
+                com.director.timeline.model.entity.EntitySpawnClip spawn,
                 ActorActionType actionType,
-                float startTime) {
+                float startTime, long revision) {
             this.track = track;
             this.actorTrack = actorTrack;
+            this.spawn = spawn;
+            this.revision = revision;
             this.actionType = actionType;
             this.startTime = startTime;
             this.currentEndTime = startTime;

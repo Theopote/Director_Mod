@@ -3,7 +3,6 @@ package com.director.ui.actor.lookat;
 import com.director.core.DirectorServices;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoMode;
-import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.entity.EntityLookAtClip;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
@@ -164,14 +163,14 @@ public final class ActorLookAtGizmoController {
             return;
         }
 
-        HitResult hit = com.director.ui.actor.pick.ActorViewportRay.blockHit();
+        BlockHitResult hit = com.director.ui.actor.pick.ActorViewportRay.blockHit();
         if (hit == null) {
             return;
         }
 
         // 只处理方块点击（世界点）
         if (hit.getType() == HitResult.Type.BLOCK) {
-            BlockHitResult bhr = (BlockHitResult) hit;
+            BlockHitResult bhr = hit;
             Vec3d point = bhr.getPos();
             createOrUpdateLookAtClip(point);
             LOGGER.debug("[ActorLookAtGizmoController] 点击世界点创建 LookAtClip: ({}, {}, {})",

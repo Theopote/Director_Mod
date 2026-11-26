@@ -79,6 +79,7 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
         ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.track.create_at_playhead"));
         ImGui.textDisabled(ActorPropertyAdapterI18n.tr("gui.director.actor.track.current_brush",
                 ActorPropertyAdapterI18n.actionSemanticLabel(ActionBrushState.get())));
+        ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.track.brush_gesture"));
         String blocked = ActorTrackClipAuthoringService.getInstance().creationBlockReason(model, track);
         ImGui.beginDisabled(blocked != null);
         for (var kind : ActorTrackClipKind.values()) renderActorClipButton(track, kind);
