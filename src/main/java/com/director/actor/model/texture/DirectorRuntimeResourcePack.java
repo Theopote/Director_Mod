@@ -19,7 +19,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /** Manages the on-disk runtime client resource pack used for custom model previews. */
@@ -27,10 +30,14 @@ public final class DirectorRuntimeResourcePack {
     private static final Logger LOGGER = LoggerFactory.getLogger(DirectorRuntimeResourcePack.class);
     private static final String PACK_ID = "director_runtime_custom_models";
     private static final long RELOAD_DEBOUNCE_MS = 200L;
+    private static final ScheduledExecutorService RELOAD_DEBOUNCE = Executors.newSingleThreadScheduledExecutor(task -> {
+        Thread thread = new Thread(task, "Director-RuntimePackReload");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private static volatile Path rootDirectory;
-    private static volatile long reloadRequestedAt;
-    private static final AtomicBoolean reloadScheduled = new AtomicBoolean(false);
+    private static volatile ScheduledFuture<?> pendingReload;
 
     private DirectorRuntimeResourcePack() {}
 
@@ -142,41 +149,35 @@ public final class DirectorRuntimeResourcePack {
                 new ResourcePackPosition(false, ResourcePackProfile.InsertionPosition.TOP, false)));
     }
 
-    public static void scheduleReload() {
-        reloadRequestedAt = System.currentTimeMillis();
-        if (!reloadScheduled.compareAndSet(false, true)) {
-            return;
+    /**
+     * Trailing debounce on a background timer. Never sleep on the client thread —
+     * only {@code enable} / {@code reloadResources} run via {@code client.execute}.
+     */
+    public static synchronized void scheduleReload() {
+        ScheduledFuture<?> previous = pendingReload;
+        if (previous != null) {
+            previous.cancel(false);
         }
+        pendingReload = RELOAD_DEBOUNCE.schedule(
+                DirectorRuntimeResourcePack::reloadOnClientThread,
+                RELOAD_DEBOUNCE_MS,
+                TimeUnit.MILLISECONDS);
+    }
+
+    private static void reloadOnClientThread() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null) {
-            reloadScheduled.set(false);
             return;
         }
         client.execute(() -> {
             try {
-                long waitUntil = reloadRequestedAt + RELOAD_DEBOUNCE_MS;
-                long remaining = waitUntil - System.currentTimeMillis();
-                if (remaining > 0) {
-                    Thread.sleep(remaining);
-                }
-                if (reloadRequestedAt + RELOAD_DEBOUNCE_MS > System.currentTimeMillis()) {
-                    scheduleReload();
-                    return;
-                }
                 ResourcePackProfile profile = client.getResourcePackManager().getProfile(PACK_ID);
                 if (profile != null) {
                     client.getResourcePackManager().enable(PACK_ID);
                 }
                 client.reloadResources();
-            } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
             } catch (RuntimeException e) {
                 LOGGER.warn("[DirectorRuntimeResourcePack] 资源重载失败", e);
-            } finally {
-                reloadScheduled.set(false);
-                if (System.currentTimeMillis() < reloadRequestedAt + RELOAD_DEBOUNCE_MS) {
-                    scheduleReload();
-                }
             }
         });
     }
