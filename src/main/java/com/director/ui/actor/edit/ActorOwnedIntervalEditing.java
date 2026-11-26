@@ -1,13 +1,15 @@
-package com.director.ui.actor.lookat;
+package com.director.ui.actor.edit;
 
 import com.director.timeline.model.TimelineModel;
+import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
+import com.director.timeline.model.entity.EntityStateClip;
 import com.director.timeline.model.entity.EntitySpawnClip;
 import com.director.ui.timeline.commands.StateChangeCommand;
 import com.director.ui.timeline.commands.TimelineCommandBridge;
 
-public final class ActorLookIntervalEditing {
-    private ActorLookIntervalEditing() {}
+public final class ActorOwnedIntervalEditing {
+    private ActorOwnedIntervalEditing() {}
 
     public enum DragMode { MOVE, START, END }
 
@@ -29,33 +31,55 @@ public final class ActorLookIntervalEditing {
         };
     }
 
-    public static boolean editable(TimelineModel model, EntitySpawnClip spawn, EntityLookAtClip target) {
+    public static boolean editable(TimelineModel model, EntitySpawnClip spawn, EntityClip target) {
         var wrapper = spawn.getTimelineClip();
         var track = wrapper == null ? null : wrapper.getParentTrack();
         return model != null && !model.isPlaying() && !model.isScrubbing()
                 && track != null && !track.isLocked() && !track.isMuted() && !spawn.isMuted()
                 && model.getAllTracks().contains(track) && track.getClips().contains(wrapper)
                 && track.getActorTrackPayload() != null && track.getActorTrackPayload().getClips().contains(spawn)
-                && spawn.getLookTargets().contains(target);
+                && switch (target) {
+                    case EntityLookAtClip look -> spawn.getLookTargets().contains(look);
+                    case EntityStateClip state -> spawn.getStateIntervals().contains(state);
+                    default -> false;
+                };
     }
 
-    public static boolean resize(TimelineModel model, EntitySpawnClip spawn, EntityLookAtClip target,
+    public static boolean resize(TimelineModel model, EntitySpawnClip spawn, EntityClip target,
                                  float start, float end) {
         if (!editable(model, spawn, target) || !Float.isFinite(start) || !Float.isFinite(end)
                 || start < spawn.getStartTime() || end > spawn.getEndTime() || end <= start) return false;
         float beforeStart = target.getStartTime();
         float beforeEnd = target.getEndTime();
         if (start == beforeStart && end == beforeEnd) return true;
-        TimelineCommandBridge.execute(new StateChangeCommand(model, "Change actor look-at interval",
-                () -> spawn.editLookTarget(target, clip -> clip.setTimeRange(beforeStart, beforeEnd)),
-                () -> spawn.editLookTarget(target, clip -> clip.setTimeRange(start, end))));
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Change actor interval",
+                () -> setRange(spawn, target, beforeStart, beforeEnd),
+                () -> setRange(spawn, target, start, end)));
         return true;
     }
 
-    public static boolean remove(TimelineModel model, EntitySpawnClip spawn, EntityLookAtClip target) {
+    public static boolean remove(TimelineModel model, EntitySpawnClip spawn, EntityClip target) {
         if (!editable(model, spawn, target)) return false;
-        TimelineCommandBridge.execute(new StateChangeCommand(model, "Remove actor look-at interval",
-                () -> spawn.addLookTarget(target), () -> spawn.removeLookTarget(target)));
+        Runnable restore;
+        Runnable remove;
+        if (target instanceof EntityLookAtClip look) {
+            restore = () -> spawn.addLookTarget(look);
+            remove = () -> spawn.removeLookTarget(look);
+        } else if (target instanceof EntityStateClip state) {
+            restore = () -> spawn.addStateInterval(state);
+            remove = () -> spawn.removeStateInterval(state);
+        } else {
+            return false;
+        }
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Remove actor interval", restore, remove));
         return true;
+    }
+
+    private static void setRange(EntitySpawnClip spawn, EntityClip target, float start, float end) {
+        switch (target) {
+            case EntityLookAtClip look -> spawn.editLookTarget(look, clip -> clip.setTimeRange(start, end));
+            case EntityStateClip state -> spawn.editStateInterval(state, clip -> clip.setTimeRange(start, end));
+            default -> throw new IllegalArgumentException("Unsupported actor interval");
+        }
     }
 }

@@ -3,6 +3,7 @@ package com.director.ui.actor.track;
 import com.director.actor.*;
 import com.director.actor.Actor;
 import com.director.actor.action.ActorActionType;
+import com.director.ui.actor.edit.ActorOwnedIntervalEditing;
 import com.director.timeline.model.*;
 import com.director.timeline.model.entity.*;
 import com.director.ui.timeline.commands.*;
@@ -108,5 +109,28 @@ class ActorTrackClipAuthoringServiceTest {
         assertEquals(Boolean.FALSE, loaded.getStateIntervals().getFirst().getGlowingOverride());
         var copied = (EntityTimelineClip) TimelineClipCopies.copy(wrapper);
         assertNotEquals(state.getId(), ((EntitySpawnClip) copied.getEntityClip()).getStateIntervals().getFirst().getId());
+    }
+
+    @Test void ownedStateRangeCanBeEditedAndDeletedWithUndo() {
+        var spawn = new EntitySpawnClip("Performance", 0, 6);
+        var wrapper = new EntityTimelineClip(spawn, 0);
+        var payload = track.getActorTrackPayload();
+        payload.addClip(spawn);
+        track.addClip(wrapper);
+        assertSame(wrapper, service.createClip(model, track, ActorTrackClipKind.STATE, null));
+        var state = spawn.getStateIntervals().getFirst();
+        state.setGlowing(true);
+        var editing = new com.director.timeline.playback.entity.EntityClipSampler(payload);
+        assertFalse(ActorOwnedIntervalEditing.resize(model, spawn, state, 4, 7));
+        assertTrue(ActorOwnedIntervalEditing.resize(model, spawn, state, 4, 5));
+        assertFalse(editing.sampleSnapshot(3).glowing);
+        assertTrue(editing.sampleSnapshot(4.5f).glowing);
+        assertTrue(ActorOwnedIntervalEditing.remove(model, spawn, state));
+        assertFalse(editing.sampleSnapshot(4.5f).glowing);
+        assertTrue(history.undo());
+        assertTrue(editing.sampleSnapshot(4.5f).glowing);
+        assertTrue(history.undo());
+        assertTrue(editing.sampleSnapshot(3).glowing);
+        assertEquals(1, track.getClips().size());
     }
 }

@@ -785,7 +785,7 @@ public class TimelinePanel extends AbstractPanel
         dropTargetTrackIndex = dragDropHandler.handleDragDropTarget(
                 layout.trackRegionTop(), scrollY, layout.contentX(), renderer.getMath()
         );
-        boolean actorRowClick = renderer.handleLookSummary(canvasHovered)
+        boolean actorRowClick = renderer.handleActorIntervalSummary(canvasHovered)
                 || renderer.handleActorRowClick(layout.winX(), layout.contentX(),
                 layout.winX() + layout.winW(), layout.trackRegionTop(), layout.trackViewportHeight(), scrollY);
         if (!actorRowClick) interactionHandler.handleCanvasInteractions(

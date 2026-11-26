@@ -14,14 +14,16 @@ import com.director.timeline.model.camera.path.CameraPathClip;
 import com.director.timeline.model.camera.path.CameraPathType;
 import com.director.timeline.model.time.TimeKeyframe;
 import com.director.timeline.model.season.SeasonKeyframe;
+import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
+import com.director.timeline.model.entity.EntityStateClip;
 import com.director.timeline.model.entity.EntitySpawnClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiMouseCursor;
-import com.director.ui.actor.lookat.ActorLookIntervalEditing;
-import com.director.ui.actor.lookat.ActorLookIntervalEditing.DragMode;
-import com.director.ui.actor.lookat.ActorLookIntervalEditing.Range;
+import com.director.ui.actor.edit.ActorOwnedIntervalEditing;
+import com.director.ui.actor.edit.ActorOwnedIntervalEditing.DragMode;
+import com.director.ui.actor.edit.ActorOwnedIntervalEditing.Range;
 
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -124,42 +126,42 @@ public class TimelineRenderer {
         return headerHeight / bands;
     }
 
-    private record LookSummary(EntityTimelineClip owner, EntityLookAtClip target,
+    private record ActorIntervalSummary(EntityTimelineClip owner, EntityClip target,
                                float start, float end, float left, float top, float right, float bottom) {}
 
-    private final TimelineTimeFormatter lookTimeFormatter = new TimelineTimeFormatter();
-    private final List<LookSummary> lookSummaries = new java.util.ArrayList<>();
+    private final TimelineTimeFormatter intervalTimeFormatter = new TimelineTimeFormatter();
+    private final List<ActorIntervalSummary> actorIntervalSummaries = new java.util.ArrayList<>();
 
-    private record LookDrag(LookSummary summary, DragMode mode, Range original, Range bounds,
+    private record ActorIntervalDrag(ActorIntervalSummary summary, DragMode mode, Range original, Range bounds,
                             float pressX, float pressTime, long revision) {
         EntitySpawnClip spawn() { return (EntitySpawnClip) summary.owner.getEntityClip(); }
     }
 
-    private LookDrag lookDrag;
-    private Range lookDragPreview;
-    private boolean lookDragMoved;
+    private ActorIntervalDrag actorIntervalDrag;
+    private Range actorIntervalDragPreview;
+    private boolean actorIntervalDragMoved;
 
-    public boolean handleLookSummary(boolean canvasHovered) {
+    public boolean handleActorIntervalSummary(boolean canvasHovered) {
         float x = ImGui.getIO().getMousePosX();
-        if (lookDrag != null) return updateLookDrag(x);
+        if (actorIntervalDrag != null) return updateActorIntervalDrag(x);
         if (!canvasHovered) return false;
 
         float y = ImGui.getIO().getMousePosY();
-        for (var summary : lookSummaries.reversed()) {
+        for (var summary : actorIntervalSummaries.reversed()) {
             if (x < summary.left || x > summary.right || y < summary.top || y > summary.bottom) continue;
-            ImGui.setTooltip(lookLabel(summary.target) + "  " + lookTimeFormatter.formatTimeLabel(summary.start)
-                    + " – " + lookTimeFormatter.formatTimeLabel(summary.end));
+            ImGui.setTooltip(intervalLabel(summary.target) + "  " + intervalTimeFormatter.formatTimeLabel(summary.start)
+                    + " – " + intervalTimeFormatter.formatTimeLabel(summary.end));
             var spawn = (EntitySpawnClip) summary.owner.getEntityClip();
-            var mode = lookDragMode(summary, x);
+            var mode = actorIntervalDragMode(summary, x);
             boolean editable = summary.start == summary.target.getStartTime() && summary.end == summary.target.getEndTime()
-                    && ActorLookIntervalEditing.editable(model, spawn, summary.target);
+                    && ActorOwnedIntervalEditing.editable(model, spawn, summary.target);
             if (editable && mode != DragMode.MOVE) ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
             if (!ImGui.isMouseClicked(ImGuiMouseButton.Left) || ImGui.getIO().getKeyCtrl()
                     || ImGui.getIO().getKeyShift() || ImGui.getIO().getKeyAlt()) return false;
-            selectLookOwner(summary);
+            selectIntervalOwner(summary);
             float time = Math.clamp(math.xToTime(x), summary.start, summary.end);
             if (editable) {
-                lookDrag = new LookDrag(summary, mode, new Range(summary.start, summary.end),
+                actorIntervalDrag = new ActorIntervalDrag(summary, mode, new Range(summary.start, summary.end),
                         new Range(spawn.getStartTime(), spawn.getEndTime()), x, time, model.getActorEditContextRevision());
             } else {
                 model.setPlaying(false);
@@ -170,51 +172,53 @@ public class TimelineRenderer {
         return false;
     }
 
-    private DragMode lookDragMode(LookSummary summary, float x) {
+    private DragMode actorIntervalDragMode(ActorIntervalSummary summary, float x) {
         if (summary.right - summary.left < 14f) return DragMode.MOVE;
         if (Math.abs(x - math.timeToX(summary.start)) <= 5f) return DragMode.START;
         if (Math.abs(x - math.timeToX(summary.end)) <= 5f) return DragMode.END;
         return DragMode.MOVE;
     }
 
-    private void selectLookOwner(LookSummary summary) {
+    private void selectIntervalOwner(ActorIntervalSummary summary) {
         model.selectItem(summary.owner, false);
         com.director.core.DirectorServices.get().uiSelection().selectClip(summary.owner.getEntityClip());
         com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(summary.owner);
     }
 
-    private boolean updateLookDrag(float mouseX) {
-        var drag = lookDrag;
+    private boolean updateActorIntervalDrag(float mouseX) {
+        var drag = actorIntervalDrag;
         var target = drag.summary.target;
         var spawn = drag.spawn();
         boolean current = model.getActorEditContextRevision() == drag.revision
                 && model.getSelectedClip() == drag.summary.owner
                 && spawn.getStartTime() == drag.bounds.start() && spawn.getEndTime() == drag.bounds.end()
                 && target.getStartTime() == drag.original.start() && target.getEndTime() == drag.original.end()
-                && ActorLookIntervalEditing.editable(model, spawn, target);
+                && ActorOwnedIntervalEditing.editable(model, spawn, target);
         if (current && !ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) {
-            lookDragMoved |= Math.abs(mouseX - drag.pressX) >= 4f;
-            if (lookDragMoved) {
+            actorIntervalDragMoved |= Math.abs(mouseX - drag.pressX) >= 4f;
+            if (actorIntervalDragMoved) {
                 float delta = math.xToTime(mouseX) - drag.pressTime;
-                lookDragPreview = ActorLookIntervalEditing.dragRange(drag.original, drag.bounds, drag.mode, delta);
+                actorIntervalDragPreview = ActorOwnedIntervalEditing.dragRange(drag.original, drag.bounds, drag.mode, delta);
             }
             if (ImGui.isMouseDown(ImGuiMouseButton.Left)) return true;
             if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
-                if (lookDragPreview != null) {
-                    ActorLookIntervalEditing.resize(model, spawn, target, lookDragPreview.start(), lookDragPreview.end());
+                if (actorIntervalDragPreview != null) {
+                    ActorOwnedIntervalEditing.resize(model, spawn, target, actorIntervalDragPreview.start(), actorIntervalDragPreview.end());
                 } else {
                     model.setCurrentTime(drag.pressTime);
                 }
             }
         }
-        lookDrag = null;
-        lookDragPreview = null;
-        lookDragMoved = false;
+        actorIntervalDrag = null;
+        actorIntervalDragPreview = null;
+        actorIntervalDragMoved = false;
         return true;
     }
 
-    private static String lookLabel(EntityLookAtClip target) {
-        String mode = switch (target.getMode()) {
+    private static String intervalLabel(EntityClip target) {
+        if (target instanceof EntityStateClip) return target.getName();
+        var look = (EntityLookAtClip) target;
+        String mode = switch (look.getMode()) {
             case CAMERA -> "mode_camera";
             case WORLD_POINT -> "mode_world_point";
             case ENTITY_UUID -> "mode_entity";
@@ -224,44 +228,55 @@ public class TimelineRenderer {
                 + com.director.i18n.ActorPropertyAdapterI18n.tr(prefix + mode);
     }
 
-    private void renderLookSummaries(ImDrawList draw, TimelineTrack track, float contentX, float contentW,
-                                     float trackY, float headerHeight) {
-        float bandHeight = clipBandHeight(headerHeight);
+    private void renderActorIntervalSummaries(ImDrawList draw, TimelineTrack track, float contentX, float contentW,
+                                              float trackY, float headerHeight) {
         if (headerHeight < 4 * TRACK_HEIGHT) return;
+        float bandHeight = clipBandHeight(headerHeight);
         float y = trackY + 3 * bandHeight + 3;
         for (var clip : track.getClips()) {
             if (!(clip instanceof EntityTimelineClip owner) || !(owner.getEntityClip() instanceof EntitySpawnClip spawn)) continue;
-            for (var target : spawn.getLookTargets()) {
-                float start = Math.max(spawn.getStartTime(), target.getStartTime());
-                float end = Math.min(spawn.getEndTime(), target.getEndTime());
-                boolean dragging = lookDrag != null && lookDrag.summary.target == target && lookDragPreview != null;
-                if (dragging) {
-                    start = lookDragPreview.start();
-                    end = lookDragPreview.end();
-                }
-                float left = Math.max(contentX, math.timeToX(start));
-                float right = Math.min(contentX + contentW, math.timeToX(end));
-                if (right <= left) continue;
-                float bottom = y + bandHeight - 6;
-                boolean muted = track.isMuted() || spawn.isMuted() || target.isMuted();
-                int color = muted ? TimelineColors.rgba(82, 83, 94, 255) : TimelineColors.rgba(105, 75, 156, 255);
-                draw.addRectFilled(left, y, right, bottom, color, 2f);
-                if (dragging) draw.addRect(left, y, right, bottom, TimelineColors.COLOR_SELECTED_BORDER, 2f);
-                if (right - left >= 14f && model.isSelected(owner) && !muted && !track.isLocked()
-                        && (dragging || start == target.getStartTime() && end == target.getEndTime())) {
-                    if (left == math.timeToX(start))
-                        draw.addLine(left + 2, y + 4, left + 2, bottom - 4, TimelineColors.COLOR_RESIZE_HANDLE);
-                    if (right == math.timeToX(end))
-                        draw.addLine(right - 2, y + 4, right - 2, bottom - 4, TimelineColors.COLOR_RESIZE_HANDLE);
-                }
-                if (right - left >= 18) {
-                    draw.pushClipRect(left, y, right, bottom, true);
-                    draw.addText(left + 3, y, TimelineColors.COLOR_TEXT_LIGHT, lookLabel(target));
-                    draw.popClipRect();
-                }
-                lookSummaries.add(new LookSummary(owner, target, start, end, left, y, right, bottom));
+            for (var target : spawn.getLookTargets())
+                renderActorInterval(draw, track, owner, spawn, target, contentX, contentW, y, bandHeight,
+                        TimelineColors.rgba(105, 75, 156, 255));
+            if (headerHeight >= 5 * TRACK_HEIGHT) {
+                for (var state : spawn.getStateIntervals())
+                    renderActorInterval(draw, track, owner, spawn, state, contentX, contentW, y + bandHeight, bandHeight,
+                            TimelineColors.rgba(47, 113, 103, 255));
             }
         }
+    }
+
+    private void renderActorInterval(ImDrawList draw, TimelineTrack track, EntityTimelineClip owner,
+                                     EntitySpawnClip spawn, EntityClip target, float contentX, float contentW,
+                                     float y, float bandHeight, int activeColor) {
+        float start = Math.max(spawn.getStartTime(), target.getStartTime());
+        float end = Math.min(spawn.getEndTime(), target.getEndTime());
+        boolean dragging = actorIntervalDrag != null && actorIntervalDrag.summary.target == target && actorIntervalDragPreview != null;
+        if (dragging) {
+            start = actorIntervalDragPreview.start();
+            end = actorIntervalDragPreview.end();
+        }
+        float left = Math.max(contentX, math.timeToX(start));
+        float right = Math.min(contentX + contentW, math.timeToX(end));
+        if (right <= left) return;
+        float bottom = y + bandHeight - 6;
+        boolean muted = track.isMuted() || spawn.isMuted() || target.isMuted();
+        int color = muted ? TimelineColors.rgba(82, 83, 94, 255) : activeColor;
+        draw.addRectFilled(left, y, right, bottom, color, 2f);
+        if (dragging) draw.addRect(left, y, right, bottom, TimelineColors.COLOR_SELECTED_BORDER, 2f);
+        if (right - left >= 14f && model.isSelected(owner) && !muted && !track.isLocked()
+                && (dragging || start == target.getStartTime() && end == target.getEndTime())) {
+            if (left == math.timeToX(start))
+                draw.addLine(left + 2, y + 4, left + 2, bottom - 4, TimelineColors.COLOR_RESIZE_HANDLE);
+            if (right == math.timeToX(end))
+                draw.addLine(right - 2, y + 4, right - 2, bottom - 4, TimelineColors.COLOR_RESIZE_HANDLE);
+        }
+        if (right - left >= 18) {
+            draw.pushClipRect(left, y, right, bottom, true);
+            draw.addText(left + 3, y, TimelineColors.COLOR_TEXT_LIGHT, intervalLabel(target));
+            draw.popClipRect();
+        }
+        actorIntervalSummaries.add(new ActorIntervalSummary(owner, target, start, end, left, y, right, bottom));
     }
 
     public static float clipBandOffset(TimelineClip clip, float headerHeight) {
@@ -491,7 +506,7 @@ public class TimelineRenderer {
     public void renderTrackArea(ImDrawList drawList, float winX, float winY, float winW, float viewportHeight) {
         // 保存 trackAreaTop 供简化版本的 getTrackHeaderBounds 使用
         this.trackAreaTop = winY;
-        lookSummaries.clear();
+        actorIntervalSummaries.clear();
 
         syncViewportFromState();
         float scrollY = viewport.getScrollY();
@@ -544,7 +559,7 @@ public class TimelineRenderer {
                             clipBandHeight(headerHeight), contentW);
                 }
                 if (track.getType() == TrackType.ACTOR)
-                    renderLookSummaries(drawList, track, contentX, contentW, trackY, headerHeight);
+                    renderActorIntervalSummaries(drawList, track, contentX, contentW, trackY, headerHeight);
                 drawList.popClipRect();
                 
                 // ⭐ 渲染摄像机路径片段（Path Clips）- 在关键帧之前渲染，使其在关键帧下方

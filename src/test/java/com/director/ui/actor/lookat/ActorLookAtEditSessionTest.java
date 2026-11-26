@@ -1,5 +1,7 @@
 package com.director.ui.actor.lookat;
 
+import com.director.ui.actor.edit.ActorOwnedIntervalEditing;
+
 import com.director.actor.*;
 import com.director.actor.Actor;
 import com.director.timeline.model.*;
@@ -187,17 +189,17 @@ class ActorLookAtEditSessionTest {
         payload.addClip(spawn);
         track.addClip(new EntityTimelineClip(spawn, 0));
         var target = create();
-        assertFalse(ActorLookIntervalEditing.resize(model, spawn, target, 3, 6));
-        assertFalse(ActorLookIntervalEditing.resize(model, spawn, target, 4, 3));
+        assertFalse(ActorOwnedIntervalEditing.resize(model, spawn, target, 3, 6));
+        assertFalse(ActorOwnedIntervalEditing.resize(model, spawn, target, 4, 3));
         assertEquals(1, history.getUndoSize());
-        assertTrue(ActorLookIntervalEditing.resize(model, spawn, target, 3, 4));
+        assertTrue(ActorOwnedIntervalEditing.resize(model, spawn, target, 3, 4));
         assertNull(payload.findLookAtClipAt(2));
         assertSame(target, payload.findLookAtClipAt(3.5f));
         assertNull(payload.findLookAtClipAt(4.5f));
         track.setLocked(true);
-        assertFalse(ActorLookIntervalEditing.remove(model, spawn, target));
+        assertFalse(ActorOwnedIntervalEditing.remove(model, spawn, target));
         track.setLocked(false);
-        assertTrue(ActorLookIntervalEditing.remove(model, spawn, target));
+        assertTrue(ActorOwnedIntervalEditing.remove(model, spawn, target));
         assertNull(payload.findLookAtClipAt(3.5f));
         assertEquals(1, track.getClips().size());
         assertTrue(history.undo());
@@ -211,17 +213,17 @@ class ActorLookAtEditSessionTest {
     }
 
     @Test void draggingAnOwnedLookRangeClampsAtItsSpawnEdges() {
-        var original = new ActorLookIntervalEditing.Range(2, 4);
-        var bounds = new ActorLookIntervalEditing.Range(0, 6);
-        assertEquals(new ActorLookIntervalEditing.Range(0, 2),
-                ActorLookIntervalEditing.dragRange(original, bounds, ActorLookIntervalEditing.DragMode.MOVE, -4));
-        assertEquals(new ActorLookIntervalEditing.Range(4, 6),
-                ActorLookIntervalEditing.dragRange(original, bounds, ActorLookIntervalEditing.DragMode.MOVE, 4));
-        assertEquals(new ActorLookIntervalEditing.Range(0, 4),
-                ActorLookIntervalEditing.dragRange(original, bounds, ActorLookIntervalEditing.DragMode.START, -4));
-        assertEquals(new ActorLookIntervalEditing.Range(2, 6),
-                ActorLookIntervalEditing.dragRange(original, bounds, ActorLookIntervalEditing.DragMode.END, 4));
-        var trimmed = ActorLookIntervalEditing.dragRange(original, bounds, ActorLookIntervalEditing.DragMode.START, 10);
+        var original = new ActorOwnedIntervalEditing.Range(2, 4);
+        var bounds = new ActorOwnedIntervalEditing.Range(0, 6);
+        assertEquals(new ActorOwnedIntervalEditing.Range(0, 2),
+                ActorOwnedIntervalEditing.dragRange(original, bounds, ActorOwnedIntervalEditing.DragMode.MOVE, -4));
+        assertEquals(new ActorOwnedIntervalEditing.Range(4, 6),
+                ActorOwnedIntervalEditing.dragRange(original, bounds, ActorOwnedIntervalEditing.DragMode.MOVE, 4));
+        assertEquals(new ActorOwnedIntervalEditing.Range(0, 4),
+                ActorOwnedIntervalEditing.dragRange(original, bounds, ActorOwnedIntervalEditing.DragMode.START, -4));
+        assertEquals(new ActorOwnedIntervalEditing.Range(2, 6),
+                ActorOwnedIntervalEditing.dragRange(original, bounds, ActorOwnedIntervalEditing.DragMode.END, 4));
+        var trimmed = ActorOwnedIntervalEditing.dragRange(original, bounds, ActorOwnedIntervalEditing.DragMode.START, 10);
         assertEquals(0.01f, trimmed.end() - trimmed.start(), 1e-5f);
     }
 }

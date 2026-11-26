@@ -9,8 +9,8 @@ import imgui.ImGui;
 import imgui.type.ImFloat;
 
 public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySpawnClip> {
-    private final com.director.ui.properties.actor.ActorLookIntervalsPropertyUI lookIntervals =
-            new com.director.ui.properties.actor.ActorLookIntervalsPropertyUI();
+    private final com.director.ui.properties.actor.ActorOwnedIntervalsPropertyUI ownedIntervals =
+            new com.director.ui.properties.actor.ActorOwnedIntervalsPropertyUI();
     private final java.util.Map<com.director.timeline.model.entity.EntityStateClip, EntityStateClipPropertyAdapter> stateInspectors =
             new java.util.IdentityHashMap<>();
     private final ActorClipInspectorGesture gesture = new ActorClipInspectorGesture();
@@ -76,7 +76,7 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.render(source,clip,gesture);
         com.director.ui.properties.actor.ActorAnimationBlendPropertyUI.render(source,clip.getBlendSettings(),clip::setBlendSettings,gesture);
         gesture.end();
-        lookIntervals.render(source);
+        ownedIntervals.renderLookIntervals(source);
         renderStateIntervals(source);
         var navigation = com.director.ui.properties.actor.ActorCoordinationPanel.render(source);
         com.director.ui.properties.actor.ActorCoordinationPanel.navigate(source,navigation);
@@ -92,6 +92,7 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
             ImGui.pushID(state.getId().toString());
             stateInspectors.computeIfAbsent(state, ignored -> new EntityStateClipPropertyAdapter())
                     .renderInterval(state, source);
+            ownedIntervals.renderRange(source, state);
             ImGui.separator();
             ImGui.popID();
         }
