@@ -4,7 +4,6 @@ import com.director.actor.*;
 import com.director.actor.Actor;
 import com.director.actor.action.ActorActionType;
 import com.director.ui.actor.edit.ActorOwnedIntervalEditing;
-import com.director.ui.actor.edit.ActorLegacyIntervalAttachment;
 import com.director.timeline.model.*;
 import com.director.timeline.model.entity.*;
 import com.director.ui.timeline.commands.*;
@@ -13,12 +12,19 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ActorTrackClipAuthoringServiceTest {
     @Test void configuredActionIsOneCommandAndRejectsOverlap() {
-        var wrapper=service.createAction(model,track,ActorActionType.WALK,4,.6f,true);assertNotNull(wrapper);
-        var action=(com.director.timeline.model.entity.ActorActionClip)wrapper.getEntityClip();
-        assertEquals(4,action.getLength());assertEquals(.6f,action.getIntensity());assertTrue(action.isLoop());
-        assertNull(service.createAction(model,track,ActorActionType.WALK,1,1,true));
-        assertEquals(1,history.getUndoSize());assertTrue(history.undo());assertTrue(track.getClips().isEmpty());
-        assertTrue(history.redo());assertSame(wrapper,track.getClips().getFirst());
+        var parent = addSpawn(0, 10);
+        var spawn = (EntitySpawnClip) parent.getEntityClip();
+        assertSame(parent, service.createAction(model, track, ActorActionType.WALK, 4, .6f, true));
+        var action = spawn.getActionIntervals().getFirst();
+        assertEquals(4, action.getLength());
+        assertEquals(.6f, action.getIntensity());
+        assertTrue(action.isLoop());
+        assertNull(service.createAction(model, track, ActorActionType.WALK, 1, 1, true));
+        assertEquals(1, history.getUndoSize());
+        assertTrue(history.undo());
+        assertTrue(spawn.getActionIntervals().isEmpty());
+        assertTrue(history.redo());
+        assertSame(action, spawn.getActionIntervals().getFirst());
     }
     private TimelineModel model;
     private TimelineTrack track;
@@ -33,15 +39,18 @@ class ActorTrackClipAuthoringServiceTest {
         history = new TimelineCommandHistory(); TimelineCommandBridge.bind(history);
     }
     @AfterEach void cleanup() { TimelineCommandBridge.bind(null); ActorRegistryManager.setRegistry(null); }
-    @Test void menuCreationIsOneUndoAndRedoRestoresSameClipAndWrapper() {
-        var wrapper = service.createClip(model, track, ActorTrackClipKind.POSE, null);
-        assertNotNull(wrapper); assertEquals(3, wrapper.getStartTime());
-        var clip = track.getActorTrackPayload().getClips().getFirst();
-        assertTrue(history.undo()); assertTrue(track.getClips().isEmpty());
-        assertTrue(track.getActorTrackPayload().getClips().isEmpty()); assertFalse(history.undo());
-        assertFalse(model.isSelected(wrapper)); assertTrue(history.redo());
-        assertSame(wrapper, track.getClips().getFirst()); assertSame(clip, track.getActorTrackPayload().getClips().getFirst());
-        assertSame(track, wrapper.getParentTrack());
+    @Test void menuCreationIsOneUndoAndRedoRestoresSamePose() {
+        var parent = addSpawn(0, 10);
+        var spawn = (EntitySpawnClip) parent.getEntityClip();
+        assertSame(parent, service.createClip(model, track, ActorTrackClipKind.POSE, null));
+        var pose = spawn.getPoseIntervals().getFirst();
+        assertEquals(3f, pose.getStartTime());
+        assertTrue(history.undo());
+        assertTrue(spawn.getPoseIntervals().isEmpty());
+        assertFalse(history.undo());
+        assertTrue(history.redo());
+        assertSame(pose, spawn.getPoseIntervals().getFirst());
+        assertSame(parent, track.getClips().getFirst());
     }
     @Test void lockedDetachedAndPlayingTracksNeverCreateClips() {
         track.setLocked(true); assertNull(service.createClip(model, track, ActorTrackClipKind.STATE, null));
@@ -56,7 +65,8 @@ class ActorTrackClipAuthoringServiceTest {
         assertNull(service.createClip(model, track, ActorTrackClipKind.POSE, null));
         assertNull(service.createClip(model, track, ActorTrackClipKind.ACTION, ActorActionType.DANCE));
         assertTrue(track.getClips().isEmpty()); assertFalse(history.undo());
-        assertNotNull(service.createClip(model, track, ActorTrackClipKind.ACTION, ActorActionType.WALK));
+        var parent = addSpawn(0, 10);
+        assertSame(parent, service.createClip(model, track, ActorTrackClipKind.ACTION, ActorActionType.WALK));
     }
     @Test void creationBlockReasonExplainsWhyCreationIsUnavailable() {
         assertNull(service.creationBlockReason(model, track));
@@ -200,48 +210,29 @@ class ActorTrackClipAuthoringServiceTest {
                 ((EntitySpawnClip) copied.getEntityClip()).getPoseIntervals().getFirst().getId());
     }
 
-    @Test void legacyIntervalAttachmentPreservesSamplingIdentityAndUndo() {
-        var payload = track.getActorTrackPayload();
-        var spawn = new EntitySpawnClip("Performance", 0, 8);
-        var parent = new EntityTimelineClip(spawn, 0);
-        payload.addClip(spawn);
-        track.addClip(parent);
-        var state = new EntityStateClip("Legacy", 2, 6);
-        state.setGlowing(true);
-        var wrapper = new EntityTimelineClip(state, 0);
-        payload.addClip(state);
-        track.addClip(wrapper);
-        model.selectItem(wrapper, false);
-        var sampler = new com.director.timeline.playback.entity.EntityClipSampler(payload);
-        assertTrue(sampler.sampleSnapshot(3).glowing);
+    @Test void behaviorCreationRequiresAnActiveSpawnAndLookAtUsesItsInterval() {
+        for (var kind : java.util.List.of(ActorTrackClipKind.LOOK_AT_CAMERA, ActorTrackClipKind.STATE,
+                ActorTrackClipKind.ACTION, ActorTrackClipKind.POSE)) {
+            assertNull(service.createClip(model, track, kind, ActorActionType.WALK));
+            assertEquals("gui.director.actor.track.behavior_requires_spawn", service.lastRefusal());
+        }
+        assertTrue(track.getClips().isEmpty());
+        assertEquals(0, history.getUndoSize());
 
-        assertSame(parent, ActorLegacyIntervalAttachment.attach(model, track, wrapper));
-        assertSame(parent, model.getSelectedClip());
-        assertEquals(java.util.List.of(parent), track.getClips());
-        assertSame(state, spawn.getStateIntervals().getFirst());
-        assertTrue(sampler.sampleSnapshot(3).glowing);
-        assertFalse(sampler.sampleSnapshot(7).glowing);
+        var parent = addSpawn(2, 3.5f);
+        assertSame(parent, service.createClip(model, track, ActorTrackClipKind.LOOK_AT_CAMERA, null));
+        var spawn = (EntitySpawnClip) parent.getEntityClip();
+        assertEquals(3.5f, spawn.getLookTargets().getFirst().getEndTime());
+        assertEquals(1, track.getClips().size());
         assertTrue(history.undo());
-        assertSame(wrapper, state.getTimelineClip());
-        assertSame(wrapper, model.getSelectedClip());
-        assertTrue(track.getClips().contains(wrapper));
-        assertTrue(spawn.getStateIntervals().isEmpty());
-        assertTrue(history.redo());
-        assertSame(state, spawn.getStateIntervals().getFirst());
+        assertTrue(spawn.getLookTargets().isEmpty());
     }
 
-    @Test void legacyAttachmentRejectsASecondPerformanceInsideTheInterval() {
-        var payload = track.getActorTrackPayload();
-        for (var spawn : java.util.List.of(new EntitySpawnClip("Long", 0, 9), new EntitySpawnClip("Short", 3, 4))) {
-            payload.addClip(spawn);
-            track.addClip(new EntityTimelineClip(spawn, 0));
-        }
-        var action = new ActorActionClip("Legacy", 2, 6);
-        var wrapper = new EntityTimelineClip(action, 0);
-        payload.addClip(action);
+    private EntityTimelineClip addSpawn(float start, float end) {
+        var spawn = new EntitySpawnClip("Performance", start, end);
+        track.getActorTrackPayload().addClip(spawn);
+        var wrapper = new EntityTimelineClip(spawn, 0);
         track.addClip(wrapper);
-        assertNull(ActorLegacyIntervalAttachment.attach(model, track, wrapper));
-        assertTrue(track.getClips().contains(wrapper));
-        assertEquals(0, history.getUndoSize());
+        return wrapper;
     }
 }

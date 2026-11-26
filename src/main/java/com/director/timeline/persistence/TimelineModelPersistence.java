@@ -219,10 +219,7 @@ public class TimelineModelPersistence {
         public Boolean spawnBoneAnimationMuted;
         public EntityClipDTO spawnPreset;
         public EntityClipDTO spawnSecondaryPreset;
-        public List<EntityClipDTO> spawnLookTargets;
-        public List<EntityClipDTO> spawnStateIntervals;
-        public List<EntityClipDTO> spawnActionIntervals;
-        public List<EntityClipDTO> spawnPoseIntervals;
+        public List<EntityClipDTO> spawnIntervals;
         // Raw optional values isolate malformed blend fields from the rest of the clip DTO.
         public com.google.gson.JsonElement poseBlendMode,poseBlendWeight,poseBlendChannels,poseBlendAllBones,
                 poseBlendBones,poseBlendFadeIn,poseBlendFadeOut;
@@ -1512,14 +1509,12 @@ public class TimelineModelPersistence {
                 cdto.spawnBoneAnimationMuted=sc.isBoneAnimationMuted();
                 cdto.spawnPreset = writeSpawnPreset(sc.getPreset());
                 cdto.spawnSecondaryPreset = writeSpawnPreset(sc.getSecondaryPreset());
-                if (!sc.getLookTargets().isEmpty())
-                    cdto.spawnLookTargets = sc.getLookTargets().stream().map(TimelineModelPersistence::entityClipToDTO).toList();
-                if (!sc.getStateIntervals().isEmpty())
-                    cdto.spawnStateIntervals = sc.getStateIntervals().stream().map(TimelineModelPersistence::entityClipToDTO).toList();
-                if (!sc.getActionIntervals().isEmpty())
-                    cdto.spawnActionIntervals = sc.getActionIntervals().stream().map(TimelineModelPersistence::entityClipToDTO).toList();
-                if (!sc.getPoseIntervals().isEmpty())
-                    cdto.spawnPoseIntervals = sc.getPoseIntervals().stream().map(TimelineModelPersistence::entityClipToDTO).toList();
+                var intervals = new ArrayList<EntityClipDTO>();
+                sc.getLookTargets().forEach(look -> intervals.add(entityClipToDTO(look)));
+                sc.getStateIntervals().forEach(state -> intervals.add(entityClipToDTO(state)));
+                sc.getActionIntervals().forEach(action -> intervals.add(entityClipToDTO(action)));
+                sc.getPoseIntervals().forEach(pose -> intervals.add(entityClipToDTO(pose)));
+                if (!intervals.isEmpty()) cdto.spawnIntervals = intervals;
                 cdto.setPoseBlend(sc.getBlendSettings());
                 cdto.spawnRoll = sc.getRollDeg();
                 cdto.spawnScaleX = sc.getScale().x; cdto.spawnScaleY = sc.getScale().y; cdto.spawnScaleZ = sc.getScale().z;
@@ -1721,43 +1716,19 @@ public class TimelineModelPersistence {
                 sc.setBoneAnimationMuted(Boolean.TRUE.equals(cdto.spawnBoneAnimationMuted));
                 cdto.restorePoseBlend(sc);
                 restoreSpawnPresets(cdto, sc);
-                if (cdto.spawnLookTargets != null) {
-                    for (var target : cdto.spawnLookTargets) {
-                        if (target == null || !"LOOK_AT".equals(target.clipType)) continue;
+                if (cdto.spawnIntervals != null) {
+                    for (var interval : cdto.spawnIntervals) {
+                        if (interval == null || interval.clipType == null) continue;
                         try {
-                            sc.addLookTarget((com.director.timeline.model.entity.EntityLookAtClip) entityClipFromDTO(target));
+                            switch (interval.clipType) {
+                                case "LOOK_AT" -> sc.addLookTarget((com.director.timeline.model.entity.EntityLookAtClip) entityClipFromDTO(interval));
+                                case "STATE" -> sc.addStateInterval((com.director.timeline.model.entity.EntityStateClip) entityClipFromDTO(interval));
+                                case "ACTOR_ACTION" -> sc.addActionInterval((com.director.timeline.model.entity.ActorActionClip) entityClipFromDTO(interval));
+                                case "ACTOR_POSE" -> sc.addPoseInterval((com.director.timeline.model.entity.ActorPoseClip) entityClipFromDTO(interval));
+                                default -> LOGGER.warn("Unsupported spawn interval type {}", interval.clipType);
+                            }
                         } catch (RuntimeException invalid) {
-                            LOGGER.warn("Unable to restore spawn look target {}", target.id, invalid);
-                        }
-                    }
-                }
-                if (cdto.spawnStateIntervals != null) {
-                    for (var state : cdto.spawnStateIntervals) {
-                        if (state == null || !"STATE".equals(state.clipType)) continue;
-                        try {
-                            sc.addStateInterval((com.director.timeline.model.entity.EntityStateClip) entityClipFromDTO(state));
-                        } catch (RuntimeException invalid) {
-                            LOGGER.warn("Unable to restore spawn state interval {}", state.id, invalid);
-                        }
-                    }
-                }
-                if (cdto.spawnActionIntervals != null) {
-                    for (var action : cdto.spawnActionIntervals) {
-                        if (action == null || !"ACTOR_ACTION".equals(action.clipType)) continue;
-                        try {
-                            sc.addActionInterval((com.director.timeline.model.entity.ActorActionClip) entityClipFromDTO(action));
-                        } catch (RuntimeException invalid) {
-                            LOGGER.warn("Unable to restore spawn action interval {}", action.id, invalid);
-                        }
-                    }
-                }
-                if (cdto.spawnPoseIntervals != null) {
-                    for (var pose : cdto.spawnPoseIntervals) {
-                        if (pose == null || !"ACTOR_POSE".equals(pose.clipType)) continue;
-                        try {
-                            sc.addPoseInterval((com.director.timeline.model.entity.ActorPoseClip) entityClipFromDTO(pose));
-                        } catch (RuntimeException invalid) {
-                            LOGGER.warn("Unable to restore spawn pose interval {}", pose.id, invalid);
+                            LOGGER.warn("Unable to restore spawn interval {}", interval.id, invalid);
                         }
                     }
                 }

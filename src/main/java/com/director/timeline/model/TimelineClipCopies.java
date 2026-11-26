@@ -10,10 +10,7 @@ public final class TimelineClipCopies {
     private static void assignCopyIds(TimelineModelPersistence.EntityClipDTO clip) {
         clip.id = UUID.randomUUID().toString();
         clip.keyframes.forEach(key -> key.id = UUID.randomUUID().toString());
-        if (clip.spawnLookTargets != null) clip.spawnLookTargets.forEach(TimelineClipCopies::assignCopyIds);
-        if (clip.spawnStateIntervals != null) clip.spawnStateIntervals.forEach(TimelineClipCopies::assignCopyIds);
-        if (clip.spawnActionIntervals != null) clip.spawnActionIntervals.forEach(TimelineClipCopies::assignCopyIds);
-        if (clip.spawnPoseIntervals != null) clip.spawnPoseIntervals.forEach(TimelineClipCopies::assignCopyIds);
+        if (clip.spawnIntervals != null) clip.spawnIntervals.forEach(TimelineClipCopies::assignCopyIds);
     }
 
     public static TimelineClip copy(TimelineClip source) {

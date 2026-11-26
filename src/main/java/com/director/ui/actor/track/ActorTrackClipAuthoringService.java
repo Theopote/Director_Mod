@@ -12,6 +12,8 @@ import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
 import com.director.timeline.model.entity.EntitySpawnClip;
 import com.director.timeline.model.entity.EntityStateClip;
+import com.director.ui.timeline.commands.StateChangeCommand;
+import com.director.ui.timeline.commands.TimelineCommandBridge;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.model.entity.EntityTransformClip;
@@ -125,48 +127,38 @@ public final class ActorTrackClipAuthoringService {
             configured.setTimeRange(start,start+duration);configured.setIntensity(intensity);configured.setLoop(loop);
             if(!Float.isFinite(configured.getEndTime())) return refuse(REFUSE_BAD_VALUES);
         }
-        if (clip instanceof ActorActionClip authoredAction) {
+        if (!(clip instanceof EntityTransformClip)) {
             var spawn = actorTrack.findSpawnClipAt(start);
-            if (spawn != null) {
-                float end = Math.min(authoredAction.getEndTime(), spawn.getEndTime());
-                if (!actorTrack.isPresentAt(start) || end - start < .1f - 1e-5f
-                        || spawn.getTimelineClip() == null || !timelineTrack.getClips().contains(spawn.getTimelineClip()))
-                    return refuse(REFUSE_BAD_TIME);
-                if (actorTrack.hasActionOverlap(spawn, null, start, end)) return refuse(REFUSE_OVERLAP);
-                authoredAction.setTimeRange(start, end);
-                com.director.ui.timeline.commands.TimelineCommandBridge.execute(
-                        new com.director.ui.timeline.commands.StateChangeCommand(model, "Create actor action interval",
-                                () -> spawn.removeActionInterval(authoredAction), () -> spawn.addActionInterval(authoredAction)));
-                model.selectItem(spawn.getTimelineClip(), false);
-                lastRefusal = null;
-                return spawn.getTimelineClip();
+            if (spawn == null || !actorTrack.isPresentAt(start) || spawn.getEndTime() <= start
+                    || spawn.getTimelineClip() == null || !timelineTrack.getClips().contains(spawn.getTimelineClip()))
+                return refuse("gui.director.actor.track.behavior_requires_spawn");
+            float end = Math.min(clip.getEndTime(), spawn.getEndTime());
+            if (clip instanceof ActorActionClip && (end - start < .1f - 1e-5f
+                    || actorTrack.hasActionOverlap(spawn, null, start, end)))
+                return refuse(end - start < .1f - 1e-5f ? REFUSE_BAD_TIME : REFUSE_OVERLAP);
+            clip.setTimeRange(start, end);
+            Runnable add;
+            Runnable remove;
+            switch (clip) {
+                case ActorActionClip actionClip -> {
+                    add = () -> spawn.addActionInterval(actionClip);
+                    remove = () -> spawn.removeActionInterval(actionClip);
+                }
+                case ActorPoseClip pose -> {
+                    add = () -> spawn.addPoseInterval(pose);
+                    remove = () -> spawn.removePoseInterval(pose);
+                }
+                case EntityStateClip state -> {
+                    add = () -> spawn.addStateInterval(state);
+                    remove = () -> spawn.removeStateInterval(state);
+                }
+                case EntityLookAtClip look -> {
+                    add = () -> spawn.addLookTarget(look);
+                    remove = () -> spawn.removeLookTarget(look);
+                }
+                default -> throw new IllegalStateException("Unsupported actor interval " + kind);
             }
-            if (actorTrack.getClips().stream().anyMatch(EntitySpawnClip.class::isInstance))
-                return refuse("gui.director.actor.behavior.require_spawn");
-            if (actorTrack.hasActionOverlap(null, null, start, clip.getEndTime())) return refuse(REFUSE_OVERLAP);
-        }
-        if (clip instanceof ActorPoseClip pose && actorTrack.getClips().stream().anyMatch(EntitySpawnClip.class::isInstance)) {
-            var spawn = actorTrack.findSpawnClipAt(start);
-            if (spawn == null || !actorTrack.isPresentAt(start) || spawn.getEndTime() <= start
-                    || spawn.getTimelineClip() == null || !timelineTrack.getClips().contains(spawn.getTimelineClip()))
-                return refuse("gui.director.actor.pose_edit.require_spawn");
-            pose.setTimeRange(start, Math.min(pose.getEndTime(), spawn.getEndTime()));
-            com.director.ui.timeline.commands.TimelineCommandBridge.execute(
-                    new com.director.ui.timeline.commands.StateChangeCommand(model, "Create actor pose interval",
-                            () -> spawn.removePoseInterval(pose), () -> spawn.addPoseInterval(pose)));
-            model.selectItem(spawn.getTimelineClip(), false);
-            lastRefusal = null;
-            return spawn.getTimelineClip();
-        }
-        if (clip instanceof EntityStateClip state) {
-            var spawn = actorTrack.findSpawnClipAt(start);
-            if (spawn == null || !actorTrack.isPresentAt(start) || spawn.getEndTime() <= start
-                    || spawn.getTimelineClip() == null || !timelineTrack.getClips().contains(spawn.getTimelineClip()))
-                return refuse("gui.director.actor.state_edit.require_spawn");
-            state.setTimeRange(start, Math.min(state.getEndTime(), spawn.getEndTime()));
-            com.director.ui.timeline.commands.TimelineCommandBridge.execute(
-                    new com.director.ui.timeline.commands.StateChangeCommand(model, "Create actor state interval",
-                            () -> spawn.removeStateInterval(state), () -> spawn.addStateInterval(state)));
+            TimelineCommandBridge.execute(new StateChangeCommand(model, "Create actor " + kind + " interval", remove, add));
             model.selectItem(spawn.getTimelineClip(), false);
             lastRefusal = null;
             return spawn.getTimelineClip();
