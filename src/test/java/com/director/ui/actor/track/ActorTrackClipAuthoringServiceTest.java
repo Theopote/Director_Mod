@@ -247,6 +247,7 @@ class ActorTrackClipAuthoringServiceTest {
         source.setGlowing(false);
 
         model.setCurrentTime(7);
+        assertTrue(ActorOwnedIntervalEditing.canPaste(model, next, clipboard));
         var pasted = (EntityStateClip) ActorOwnedIntervalEditing.paste(model, next, clipboard);
         assertNotNull(pasted);
         assertNotEquals(source.getId(), pasted.getId());
@@ -262,6 +263,7 @@ class ActorTrackClipAuthoringServiceTest {
         assertSame(pasted, next.getStateIntervals().getFirst());
 
         model.setCurrentTime(9);
+        assertFalse(ActorOwnedIntervalEditing.canPaste(model, next, clipboard));
         assertNull(ActorOwnedIntervalEditing.paste(model, next, clipboard));
         assertEquals(1, history.getUndoSize());
     }

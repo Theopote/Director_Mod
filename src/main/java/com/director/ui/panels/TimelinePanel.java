@@ -806,6 +806,7 @@ public class TimelinePanel extends AbstractPanel
         interactionHandler.renderMarqueeOverlay(drawList);
         drawList.popClipRect();
 
+        renderer.renderActorIntervalMenu();
         interactionHandler.updateMenuState();
         TimelineContextMenu activeMenu = interactionHandler.getActiveContextMenu();
         if (activeMenu != null) {

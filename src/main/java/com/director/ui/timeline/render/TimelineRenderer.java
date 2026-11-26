@@ -185,6 +185,7 @@ public class TimelineRenderer {
     private ActorIntervalDrag actorIntervalDrag;
     private record ActorIntervalSelection(EntityTimelineClip owner, EntityClip target) {}
 
+    private static final String ACTOR_INTERVAL_MENU = "##ActorIntervalMenu";
     private ActorIntervalSelection selectedActorInterval;
     private EntityClip actorIntervalClipboard;
     private Range actorIntervalDragPreview;
@@ -198,6 +199,11 @@ public class TimelineRenderer {
         float y = ImGui.getIO().getMousePosY();
         for (var summary : actorIntervalSummaries.reversed()) {
             if (x < summary.left || x > summary.right || y < summary.top || y > summary.bottom) continue;
+            if (ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
+                selectIntervalOwner(summary);
+                ImGui.openPopup(ACTOR_INTERVAL_MENU);
+                return true;
+            }
             ImGui.setTooltip(intervalLabel(summary.target) + "  " + intervalTimeFormatter.formatTimeLabel(summary.start)
                     + " – " + intervalTimeFormatter.formatTimeLabel(summary.end));
             var spawn = (EntitySpawnClip) summary.owner.getEntityClip();
@@ -221,6 +227,36 @@ public class TimelineRenderer {
         if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) selectedActorInterval = null;
         showCompactActorTooltip(x, y);
         return false;
+    }
+
+    public void renderActorIntervalMenu() {
+        if (!ImGui.beginPopup(ACTOR_INTERVAL_MENU)) return;
+        try {
+            var selection = selectedActorInterval;
+            if (selection == null || model.getSelectedClip() != selection.owner) {
+                ImGui.closeCurrentPopup();
+                return;
+            }
+            var spawn = (EntitySpawnClip) selection.owner.getEntityClip();
+            if (!ActorOwnedIntervalEditing.contains(spawn, selection.target)) {
+                ImGui.closeCurrentPopup();
+                return;
+            }
+            ImGui.textDisabled(intervalLabel(selection.target));
+            ImGui.separator();
+            boolean editable = ActorOwnedIntervalEditing.editable(model, spawn, selection.target);
+            if (ImGui.menuItem(DirectorI18n.translate("gui.director.shortcuts.desc.timeline_cut"), "Ctrl+X", false, editable))
+                handleActorKeyCommand("cut");
+            if (ImGui.menuItem(DirectorI18n.translate("gui.director.shortcuts.desc.timeline_copy"), "Ctrl+C"))
+                handleActorKeyCommand("copy");
+            boolean pasteable = ActorOwnedIntervalEditing.canPaste(model, spawn, actorIntervalClipboard);
+            if (ImGui.menuItem(DirectorI18n.translate("gui.director.actor.root_rows.paste"), "Ctrl+V", false, pasteable))
+                handleActorKeyCommand("paste");
+            if (ImGui.menuItem(DirectorI18n.translate("gui.director.common.delete"), "Del", false, editable))
+                handleActorKeyCommand("delete");
+        } finally {
+            ImGui.endPopup();
+        }
     }
 
     private void showCompactActorTooltip(float x, float y) {
@@ -467,7 +503,7 @@ public class TimelineRenderer {
         if (selection != null && model.getSelectedClip() == selection.owner) {
             var spawn = (EntitySpawnClip) selection.owner.getEntityClip();
             if (action.equals("copy") || action.equals("cut") || action.equals("delete")) {
-                if (actorIntervalDrag != null) return true;
+                if (actorIntervalDrag != null || !ActorOwnedIntervalEditing.contains(spawn, selection.target)) return true;
                 if (action.equals("copy")) {
                     actorIntervalClipboard = com.director.timeline.model.TimelineClipCopies.copyEntityClip(selection.target);
                 } else {
