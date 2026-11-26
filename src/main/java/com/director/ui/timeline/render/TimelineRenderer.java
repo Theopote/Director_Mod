@@ -14,6 +14,10 @@ import com.director.timeline.model.camera.path.CameraPathClip;
 import com.director.timeline.model.camera.path.CameraPathType;
 import com.director.timeline.model.time.TimeKeyframe;
 import com.director.timeline.model.season.SeasonKeyframe;
+import com.director.timeline.model.entity.EntityLookAtClip;
+import com.director.timeline.model.entity.EntitySpawnClip;
+import com.director.timeline.model.entity.EntityTimelineClip;
+import imgui.flag.ImGuiMouseButton;
 
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -114,6 +118,71 @@ public class TimelineRenderer {
     public static float clipBandHeight(float headerHeight) {
         int bands = Math.max(1, Math.min(5, (int) (headerHeight / TRACK_HEIGHT)));
         return headerHeight / bands;
+    }
+
+    private record LookSummary(EntityTimelineClip owner, EntityLookAtClip target,
+                               float start, float end, float left, float top, float right, float bottom) {}
+
+    private final TimelineTimeFormatter lookTimeFormatter = new TimelineTimeFormatter();
+    private final List<LookSummary> lookSummaries = new java.util.ArrayList<>();
+
+    public boolean handleLookSummary(boolean canvasHovered) {
+        if (!canvasHovered) return false;
+        float x = ImGui.getIO().getMousePosX();
+        float y = ImGui.getIO().getMousePosY();
+        for (var summary : lookSummaries.reversed()) {
+            if (x < summary.left || x > summary.right || y < summary.top || y > summary.bottom) continue;
+            ImGui.setTooltip(lookLabel(summary.target) + "  " + lookTimeFormatter.formatTimeLabel(summary.start)
+                    + " – " + lookTimeFormatter.formatTimeLabel(summary.end));
+            if (!ImGui.isMouseClicked(ImGuiMouseButton.Left) || ImGui.getIO().getKeyCtrl()
+                    || ImGui.getIO().getKeyShift() || ImGui.getIO().getKeyAlt()) return false;
+            model.setPlaying(false);
+            float time = Math.clamp(math.xToTime(x), summary.start, summary.end);
+            model.setCurrentTime(time);
+            model.selectItem(summary.owner, false);
+            com.director.core.DirectorServices.get().uiSelection().selectClip(summary.owner.getEntityClip());
+            com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(summary.owner);
+            return true;
+        }
+        return false;
+    }
+
+    private static String lookLabel(EntityLookAtClip target) {
+        String mode = switch (target.getMode()) {
+            case CAMERA -> "mode_camera";
+            case WORLD_POINT -> "mode_world_point";
+            case ENTITY_UUID -> "mode_entity";
+        };
+        String prefix = "gui.director.properties.adapter.actor.look_at.";
+        return com.director.i18n.ActorPropertyAdapterI18n.tr(prefix + "title") + " · "
+                + com.director.i18n.ActorPropertyAdapterI18n.tr(prefix + mode);
+    }
+
+    private void renderLookSummaries(ImDrawList draw, TimelineTrack track, float contentX, float contentW,
+                                     float trackY, float headerHeight) {
+        float bandHeight = clipBandHeight(headerHeight);
+        if (headerHeight < 4 * TRACK_HEIGHT) return;
+        float y = trackY + 3 * bandHeight + 3;
+        for (var clip : track.getClips()) {
+            if (!(clip instanceof EntityTimelineClip owner) || !(owner.getEntityClip() instanceof EntitySpawnClip spawn)) continue;
+            for (var target : spawn.getLookTargets()) {
+                float start = Math.max(spawn.getStartTime(), target.getStartTime());
+                float end = Math.min(spawn.getEndTime(), target.getEndTime());
+                float left = Math.max(contentX, math.timeToX(start));
+                float right = Math.min(contentX + contentW, math.timeToX(end));
+                if (right <= left) continue;
+                float bottom = y + bandHeight - 6;
+                boolean muted = track.isMuted() || spawn.isMuted() || target.isMuted();
+                int color = muted ? TimelineColors.rgba(82, 83, 94, 255) : TimelineColors.rgba(105, 75, 156, 255);
+                draw.addRectFilled(left, y, right, bottom, color, 2f);
+                if (right - left >= 18) {
+                    draw.pushClipRect(left, y, right, bottom, true);
+                    draw.addText(left + 3, y, TimelineColors.COLOR_TEXT_LIGHT, lookLabel(target));
+                    draw.popClipRect();
+                }
+                lookSummaries.add(new LookSummary(owner, target, start, end, left, y, right, bottom));
+            }
+        }
     }
 
     public static float clipBandOffset(TimelineClip clip, float headerHeight) {
@@ -343,6 +412,7 @@ public class TimelineRenderer {
     public void renderTrackArea(ImDrawList drawList, float winX, float winY, float winW, float viewportHeight) {
         // 保存 trackAreaTop 供简化版本的 getTrackHeaderBounds 使用
         this.trackAreaTop = winY;
+        lookSummaries.clear();
 
         syncViewportFromState();
         float scrollY = viewport.getScrollY();
@@ -394,6 +464,8 @@ public class TimelineRenderer {
                     clipRenderer.renderClip(drawList, clip, track, idx, contentX, trackY + offset,
                             clipBandHeight(headerHeight), contentW);
                 }
+                if (track.getType() == TrackType.ACTOR)
+                    renderLookSummaries(drawList, track, contentX, contentW, trackY, headerHeight);
                 drawList.popClipRect();
                 
                 // ⭐ 渲染摄像机路径片段（Path Clips）- 在关键帧之前渲染，使其在关键帧下方

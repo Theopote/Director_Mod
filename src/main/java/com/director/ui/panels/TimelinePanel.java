@@ -779,12 +779,14 @@ public class TimelinePanel extends AbstractPanel
         ImGui.setCursorPos(0, 0);
         float buttonHeight = Math.max(layout.trackViewportHeight(), totalTracksHeight + 100f);
         ImGui.invisibleButton("##TimelineCanvas", layout.winW(), buttonHeight);
-        boolean rightClickedOnCanvas = ImGui.isItemHovered() && ImGui.isMouseClicked(ImGuiMouseButton.Right);
+        boolean canvasHovered = ImGui.isItemHovered();
+        boolean rightClickedOnCanvas = canvasHovered && ImGui.isMouseClicked(ImGuiMouseButton.Right);
 
         dropTargetTrackIndex = dragDropHandler.handleDragDropTarget(
                 layout.trackRegionTop(), scrollY, layout.contentX(), renderer.getMath()
         );
-        boolean actorRowClick = renderer.handleActorRowClick(layout.winX(), layout.contentX(),
+        boolean actorRowClick = renderer.handleLookSummary(canvasHovered)
+                || renderer.handleActorRowClick(layout.winX(), layout.contentX(),
                 layout.winX() + layout.winW(), layout.trackRegionTop(), layout.trackViewportHeight(), scrollY);
         if (!actorRowClick) interactionHandler.handleCanvasInteractions(
                 layout.contentX(), layout.trackRegionTop(),
