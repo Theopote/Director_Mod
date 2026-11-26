@@ -2,6 +2,7 @@ package com.director.actor.animation.asset;
 
 import com.director.actor.rig.skeleton.RigDefinition;
 import com.director.actor.rig.skeleton.RigDefinitions;
+import com.director.persistence.ActorLibrarySaveGuard;
 import com.director.persistence.AtomicFileWriter;
 import com.director.util.WorldIdentifier;
 import com.google.gson.Gson;
@@ -26,6 +27,7 @@ import java.util.Set;
 
 /** Versioned JSON persistence for project animation assets. */
 public final class AnimationAssetPersistence {
+    private static final ActorLibrarySaveGuard SAVE_GUARD = new ActorLibrarySaveGuard();
     private static final Logger LOGGER = LoggerFactory.getLogger(AnimationAssetPersistence.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final int FILE_SCHEMA_VERSION = 1;
@@ -88,6 +90,7 @@ public final class AnimationAssetPersistence {
     public static void save(Path file, AnimationAssetLibrary library) throws IOException {
         if (file == null) throw new IllegalArgumentException("file");
         if (library == null) throw new IllegalArgumentException("library");
+        SAVE_GUARD.requireWritable(file);
         JsonObject root = new JsonObject();
         root.addProperty("schemaVersion", FILE_SCHEMA_VERSION);
         JsonArray assets = new JsonArray();
@@ -100,15 +103,21 @@ public final class AnimationAssetPersistence {
         if (file == null) throw new IllegalArgumentException("file");
         if (library == null) throw new IllegalArgumentException("library");
         try {
-            replaceFromJson(Files.readString(file, StandardCharsets.UTF_8), library);
-        } catch (RuntimeException | IOException primary) {
-            Path backup = file.resolveSibling(file.getFileName() + ".bak");
-            if (!Files.exists(backup)) {
-                if (primary instanceof IOException io) throw io;
-                throw primary;
+            try {
+                replaceFromJson(Files.readString(file, StandardCharsets.UTF_8), library);
+            } catch (RuntimeException | IOException primary) {
+                Path backup = file.resolveSibling(file.getFileName() + ".bak");
+                if (!Files.exists(backup)) {
+                    if (primary instanceof IOException io) throw io;
+                    throw primary;
+                }
+                LOGGER.warn("[AnimationAssetPersistence] 主文件损坏，尝试备份: {}", backup, primary);
+                replaceFromJson(Files.readString(backup, StandardCharsets.UTF_8), library);
             }
-            LOGGER.warn("[AnimationAssetPersistence] 主文件损坏，尝试备份: {}", backup, primary);
-            replaceFromJson(Files.readString(backup, StandardCharsets.UTF_8), library);
+            SAVE_GUARD.loaded(file);
+        } catch (IOException | RuntimeException failure) {
+            SAVE_GUARD.loadFailed(file);
+            throw failure;
         }
     }
 
@@ -129,6 +138,12 @@ public final class AnimationAssetPersistence {
     }
 
     private static JsonObject writeAsset(AnimationAsset asset) {
+        float latest = asset.latestAuthoredTime();
+        if (asset.duration() < latest) {
+            throw new IllegalArgumentException(
+                    "Animation asset \"" + asset.id() + "\" duration " + asset.duration()
+                            + " is shorter than authored content at " + latest);
+        }
         JsonObject out = new JsonObject();
         out.addProperty("schemaVersion", asset.schemaVersion());
         out.addProperty("id", asset.id());

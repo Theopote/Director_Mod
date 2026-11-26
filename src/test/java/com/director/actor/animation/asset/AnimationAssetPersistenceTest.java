@@ -9,10 +9,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AnimationAssetPersistenceTest {
@@ -96,6 +98,17 @@ class AnimationAssetPersistenceTest {
 
         assertTrue(library.contains("project:first"));
         assertEquals(1, library.size());
+    }
+
+    @Test
+    void blocksSaveAfterUnrecoverableLoadFailure() throws Exception {
+        Path file = tempDir.resolve("poison.json");
+        Files.writeString(file, "{ broken json");
+        assertThrows(Exception.class, () -> AnimationAssetPersistence.load(file, library));
+        library.register(asset("project:empty-overwrite", "Empty"));
+        var blocked = assertThrows(IOException.class, () -> AnimationAssetPersistence.save(file, library));
+        assertTrue(blocked.getMessage().contains("加载失败"));
+        assertTrue(Files.readString(file).contains("broken"));
     }
 
     @Test

@@ -3,7 +3,9 @@ package com.director.actor.persistence;
 import com.director.actor.Actor;
 import com.director.actor.ActorGroup;
 import com.director.actor.ActorRegistry;
+import com.director.actor.ActorRegistryManager;
 import com.director.actor.ActorType;
+import com.director.actor.rig.RigProfileStyle;
 import com.director.persistence.ActorLibrarySaveGuard;
 import com.director.persistence.AtomicFileWriter;
 import com.director.util.WorldIdentifier;
@@ -76,19 +78,23 @@ public class ActorRegistryPersistence {
      * @return 是否成功写入当前存档目录
      */
     public static boolean saveToFile(ActorRegistry registry) {
+        return saveToFile(registry, getActorRegistryFile());
+    }
+
+    /** Saves to an explicit registry file (used when flushing the previous world after a switch). */
+    public static boolean saveToFile(ActorRegistry registry, Path file) {
         if (registry == null) {
             LOGGER.warn("[ActorRegistryPersistence] 尝试保存 null ActorRegistry");
             return false;
         }
+        if (file == null) {
+            LOGGER.debug("[ActorRegistryPersistence] 当前无活动存档目录，跳过保存");
+            return false;
+        }
 
         try {
-            Path file = getActorRegistryFile();
-            if (file == null) {
-                LOGGER.debug("[ActorRegistryPersistence] 当前无活动存档目录，跳过保存");
-                return false;
-            }
             SAVE_GUARD.requireWritable(file);
-            
+
             Path parent = file.getParent();
             if (parent != null && !Files.exists(parent)) {
                 Files.createDirectories(parent);
@@ -99,15 +105,19 @@ public class ActorRegistryPersistence {
             AtomicFileWriter.writeString(file, json);
 
             LOGGER.info("[ActorRegistryPersistence] 保存 ActorRegistry 到文件: {} ({} 个 Actor)", file, registry.size());
+            ActorRegistryManager.noteRegistryFile(file);
             return true;
         } catch (IOException e) {
             LOGGER.error("[ActorRegistryPersistence] 保存 ActorRegistry 失败", e);
             return false;
         } catch (Exception e) {
-            // 捕获所有异常，防止保存操作导致崩溃
             LOGGER.error("[ActorRegistryPersistence] 保存 ActorRegistry 时发生未预期的异常", e);
             return false;
         }
+    }
+
+    public static Path currentRegistryFile() {
+        return getActorRegistryFile();
     }
 
     static @NotNull JsonObject getJsonObject(ActorRegistry registry) {
@@ -133,7 +143,7 @@ public class ActorRegistryPersistence {
             if (actor.getCustomModelId() != null) {
                 actorObj.addProperty("customModelId", actor.getCustomModelId());
             }
-            // 未来可以扩展更多字段（如 modelId）
+            actorObj.add("style", writeStyle(actor.getRigProfile().getStyle()));
             actorsArray.add(actorObj);
         }
         root.add("actors", actorsArray);
@@ -178,16 +188,25 @@ public class ActorRegistryPersistence {
         try {
             String json = Files.readString(file);
             JsonObject root = GSON.fromJson(json, JsonObject.class);
-            int actorCount = root.getAsJsonArray("actors").size();
-            int groupCount = root.getAsJsonArray("groups").size();
+            if (root == null || !root.isJsonObject()) {
+                throw new IllegalArgumentException("Actor registry root must be a JSON object");
+            }
+            JsonArray actorsArray = root.has("actors") && root.get("actors").isJsonArray()
+                    ? root.getAsJsonArray("actors") : new JsonArray();
+            JsonArray groupsArray = root.has("groups") && root.get("groups").isJsonArray()
+                    ? root.getAsJsonArray("groups") : new JsonArray();
+            int actorCount = actorsArray.size();
+            int groupCount = groupsArray.size();
             ActorRegistry loaded = new ActorRegistry();
             loadFromJson(loaded, root);
             if (loaded.size() != actorCount || loaded.groupSize() != groupCount) {
                 throw new IllegalArgumentException("Actor registry contains invalid or duplicate entries");
             }
+            registry.clear();
             loaded.getAllActors().forEach(registry::registerActor);
             loaded.getAllGroups().forEach(registry::registerGroup);
             SAVE_GUARD.loaded(file);
+            ActorRegistryManager.noteRegistryFile(file);
         } catch (IOException e) {
             SAVE_GUARD.loadFailed(file);
             LOGGER.error("[ActorRegistryPersistence] 加载 ActorRegistry 失败", e);
@@ -250,6 +269,9 @@ public class ActorRegistryPersistence {
                         } catch (Exception ignored) {
                             // 旧版本或异常字段时忽略自定义模型绑定
                         }
+                    }
+                    if (actorObj.has("style") && actorObj.get("style").isJsonObject()) {
+                        readStyle(actor.getRigProfile().getStyle(), actorObj.getAsJsonObject("style"));
                     }
                     registry.registerActor(actor);
                     loadedCount++;
@@ -322,6 +344,35 @@ public class ActorRegistryPersistence {
     public static boolean hasSavedData() {
         Path file = getActorRegistryFile();
         return file != null && !Files.notExists(file);
+    }
+
+    private static JsonObject writeStyle(RigProfileStyle style) {
+        JsonObject out = new JsonObject();
+        out.addProperty("motionScale", style.motionScale);
+        out.addProperty("tempo", style.tempo);
+        out.addProperty("leanBias", style.leanBias);
+        out.addProperty("armExpressiveness", style.armExpressiveness);
+        out.addProperty("legExpressiveness", style.legExpressiveness);
+        return out;
+    }
+
+    private static void readStyle(RigProfileStyle style, JsonObject in) {
+        style.motionScale = readStyleFloat(in, "motionScale", style.motionScale, 0.5f, 1.5f);
+        style.tempo = readStyleFloat(in, "tempo", style.tempo, 0.7f, 1.3f);
+        style.leanBias = readStyleFloat(in, "leanBias", style.leanBias, 0.5f, 1.5f);
+        style.armExpressiveness = readStyleFloat(in, "armExpressiveness", style.armExpressiveness, 0.3f, 1.5f);
+        style.legExpressiveness = readStyleFloat(in, "legExpressiveness", style.legExpressiveness, 0.3f, 1.5f);
+    }
+
+    private static float readStyleFloat(JsonObject in, String key, float fallback, float min, float max) {
+        if (!in.has(key) || !in.get(key).isJsonPrimitive()) return fallback;
+        try {
+            float value = in.get(key).getAsFloat();
+            if (!Float.isFinite(value)) return fallback;
+            return Math.clamp(value, min, max);
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
     }
 }
 

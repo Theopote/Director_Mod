@@ -70,6 +70,20 @@ class AnimationAssetTest {
     }
 
     @Test
+    void rejectsDurationShorterThanAuthoredKeysOrMarkers() {
+        AnimationAsset asset = new AnimationAsset("project:trim", "Trim", HumanoidRig.DEFINITION,
+                2f, AnimationLoopMode.ONCE);
+        asset.getOrCreateBoneTrack(HumanoidRig.HEAD).rotation()
+                .put(1.5f, new Quaternionf(), InterpolationMode.LINEAR);
+        assertEquals(1.5f, asset.latestAuthoredTime(), 1e-5f);
+        assertThrows(IllegalArgumentException.class, () -> asset.setDuration(1f));
+        asset.setDuration(1.5f);
+        assertEquals(1.5f, asset.duration());
+        asset.addMarker(new AnimationMarker(1.5f, "end"));
+        assertThrows(IllegalArgumentException.class, () -> asset.setDuration(1.4f));
+    }
+
+    @Test
     void rejectsNonFiniteSampleTimes() {
         var asset = new AnimationAsset("project:finite", "Finite", HumanoidRig.DEFINITION,
                 1f, AnimationLoopMode.LOOP);

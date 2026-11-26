@@ -5,176 +5,153 @@ import com.director.persistence.PersistenceSaveStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * ActorRegistryManager v1.0
- *
- * <p>全局 ActorRegistry 管理器（单例模式）
- * <p>负责管理项目级的 ActorRegistry 实例
- *
- * <p>设计特点：
- * <ul>
- *   <li>单例模式：全局唯一实例</li>
- *   <li>线程安全：使用 AtomicReference</li>
- *   <li>项目级：一个世界/项目一个 ActorRegistry</li>
- *   <li>可切换：支持切换项目时更换 ActorRegistry</li>
- * </ul>
- *
- * <p>使用方式：
- * <ul>
- *   <li>获取当前 ActorRegistry：{@link #getInstance()}</li>
- *   <li>创建新项目时：{@link #createNewRegistry()}</li>
- *   <li>切换项目时：{@link #setRegistry(ActorRegistry)}</li>
- * </ul>
- *
- * @author Director Team
- * @version 1.0
+ * Global {@link ActorRegistry} holder with dirty-flag debounce saves.
  */
 public final class ActorRegistryManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorRegistryManager.class);
     private static final AtomicReference<ActorRegistry> GLOBAL = new AtomicReference<>();
+    private static final long MIN_SAVE_INTERVAL_MS = 1000L;
+    private static final ScheduledExecutorService SAVE_DEBOUNCE = Executors.newSingleThreadScheduledExecutor(task -> {
+        Thread thread = new Thread(task, "Director-ActorRegistrySave");
+        thread.setDaemon(true);
+        return thread;
+    });
 
-    /**
-     * 获取全局 ActorRegistry 实例
-     * <p>如果不存在则自动创建，并尝试从文件加载
-     *
-     * @return ActorRegistry 实例
-     */
+    private static final AtomicBoolean dirty = new AtomicBoolean(false);
+    private static volatile ScheduledFuture<?> pendingFlush;
+    /** Last successfully loaded/saved registry file; used so world switches still flush the previous save. */
+    private static volatile Path boundRegistryFile;
+
+    private ActorRegistryManager() {}
+
     public static ActorRegistry getInstance() {
-        ActorRegistry registry = GLOBAL.get();
-        if (registry == null) {
-            // 自动创建新实例
-            registry = new ActorRegistry();
-            GLOBAL.set(registry);
-            LOGGER.info("[ActorRegistryManager] 自动创建新的 ActorRegistry 实例");
-            
-            // 尝试从文件加载
-            if (ActorRegistryPersistence.hasSavedData()) {
-                ActorRegistryPersistence.loadFromFile(registry);
-            }
+        ActorRegistry existing = GLOBAL.get();
+        if (existing != null) return existing;
+        ActorRegistry created = new ActorRegistry();
+        if (ActorRegistryPersistence.hasSavedData()) {
+            ActorRegistryPersistence.loadFromFile(created);
         }
-        return registry;
+        if (GLOBAL.compareAndSet(null, created)) {
+            bindCurrentRegistryFile();
+            LOGGER.info("[ActorRegistryManager] 自动创建新的 ActorRegistry 实例");
+            return created;
+        }
+        return GLOBAL.get();
     }
 
-    /**
-     * 创建新的 ActorRegistry 实例（用于新项目）
-     *
-     * @return 新创建的 ActorRegistry
-     */
     public static ActorRegistry createNewRegistry() {
+        ActorRegistry previous = GLOBAL.get();
+        if (previous != null) flushNow(previous);
         ActorRegistry registry = new ActorRegistry();
         GLOBAL.set(registry);
         LOGGER.info("[ActorRegistryManager] 创建新的 ActorRegistry 实例");
-        
-        // 尝试从文件加载（如果存在）
         if (ActorRegistryPersistence.hasSavedData()) {
             ActorRegistryPersistence.loadFromFile(registry);
         }
-        
+        bindCurrentRegistryFile();
         return registry;
     }
 
-    /**
-     * 设置全局 ActorRegistry 实例（用于切换项目）
-     *
-     * @param registry ActorRegistry 实例
-     */
     public static void setRegistry(ActorRegistry registry) {
         if (registry == null) {
             LOGGER.warn("[ActorRegistryManager] 尝试设置 null ActorRegistry，将清空当前实例");
-            GLOBAL.set(null);
-        } else {
-            // 保存当前实例（如果存在）
-            ActorRegistry oldRegistry = GLOBAL.get();
-            if (oldRegistry != null && oldRegistry != registry) {
-                persistNow(oldRegistry);
-            }
-            
-            GLOBAL.set(registry);
-            LOGGER.info("[ActorRegistryManager] 设置新的 ActorRegistry 实例，包含 {} 个 Actor", registry.size());
-            
-            // 尝试从文件加载新项目的 ActorRegistry
-            if (ActorRegistryPersistence.hasSavedData()) {
-                ActorRegistryPersistence.loadFromFile(registry);
-            }
+            ActorRegistry old = GLOBAL.getAndSet(null);
+            if (old != null) flushNow(old);
+            boundRegistryFile = null;
+            return;
         }
+        ActorRegistry oldRegistry = GLOBAL.get();
+        if (oldRegistry != null && oldRegistry != registry) {
+            flushNow(oldRegistry);
+        }
+        GLOBAL.set(registry);
+        LOGGER.info("[ActorRegistryManager] 设置新的 ActorRegistry 实例，包含 {} 个 Actor", registry.size());
+        if (ActorRegistryPersistence.hasSavedData()) {
+            ActorRegistryPersistence.loadFromFile(registry);
+        }
+        bindCurrentRegistryFile();
     }
 
-    /**
-     * 清空当前 ActorRegistry（用于项目卸载）
-     */
     public static void clear() {
         ActorRegistry registry = GLOBAL.getAndSet(null);
         if (registry != null) {
-            // 保存当前实例
-            persistNow(registry);
+            flushNow(registry);
             registry.clear();
             LOGGER.info("[ActorRegistryManager] 清空 ActorRegistry");
         }
+        boundRegistryFile = null;
     }
 
-    // ⭐ 性能优化：节流保存操作，避免频繁的文件 I/O 阻塞主线程
-    private static volatile long lastSaveTime = 0;
-    private static volatile boolean isSaving = false; // 防止并发保存
-    private static final long MIN_SAVE_INTERVAL_MS = 1000; // 最小保存间隔：1秒（避免频繁保存导致崩溃）
-    
     /**
-     * 保存当前 ActorRegistry 到文件
-     * ⭐ 性能优化：添加节流机制和并发保护，避免频繁保存导致崩溃
-     *
-     * @return 本次是否成功落盘；节流跳过或并发中视为无失败
+     * Marks the registry dirty and schedules a trailing debounce flush.
+     * Always returns {@code true} when the request is accepted; use {@link #saveImmediately()} for a sync result.
      */
     public static boolean save() {
-        long currentTime = System.currentTimeMillis();
-
-        if (isSaving) {
-            return true;
-        }
-
-        if (currentTime - lastSaveTime < MIN_SAVE_INTERVAL_MS) {
-            return true;
-        }
-
-        ActorRegistry registry = GLOBAL.get();
-        if (registry == null) {
-            return true;
-        }
-
-        isSaving = true;
-        try {
-            return persistNow(registry);
-        } finally {
-            isSaving = false;
-        }
+        dirty.set(true);
+        scheduleFlush();
+        return true;
     }
 
     /** Closing an editor must flush the last rename/change even inside the throttle interval. */
     public static boolean saveImmediately() {
-        return persistNow(GLOBAL.get());
+        dirty.set(false);
+        cancelPendingFlush();
+        return flushNow(GLOBAL.get());
     }
 
-    private static boolean persistNow(ActorRegistry registry) {
-        if (registry == null) {
-            return true;
-        }
+    public static void noteRegistryFile(Path file) {
+        boundRegistryFile = file;
+    }
 
-        boolean saved = ActorRegistryPersistence.saveToFile(registry);
+    private static void bindCurrentRegistryFile() {
+        Path file = ActorRegistryPersistence.currentRegistryFile();
+        if (file != null) boundRegistryFile = file;
+    }
+
+    private static synchronized void scheduleFlush() {
+        if (pendingFlush != null && !pendingFlush.isDone()) {
+            pendingFlush.cancel(false);
+        }
+        pendingFlush = SAVE_DEBOUNCE.schedule(() -> {
+            if (!dirty.getAndSet(false)) return;
+            flushNow(GLOBAL.get());
+            if (dirty.get()) scheduleFlush();
+        }, MIN_SAVE_INTERVAL_MS, TimeUnit.MILLISECONDS);
+    }
+
+    private static synchronized void cancelPendingFlush() {
+        if (pendingFlush != null) {
+            pendingFlush.cancel(false);
+            pendingFlush = null;
+        }
+    }
+
+    private static synchronized boolean flushNow(ActorRegistry registry) {
+        if (registry == null) return true;
+        Path target = boundRegistryFile;
+        boolean saved = target != null
+                ? ActorRegistryPersistence.saveToFile(registry, target)
+                : ActorRegistryPersistence.saveToFile(registry);
         PersistenceSaveStatus.reportActorResult(saved);
         if (saved) {
-            lastSaveTime = System.currentTimeMillis();
+            Path current = ActorRegistryPersistence.currentRegistryFile();
+            if (current != null) boundRegistryFile = current;
+            else if (target != null) boundRegistryFile = target;
         }
         return saved;
     }
 
-    /**
-     * 检查是否有活动的 ActorRegistry
-     *
-     * @return 如果有活动的 ActorRegistry 则返回 true
-     */
     public static boolean hasActiveRegistry() {
         return GLOBAL.get() != null;
     }
 }
-

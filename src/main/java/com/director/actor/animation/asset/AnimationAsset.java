@@ -129,11 +129,37 @@ public final class AnimationAsset {
     public RigDefinition rig() { return rig; }
     public String rigId() { return rig.id(); }
     public float duration() { return duration; }
+
+    /** Latest keyframe or marker time; {@code 0} when the asset has no authored timing content. */
+    public float latestAuthoredTime() {
+        float latest = 0f;
+        for (BoneTrack track : boneTracks.values()) {
+            latest = Math.max(latest, latestKeyTime(track.translation()));
+            latest = Math.max(latest, latestKeyTime(track.rotation()));
+            latest = Math.max(latest, latestKeyTime(track.scale()));
+        }
+        for (AnimationMarker marker : markers) latest = Math.max(latest, marker.time());
+        return latest;
+    }
+
+    /**
+     * Rejects a duration shorter than any keyframe or marker so persistence round-trips stay valid.
+     * Use an explicit truncate/scale API if authored content must be rewritten.
+     */
     public void setDuration(float duration) {
         if (!Float.isFinite(duration) || duration < 0f) throw new IllegalArgumentException("Duration must be finite and non-negative");
         if (Float.compare(this.duration, duration) == 0) return;
+        float latest = latestAuthoredTime();
+        if (duration < latest) throw new IllegalArgumentException(
+                "Duration " + duration + " is shorter than authored content at " + latest);
         this.duration = duration;
         metadataChanged();
+    }
+
+    private static float latestKeyTime(KeyframeTrack<?> track) {
+        float latest = 0f;
+        for (ChannelKeyframe<?> frame : track.keyframes()) latest = Math.max(latest, frame.time());
+        return latest;
     }
     public AnimationLoopMode loopMode() { return loopMode; }
     public void setLoopMode(AnimationLoopMode loopMode) {
