@@ -324,6 +324,26 @@ public class ActorTrack {
         return active;
     }
 
+    public EntityLookAtClip findLookAtClipAt(float time) {
+        EntityLookAtClip best = null;
+        for (var clip : getClips()) {
+            if (clip instanceof EntityLookAtClip target) best = preferredLookTarget(best, target, time);
+        }
+        var spawn = findSpawnClipAt(time);
+        if (spawn != null && !hasCompletedDespawn(time, spawn, EntityDespawnClip.DespawnMode.REMOVE)) {
+            var owned = spawn.findLookTargetAt(time);
+            if (owned != null) best = preferredLookTarget(best, owned, time);
+        }
+        return best;
+    }
+
+    static EntityLookAtClip preferredLookTarget(EntityLookAtClip best, EntityLookAtClip candidate, float time) {
+        if (candidate.isMuted() || !(time >= candidate.getStartTime() && time <= candidate.getEndTime())) return best;
+        if (best == null || candidate.getStrength() > best.getStrength()
+                || (candidate.getStrength() == best.getStrength() && candidate.compareTo(best) > 0)) return candidate;
+        return best;
+    }
+
     /** Select the last covering route that can actually supply a position. */
     @org.jetbrains.annotations.Nullable
     public ActorRouteClip findRouteClipAt(float time) {

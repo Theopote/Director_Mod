@@ -219,6 +219,7 @@ public class TimelineModelPersistence {
         public Boolean spawnBoneAnimationMuted;
         public EntityClipDTO spawnPreset;
         public EntityClipDTO spawnSecondaryPreset;
+        public List<EntityClipDTO> spawnLookTargets;
         // Raw optional values isolate malformed blend fields from the rest of the clip DTO.
         public com.google.gson.JsonElement poseBlendMode,poseBlendWeight,poseBlendChannels,poseBlendAllBones,
                 poseBlendBones,poseBlendFadeIn,poseBlendFadeOut;
@@ -1508,6 +1509,8 @@ public class TimelineModelPersistence {
                 cdto.spawnBoneAnimationMuted=sc.isBoneAnimationMuted();
                 cdto.spawnPreset = writeSpawnPreset(sc.getPreset());
                 cdto.spawnSecondaryPreset = writeSpawnPreset(sc.getSecondaryPreset());
+                if (!sc.getLookTargets().isEmpty())
+                    cdto.spawnLookTargets = sc.getLookTargets().stream().map(TimelineModelPersistence::entityClipToDTO).toList();
                 cdto.setPoseBlend(sc.getBlendSettings());
                 cdto.spawnRoll = sc.getRollDeg();
                 cdto.spawnScaleX = sc.getScale().x; cdto.spawnScaleY = sc.getScale().y; cdto.spawnScaleZ = sc.getScale().z;
@@ -1709,6 +1712,16 @@ public class TimelineModelPersistence {
                 sc.setBoneAnimationMuted(Boolean.TRUE.equals(cdto.spawnBoneAnimationMuted));
                 cdto.restorePoseBlend(sc);
                 restoreSpawnPresets(cdto, sc);
+                if (cdto.spawnLookTargets != null) {
+                    for (var target : cdto.spawnLookTargets) {
+                        if (target == null || !"LOOK_AT".equals(target.clipType)) continue;
+                        try {
+                            sc.addLookTarget((com.director.timeline.model.entity.EntityLookAtClip) entityClipFromDTO(target));
+                        } catch (RuntimeException invalid) {
+                            LOGGER.warn("Unable to restore spawn look target {}", target.id, invalid);
+                        }
+                    }
+                }
                 if (cdto.spawnRoll != null) sc.setRollDeg(cdto.spawnRoll);
                 if (cdto.spawnScaleX != null && cdto.spawnScaleY != null && cdto.spawnScaleZ != null)
                     sc.setScale(cdto.spawnScaleX, cdto.spawnScaleY, cdto.spawnScaleZ);

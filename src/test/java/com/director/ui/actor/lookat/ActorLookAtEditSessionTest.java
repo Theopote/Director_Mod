@@ -148,4 +148,36 @@ class ActorLookAtEditSessionTest {
         var edit=new ActorLookAtEditSession(model,track); edit.draft().setWorldPoint(9,0,0); model.setScrubbing(true); model.setScrubbing(false); assertNull(edit.commit());
         assertEquals(0,history.getUndoSize());
     }
+
+    @Test void newLookTargetBelongsToSpawnAndFollowsItsTime() {
+        var payload = track.getActorTrackPayload();
+        var spawn = new EntitySpawnClip("Spawn", 0, 5);
+        payload.addClip(spawn);
+        track.addClip(new EntityTimelineClip(spawn, 0));
+        var target = create();
+        assertNotNull(target);
+        assertEquals(1, track.getClips().size());
+        assertEquals(1, payload.getClips().size());
+        assertSame(target, spawn.findLookTargetAt(2));
+        assertEquals(5f, target.getEndTime());
+        assertTrue(history.undo());
+        assertNull(payload.findLookAtClipAt(2));
+        assertTrue(history.redo());
+        assertSame(target, payload.findLookAtClipAt(2));
+
+        spawn.setTimeRange(10, 15);
+        assertNull(payload.findLookAtClipAt(2));
+        assertSame(target, payload.findLookAtClipAt(12));
+        var sampler = new com.director.timeline.playback.entity.EntityClipSampler(payload);
+        assertTrue(sampler.sampleSnapshot(12).lookAtEnabled);
+        assertFalse(sampler.sampleSnapshot(2).lookAtEnabled);
+        var dto = com.director.timeline.persistence.TimelineModelPersistence.entityClipToDTO(spawn);
+        var restored = (EntitySpawnClip) com.director.timeline.persistence.TimelineModelPersistence.entityClipFromDTO(dto);
+        assertEquals(target.getId(), restored.findLookTargetAt(12).getId());
+        assertEquals(target.getMode(), restored.findLookTargetAt(12).getMode());
+
+        var copy = (EntityTimelineClip) TimelineClipCopies.copy(spawn.getTimelineClip());
+        var copiedSpawn = (EntitySpawnClip) copy.getEntityClip();
+        assertNotEquals(target.getId(), copiedSpawn.findLookTargetAt(12).getId());
+    }
 }

@@ -45,7 +45,6 @@ public class EntityClipSampler {
     private final List<EntityAnimationClip> animationClips = new ArrayList<>();
     private final List<EntityActionClip> actionClips = new ArrayList<>();
     private final List<EntityStateClip> stateClips = new ArrayList<>();
-    private final List<EntityLookAtClip> lookAtClips = new ArrayList<>();
     private final List<ActorActionClip> actorActionClips = new ArrayList<>();
     private final List<ActorPoseClip> actorPoseClips = new ArrayList<>();
     private final List<ActorRelationClip> actorRelationClips = new ArrayList<>();
@@ -53,7 +52,7 @@ public class EntityClipSampler {
 
     private void clearScratch() {
         transformClips.clear(); animationClips.clear(); actionClips.clear();
-        stateClips.clear(); lookAtClips.clear(); actorActionClips.clear();
+        stateClips.clear(); actorActionClips.clear();
         actorPoseClips.clear(); actorRelationClips.clear(); embedded.clear();
     }
 
@@ -165,9 +164,7 @@ public class EntityClipSampler {
                     }
                     break;
                 case LOOK_AT:
-                    if (clip instanceof EntityLookAtClip lookAtClip) {
-                        lookAtClips.add(lookAtClip);
-                    }
+                    // Resolved with spawn-owned targets below.
                     break;
                 case DESPAWN:
                     // Lifecycle effects are evaluated even after the clip ends.
@@ -236,7 +233,7 @@ public class EntityClipSampler {
 
         // ========== 处理 LookAt Clip（看向目标）==========
         // 规则：叠加（强度最大）
-        applyLookAt(result, lookAtClips);
+        applyLookAt(result, track.findLookAtClipAt(timeSeconds));
 
         // ========== 处理 Despawn Clip（离场）==========
         if (presetOwner != null && track.hasCompletedDespawn(timeSeconds, presetOwner, EntityDespawnClip.DespawnMode.HIDE))
@@ -489,18 +486,7 @@ public class EntityClipSampler {
      * 应用 LookAt Clip（看向目标）。
      * 规则：叠加（强度最大）
      */
-    private void applyLookAt(EntitySample result, List<EntityLookAtClip> clips) {
-        EntityLookAtClip best = null;
-
-        // 找到强度最大的
-        for (EntityLookAtClip clip : clips) {
-            if (!clip.isMuted()) {
-                if (best == null || clip.getStrength() >= best.getStrength()) {
-                    best = clip;
-                }
-            }
-        }
-
+    private void applyLookAt(EntitySample result, EntityLookAtClip best) {
         if (best == null) {
             return;
         }

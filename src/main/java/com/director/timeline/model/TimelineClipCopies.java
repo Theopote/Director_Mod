@@ -12,6 +12,10 @@ public final class TimelineClipCopies {
             var dto = TimelineModelPersistence.entityClipToDTO(wrapper.getEntityClip());
             dto.id = UUID.randomUUID().toString();
             dto.keyframes.forEach(key -> key.id = UUID.randomUUID().toString());
+            if (dto.spawnLookTargets != null) for (var target : dto.spawnLookTargets) {
+                target.id = UUID.randomUUID().toString();
+                target.keyframes.forEach(key -> key.id = UUID.randomUUID().toString());
+            }
             return new EntityTimelineClip(TimelineModelPersistence.entityClipFromDTO(dto), source.getColor());
         }
         if (source instanceof AudioTimelineClip) {

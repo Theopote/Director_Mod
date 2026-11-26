@@ -52,7 +52,7 @@ public final class ActorCoordinationPanel {
             ImGui.separator();
             ImGui.textWrapped(tr("gaze",feedback.gaze()));
             var gaze=lookAtAt(owner,time);
-            if(gaze!=null && ImGui.smallButton(tr("view_gaze")+"##coordinationGaze")) requested=new Navigation(Focus.GAZE,gaze.getId());
+            if(gaze!=null && gaze.getTimelineClip()!=null && ImGui.smallButton(tr("view_gaze")+"##coordinationGaze")) requested=new Navigation(Focus.GAZE,gaze.getId());
             for(var kind:ORDER) {
                 var stage=coordination.stages().stream().filter(s->s.kind()==kind).findFirst().orElse(null);
                 if(stage==null) continue;
@@ -96,10 +96,7 @@ public final class ActorCoordinationPanel {
         return tr("state."+stage.state().name().toLowerCase(Locale.ROOT));
     }
     private static EntityLookAtClip lookAtAt(TimelineTrack owner,float time) {
-        EntityLookAtClip best=null;
-        for(var clip:owner.getActorTrackPayload().getClips()) if(clip instanceof EntityLookAtClip look && !look.isMuted()
-                && time>=look.getStartTime() && time<=look.getEndTime() && (best==null || look.getStrength()>=best.getStrength())) best=look;
-        return best;
+        return owner.getActorTrackPayload().findLookAtClipAt(time);
     }
     public static void navigate(EntitySpawnClip source,Navigation request) {
         if(request==null || source.getTimelineClip()==null) return;

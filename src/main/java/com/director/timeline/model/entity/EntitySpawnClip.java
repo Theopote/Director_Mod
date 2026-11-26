@@ -65,7 +65,41 @@ public class EntitySpawnClip extends EntityClip {
         if(getTimelineClip()!=null && boneAnimation.getTimelineClip()!=null)
             boneAnimation.getTimelineClip().setParentTrack(getTimelineClip().getParentTrack());
     }
-    @Override public void setTimeRange(float start,float end) { super.setTimeRange(start,end);syncBoneAnimation(); }
+    private final java.util.List<EntityLookAtClip> lookTargets = new java.util.ArrayList<>();
+
+    public java.util.List<EntityLookAtClip> getLookTargets() { return java.util.List.copyOf(lookTargets); }
+
+    public EntityLookAtClip findLookTargetAt(float time) {
+        EntityLookAtClip best = null;
+        for (var target : lookTargets) best = ActorTrack.preferredLookTarget(best, target, time);
+        return best;
+    }
+
+    public void addLookTarget(EntityLookAtClip target) {
+        if (lookTargets.contains(target)) return;
+        lookTargets.add(target);
+        samplingChanged();
+    }
+
+    public void removeLookTarget(EntityLookAtClip target) {
+        if (lookTargets.remove(target)) samplingChanged();
+    }
+
+    public void editLookTarget(EntityLookAtClip target, java.util.function.Consumer<EntityLookAtClip> edit) {
+        if (!lookTargets.contains(target)) throw new IllegalStateException("Missing spawn look target");
+        edit.accept(target);
+        samplingChanged();
+    }
+
+    @Override public void setTimeRange(float start,float end) {
+        float delta = start - getStartTime();
+        boolean translated = Math.abs((end - start) - getLength()) < 1e-4f;
+        super.setTimeRange(start,end);
+        if (translated && delta != 0f) {
+            for (var target : lookTargets) target.setTimeRange(target.getStartTime() + delta, target.getEndTime() + delta);
+        }
+        syncBoneAnimation();
+    }
     @Override public void setMuted(boolean value) { super.setMuted(value);syncBoneAnimation(); }
     @Override public void setTimelineClip(EntityTimelineClip clip) { super.setTimelineClip(clip);syncBoneAnimation(); }
 
