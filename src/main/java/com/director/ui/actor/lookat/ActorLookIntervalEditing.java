@@ -9,6 +9,26 @@ import com.director.ui.timeline.commands.TimelineCommandBridge;
 public final class ActorLookIntervalEditing {
     private ActorLookIntervalEditing() {}
 
+    public enum DragMode { MOVE, START, END }
+
+    public record Range(float start, float end) {}
+
+    public static Range dragRange(Range original, Range bounds, DragMode mode, float delta) {
+        float length = original.end - original.start;
+        float minLength = Math.min(length, 0.01f);
+        return switch (mode) {
+            case MOVE -> {
+                float shift = Math.clamp(delta, bounds.start - original.start, bounds.end - original.end);
+                yield new Range(Math.max(bounds.start, original.start + shift),
+                        Math.min(bounds.end, original.end + shift));
+            }
+            case START -> new Range(Math.clamp(original.start + delta, bounds.start,
+                    Math.max(original.start, original.end - minLength)), original.end);
+            case END -> new Range(original.start, Math.clamp(original.end + delta,
+                    Math.min(original.end, original.start + minLength), bounds.end));
+        };
+    }
+
     public static boolean editable(TimelineModel model, EntitySpawnClip spawn, EntityLookAtClip target) {
         var wrapper = spawn.getTimelineClip();
         var track = wrapper == null ? null : wrapper.getParentTrack();

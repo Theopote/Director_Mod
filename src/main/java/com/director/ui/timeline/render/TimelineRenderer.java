@@ -18,6 +18,10 @@ import com.director.timeline.model.entity.EntityLookAtClip;
 import com.director.timeline.model.entity.EntitySpawnClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import imgui.flag.ImGuiMouseButton;
+import imgui.flag.ImGuiMouseCursor;
+import com.director.ui.actor.lookat.ActorLookIntervalEditing;
+import com.director.ui.actor.lookat.ActorLookIntervalEditing.DragMode;
+import com.director.ui.actor.lookat.ActorLookIntervalEditing.Range;
 
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -126,25 +130,87 @@ public class TimelineRenderer {
     private final TimelineTimeFormatter lookTimeFormatter = new TimelineTimeFormatter();
     private final List<LookSummary> lookSummaries = new java.util.ArrayList<>();
 
+    private record LookDrag(LookSummary summary, DragMode mode, Range original, Range bounds,
+                            float pressX, float pressTime, long revision) {
+        EntitySpawnClip spawn() { return (EntitySpawnClip) summary.owner.getEntityClip(); }
+    }
+
+    private LookDrag lookDrag;
+    private Range lookDragPreview;
+    private boolean lookDragMoved;
+
     public boolean handleLookSummary(boolean canvasHovered) {
-        if (!canvasHovered) return false;
         float x = ImGui.getIO().getMousePosX();
+        if (lookDrag != null) return updateLookDrag(x);
+        if (!canvasHovered) return false;
+
         float y = ImGui.getIO().getMousePosY();
         for (var summary : lookSummaries.reversed()) {
             if (x < summary.left || x > summary.right || y < summary.top || y > summary.bottom) continue;
             ImGui.setTooltip(lookLabel(summary.target) + "  " + lookTimeFormatter.formatTimeLabel(summary.start)
                     + " – " + lookTimeFormatter.formatTimeLabel(summary.end));
+            var spawn = (EntitySpawnClip) summary.owner.getEntityClip();
+            var mode = lookDragMode(summary, x);
+            boolean editable = summary.start == summary.target.getStartTime() && summary.end == summary.target.getEndTime()
+                    && ActorLookIntervalEditing.editable(model, spawn, summary.target);
+            if (editable && mode != DragMode.MOVE) ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
             if (!ImGui.isMouseClicked(ImGuiMouseButton.Left) || ImGui.getIO().getKeyCtrl()
                     || ImGui.getIO().getKeyShift() || ImGui.getIO().getKeyAlt()) return false;
-            model.setPlaying(false);
+            selectLookOwner(summary);
             float time = Math.clamp(math.xToTime(x), summary.start, summary.end);
-            model.setCurrentTime(time);
-            model.selectItem(summary.owner, false);
-            com.director.core.DirectorServices.get().uiSelection().selectClip(summary.owner.getEntityClip());
-            com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(summary.owner);
+            if (editable) {
+                lookDrag = new LookDrag(summary, mode, new Range(summary.start, summary.end),
+                        new Range(spawn.getStartTime(), spawn.getEndTime()), x, time, model.getActorEditContextRevision());
+            } else {
+                model.setPlaying(false);
+                model.setCurrentTime(time);
+            }
             return true;
         }
         return false;
+    }
+
+    private DragMode lookDragMode(LookSummary summary, float x) {
+        if (summary.right - summary.left < 14f) return DragMode.MOVE;
+        if (Math.abs(x - math.timeToX(summary.start)) <= 5f) return DragMode.START;
+        if (Math.abs(x - math.timeToX(summary.end)) <= 5f) return DragMode.END;
+        return DragMode.MOVE;
+    }
+
+    private void selectLookOwner(LookSummary summary) {
+        model.selectItem(summary.owner, false);
+        com.director.core.DirectorServices.get().uiSelection().selectClip(summary.owner.getEntityClip());
+        com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(summary.owner);
+    }
+
+    private boolean updateLookDrag(float mouseX) {
+        var drag = lookDrag;
+        var target = drag.summary.target;
+        var spawn = drag.spawn();
+        boolean current = model.getActorEditContextRevision() == drag.revision
+                && model.getSelectedClip() == drag.summary.owner
+                && spawn.getStartTime() == drag.bounds.start() && spawn.getEndTime() == drag.bounds.end()
+                && target.getStartTime() == drag.original.start() && target.getEndTime() == drag.original.end()
+                && ActorLookIntervalEditing.editable(model, spawn, target);
+        if (current && !ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape)) {
+            lookDragMoved |= Math.abs(mouseX - drag.pressX) >= 4f;
+            if (lookDragMoved) {
+                float delta = math.xToTime(mouseX) - drag.pressTime;
+                lookDragPreview = ActorLookIntervalEditing.dragRange(drag.original, drag.bounds, drag.mode, delta);
+            }
+            if (ImGui.isMouseDown(ImGuiMouseButton.Left)) return true;
+            if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
+                if (lookDragPreview != null) {
+                    ActorLookIntervalEditing.resize(model, spawn, target, lookDragPreview.start(), lookDragPreview.end());
+                } else {
+                    model.setCurrentTime(drag.pressTime);
+                }
+            }
+        }
+        lookDrag = null;
+        lookDragPreview = null;
+        lookDragMoved = false;
+        return true;
     }
 
     private static String lookLabel(EntityLookAtClip target) {
@@ -168,6 +234,11 @@ public class TimelineRenderer {
             for (var target : spawn.getLookTargets()) {
                 float start = Math.max(spawn.getStartTime(), target.getStartTime());
                 float end = Math.min(spawn.getEndTime(), target.getEndTime());
+                boolean dragging = lookDrag != null && lookDrag.summary.target == target && lookDragPreview != null;
+                if (dragging) {
+                    start = lookDragPreview.start();
+                    end = lookDragPreview.end();
+                }
                 float left = Math.max(contentX, math.timeToX(start));
                 float right = Math.min(contentX + contentW, math.timeToX(end));
                 if (right <= left) continue;
@@ -175,6 +246,14 @@ public class TimelineRenderer {
                 boolean muted = track.isMuted() || spawn.isMuted() || target.isMuted();
                 int color = muted ? TimelineColors.rgba(82, 83, 94, 255) : TimelineColors.rgba(105, 75, 156, 255);
                 draw.addRectFilled(left, y, right, bottom, color, 2f);
+                if (dragging) draw.addRect(left, y, right, bottom, TimelineColors.COLOR_SELECTED_BORDER, 2f);
+                if (right - left >= 14f && model.isSelected(owner) && !muted && !track.isLocked()
+                        && (dragging || start == target.getStartTime() && end == target.getEndTime())) {
+                    if (left == math.timeToX(start))
+                        draw.addLine(left + 2, y + 4, left + 2, bottom - 4, TimelineColors.COLOR_RESIZE_HANDLE);
+                    if (right == math.timeToX(end))
+                        draw.addLine(right - 2, y + 4, right - 2, bottom - 4, TimelineColors.COLOR_RESIZE_HANDLE);
+                }
                 if (right - left >= 18) {
                     draw.pushClipRect(left, y, right, bottom, true);
                     draw.addText(left + 3, y, TimelineColors.COLOR_TEXT_LIGHT, lookLabel(target));

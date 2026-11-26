@@ -209,4 +209,19 @@ class ActorLookAtEditSessionTest {
         assertTrue(history.redo());
         assertTrue(spawn.getLookTargets().isEmpty());
     }
+
+    @Test void draggingAnOwnedLookRangeClampsAtItsSpawnEdges() {
+        var original = new ActorLookIntervalEditing.Range(2, 4);
+        var bounds = new ActorLookIntervalEditing.Range(0, 6);
+        assertEquals(new ActorLookIntervalEditing.Range(0, 2),
+                ActorLookIntervalEditing.dragRange(original, bounds, ActorLookIntervalEditing.DragMode.MOVE, -4));
+        assertEquals(new ActorLookIntervalEditing.Range(4, 6),
+                ActorLookIntervalEditing.dragRange(original, bounds, ActorLookIntervalEditing.DragMode.MOVE, 4));
+        assertEquals(new ActorLookIntervalEditing.Range(0, 4),
+                ActorLookIntervalEditing.dragRange(original, bounds, ActorLookIntervalEditing.DragMode.START, -4));
+        assertEquals(new ActorLookIntervalEditing.Range(2, 6),
+                ActorLookIntervalEditing.dragRange(original, bounds, ActorLookIntervalEditing.DragMode.END, 4));
+        var trimmed = ActorLookIntervalEditing.dragRange(original, bounds, ActorLookIntervalEditing.DragMode.START, 10);
+        assertEquals(0.01f, trimmed.end() - trimmed.start(), 1e-5f);
+    }
 }
