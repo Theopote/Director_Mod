@@ -186,7 +186,19 @@ public class TimelineRenderer {
     private record ActorIntervalSelection(EntityTimelineClip owner, EntityClip target) {}
 
     private static final String ACTOR_INTERVAL_MENU = "##ActorIntervalMenu";
-    private ActorIntervalSelection selectedActorInterval;
+    private List<ActorIntervalSelection> actorIntervalMenuChoices = List.of();
+    private boolean actorIntervalDragValid;
+    private String actorIntervalDragError;
+    private double actorIntervalDragErrorUntil;
+
+    private ActorIntervalSelection selectedActorInterval() {
+        if (model.getSelectedClip() instanceof EntityTimelineClip owner
+                && owner.getEntityClip() instanceof EntitySpawnClip spawn) {
+            var target = com.director.ui.properties.PropertyContextService.get().inspectedActorInterval(spawn);
+            if (target != null) return new ActorIntervalSelection(owner, target);
+        }
+        return null;
+    }
     private EntityClip actorIntervalClipboard;
     private Range actorIntervalDragPreview;
     private boolean actorIntervalDragMoved;
@@ -197,15 +209,33 @@ public class TimelineRenderer {
         if (!canvasHovered) return false;
 
         float y = ImGui.getIO().getMousePosY();
-        for (var summary : actorIntervalSummaries.reversed()) {
-            if (x < summary.left || x > summary.right || y < summary.top || y > summary.bottom) continue;
-            if (ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
-                selectIntervalOwner(summary);
+        var hits = actorIntervalSummaries.reversed().stream()
+                .filter(summary -> x >= summary.left && x < summary.right && y >= summary.top && y < summary.bottom)
+                .toList();
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
+            var choices = hits.stream().map(hit -> new ActorIntervalSelection(hit.owner, hit.target)).toList();
+            if (choices.isEmpty()) {
+                choices = compactActorIntervals.reversed().stream()
+                        .filter(hit -> x >= hit.left && x < hit.right && y >= hit.top && y < hit.bottom)
+                        .map(hit -> new ActorIntervalSelection(hit.owner, hit.target)).toList();
+            }
+            if (!choices.isEmpty()) {
+                actorIntervalMenuChoices = choices;
+                var selected = selectedActorInterval();
+                if (selected == null || !choices.contains(selected)) selectIntervalOwner(choices.getFirst());
                 ImGui.openPopup(ACTOR_INTERVAL_MENU);
                 return true;
             }
-            ImGui.setTooltip(intervalLabel(summary.target) + "  " + intervalTimeFormatter.formatTimeLabel(summary.start)
-                    + " – " + intervalTimeFormatter.formatTimeLabel(summary.end));
+        }
+        if (!hits.isEmpty()) {
+            var selected = selectedActorInterval();
+            var summary = hits.stream().filter(hit -> new ActorIntervalSelection(hit.owner, hit.target).equals(selected))
+                    .findFirst().orElse(hits.getFirst());
+            String hint = intervalLabel(summary.target) + "  " + intervalTimeFormatter.formatTimeLabel(summary.start)
+                    + " – " + intervalTimeFormatter.formatTimeLabel(summary.end);
+            if (hits.size() > 1) hint += "\n" + DirectorI18n.translate("gui.director.actor.look_interval.overlap_hint");
+            ImGui.setTooltip(actorIntervalDragError != null && ImGui.getTime() < actorIntervalDragErrorUntil
+                    ? actorIntervalDragError : hint);
             var spawn = (EntitySpawnClip) summary.owner.getEntityClip();
             var mode = actorIntervalDragMode(summary, x);
             boolean editable = summary.start == summary.target.getStartTime() && summary.end == summary.target.getEndTime()
@@ -213,7 +243,8 @@ public class TimelineRenderer {
             if (editable && mode != DragMode.MOVE) ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
             if (!ImGui.isMouseClicked(ImGuiMouseButton.Left) || ImGui.getIO().getKeyCtrl()
                     || ImGui.getIO().getKeyShift() || ImGui.getIO().getKeyAlt()) return false;
-            selectIntervalOwner(summary);
+            selectIntervalOwner(new ActorIntervalSelection(summary.owner, summary.target));
+            actorIntervalDragError = null;
             float time = Math.clamp(math.xToTime(x), summary.start, summary.end);
             if (editable) {
                 actorIntervalDrag = new ActorIntervalDrag(summary, mode, new Range(summary.start, summary.end),
@@ -224,7 +255,11 @@ public class TimelineRenderer {
             }
             return true;
         }
-        if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) selectedActorInterval = null;
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Left))
+            com.director.ui.properties.PropertyContextService.get().clearActorInterval();
+        if (actorIntervalDragError != null && ImGui.getTime() < actorIntervalDragErrorUntil) {
+            ImGui.setTooltip(actorIntervalDragError);
+        }
         showCompactActorTooltip(x, y);
         return false;
     }
@@ -232,7 +267,7 @@ public class TimelineRenderer {
     public void renderActorIntervalMenu() {
         if (!ImGui.beginPopup(ACTOR_INTERVAL_MENU)) return;
         try {
-            var selection = selectedActorInterval;
+            var selection = selectedActorInterval();
             if (selection == null || model.getSelectedClip() != selection.owner) {
                 ImGui.closeCurrentPopup();
                 return;
@@ -241,6 +276,26 @@ public class TimelineRenderer {
             if (!ActorOwnedIntervalEditing.contains(spawn, selection.target)) {
                 ImGui.closeCurrentPopup();
                 return;
+            }
+            if (actorIntervalMenuChoices.size() > 1) {
+                for (int index = 0; index < actorIntervalMenuChoices.size(); index++) {
+                    var choice = actorIntervalMenuChoices.get(index);
+                    var choiceSpawn = (EntitySpawnClip) choice.owner.getEntityClip();
+                    var track = choice.owner.getParentTrack();
+                    if (track == null || !track.getClips().contains(choice.owner)
+                            || !ActorOwnedIntervalEditing.contains(choiceSpawn, choice.target)) continue;
+                    ImGui.pushID(choice.target.getId().toString());
+                    boolean chosen = ImGui.menuItem((index + 1) + ". " + choice.owner.getLabel() + " · " + intervalLabel(choice.target)
+                            + "  " + intervalTimeFormatter.formatTimeLabel(choice.target.getStartTime())
+                            + " – " + intervalTimeFormatter.formatTimeLabel(choice.target.getEndTime()),
+                            "", choice.equals(selection));
+                    ImGui.popID();
+                    if (chosen) {
+                        selectIntervalOwner(choice);
+                        return;
+                    }
+                }
+                ImGui.separator();
             }
             ImGui.textDisabled(intervalLabel(selection.target));
             ImGui.separator();
@@ -273,7 +328,8 @@ public class TimelineRenderer {
             if (interval.muted) label += " · " + DirectorI18n.translate("gui.director.actor.clip_inspector.clip_muted");
             labels.add(label);
         }
-        if (labels != null) ImGui.setTooltip(owner.getLabel() + "\n" + String.join("\n", labels));
+        if (labels != null) ImGui.setTooltip(owner.getLabel() + "\n" + String.join("\n", labels)
+                + "\n" + DirectorI18n.translate("gui.director.actor.look_interval.overlap_hint"));
     }
 
     private DragMode actorIntervalDragMode(ActorIntervalSummary summary, float x) {
@@ -283,12 +339,14 @@ public class TimelineRenderer {
         return DragMode.MOVE;
     }
 
-    private void selectIntervalOwner(ActorIntervalSummary summary) {
+    private void selectIntervalOwner(ActorIntervalSelection selection) {
         actorBoneRows.leaveKeyFocus();
-        selectedActorInterval = new ActorIntervalSelection(summary.owner, summary.target);
-        model.selectItem(summary.owner, false);
-        com.director.core.DirectorServices.get().uiSelection().selectClip(summary.owner.getEntityClip());
-        com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(summary.owner);
+        model.selectItem(selection.owner, false);
+        var spawn = (EntitySpawnClip) selection.owner.getEntityClip();
+        com.director.core.DirectorServices.get().uiSelection().selectClip(spawn);
+        var properties = com.director.ui.properties.PropertyContextService.get();
+        properties.onTimelineSelectionChanged(selection.owner);
+        properties.inspectActorInterval(spawn, selection.target);
     }
 
     private boolean updateActorIntervalDrag(float mouseX) {
@@ -306,11 +364,18 @@ public class TimelineRenderer {
                 float delta = math.xToTime(mouseX) - drag.pressTime;
                 actorIntervalDragPreview = ActorOwnedIntervalEditing.dragRange(drag.original, drag.bounds, drag.mode, delta,
                         target instanceof ActorActionClip ? .1f : .01f);
+                actorIntervalDragValid = ActorOwnedIntervalEditing.canResize(model, spawn, target,
+                        actorIntervalDragPreview.start(), actorIntervalDragPreview.end());
+                if (!actorIntervalDragValid) ImGui.setTooltip(intervalDragError(target));
             }
             if (ImGui.isMouseDown(ImGuiMouseButton.Left)) return true;
             if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
                 if (actorIntervalDragPreview != null) {
-                    ActorOwnedIntervalEditing.resize(model, spawn, target, actorIntervalDragPreview.start(), actorIntervalDragPreview.end());
+                    if (!actorIntervalDragValid || !ActorOwnedIntervalEditing.resize(model, spawn, target,
+                            actorIntervalDragPreview.start(), actorIntervalDragPreview.end())) {
+                        actorIntervalDragError = intervalDragError(target);
+                        actorIntervalDragErrorUntil = ImGui.getTime() + 2;
+                    }
                 } else {
                     model.setCurrentTime(drag.pressTime);
                 }
@@ -320,6 +385,11 @@ public class TimelineRenderer {
         actorIntervalDragPreview = null;
         actorIntervalDragMoved = false;
         return true;
+    }
+
+    private static String intervalDragError(EntityClip target) {
+        return DirectorI18n.translate(target instanceof ActorActionClip
+                ? "gui.director.actor.behavior.owned_range_invalid" : "gui.director.actor.look_interval.invalid");
     }
 
     private static String intervalLabel(EntityClip target) {
@@ -426,7 +496,8 @@ public class TimelineRenderer {
         float y = trackY + bandHeight - 7 + line;
         boolean muted = track.isMuted() || spawn.isMuted() || target.isMuted();
         draw.addRectFilled(left, y, right, y + 1, muted ? MUTED_INTERVAL_COLOR : color);
-        compactActorIntervals.add(new CompactActorInterval(owner, target, left, right, trackY, trackY + bandHeight, muted));
+        compactActorIntervals.add(new CompactActorInterval(owner, target, left, right,
+                trackY + bandHeight - 9, trackY + bandHeight - 2, muted));
     }
 
     static Range visibleActorInterval(EntitySpawnClip spawn, EntityClip target) {
@@ -452,9 +523,10 @@ public class TimelineRenderer {
         if (right <= left) return;
         float bottom = y + bandHeight - 6;
         boolean muted = track.isMuted() || spawn.isMuted() || target.isMuted();
-        int color = muted ? MUTED_INTERVAL_COLOR : activeColor;
+        int color = dragging && !actorIntervalDragValid ? TimelineColors.rgba(180, 59, 62, 255)
+                : muted ? MUTED_INTERVAL_COLOR : activeColor;
         draw.addRectFilled(left, y, right, bottom, color, 2f);
-        if (dragging || selectedActorInterval != null && selectedActorInterval.target == target && model.isSelected(owner))
+        if (dragging)
             draw.addRect(left, y, right, bottom, TimelineColors.COLOR_SELECTED_BORDER, 2f);
         if (right - left >= 14f && model.isSelected(owner) && !muted && !track.isLocked()
                 && (dragging || start == target.getStartTime() && end == target.getEndTime())) {
@@ -499,7 +571,7 @@ public class TimelineRenderer {
     }
 
     public boolean handleActorKeyCommand(String action) {
-        var selection = selectedActorInterval;
+        var selection = selectedActorInterval();
         if (selection != null && model.getSelectedClip() == selection.owner) {
             var spawn = (EntitySpawnClip) selection.owner.getEntityClip();
             if (action.equals("copy") || action.equals("cut") || action.equals("delete")) {
@@ -511,7 +583,7 @@ public class TimelineRenderer {
                             ? com.director.timeline.model.TimelineClipCopies.copyEntityClip(selection.target) : null;
                     if (ActorOwnedIntervalEditing.remove(model, spawn, selection.target)) {
                         if (copy != null) actorIntervalClipboard = copy;
-                        selectedActorInterval = null;
+                        com.director.ui.properties.PropertyContextService.get().clearActorInterval();
                     }
                 }
                 return true;
@@ -523,16 +595,23 @@ public class TimelineRenderer {
                     && wrapper.getEntityClip() instanceof EntitySpawnClip spawn) {
                 var pasted = ActorOwnedIntervalEditing.paste(model, spawn, actorIntervalClipboard);
                 if (pasted != null) {
-                    actorBoneRows.leaveKeyFocus();
-                    selectedActorInterval = new ActorIntervalSelection(wrapper, pasted);
+                    selectIntervalOwner(new ActorIntervalSelection(wrapper, pasted));
+                    return true;
                 }
             }
-            return true;
         }
         return actorBoneRows.handleKeyCommand(model, action);
     }
-    public boolean isActorKeyInteractionActive() { return actorBoneRows.isKeyInteractionActive(); }
-    public void cancelActorKeyInteraction() { actorBoneRows.cancelKeyInteraction(); }
+    public boolean isActorKeyInteractionActive() { return actorIntervalDrag != null || actorBoneRows.isKeyInteractionActive(); }
+    public void cancelActorKeyInteraction() {
+        actorBoneRows.cancelKeyInteraction();
+        actorIntervalDrag = null;
+        actorIntervalDragPreview = null;
+        actorIntervalDragMoved = false;
+        actorIntervalMenuChoices = List.of();
+        actorIntervalDragError = null;
+        com.director.ui.properties.PropertyContextService.get().clearActorInterval();
+    }
 
     // ======= 拆分后的渲染组件（v9.0 重构） =======
     private final TimelineDividerHandler dividerHandler;
@@ -803,7 +882,15 @@ public class TimelineRenderer {
                 }
             }
         }
-
+        var selectedInterval = selectedActorInterval();
+        if (selectedInterval != null) {
+            for (var summary : actorIntervalSummaries) {
+                if (summary.owner == selectedInterval.owner && summary.target == selectedInterval.target) {
+                    drawList.addRect(summary.left, summary.top, summary.right, summary.bottom,
+                            TimelineColors.COLOR_SELECTED_BORDER, 2f);
+                }
+            }
+        }
     }
 
     /**

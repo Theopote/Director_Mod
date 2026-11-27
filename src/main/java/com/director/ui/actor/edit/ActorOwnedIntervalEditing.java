@@ -91,13 +91,16 @@ public final class ActorOwnedIntervalEditing {
         return copy;
     }
 
-    public static boolean resize(TimelineModel model, EntitySpawnClip spawn, EntityClip target,
+    public static boolean canResize(TimelineModel model, EntitySpawnClip spawn, EntityClip target,
                                  float start, float end) {
         if (!editable(model, spawn, target) || !Float.isFinite(start) || !Float.isFinite(end)
                 || start < spawn.getStartTime() || end > spawn.getEndTime() || end <= start) return false;
-        if (target instanceof ActorActionClip && (end - start < .1f - 1e-5f
-                || spawn.getTimelineClip().getParentTrack().getActorTrackPayload().hasActionOverlap(spawn, target, start, end)))
-            return false;
+        return !(target instanceof ActorActionClip) || (end - start >= .1f - 1e-5f
+                && !spawn.getTimelineClip().getParentTrack().getActorTrackPayload().hasActionOverlap(spawn, target, start, end));
+    }
+
+    public static boolean resize(TimelineModel model, EntitySpawnClip spawn, EntityClip target, float start, float end) {
+        if (!canResize(model, spawn, target, start, end)) return false;
         float beforeStart = target.getStartTime();
         float beforeEnd = target.getEndTime();
         if (start == beforeStart && end == beforeEnd) return true;

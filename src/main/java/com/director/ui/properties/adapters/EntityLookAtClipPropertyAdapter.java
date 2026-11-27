@@ -24,9 +24,13 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
     private int uuidFrame = -1;
     @Override public Class<EntityLookAtClip> getTargetType() { return EntityLookAtClip.class; }
     @Override public boolean renderProperties(EntityLookAtClip source) {
+        return renderInterval(source, null);
+    }
+
+    public boolean renderInterval(EntityLookAtClip source, com.director.timeline.model.entity.EntitySpawnClip spawn) {
         if (source != null && ImGui.isKeyPressed(imgui.flag.ImGuiKey.Escape))
             entityUuid.set(source.getTargetEntityUuid() == null ? "" : source.getTargetEntityUuid().toString());
-        var draft = gesture.begin(source);
+        var draft = gesture.begin(source, spawn);
         if (!(draft instanceof EntityLookAtClip clip)) { gesture.end(); return false; }
         if (source != null && (uuidFrame != ImGui.getFrameCount() - 1 || uuidSource != source || !Objects.equals(cachedTarget, source.getTargetEntityUuid()))) {
             uuidSource = source;

@@ -32,13 +32,12 @@ public final class ActorOwnedIntervalsPropertyUI {
         }
     }
 
+    public void retain(EntitySpawnClip spawn) {
+        drafts.keySet().removeIf(target -> !ActorOwnedIntervalEditing.contains(spawn, target));
+    }
+
     public void renderLookIntervals(EntitySpawnClip spawn) {
         var targets = spawn.getLookTargets();
-        var states = spawn.getStateIntervals();
-        var actions = spawn.getActionIntervals();
-        var poses = spawn.getPoseIntervals();
-        drafts.keySet().removeIf(target -> !targets.contains(target) && !states.contains(target)
-                && !actions.contains(target) && !poses.contains(target));
         if (targets.isEmpty() || !ImGui.collapsingHeader(tr("title") + "##spawnLookIntervals")) return;
         for (var target : targets) {
             ImGui.pushID(target.getId().toString());
@@ -48,6 +47,8 @@ public final class ActorOwnedIntervalsPropertyUI {
                 case ENTITY_UUID -> "mode_entity";
             };
             ImGui.text(ActorPropertyAdapterI18n.tr("gui.director.properties.adapter.actor.look_at." + mode));
+            if (ImGui.button(tr("edit_target")))
+                com.director.ui.properties.PropertyContextService.get().inspectActorInterval(spawn, target);
             renderRange(spawn, target);
             ImGui.popID();
         }

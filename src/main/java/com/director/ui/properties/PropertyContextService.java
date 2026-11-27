@@ -4,6 +4,9 @@ import com.director.core.DirectorServices;
 import com.director.ui.selection.SelectionManager;
 import com.director.ui.selection.SelectionType;
 import com.director.timeline.model.entity.EntityTimelineClip;
+import com.director.timeline.model.entity.EntityClip;
+import com.director.timeline.model.entity.EntitySpawnClip;
+import com.director.ui.actor.edit.ActorOwnedIntervalEditing;
 import com.director.ui.tools.ToolRegistry;
 
 /**
@@ -72,6 +75,26 @@ public final class PropertyContextService {
     }
 
     private Object actorInspection;
+    private EntitySpawnClip intervalOwner;
+    private EntityClip inspectedInterval;
+
+    public void inspectActorInterval(EntitySpawnClip owner, EntityClip interval) {
+        intervalOwner = owner;
+        inspectedInterval = interval;
+        lastTimelineInteraction = System.nanoTime();
+        cleared = false;
+    }
+
+    public EntityClip inspectedActorInterval(EntitySpawnClip owner) {
+        if (intervalOwner != owner) return null;
+        if (!ActorOwnedIntervalEditing.contains(owner, inspectedInterval)) clearActorInterval();
+        return inspectedInterval;
+    }
+
+    public void clearActorInterval() {
+        intervalOwner = null;
+        inspectedInterval = null;
+    }
     public void inspectActorObject(Object target) {
         if(target instanceof com.director.actor.Actor || target instanceof com.director.actor.ActorGroup) {
             com.director.ui.lighting.PointLightController.get().stop();
@@ -171,6 +194,8 @@ public final class PropertyContextService {
      */
     public void onTimelineSelectionChanged(Object selection) {
         actorInspection=null;
+        if (intervalOwner != null && selection != intervalOwner && selection != intervalOwner.getTimelineClip())
+            clearActorInterval();
         if (selection == null) {
             lastTimelinePayload = null;
             return;
@@ -192,6 +217,7 @@ public final class PropertyContextService {
     /** 清空上下文，强制 NONE 直至下次 onToolActivated / onTimelineSelectionChanged / onWorldSelectionChanged */
     public void clear() {
         actorInspection=null;
+        clearActorInterval();
         cleared = true;
     }
 }

@@ -277,4 +277,20 @@ class ActorTrackClipAuthoringServiceTest {
         assertEquals(java.util.List.of(action), spawn.getActionIntervals());
         assertEquals(0, history.getUndoSize());
     }
+
+    @Test void overlappingDragPreviewAndCommitUseTheSameRules() {
+        var spawn = (EntitySpawnClip) addSpawn(0, 10).getEntityClip();
+        var moving = new ActorActionClip("Run", 1, 2);
+        var blocker = new ActorActionClip("Other action", 3, 4);
+        spawn.addActionInterval(moving);
+        spawn.addActionInterval(blocker);
+        assertFalse(ActorOwnedIntervalEditing.canResize(model, spawn, moving, 2.5f, 3.5f));
+        assertFalse(ActorOwnedIntervalEditing.resize(model, spawn, moving, 2.5f, 3.5f));
+        assertEquals(1f, moving.getStartTime());
+        assertEquals(0, history.getUndoSize());
+        assertTrue(ActorOwnedIntervalEditing.canResize(model, spawn, moving, 2f, 3f));
+        assertTrue(ActorOwnedIntervalEditing.resize(model, spawn, moving, 2f, 3f));
+        assertTrue(history.undo());
+        assertEquals(1f, moving.getStartTime());
+    }
 }

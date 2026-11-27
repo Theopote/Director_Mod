@@ -104,6 +104,27 @@ class ActorClipPropertyEditSessionTest {
         clip.setPathId("legacy"); clip.setFollowPath(true); attach(clip); return clip;
     }
     EntityLookAtClip look() { var clip = new EntityLookAtClip("Look", 0,1); attach(clip); return clip; }
+    @Test void selectedOwnedLookCanBeEditedAwayFromThePlayheadAndUndone() {
+        var spawn = new EntitySpawnClip("Actor", 0, 10);
+        var selected = new EntityLookAtClip("Earlier look", 0, 1);
+        var active = new EntityLookAtClip("Current look", 4, 6);
+        spawn.addLookTarget(selected);
+        spawn.addLookTarget(active);
+        attach(spawn);
+
+        var edit = new ActorClipPropertyEditSession(model, selected, spawn);
+        var draft = (EntityLookAtClip) edit.draft();
+        draft.setMode(EntityLookAtClip.TargetMode.WORLD_POINT);
+        draft.setWorldPoint(1, 2, 3);
+        assertTrue(edit.commit());
+        assertEquals(new Vector3f(1, 2, 3), selected.getWorldPoint());
+        assertEquals(EntityLookAtClip.TargetMode.CAMERA, active.getMode());
+        assertEquals(1, track.getClips().size());
+        assertTrue(history.undo());
+        assertEquals(EntityLookAtClip.TargetMode.CAMERA, selected.getMode());
+        assertTrue(history.redo());
+        assertEquals(EntityLookAtClip.TargetMode.WORLD_POINT, selected.getMode());
+    }
     @Test void spawnPresetAndManualAssetsCountAsPersistentReferences() {
         var spawn=new EntitySpawnClip("Actor",0,10);spawn.setBoneAnimationId("test:manual");
         spawn.setPreset(new ActorPresetBinding("test:preset",false,1,com.director.actor.rig.skeleton.PoseBlendSettings.DEFAULT));

@@ -3,8 +3,14 @@ package com.director.ui.properties.adapters;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyRow;
+import com.director.ui.properties.PropertyContextService;
 import com.director.ui.properties.actor.ActorClipInspectorGesture;
 import com.director.timeline.model.entity.EntitySpawnClip;
+import com.director.timeline.model.entity.EntityClip;
+import com.director.timeline.model.entity.EntityLookAtClip;
+import com.director.timeline.model.entity.EntityStateClip;
+import com.director.timeline.model.entity.ActorActionClip;
+import com.director.timeline.model.entity.ActorPoseClip;
 import imgui.ImGui;
 import imgui.type.ImFloat;
 
@@ -18,9 +24,24 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
     private final java.util.Map<com.director.timeline.model.entity.ActorPoseClip, ActorPoseClipPropertyAdapter> poseInspectors =
             new java.util.IdentityHashMap<>();
     private final ActorClipInspectorGesture gesture = new ActorClipInspectorGesture();
+    private final EntityLookAtClipPropertyAdapter lookInspector = new EntityLookAtClipPropertyAdapter();
     @Override public Class<EntitySpawnClip> getTargetType() { return EntitySpawnClip.class; }
     private String tr(String key) { return ActorPropertyAdapterI18n.tr("gui.director.actor.spawn_edit."+key); }
     @Override public boolean renderProperties(EntitySpawnClip source) {
+        var context = PropertyContextService.get();
+        ownedIntervals.retain(source);
+        stateInspectors.keySet().retainAll(source.getStateIntervals());
+        actionInspectors.keySet().retainAll(source.getActionIntervals());
+        poseInspectors.keySet().retainAll(source.getPoseIntervals());
+        var interval = context.inspectedActorInterval(source);
+        if (interval != null) {
+            if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.look_interval.back_to_spawn"))) {
+                context.clearActorInterval();
+            } else {
+                renderSelectedInterval(source, interval);
+                return false;
+            }
+        }
         var draft = gesture.begin(source);
         if (!(draft instanceof EntitySpawnClip clip)) { gesture.end(); return false; }
         ImGui.text(tr("title"));
@@ -89,9 +110,28 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         com.director.ui.properties.actor.ActorSpawnPresetPropertyUI.renderIndependentAction(source);
         com.director.ui.properties.actor.ActorRootKeyframePropertyUI.render(source); return false;
     }
+
+    private void renderSelectedInterval(EntitySpawnClip source, EntityClip interval) {
+        ImGui.pushID(interval.getId().toString());
+        try {
+            switch (interval) {
+                case EntityLookAtClip look -> lookInspector.renderInterval(look, source);
+                case EntityStateClip state -> stateInspectors.computeIfAbsent(state, ignored -> new EntityStateClipPropertyAdapter())
+                        .renderInterval(state, source);
+                case ActorActionClip action -> actionInspectors.computeIfAbsent(action, ignored -> new ActorActionClipPropertyAdapter())
+                        .renderInterval(action, source);
+                case ActorPoseClip pose -> poseInspectors.computeIfAbsent(pose, ignored -> new ActorPoseClipPropertyAdapter())
+                        .renderInterval(pose, source);
+                default -> { }
+            }
+            ownedIntervals.renderRange(source, interval);
+        } finally {
+            ImGui.popID();
+        }
+    }
+
     private void renderStateIntervals(EntitySpawnClip source) {
         var states = source.getStateIntervals();
-        stateInspectors.keySet().retainAll(states);
         if (states.isEmpty() || !ImGui.collapsingHeader(
                 ActorPropertyAdapterI18n.tr("gui.director.actor.state_edit.intervals") + "##spawnStates")) return;
         for (var state : states) {
@@ -105,7 +145,6 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
     }
     private void renderActionIntervals(EntitySpawnClip source) {
         var actions = source.getActionIntervals();
-        actionInspectors.keySet().retainAll(actions);
         if (actions.isEmpty() || !ImGui.collapsingHeader(
                 ActorPropertyAdapterI18n.tr("gui.director.actor.behavior.intervals") + "##spawnActions")) return;
         for (var action : actions) {
@@ -119,7 +158,6 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
     }
     private void renderPoseIntervals(EntitySpawnClip source) {
         var poses = source.getPoseIntervals();
-        poseInspectors.keySet().retainAll(poses);
         if (poses.isEmpty() || !ImGui.collapsingHeader(
                 ActorPropertyAdapterI18n.tr("gui.director.actor.pose_edit.intervals") + "##spawnPoses")) return;
         for (var pose : poses) {
