@@ -119,7 +119,7 @@ public final class ActorRuntimeController {
     private final Map<TimelineTrack, TrackRuntime> runtimes = new LinkedHashMap<>();
 
     /** 每个 Actor 一个 PropRuntime */
-    private final Map<UUID, ActorPropRuntime> propRuntimes = new HashMap<>();
+    private final ActorPreviewResources previewResources = new ActorPreviewResources();
 
     /** 上一帧时间（用于计算 deltaTime） */
     private float lastUpdateTime = 0f;
@@ -149,9 +149,7 @@ public final class ActorRuntimeController {
         ActorAnimationEventEffects.getInstance().reset();
         if(timelineSource!=null) timelineSource.invalidateActorEditContext();
         diagnostics.clear();
-        propRuntimes.values().forEach(ActorPropRuntime::dispose);propRuntimes.clear();
-        CustomModelPreviewRenderer.getInstance().clear();
-        com.director.actor.skin.ActorSkinTextureManager.clearAll();
+        previewResources.releaseWorld();
         for(var runtime:runtimes.values()) runtime.resetWorldResources();
         lastUpdateTime=timelineSource==null?0:timelineSource.getCurrentTime();
         hasUpdateSnapshot=false;
@@ -267,9 +265,8 @@ public final class ActorRuntimeController {
         if (!enabled) {
             ActorAnimationEventEffects.getInstance().reset();
             diagnostics.clear();
-            ActorPreviewManager.getInstance().clear();
-            CustomModelPreviewRenderer.getInstance().clear();
-            propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
+            previewResources.clearEntitiesAndModels();
+            previewResources.clearProps();
             LOGGER.info("[ActorRuntime] 已禁用，清空所有预览实体和道具");
         } else {
             LOGGER.info("[ActorRuntime] 已启用");
@@ -284,7 +281,7 @@ public final class ActorRuntimeController {
     /** Release only prop visual resources when leaving a client world. */
     public void clearPropPreviews() {
         diagnostics.clear();
-        propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
+        previewResources.clearProps();
     }
 
     public boolean isEnabled() {
@@ -335,7 +332,7 @@ public final class ActorRuntimeController {
         hasUpdateSnapshot = true;
         diagnostics.begin(time);
         if (!Float.isFinite(time) || time < 0) {
-            propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
+            previewResources.clearProps();
             return;
         }
         float deltaTime = time - lastUpdateTime;
@@ -407,7 +404,7 @@ public final class ActorRuntimeController {
         diagnostics.clear();
         runtimes.clear();
         pruneDeadTracks();
-        propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
+        previewResources.clearProps();
 
         if (timelineSource == null) {
             return;
@@ -436,8 +433,7 @@ public final class ActorRuntimeController {
      */
     private void pruneDeadTracks() {
         if (timelineSource == null) {
-            ActorPreviewManager.getInstance().clear();
-            CustomModelPreviewRenderer.getInstance().clear();
+            previewResources.clearEntitiesAndModels();
             return;
         }
         var tracks=java.util.List.copyOf(timelineSource.getTracks());
@@ -452,12 +448,7 @@ public final class ActorRuntimeController {
                     && payload.isPresentAt(timelineSource.getCurrentTime()))
                 liveActors.add(payload.getActorRef().getActorId());
         }
-        for (var id : ActorPreviewManager.getInstance().previewActorIds()) if (!liveActors.contains(id)) {
-            ActorPreviewManager.getInstance().removePreview(id);
-            CustomModelPreviewRenderer.getInstance().remove(id);
-        }
-        for (var id : new java.util.ArrayList<>(propRuntimes.keySet())) if (!liveActors.contains(id))
-            propRuntimes.remove(id).dispose();
+        previewResources.retainActors(liveActors);
     }
 
     /**
@@ -569,8 +560,7 @@ public final class ActorRuntimeController {
             EntitySample sample = sampleClips(time, true);
             if (sample == null) {
                 handleSpawnLifecycle(EntitySample.disabled());
-                var staleProps = propRuntimes.remove(actor.getActorId());
-                if (staleProps != null) staleProps.dispose();
+                previewResources.removeProps(actor.getActorId());
                 lastSample = null;
                 return;
             }
@@ -609,8 +599,7 @@ public final class ActorRuntimeController {
             }
 
             if (!spawned) {
-                var staleProps = propRuntimes.remove(actor.getActorId());
-                if (staleProps != null) staleProps.dispose();
+                previewResources.removeProps(actor.getActorId());
             }
             lastSample = sample;
             lastTime = time;
@@ -745,19 +734,10 @@ public final class ActorRuntimeController {
          * @param ref ActorRef
          */
         private void handleMissingActor(ActorRef ref) {
-            // Actor 被删除，但 Timeline 还在
-            // 安全策略：移除 Preview 和 PropRuntime
             if (ref != null) {
                 UUID actorId = ref.getActorId();
-                ActorPreviewManager.getInstance().removePreview(actorId);
-                CustomModelPreviewRenderer.getInstance().remove(actorId);
-                
-                // 清理 PropRuntime
-                ActorPropRuntime propRuntime = propRuntimes.remove(actorId);
-                if (propRuntime != null) {
-                    propRuntime.dispose();
-                }
-
+                previewResources.removeEntityAndModel(actorId);
+                previewResources.removeProps(actorId);
             }
             spawned = false;
             actor = null;
@@ -790,8 +770,7 @@ public final class ActorRuntimeController {
 
             if (!previewActive(sample) && (spawned || ActorPreviewManager.getInstance().hasPreview(actor.getActorId()))) {
                 // 需要移除预览实体
-                ActorPreviewManager.getInstance().removePreview(actor.getActorId());
-                CustomModelPreviewRenderer.getInstance().remove(actor.getActorId());
+                previewResources.removeEntityAndModel(actor.getActorId());
                 spawned = false;
                 LOGGER.debug("[ActorRuntime] Despawn 预览实体: {}", actor.getName());
             }
@@ -877,7 +856,7 @@ public final class ActorRuntimeController {
             if (entity == null) return;
             CustomModelPreviewRenderer.getInstance().syncActor(actor, entity, lastSample.visibility > 0.01f);
             float time = timelineSource.getCurrentTime();
-            ActorPropRuntime propRuntime = getOrCreatePropRuntime(actor);
+            ActorPropRuntime propRuntime = previewResources.propsFor(actor.getActorId());
             propRuntime.setActorEntity(entity);
             var propState = sampleCache.propSnapshot(time, pathGeometryRevision(), appearanceStamp(actor),
                     () -> ActorPropTimelineSampler.sampleTransforms(actorTrack, time,
@@ -1211,22 +1190,7 @@ public final class ActorRuntimeController {
             }
         }
 
-        /**
-         * 获取或创建 Actor 的 PropRuntime
-         *
-         * @param actor Actor
-         * @return ActorPropRuntime
-         */
-        private ActorPropRuntime getOrCreatePropRuntime(Actor actor) {
-            if (actor == null) {
-                return null;
-            }
 
-            return propRuntimes.computeIfAbsent(
-                    actor.getActorId(),
-                    k -> new ActorPropRuntime()
-            );
-        }
     }
 
     // =========================================================
