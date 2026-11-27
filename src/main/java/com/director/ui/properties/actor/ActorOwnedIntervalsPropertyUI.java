@@ -57,6 +57,14 @@ public final class ActorOwnedIntervalsPropertyUI {
         var model = DirectorServices.get().containerTimeline().getTimelineModel();
         var draft = drafts.compute(target, (clip, previous) ->
                 previous != null && previous.isCurrent(clip) ? previous : new RangeDraft(clip));
+        float visibleStart = Math.max(spawn.getStartTime(), target.getStartTime());
+        float visibleEnd = Math.min(spawn.getEndTime(), target.getEndTime());
+        if (target.getStartTime() < spawn.getStartTime() || target.getEndTime() > spawn.getEndTime()) {
+            if (visibleEnd > visibleStart)
+                ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.look_interval.partially_trimmed",
+                        visibleStart, visibleEnd));
+            else ImGui.textWrapped(tr("fully_trimmed"));
+        }
         ImGui.beginDisabled(!ActorOwnedIntervalEditing.editable(model, spawn, target));
         if (ImGui.inputFloat(tr("start"), draft.start)) draft.invalid = false;
         if (ImGui.inputFloat(tr("end"), draft.end)) draft.invalid = false;

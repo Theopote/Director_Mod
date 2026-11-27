@@ -2496,6 +2496,8 @@
   "gui.director.actor.look_interval.start": "开始（秒）",
   "gui.director.actor.look_interval.end": "结束（秒）",
   "gui.director.actor.look_interval.apply": "应用",
+  "gui.director.actor.look_interval.partially_trimmed": "可见区间 %.2f–%.2f 秒。拉长出场片段可恢复隐藏部分。",
+  "gui.director.actor.look_interval.fully_trimmed": "该区间完全位于出场片段的可见范围外。拉长出场片段可恢复显示。",
   "gui.director.actor.look_interval.invalid": "起止时间须在出场片段内，且结束时间晚于开始时间。",
   "gui.director.actor.spawn_edit.invalid_time": "出生片段时长至少为 0.1 秒，时间必须为有限数值。",
   "gui.director.actor.state_edit.intervals": "状态区间",

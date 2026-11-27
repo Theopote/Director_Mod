@@ -165,5 +165,37 @@ class AnimationEventClockTest {
         assertEquals(0, sampler.sampleSnapshot(.5f).visibility);
         assertEquals(1, sampler.sampleSnapshot(3.1f).visibility);
         assertEquals(0, sampler.sampleSnapshot(2.5f).visibility);
+        clip.setTimeRange(0, 200_010);
+        assertEquals(0, sampler.sampleSnapshot(200_005.5f).visibility);
+        assertEquals(1, sampler.sampleSnapshot(200_005.9f).visibility);
+    }
+
+    @Test void longLoopKeepsRecentCrossingsWithinBudget() {
+        clip.setTimeRange(0, 200_010);
+        var projection = AnimationEventClock.projection(track, clip, 0, 200_005.5f);
+        assertEquals(200_005.25f, projection.latest(event).orElseThrow());
+        assertEquals(200_005.25f, projection.times(event).getLast());
+        assertTrue(projection.isTruncated());
+
+        var sampler = new EntityClipSampler(track);
+        sampler.sampleAt(.1f);
+        var events = sampler.sampleAt(200_005.5f).actionEvents;
+        assertEquals(256, events.size());
+        assertTrue(sampler.sampleAt(200_005.5f).actionEvents.isEmpty());
+    }
+
+    @Test void latestCrossingIncludesReversePingPongPass() {
+        asset.setLoopMode(AnimationLoopMode.PING_PONG);
+        assertEquals(2.25f, AnimationEventClock.projection(track, clip, 0, 3).latest(event).orElseThrow());
+        assertEquals(3.75f, AnimationEventClock.projection(track, clip, 0, 4).latest(event).orElseThrow());
+    }
+
+    @Test void distanceClockCanResolveVisibilityWithoutResamplingItsOwnEvents() {
+        distanceRoute();
+        clip.addEvent(new AnimationEvent(.25f, new EntityActionEvent(
+                EntityActionClip.ActionType.SET_VISIBILITY, Map.of("visible", false)), AnimationEvent.Timing.ANIMATION));
+        var sampler = new EntityClipSampler(track);
+        assertEquals(1, sampler.sampleSnapshot(.2f).visibility);
+        assertEquals(0, sampler.sampleSnapshot(.75f).visibility);
     }
 }

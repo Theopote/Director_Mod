@@ -20,11 +20,15 @@ public final class AnimationEventClock {
 
     /** A thread-confined batch for one render/dispatch pass. Never retain across edits. */
     public static Projection projection(ActorTrack track,EntityAnimationClip clip,float from,float to) {
-        return new Projection(track,clip,from,to,EntityClipSampler::new);
+        return new Projection(track, clip, from, to, actorTrack -> new EntityClipSampler(actorTrack, false));
+    }
+
+    static Projection playbackProjection(ActorTrack track, EntityAnimationClip clip, float from, float to) {
+        return new Projection(track, clip, from, to, actorTrack -> new EntityClipSampler(actorTrack, false), 256);
     }
 
     public static final class Projection {
-        private static final int MAX_PHASE_SAMPLES=4096,MAX_RESULTS=1024;
+        private static final int MAX_PHASE_SAMPLES = 4096, MAX_RESULTS = 128, BATCH_OCCURRENCE_LIMIT = 16384;
         private final ActorTrack track;
         private final String animationId;
         private final float start,end,from,length,speed;
@@ -34,11 +38,19 @@ public final class AnimationEventClock {
         private final Map<Float,List<Float>> results=new LinkedHashMap<>();
         private List<Segment> segments;
         private float duration;
+        private final int occurrenceLimit;
+        private boolean truncated;
         private record Segment(float start,float end,double lo,double hi,
                                java.util.function.DoubleUnaryOperator raw,AnimationLoopMode mode) {}
 
         Projection(ActorTrack track,EntityAnimationClip clip,float from,float to,
                    java.util.function.Function<ActorTrack,EntityClipSampler> samplerFactory) {
+            this(track, clip, from, to, samplerFactory, BATCH_OCCURRENCE_LIMIT);
+        }
+
+        private Projection(ActorTrack track, EntityAnimationClip clip, float from, float to,
+                           java.util.function.Function<ActorTrack, EntityClipSampler> samplerFactory, int occurrenceLimit) {
+            this.occurrenceLimit = occurrenceLimit;
             this.track=track;this.from=from;this.start=clip.getStartTime();this.end=Math.min(to,clip.getEndTime());
             this.length=clip.getLength();this.speed=clip.getSpeed();this.loop=clip.isLoop();
             this.animationId=clip.getAnimationId();this.samplerFactory=samplerFactory;
@@ -55,6 +67,27 @@ public final class AnimationEventClock {
                 return at>=from && at<=end?List.of(at):List.of();
             }
             return times(event.getNormalizedTime());
+        }
+
+        public boolean isTruncated() { return truncated; }
+
+        /** Latest crossing in the window, without enumerating previous cycles. */
+        public Optional<Float> latest(AnimationEvent event) {
+            float normalized = event.getNormalizedTime();
+            if (!valid() || !Float.isFinite(normalized) || normalized < 0 || normalized > 1) return Optional.empty();
+            if (event.getTiming() == AnimationEvent.Timing.CLIP) {
+                float at = start + normalized * length;
+                return at >= from && at <= end ? Optional.of(at) : Optional.empty();
+            }
+            if (segments == null) prepare();
+            for (var segment : segments.reversed()) {
+                double phase = normalized * duration;
+                double target = lastTarget(segment, phase, period(segment.mode()));
+                if (segment.mode() == AnimationLoopMode.PING_PONG && phase > 0 && phase < duration)
+                    target = Math.max(target, lastTarget(segment, 2d * duration - phase, 2d * duration));
+                if (target >= segment.lo()) return Optional.of(timeAt(segment, target));
+            }
+            return Optional.empty();
         }
 
         /** Map a scene time back to the event phase using the same clock as occurrence lookup. */
@@ -95,18 +128,69 @@ public final class AnimationEventClock {
             var cached=results.get(normalized);if(cached!=null)return cached;
             if(segments==null)prepare();
             var result=new TreeSet<Float>();
-            for(var segment:segments) {
-                double phase=normalized*duration;
-                var mode=segment.mode();
-                add(result,segment.raw(),segment.start(),segment.end(),segment.lo(),segment.hi(),phase,
-                        mode==AnimationLoopMode.ONCE?0:mode==AnimationLoopMode.LOOP?duration:2d*duration);
-                if(mode==AnimationLoopMode.PING_PONG && phase>0 && phase<duration)
-                    add(result,segment.raw(),segment.start(),segment.end(),segment.lo(),segment.hi(),2d*duration-phase,2d*duration);
+            for (var segment : segments.reversed()) {
+                double phase = normalized * duration;
+                add(result, segment, phase, period(segment.mode()));
+                if (segment.mode() == AnimationLoopMode.PING_PONG && phase > 0 && phase < duration)
+                    add(result, segment, 2d * duration - phase, 2d * duration);
+                if (result.size() > occurrenceLimit) {
+                    truncated = true;
+                    while (result.size() > occurrenceLimit) result.pollFirst();
+                    break;
+                }
             }
             var answer=List.copyOf(result);
             if(results.size()>=MAX_RESULTS)results.remove(results.keySet().iterator().next());
             results.put(normalized,answer);
             return answer;
+        }
+
+        private double period(AnimationLoopMode mode) {
+            return switch (mode) {
+                case ONCE -> 0;
+                case LOOP -> duration;
+                case PING_PONG -> 2d * duration;
+            };
+        }
+
+        private void add(Set<Float> result, Segment segment, double phase, double period) {
+            if (period == 0) {
+                if (phase >= segment.lo() && phase <= segment.hi()) result.add(timeAt(segment, phase));
+                return;
+            }
+            double last = Math.floor((segment.hi() - phase) / period);
+            double first = Math.max(0, Math.ceil((segment.lo() - phase) / period));
+            if (last < first) return;
+            double count = last - first + 1;
+            if (count > occurrenceLimit) truncated = true;
+            int limit = (int) Math.min(count, occurrenceLimit);
+            for (int offset = 0; offset < limit; offset++) {
+                double target = phase + (last - offset) * period;
+                if (target >= segment.lo() && target <= segment.hi()) result.add(timeAt(segment, target));
+            }
+        }
+
+        private static double lastTarget(Segment segment, double phase, double period) {
+            if (period == 0) return phase <= segment.hi() ? phase : Double.NEGATIVE_INFINITY;
+            double cycle = Math.floor((segment.hi() - phase) / period);
+            if (cycle < 0) return Double.NEGATIVE_INFINITY;
+            double target = phase + cycle * period;
+            if (target > segment.hi()) {
+                if (cycle == 0) return Double.NEGATIVE_INFINITY;
+                target = phase + (cycle - 1) * period;
+            }
+            return target <= segment.hi() ? target : Double.NEGATIVE_INFINITY;
+        }
+
+        private static float timeAt(Segment segment, double target) {
+            if (target <= segment.lo()) return segment.start();
+            double left = segment.start(), right = segment.end();
+            for (int step = 0; step < 40; step++) {
+                double mid = (left + right) / 2;
+                if (segment.raw().applyAsDouble(mid) >= target) right = mid;
+                else left = mid;
+            }
+            return (float) right;
         }
 
         private void prepare() {
@@ -160,19 +244,6 @@ public final class AnimationEventClock {
         private void rememberPhase(float time,double phase) {
             if(phases.size()>=MAX_PHASE_SAMPLES)phases.remove(phases.keySet().iterator().next());
             phases.put(time,phase);
-        }
-    }
-    private static void add(Set<Float> result,java.util.function.DoubleUnaryOperator raw,float a,float b,
-                            double lo,double hi,double phase,double period) {
-        long first=period==0?0:Math.max(0,(long)Math.ceil((lo-phase)/period));
-        long last=period==0?0:(long)Math.floor((hi-phase)/period);
-        if(last-first>100000) throw new IllegalArgumentException("动画事件重复次数过多，请缩短片段或降低速度");
-        for(long cycle=first;cycle<=last;cycle++) {
-            double target=phase+cycle*period;if(target<lo || target>hi) continue;
-            double left=a,right=b;
-            if(target<=lo) right=a;
-            else for(int step=0;step<40;step++) {double mid=(left+right)/2;if(raw.applyAsDouble(mid)>=target) right=mid;else left=mid;}
-            result.add((float)right);
         }
     }
 }

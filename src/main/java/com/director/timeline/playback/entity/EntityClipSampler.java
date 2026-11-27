@@ -39,6 +39,8 @@ public class EntityClipSampler {
 
     /** 要采样的演员轨道 */
     private final ActorTrack track;
+    private final boolean resolveStateEvents;
+    private boolean warnedAboutEventBudget;
 
     // A sampler is thread-confined. Classification scratch is reused, never returned in a sample.
     private final List<EntityTransformClip> transformClips = new ArrayList<>();
@@ -74,7 +76,12 @@ public class EntityClipSampler {
      * @param track 演员轨道
      */
     public EntityClipSampler(ActorTrack track) {
+        this(track, true);
+    }
+
+    EntityClipSampler(ActorTrack track, boolean resolveStateEvents) {
         this.track = track;
+        this.resolveStateEvents = resolveStateEvents;
     }
 
     // ==========================================================
@@ -127,13 +134,6 @@ public class EntityClipSampler {
         result.motionLocalTime = Math.max(0f, timeSeconds);
 
         // 按类型分类处理 clips
-
-        // PoseClip 需要轨道上下文来查找前一个目标姿态，不能只收集当前时刻覆盖的片段。
-        for (EntityClip clip : track.getClips()) {
-            if (clip instanceof ActorPoseClip poseClip && !poseClip.isMuted()) {
-                actorPoseClips.add(poseClip);
-            }
-        }
 
         for (EntityClip clip : clipsAtTime) {
             if (clip.isMuted()) {
@@ -258,8 +258,11 @@ public class EntityClipSampler {
 
         // ========== 处理 ActorPose Clip（局部姿态覆盖）==========
         // 规则：last-wins（取 startTime 最大的那个）
-        if (result.active && presetOwner != null) actorPoseClips.addAll(presetOwner.getPoseIntervals());
-        applyActorPose(result, actorPoseClips, track.findPoseClipAt(timeSeconds), timeSeconds);
+        var activePose = track.findPoseClipAt(timeSeconds);
+        if (activePose != null) {
+            collectPoseHistory(presetOwner);
+            applyActorPose(result, actorPoseClips, activePose, timeSeconds);
+        }
 
         // ========== 处理 ActorRelation Clip（多演员关系）==========
         // 规则：last-wins（取 startTime 最大的那个）
@@ -455,25 +458,32 @@ public class EntityClipSampler {
         result.animationLocalTime = Math.max(0.0f, timeSeconds - active.getStartTime());
         result.animationBlendEnvelope = result.animationBlendSettings.envelopeAt(result.animationLocalTime,active.getLength());
 
-        if(active.hasEvents()) {
-            var stateClock=AnimationEventClock.projection(track,active,active.getStartTime(),timeSeconds);
-            EntityActionEvent lastVisibility=null;
-            float lastVisibilityTime=Float.NEGATIVE_INFINITY;
-            for(var event:active.getEvents()) {
-                if(event.getAction().type()==EntityActionClip.ActionType.SET_VISIBILITY) {
-                    var occurrences=stateClock.times(event);
-                    if(!occurrences.isEmpty() && occurrences.getLast()>lastVisibilityTime) {
-                        lastVisibilityTime=occurrences.getLast();
-                        lastVisibility=event.getAction();
-                    }
+        if (!active.hasEvents()) return;
+        if (resolveStateEvents) {
+            AnimationEventClock.Projection stateClock = null;
+            EntityActionEvent lastVisibility = null;
+            float lastVisibilityTime = Float.NEGATIVE_INFINITY;
+            for (var event : active.getEvents()) {
+                if (event.getAction().type() != EntityActionClip.ActionType.SET_VISIBILITY) continue;
+                if (stateClock == null)
+                    stateClock = AnimationEventClock.projection(track, active, active.getStartTime(), timeSeconds);
+                var at = stateClock.latest(event);
+                if (at.isPresent() && at.get() > lastVisibilityTime) {
+                    lastVisibilityTime = at.get();
+                    lastVisibility = event.getAction();
                 }
             }
-            if(lastVisibility!=null)
-                result.visibility=Boolean.TRUE.equals(lastVisibility.params().get("visible"))?1:0;
-            if(emitEvents) {
-                var eventClock=AnimationEventClock.projection(track,active,eventFrom,timeSeconds);
-                for(var event:active.getEvents()) for(float at:eventClock.times(event))
-                    if(at>eventFrom && at<=timeSeconds) result.actionEvents.add(event.getAction());
+            if (lastVisibility != null)
+                result.visibility = Boolean.TRUE.equals(lastVisibility.params().get("visible")) ? 1 : 0;
+        }
+        if (emitEvents) {
+            var eventClock = AnimationEventClock.playbackProjection(track, active, eventFrom, timeSeconds);
+            for (var event : active.getEvents()) for (float at : eventClock.times(event))
+                if (at > eventFrom && at <= timeSeconds) result.actionEvents.add(event.getAction());
+            if (eventClock.isTruncated() && !warnedAboutEventBudget) {
+                warnedAboutEventBudget = true;
+                org.slf4j.LoggerFactory.getLogger(EntityClipSampler.class).warn(
+                        "Actor animation event budget exceeded in {}; dispatching the most recent crossings", active.getName());
             }
         }
     }
@@ -574,6 +584,21 @@ public class EntityClipSampler {
      */
     private void applyActorAction(EntitySample result, List<ActorActionClip> clips, float timeSeconds) {
         sampleAction(result, clips, timeSeconds);
+    }
+
+    /** A new performance starts with fresh pose history. Fully trimmed poses contribute nothing. */
+    private void collectPoseHistory(EntitySpawnClip spawn) {
+        for (var clip : track.getClips()) {
+            if (!(clip instanceof ActorPoseClip pose) || pose.isMuted()) continue;
+            float start = pose.getStartTime();
+            if (spawn == null || (start >= spawn.getStartTime() && start <= spawn.getEndTime()
+                    && track.findSpawnClipAt(start) == spawn)) actorPoseClips.add(pose);
+        }
+        if (spawn == null) return;
+        for (var pose : spawn.getPoseIntervals()) {
+            if (!pose.isMuted() && pose.getEndTime() > spawn.getStartTime()
+                    && pose.getStartTime() < spawn.getEndTime()) actorPoseClips.add(pose);
+        }
     }
 
     private void applyActorPose(EntitySample result, List<ActorPoseClip> clips, ActorPoseClip active, float timeSeconds) {

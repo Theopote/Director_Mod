@@ -2496,6 +2496,8 @@
   "gui.director.actor.look_interval.start": "Start (s)",
   "gui.director.actor.look_interval.end": "End (s)",
   "gui.director.actor.look_interval.apply": "Apply",
+  "gui.director.actor.look_interval.partially_trimmed": "Visible range: %.2f–%.2f s. Extend the performance clip to reveal the hidden portion.",
+  "gui.director.actor.look_interval.fully_trimmed": "This interval is outside the visible performance clip. Extend the performance clip to reveal it.",
   "gui.director.actor.look_interval.invalid": "Enter an increasing time range inside this performance clip.",
   "gui.director.actor.spawn_edit.invalid_time": "Spawn duration must be at least 0.1 seconds and times must be finite.",
   "gui.director.actor.state_edit.intervals": "State intervals",
