@@ -130,7 +130,12 @@ class ActorPathEditingTest {
         target = ActorPathEditing.library(model, library, path, saves::incrementAndGet);
         model.setCurrentTime(3); assertFalse(target.isCurrent()); model.setCurrentTime(2);
         target = ActorPathEditing.library(model, library, path, saves::incrementAndGet);
-        path.getWaypoints().getFirst().set(2); assertFalse(target.isCurrent());
+        var editedPoints = path.getWaypoints();
+        editedPoints.getFirst().set(2);
+        assertTrue(target.isCurrent());
+        assertEquals(points, path.getWaypoints());
+        path.setWaypoints(editedPoints);
+        assertFalse(target.isCurrent());
         path.setWaypoints(points); target = ActorPathEditing.library(model, library, path, saves::incrementAndGet);
         library.add(path.copy()); assertFalse(target.isCurrent()); library.remove(path.getId()); assertFalse(target.isCurrent());
     }

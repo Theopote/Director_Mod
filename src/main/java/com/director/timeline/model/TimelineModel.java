@@ -314,13 +314,8 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     public void reloadForCurrentWorld() {
         resetInMemoryToDefaults();
 
-        // 同步 ActorRegistry：先清空内存，再加载当前存档的数据（若存在）。
         try {
-            com.director.actor.ActorRegistry registry = com.director.actor.ActorRegistryManager.getInstance();
-            registry.clear();
-            if (com.director.actor.persistence.ActorRegistryPersistence.hasSavedData()) {
-                com.director.actor.persistence.ActorRegistryPersistence.loadFromFile(registry);
-            }
+            com.director.actor.ActorRegistryManager.createNewRegistry();
         } catch (Exception e) {
             LOGGER.error("[TimelineModel] 切档重载 ActorRegistry 失败", e);
         }

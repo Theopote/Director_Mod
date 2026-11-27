@@ -3,7 +3,6 @@ package com.director.actor.persistence;
 import com.director.actor.Actor;
 import com.director.actor.ActorGroup;
 import com.director.actor.ActorRegistry;
-import com.director.actor.ActorRegistryManager;
 import com.director.actor.ActorType;
 import com.director.actor.rig.RigProfileStyle;
 import com.director.persistence.ActorLibrarySaveGuard;
@@ -83,35 +82,26 @@ public class ActorRegistryPersistence {
 
     /** Saves to an explicit registry file (used when flushing the previous world after a switch). */
     public static boolean saveToFile(ActorRegistry registry, Path file) {
-        if (registry == null) {
-            LOGGER.warn("[ActorRegistryPersistence] 尝试保存 null ActorRegistry");
+        if (registry == null || file == null) return false;
+        try {
+            return writeSnapshot(file, snapshot(registry));
+        } catch (RuntimeException e) {
+            LOGGER.error("[ActorRegistryPersistence] Unable to capture actor registry", e);
             return false;
         }
-        if (file == null) {
-            LOGGER.debug("[ActorRegistryPersistence] 当前无活动存档目录，跳过保存");
-            return false;
-        }
+    }
 
+    public static String snapshot(ActorRegistry registry) {
+        return GSON.toJson(getJsonObject(registry));
+    }
+
+    public static boolean writeSnapshot(Path file, String snapshot) {
         try {
             SAVE_GUARD.requireWritable(file);
-
-            Path parent = file.getParent();
-            if (parent != null && !Files.exists(parent)) {
-                Files.createDirectories(parent);
-            }
-
-            JsonObject root = getJsonObject(registry);
-            String json = GSON.toJson(root);
-            AtomicFileWriter.writeString(file, json);
-
-            LOGGER.info("[ActorRegistryPersistence] 保存 ActorRegistry 到文件: {} ({} 个 Actor)", file, registry.size());
-            ActorRegistryManager.noteRegistryFile(file);
+            AtomicFileWriter.writeString(file, snapshot);
             return true;
-        } catch (IOException e) {
-            LOGGER.error("[ActorRegistryPersistence] 保存 ActorRegistry 失败", e);
-            return false;
-        } catch (Exception e) {
-            LOGGER.error("[ActorRegistryPersistence] 保存 ActorRegistry 时发生未预期的异常", e);
+        } catch (IOException | RuntimeException e) {
+            LOGGER.error("[ActorRegistryPersistence] Unable to save {}", file, e);
             return false;
         }
     }
@@ -123,8 +113,6 @@ public class ActorRegistryPersistence {
     static @NotNull JsonObject getJsonObject(ActorRegistry registry) {
         JsonObject root = new JsonObject();
         root.addProperty("version", "1.0");
-        root.addProperty("actorCount", registry.size());
-        root.addProperty("groupCount", registry.groupSize());
 
         JsonArray actorsArray = new JsonArray();
         for (Actor actor : registry.getAllActors()) {
@@ -167,6 +155,8 @@ public class ActorRegistryPersistence {
             groupsArray.add(groupObj);
         }
         root.add("groups", groupsArray);
+        root.addProperty("actorCount", actorsArray.size());
+        root.addProperty("groupCount", groupsArray.size());
         return root;
     }
 
@@ -176,12 +166,15 @@ public class ActorRegistryPersistence {
      * @param registry ActorRegistry（将加载的数据填充到此实例）
      */
     public static void loadFromFile(ActorRegistry registry) {
+        loadFromFile(registry, getActorRegistryFile());
+    }
+
+    public static void loadFromFile(ActorRegistry registry, Path file) {
         if (registry == null) {
             LOGGER.warn("[ActorRegistryPersistence] 尝试加载到 null ActorRegistry");
             return;
         }
 
-        Path file = getActorRegistryFile();
         if (file == null || Files.notExists(file)) {
             return;
         }
@@ -206,7 +199,6 @@ public class ActorRegistryPersistence {
             loaded.getAllActors().forEach(registry::registerActor);
             loaded.getAllGroups().forEach(registry::registerGroup);
             SAVE_GUARD.loaded(file);
-            ActorRegistryManager.noteRegistryFile(file);
         } catch (IOException e) {
             SAVE_GUARD.loadFailed(file);
             LOGGER.error("[ActorRegistryPersistence] 加载 ActorRegistry 失败", e);

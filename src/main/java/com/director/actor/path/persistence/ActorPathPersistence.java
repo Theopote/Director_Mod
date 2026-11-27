@@ -47,10 +47,8 @@ public final class ActorPathPersistence {
             return false;
         }
         try {
-            save(file, library);
-            LOGGER.info("[ActorPathPersistence] 保存 {} 条演员路径到 {}", library.size(), file);
-            return true;
-        } catch (IOException e) {
+            return writeSnapshot(file, snapshot(library));
+        } catch (RuntimeException e) {
             LOGGER.error("[ActorPathPersistence] 保存失败", e);
             return false;
         }
@@ -62,20 +60,38 @@ public final class ActorPathPersistence {
 
     public static void save(Path file, ActorPathLibrary library) throws IOException {
         SAVE_GUARD.requireWritable(file);
+        AtomicFileWriter.writeString(file, snapshot(library));
+    }
+
+    public static boolean writeSnapshot(Path file, String snapshot) {
+        try {
+            SAVE_GUARD.requireWritable(file);
+            AtomicFileWriter.writeString(file, snapshot);
+            return true;
+        } catch (IOException | RuntimeException failure) {
+            LOGGER.error("[ActorPathPersistence] Unable to save {}", file, failure);
+            return false;
+        }
+    }
+
+    public static String snapshot(ActorPathLibrary library) {
         JsonObject root = new JsonObject();
         root.addProperty("version", VERSION);
         JsonArray paths = new JsonArray();
         for (ActorPathDefinition path : library.getAll()) paths.add(serializePath(path));
         root.add("paths", paths);
-        AtomicFileWriter.writeString(file, GSON.toJson(root));
+        return GSON.toJson(root);
     }
 
     public static void loadFromFile(ActorPathLibrary library) {
+        loadFromFile(library, getActorPathsFile());
+    }
+
+    public static void loadFromFile(ActorPathLibrary library, Path file) {
         if (library == null) {
             return;
         }
         try {
-            Path file = getActorPathsFile();
             if (file == null || Files.notExists(file)) {
                 return;
             }

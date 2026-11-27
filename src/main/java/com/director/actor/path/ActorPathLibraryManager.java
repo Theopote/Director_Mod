@@ -2,6 +2,7 @@ package com.director.actor.path;
 
 import com.director.actor.path.persistence.ActorPathPersistence;
 import com.director.persistence.PersistenceSaveStatus;
+import com.director.persistence.ActorLibrarySaveQueue;
 import com.director.timeline.model.entity.ActorRouteClip;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
@@ -11,12 +12,6 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 演员路径库全局管理器（按存档持久化，脏标记防抖写盘）。
@@ -24,58 +19,37 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class ActorPathLibraryManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorPathLibraryManager.class);
-    private static final AtomicReference<ActorPathLibrary> GLOBAL = new AtomicReference<>();
-    private static final long MIN_SAVE_INTERVAL_MS = 1000L;
-    private static final ScheduledExecutorService SAVE_DEBOUNCE = Executors.newSingleThreadScheduledExecutor(task -> {
-        Thread thread = new Thread(task, "Director-ActorPathSave");
-        thread.setDaemon(true);
-        return thread;
-    });
-    private static final AtomicBoolean dirty = new AtomicBoolean(false);
-    private static volatile ScheduledFuture<?> pendingFlush;
-    private static volatile Path boundPathsFile;
+    private static final ActorLibrarySaveQueue SAVES = new ActorLibrarySaveQueue(
+            "Director-ActorPathSave", ActorPathPersistence::writeSnapshot);
+    private static ActorPathLibrary library;
+    private static Path boundPathsFile;
 
-    private ActorPathLibraryManager() {
-    }
+    private ActorPathLibraryManager() {}
 
-    public static ActorPathLibrary getInstance() {
-        ActorPathLibrary library = GLOBAL.get();
-        if (library == null) {
-            library = new ActorPathLibrary();
-            GLOBAL.set(library);
-            if (ActorPathPersistence.hasSavedData()) {
-                ActorPathPersistence.loadFromFile(library);
-            }
-            bindCurrentPathsFile();
-            LOGGER.info("[ActorPathLibraryManager] 初始化路径库，共 {} 条路径", library.size());
-        }
+    public static synchronized ActorPathLibrary getInstance() {
+        if (library == null) loadCurrentWorld();
         return library;
     }
 
-    public static void reloadForCurrentWorld() {
-        ActorPathLibrary previous = GLOBAL.get();
-        if (previous != null) flushNow(previous);
-        ActorPathLibrary library = new ActorPathLibrary();
-        if (ActorPathPersistence.hasSavedData()) {
-            ActorPathPersistence.loadFromFile(library);
+    public static synchronized void reloadForCurrentWorld() {
+        flushCurrent();
+        loadCurrentWorld();
+    }
+
+    public static synchronized boolean save() {
+        if (library == null || boundPathsFile == null) return true;
+        try {
+            SAVES.submit(boundPathsFile, ActorPathPersistence.snapshot(library));
+            return true;
+        } catch (RuntimeException failure) {
+            LOGGER.error("Unable to capture actor paths", failure);
+            PersistenceSaveStatus.reportActorResult(false);
+            return false;
         }
-        GLOBAL.set(library);
-        bindCurrentPathsFile();
-        LOGGER.info("[ActorPathLibraryManager] 重载路径库，共 {} 条路径", library.size());
     }
 
-    /** Marks dirty and schedules a trailing debounce flush. */
-    public static boolean save() {
-        dirty.set(true);
-        scheduleFlush();
-        return true;
-    }
-
-    /** Sync flush for editor close / explicit save barriers. */
-    public static boolean saveImmediately() {
-        dirty.set(false);
-        cancelPendingFlush();
-        return flushNow(GLOBAL.get());
+    public static synchronized boolean saveImmediately() {
+        return flushCurrent();
     }
 
     public static List<ActorPathDefinition> getAllPaths() {
@@ -151,41 +125,22 @@ public final class ActorPathLibraryManager {
         return true;
     }
 
-    private static void bindCurrentPathsFile() {
-        Path file = ActorPathPersistence.currentPathsFile();
-        if (file != null) boundPathsFile = file;
+    private static void loadCurrentWorld() {
+        boundPathsFile = ActorPathPersistence.currentPathsFile();
+        var next = new ActorPathLibrary();
+        ActorPathPersistence.loadFromFile(next, boundPathsFile);
+        library = next;
     }
 
-    private static synchronized void scheduleFlush() {
-        if (pendingFlush != null && !pendingFlush.isDone()) {
-            pendingFlush.cancel(false);
-        }
-        pendingFlush = SAVE_DEBOUNCE.schedule(() -> {
-            if (!dirty.getAndSet(false)) return;
-            flushNow(GLOBAL.get());
-            if (dirty.get()) scheduleFlush();
-        }, MIN_SAVE_INTERVAL_MS, TimeUnit.MILLISECONDS);
-    }
-
-    private static synchronized void cancelPendingFlush() {
-        if (pendingFlush != null) {
-            pendingFlush.cancel(false);
-            pendingFlush = null;
-        }
-    }
-
-    private static synchronized boolean flushNow(ActorPathLibrary library) {
+    private static boolean flushCurrent() {
         if (library == null) return true;
-        Path target = boundPathsFile;
-        boolean saved = target != null
-                ? ActorPathPersistence.saveToFile(library, target)
-                : ActorPathPersistence.saveToFile(library);
-        PersistenceSaveStatus.reportActorResult(saved);
-        if (saved) {
-            Path current = ActorPathPersistence.currentPathsFile();
-            if (current != null) boundPathsFile = current;
-            else if (target != null) boundPathsFile = target;
+        if (boundPathsFile == null) return false;
+        try {
+            return SAVES.flush(boundPathsFile, ActorPathPersistence.snapshot(library));
+        } catch (RuntimeException failure) {
+            LOGGER.error("Unable to capture actor paths", failure);
+            PersistenceSaveStatus.reportActorResult(false);
+            return false;
         }
-        return saved;
     }
 }
