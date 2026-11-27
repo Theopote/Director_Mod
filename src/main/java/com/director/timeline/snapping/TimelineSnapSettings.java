@@ -39,6 +39,26 @@ public class TimelineSnapSettings {
 
     // ========== Getter / Setter ==========
 
+    /**
+     * 复制另一份设置的原始值，用于对话框草稿和统一提交。
+     */
+    public void copyFrom(TimelineSnapSettings other) {
+        if (other == null) {
+            throw new IllegalArgumentException("snapSettings");
+        }
+        enabled = other.enabled;
+        gridInterval = other.gridInterval;
+        snapToGrid = other.snapToGrid;
+        snapToClipEdges = other.snapToClipEdges;
+        snapToKeyframes = other.snapToKeyframes;
+        pixelThreshold = other.pixelThreshold;
+    }
+
+    public boolean isValid() {
+        return Float.isFinite(gridInterval) && gridInterval >= 0.001f && gridInterval <= 10.0f
+                && Float.isFinite(pixelThreshold) && pixelThreshold >= 1.0f && pixelThreshold <= 50.0f;
+    }
+
     public boolean isEnabled() {
         return enabled;
     }

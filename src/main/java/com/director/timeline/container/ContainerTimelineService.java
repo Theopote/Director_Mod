@@ -89,7 +89,36 @@ public class ContainerTimelineService {
             return false;
         }
 
-        return !findClipsForContainer(containerId).isEmpty();
+        for (TimelineTrack track : timelineModel.getAllTracks()) {
+            if (track == null || track.getType() != TrackType.CONTAINER) {
+                continue;
+            }
+            for (TimelineClip clip : track.getClips()) {
+                if (containerId.equals(clip.getBoundContainerId())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public Set<UUID> getContainersOnTimeline() {
+        if (timelineModel == null) {
+            return Set.of();
+        }
+        Set<UUID> containerIds = new HashSet<>();
+        for (TimelineTrack track : timelineModel.getAllTracks()) {
+            if (track == null || track.getType() != TrackType.CONTAINER) {
+                continue;
+            }
+            for (TimelineClip clip : track.getClips()) {
+                UUID containerId = clip.getBoundContainerId();
+                if (containerId != null) {
+                    containerIds.add(containerId);
+                }
+            }
+        }
+        return containerIds;
     }
 
     /**

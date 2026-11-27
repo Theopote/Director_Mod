@@ -254,7 +254,8 @@ public final class ActorPathController {
             cancelAnchorDrag();
             return;
         }
-        boolean escapeDown = isKeyPressed(client, GLFW.GLFW_KEY_ESCAPE) && !ImGui.getIO().getWantTextInput();
+        boolean escapeDown = isKeyPressed(client, GLFW.GLFW_KEY_ESCAPE)
+                && !DirectorServices.get().imgui().isPrimaryWindowTextInputActive();
         boolean escapePressed = escapeDown && !lastEscapeDown; lastEscapeDown = escapeDown;
         if (escapePressed) {
             if (anchorDragActive) cancelAnchorDrag(); else beginNewDraft();
@@ -266,7 +267,7 @@ public final class ActorPathController {
 
         processDeleteShortcut();
 
-        if (ImGui.getIO().getWantCaptureMouse() && !draggingNow) {
+        if (DirectorServices.get().imgui().shouldCapturePrimaryMouse() && !draggingNow) {
             lastLeftMouseDown = isLeftMouseDown(client);
             lastRightMouseDown = isRightMouseDown(client);
             return;
@@ -437,7 +438,9 @@ public final class ActorPathController {
         boolean deleteDown = isKeyPressed(client, GLFW.GLFW_KEY_DELETE)
                 || isKeyPressed(client, GLFW.GLFW_KEY_BACKSPACE);
         if (deleteDown && !lastDeleteDown) {
-            if (!(ImGui.getIO().getWantTextInput() || ImGui.isAnyItemActive())) {
+            var imgui = DirectorServices.get().imgui();
+            boolean primaryItemActive = imgui.isPrimaryWindowInputActive() && ImGui.isAnyItemActive();
+            if (!(imgui.isPrimaryWindowTextInputActive() || primaryItemActive)) {
                 handleDeleteSelectedAnchor();
             }
         }

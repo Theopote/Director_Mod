@@ -21,7 +21,6 @@ import com.director.ui.panels.MenuBarPanel;
 import com.director.ui.panels.TimelinePanel;
 import com.director.ui.properties.PropertyAdapterContext;
 import com.director.timeline.container.ContainerTimelineService;
-import com.director.timeline.model.ITimelineProject;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.snapping.TimelineSnapSettings;
 import org.slf4j.Logger;
@@ -88,16 +87,7 @@ public final class UICommandFacadeImpl implements UICommandFacade {
 
                 @Override
                 public float getFrameRate() {
-                    float fps = timelineModel.getFrameRate();
-                    LOGGER.debug("[TimelineSettings] 获取帧率: {} (项目对象: {})", fps, ((ITimelineProject) timelineModel).getClass().getSimpleName());
-                    return fps;
-                }
-
-                @Override
-                public boolean setFrameRate(float fps) {
-                    timelineModel.setFrameRate(fps);
-                    LOGGER.debug("[TimelineSettings] 帧率已设置为: {}", fps);
-                    return true;
+                    return timelineModel.getFrameRate();
                 }
 
                 @Override
@@ -106,9 +96,12 @@ public final class UICommandFacadeImpl implements UICommandFacade {
                 }
 
                 @Override
-                public boolean setTimeUnit(int unit) {
-                    timelineModel.setTimeUnit(unit);
-                    return true;
+                public boolean commitSettings(float frameRate, int timeUnit, TimelineSnapSettings snapSettings) {
+                    boolean committed = timelineModel.applySettings(frameRate, timeUnit, snapSettings);
+                    if (committed && timelinePanel != null) {
+                        timelinePanel.markDataChanged();
+                    }
+                    return committed;
                 }
             });
         }

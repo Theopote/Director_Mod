@@ -1,5 +1,6 @@
 package com.director.ui.container;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import imgui.ImGui;
 import imgui.type.ImString;
@@ -36,11 +37,15 @@ public class ContainerTreeView {
             return;
         }
 
-        interactionHandler.beginFrame();
-        List<Container> roots = new ArrayList<>(controller.getRootContainers());
-        renderer.renderTree(roots, search.get());
-        interactionHandler.handleRootDropArea();
-        interactionHandler.handleCanvasContextMenu();
-        ImGui.endChild();
+        try {
+            var timelineContainerIds = DirectorServices.get().containerTimeline().getContainersOnTimeline();
+            interactionHandler.beginFrame(timelineContainerIds);
+            List<Container> roots = new ArrayList<>(controller.getRootContainers());
+            renderer.renderTree(roots, search.get(), timelineContainerIds);
+            interactionHandler.handleRootDropArea();
+            interactionHandler.handleCanvasContextMenu();
+        } finally {
+            ImGui.endChild();
+        }
     }
 }

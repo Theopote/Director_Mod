@@ -8,6 +8,7 @@ import net.minecraft.util.math.Vec3d;
 
 import com.director.client.gizmo.handles.AxisHandle;
 import com.director.client.input.DirectorInputSystem;
+import com.director.core.DirectorServices;
 import com.director.ui.cursor.ImGuiCursorController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,7 +153,7 @@ public class GizmoRenderEvents {
             boolean mouseReleased = lastMouseDown && !mouseDown;
             lastMouseDown = mouseDown;
             if (!gm.isActive()) return;
-            if(imgui.ImGui.getIO().getWantCaptureMouse()) {
+            if (DirectorServices.get().imgui().shouldCapturePrimaryMouse()) {
                 var controller=gm.getController();
                 if(controller!=null) {
                     controller.clearHover();

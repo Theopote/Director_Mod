@@ -48,15 +48,16 @@ class TimelineRenderMathRowsTest {
         var viewport = new TimelineRenderViewport();
         viewport.update(0, 0, 800, 200);
         var math = new TimelineRenderMath(viewport);
-        math.setRowLayout(new TimelineRowLayout(new float[]{128f}, 2f, 16f, 2));
+        float trackHeight = TimelineRenderer.getTrackHeight();
+        math.setRowLayout(new TimelineRowLayout(new float[]{6 * trackHeight}, 2f, 16f, 2));
         var hitTest = new TimelineRenderHitTest(math, viewport, model);
 
         var label = hitTest.getTrackHeaderBounds(0, 150, 30, 10, 150);
         assertEquals(20f, label.y1());
-        assertEquals(148f, label.y2());
+        assertEquals(20f + 6 * trackHeight, label.y2());
         var clip = hitTest.getClipRect(track, state, 0, 30, 10);
-        assertEquals(122.4f, clip.y1(), 1e-4f);
-        assertEquals(148f, clip.y2(), 1e-4f);
+        assertEquals(20f + 5 * trackHeight, clip.y1(), 1e-4f);
+        assertEquals(20f + 6 * trackHeight, clip.y2(), 1e-4f);
     }
 
     @Test void actionPaintOnlyHitsTheFirstExpandedBehaviorRow() {

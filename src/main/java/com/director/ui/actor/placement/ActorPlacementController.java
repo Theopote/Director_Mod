@@ -1,6 +1,7 @@
 package com.director.ui.actor.placement;
 
 import com.director.core.DirectorServices;
+import com.director.i18n.DirectorLang;
 import com.director.actor.Actor;
 import com.director.actor.ActorRef;
 import com.director.actor.ActorRegistry;
@@ -25,6 +26,8 @@ import net.minecraft.util.math.Vec3d;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Objects;
 
 /**
  * ActorPlacementController v1.0
@@ -84,52 +87,115 @@ public final class ActorPlacementController {
     // Public API
     // =========================================================
 
+    /** 稳定的放置启动失败原因；文案由 UI 层按当前语言翻译。 */
+    public enum StartFailure {
+        CLIENT_OR_WORLD_NOT_READY(DirectorLang.Properties.AdapterActor.Selector.PLACEMENT_CLIENT_NOT_READY),
+        TIMELINE_NOT_READY(DirectorLang.Properties.AdapterActor.Selector.PLACEMENT_TIMELINE_NOT_READY),
+        PLAYBACK_ACTIVE(DirectorLang.Properties.AdapterActor.Selector.PLACEMENT_PLAYBACK_ACTIVE),
+        SCRUBBING_ACTIVE(DirectorLang.Properties.AdapterActor.Selector.PLACEMENT_SCRUBBING_ACTIVE),
+        PREVIEW_FAILED(DirectorLang.Properties.AdapterActor.Selector.PLACEMENT_PREVIEW_FAILED),
+        INTERNAL_ERROR(DirectorLang.Properties.AdapterActor.Selector.PLACEMENT_INTERNAL_ERROR);
+
+        private final String translationKey;
+
+        StartFailure(String translationKey) {
+            this.translationKey = translationKey;
+        }
+
+        public String translationKey() {
+            return translationKey;
+        }
+    }
+
+    /** 放置启动结果；cause 仅用于诊断，UI 使用稳定失败原因。 */
+    public record StartResult(boolean success, StartFailure failure, RuntimeException cause) {
+        private static final StartResult SUCCESS = new StartResult(true, null, null);
+
+        public StartResult {
+            if (success == (failure != null) || (success && cause != null)) {
+                throw new IllegalArgumentException("放置结果的成功状态、失败原因和异常 cause 不一致");
+            }
+        }
+
+        public static StartResult succeeded() {
+            return SUCCESS;
+        }
+
+        public static StartResult failure(StartFailure failure) {
+            return new StartResult(false, Objects.requireNonNull(failure, "failure"), null);
+        }
+
+        public static StartResult failure(StartFailure failure, RuntimeException cause) {
+            return new StartResult(false, Objects.requireNonNull(failure, "failure"), cause);
+        }
+    }
+
     /**
      * 开始放置 Actor
      * <p>创建临时 Actor 并附着到鼠标
      *
      * @param actorName Actor 名称
      * @param actorType Actor 类型
-     * @return 如果成功开始放置则返回 true
+     * @return 包含成功状态、稳定失败原因和可选异常 cause 的结构化结果
      */
-    public boolean startPlacement(String actorName, ActorType actorType) {
-        if (isPlacing) {
-            LOGGER.warn("[ActorPlacement] 已经在放置模式，取消之前的放置");
-            cancelPlacement();
-        }
-
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null) {
-            LOGGER.warn("[ActorPlacement] MinecraftClient 未初始化");
-            return false;
-        }
-
+    public StartResult startPlacement(String actorName, ActorType actorType) {
         try {
-            var model=DirectorServices.get().containerTimeline().getTimelineModel();
-            if(model==null || model.isPlaying() || model.isScrubbing()) return false;
-            placementModel=model;placementRegistry=ActorRegistryManager.getInstance();
+            if (isPlacing) {
+                LOGGER.warn("[ActorPlacement] 已经在放置模式，取消之前的放置");
+                cancelPlacement();
+            }
+
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client == null || client.world == null) {
+                return logFailure(StartFailure.CLIENT_OR_WORLD_NOT_READY, actorName, null);
+            }
+
+            var model = DirectorServices.get().containerTimeline().getTimelineModel();
+            if (model == null) {
+                return logFailure(StartFailure.TIMELINE_NOT_READY, actorName, null);
+            }
+            if (model.isPlaying()) {
+                return logFailure(StartFailure.PLAYBACK_ACTIVE, actorName, null);
+            }
+            if (model.isScrubbing()) {
+                return logFailure(StartFailure.SCRUBBING_ACTIVE, actorName, null);
+            }
+            placementModel = model;
+            placementRegistry = ActorRegistryManager.getInstance();
+
             // 1. 创建临时 Actor（不保存到 Registry，只是预览）
             pendingActor = new Actor(actorName.trim(), actorType);
-            
+
             // 2. 使用 ActorPreviewManager 创建临时 PreviewEntity（避免渲染系统类型错误）
             ActorPreviewManager previewManager = ActorPreviewManager.getInstance();
-            
             previewEntity = previewManager.ensurePreview(pendingActor);
             if (previewEntity == null) {
-                LOGGER.warn("[ActorPlacement] 无法创建预览实体");
-                return false;
+                cancelPlacement();
+                return logFailure(StartFailure.PREVIEW_FAILED, actorName, null);
             }
 
             isPlacing = true;
             lastRightMouseDown = false;
             LOGGER.info("[ActorPlacement] 开始放置 Actor: {} ({})", actorName, actorType);
-            return true;
+            return StartResult.succeeded();
 
         } catch (RuntimeException e) {
-            LOGGER.error("[ActorPlacement] 开始放置失败", e);
-            cancelPlacement();
-            return false;
+            try {
+                cancelPlacement();
+            } catch (RuntimeException cleanupFailure) {
+                e.addSuppressed(cleanupFailure);
+            }
+            return logFailure(StartFailure.INTERNAL_ERROR, actorName, e);
         }
+    }
+
+    private StartResult logFailure(StartFailure failure, String actorName, RuntimeException cause) {
+        if (cause == null) {
+            LOGGER.warn("[ActorPlacement] 无法开始放置: reason={}, actor={}", failure, actorName);
+            return StartResult.failure(failure);
+        }
+        LOGGER.error("[ActorPlacement] 无法开始放置: reason={}, actor={}", failure, actorName, cause);
+        return StartResult.failure(failure, cause);
     }
 
     /**

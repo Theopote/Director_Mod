@@ -1086,11 +1086,15 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 String name = newActorName.get().strip();
                 if (name.isBlank()) {
                     createError = ActorPropertyAdapterI18n.tr("gui.director.actor.identity.name_required");
-                } else if (com.director.ui.actor.placement.ActorPlacementController.getInstance().startPlacement(name, newActorType)) {
-                    ImGui.closeCurrentPopup();
-                    createError = "";
                 } else {
-                    createError = ActorPropertyAdapterI18n.tr("gui.director.actor.identity.placement_unavailable");
+                    var result = com.director.ui.actor.placement.ActorPlacementController.getInstance()
+                            .startPlacement(name, newActorType);
+                    if (result.success()) {
+                        ImGui.closeCurrentPopup();
+                        createError = "";
+                    } else {
+                        createError = ActorPropertyAdapterI18n.tr(result.failure().translationKey());
+                    }
                 }
             }
 
@@ -1100,7 +1104,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 ImGui.closeCurrentPopup();
             }
             
-            if (!createError.isEmpty()) ImGui.textWrapped(createError);
+            if (!createError.isEmpty()) InlineNotice.draw(InlineNotice.Level.ERROR, createError);
             ImGui.endPopup();
         }
     }

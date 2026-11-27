@@ -6,6 +6,7 @@ import com.director.actor.*;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.actor.placement.ActorPlacementController;
+import com.director.ui.actor.placement.ActorPlacementController.StartResult;
 import com.director.timeline.model.TimelineModel;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
@@ -23,6 +24,7 @@ public final class ActorSelectorPanel {
     private final TimelineModel timelineModel;
 
     private boolean createPopupOpen = false;
+    private String createError = "";
     private boolean editNamePopupOpen = false;
     private boolean deleteConfirmPopupOpen = false;
 
@@ -85,6 +87,7 @@ public final class ActorSelectorPanel {
     private void openCreatePopup() {
         newActorName.set("Actor");
         newActorType = ActorType.VILLAGER;
+        createError = "";
         createPopupOpen = true;
         ImGui.openPopup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.POPUP_CREATE));
     }
@@ -105,13 +108,21 @@ public final class ActorSelectorPanel {
             renderActorTypeCombo();
 
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.PLACE_HINT));
+            if (!createError.isEmpty()) {
+                InlineNotice.draw(InlineNotice.Level.ERROR, createError);
+            }
 
             ImGui.separator();
 
             if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CREATE))) {
-                createActorAndTrack();
-                ImGui.closeCurrentPopup();
-                createPopupOpen = false;
+                StartResult result = createActorAndTrack();
+                if (result.success()) {
+                    createError = "";
+                    ImGui.closeCurrentPopup();
+                    createPopupOpen = false;
+                } else {
+                    createError = ActorPropertyAdapterI18n.tr(result.failure().translationKey());
+                }
             }
 
             ImGui.sameLine();
@@ -144,18 +155,18 @@ public final class ActorSelectorPanel {
         }
     }
 
-    private void createActorAndTrack() {
+    private StartResult createActorAndTrack() {
         String actorName = newActorName.get();
         if (actorName == null || actorName.trim().isEmpty()) {
             actorName = "Actor";
         }
 
         ActorPlacementController placementController = ActorPlacementController.getInstance();
-        if (placementController.startPlacement(actorName.trim(), newActorType)) {
+        StartResult result = placementController.startPlacement(actorName.trim(), newActorType);
+        if (result.success()) {
             LOGGER.info("[ActorSelector] Start placement: {} ({})", actorName, newActorType);
-        } else {
-            LOGGER.warn("[ActorSelector] Failed to start placement for actor: {}", actorName);
         }
+        return result;
     }
 
     private void openEditActorNamePopup(Actor actor) {

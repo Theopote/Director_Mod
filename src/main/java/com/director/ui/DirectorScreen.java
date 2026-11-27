@@ -18,6 +18,7 @@ import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
@@ -46,6 +47,12 @@ public class DirectorScreen extends Screen {
     public DirectorUIManager getUIManager() {
         return uiManager;
     }
+
+    public boolean isInitializationFailed() {
+        return initializationFailed;
+    }
+
+    private ButtonWidget errorReturnButton;
     private boolean initializationFailed = false;
     private boolean isInitialized = false;
     private boolean directorModeActive = false;
@@ -135,7 +142,7 @@ public class DirectorScreen extends Screen {
 
         if (!DirectorServices.get().imgui().isInitialized()) {
             LOGGER.error("[Director] ImGui 未初始化，UI 无法显示");
-            initializationFailed = true;
+            markInitializationFailed();
             return;
         }
 
@@ -166,7 +173,7 @@ public class DirectorScreen extends Screen {
         } catch (Exception e) {
             LOGGER.error("[Director] UI 管理器初始化失败: {}", e.getMessage(), e);
             this.uiManager = null;
-            initializationFailed = true;
+            markInitializationFailed();
         }
 
         try {
@@ -177,9 +184,19 @@ public class DirectorScreen extends Screen {
         }
     }
 
+    private void markInitializationFailed() {
+        initializationFailed = true;
+        errorReturnButton = ButtonWidget.builder(Text.literal("返回游戏"), button -> close())
+                .dimensions(width / 2 - 60, height / 2 + 50, 120, 20)
+                .build();
+    }
+
     @Override
     public void onDisplayed() {
         super.onDisplayed();
+        if (initializationFailed) {
+            return;
+        }
         LOGGER.info("[Director] 🎬 进入导演模式界面");
         activateScreenState();
         enterDirectorMode();
@@ -216,75 +233,46 @@ public class DirectorScreen extends Screen {
             return;
         }
 
+        ImGuiRenderer imGuiRenderer = null;
+        boolean frameStarted = false;
         try {
-            // 获取ImGui渲染器实例
-            ImGuiRenderer imGuiRenderer = DirectorServices.get().imgui();
+            imGuiRenderer = DirectorServices.get().imgui();
             if (imGuiRenderer.consumeDetachedWindowCloseRequest(this)) {
-                // 系统关闭按钮（外置窗口 X）触发时，在主路径安全关闭 detached window，
-                // 避免在 detached 渲染上下文内直接销毁原生窗口。
                 imGuiRenderer.closeDetachedDirectorWindow(this);
                 detachedWindowClosePending = true;
                 return;
             }
 
-            // 更新显示尺寸（处理全屏切换等）
             imGuiRenderer.updateDisplaySize();
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[Director] Display size updated");
-            }
-
-            // 开始新的ImGui帧；失败时绝不能继续 ImGui.begin()（会触发 WithinFrameScope assert）
             if (!imGuiRenderer.beginFrame()) {
                 LOGGER.warn("[Director] ImGui frame failed to start, skipping UI render this frame");
                 return;
             }
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[Director] ImGui frame started");
-            }
+            frameStarted = true;
 
-            // 渲染UI管理器（包含DockSpace）- 使用 DirectorStyleScope 临时应用样式，渲染后 pop 恢复，避免影响 Treefactory 等模组
             if (uiManager != null) {
-            InputFocusManager.getInstance().beginFrame();
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[Director] Rendering UI manager...");
-            }
-            try (DirectorStyleScope scope = DirectorStyleScope.enter()) {
-                uiManager.render();
-            }
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[Director] UI manager rendered successfully");
-            }
+                InputFocusManager.getInstance().beginFrame();
+                try (DirectorStyleScope scope = DirectorStyleScope.enter()) {
+                    uiManager.render();
+                }
             } else {
                 LOGGER.warn("[Director] UIManager为空，跳过UI渲染");
             }
 
-            // 更新输入焦点管理器状态
             InputFocusManager.getInstance().update();
-
-            // Use fresh ImGui pointer/viewport coordinates once per rendered frame.
             com.director.ui.lighting.PointLightController.get().update();
             com.director.client.gizmo.GizmoRenderEvents.frameInteraction();
-
-            // 移除调试状态栏显示（FPS、Panels、Frame#已在工具栏和状态栏显示）
-            // renderDebugStatusBar();
-
-            // ✅ 应用 ImGui 光标状态（来自 BoxSelectTool 等工具）
             ImGuiCursorController.get().applyToImGui();
-
-            // 结束ImGui帧
-            imGuiRenderer.endFrame();
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[Director] ImGui frame ended");
-            }
-
         } catch (Exception e) {
             LOGGER.error("[Director] UI渲染异常", e);
-            
-            // 在异常情况下强制清理ImGui状态
             try {
                 com.director.ui.imgui.ImGuiStateChecker.forceCleanupStack("DirectorScreen异常恢复");
             } catch (Exception cleanupException) {
                 LOGGER.error("[Director] 清理ImGui状态时发生异常", cleanupException);
+            }
+        } finally {
+            if (frameStarted && imGuiRenderer != null) {
+                imGuiRenderer.endFrame();
             }
         }
     }
@@ -292,7 +280,7 @@ public class DirectorScreen extends Screen {
 
     @Override
     public boolean shouldCloseOnEsc() {
-        return false; // 禁用ESC键关闭，使用工具栏关闭按钮
+        return initializationFailed;
     }
     
     /**
@@ -309,7 +297,11 @@ public class DirectorScreen extends Screen {
      */
     @Override
     public boolean keyPressed(KeyInput input) {
-        if (ImGui.getIO() != null && ImGui.getIO().getWantCaptureKeyboard()) {
+        if (initializationFailed && input.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
+            close();
+            return true;
+        }
+        if (DirectorServices.get().imgui().shouldCapturePrimaryKeyboard()) {
             return super.keyPressed(input);
         }
         return false;
@@ -321,8 +313,7 @@ public class DirectorScreen extends Screen {
      */
     @Override
     public boolean mouseClicked(Click click, boolean doubleClick) {
-        // 检查ImGui是否想要捕获鼠标事件
-        if (ImGui.getIO() != null && ImGui.getIO().getWantCaptureMouse()) {
+        if (isMouseOverDirectorGui(click.x(), click.y())) {
             return super.mouseClicked(click, doubleClick);
         }
         return false; // 不拦截游戏鼠标事件
@@ -334,7 +325,7 @@ public class DirectorScreen extends Screen {
      */
     @Override
     public void mouseMoved(double mouseX, double mouseY) {
-        if (ImGui.getIO() != null && ImGui.getIO().getWantCaptureMouse()) {
+        if (isMouseOverDirectorGui(mouseX, mouseY)) {
             super.mouseMoved(mouseX, mouseY);
         }
     }
@@ -347,7 +338,7 @@ public class DirectorScreen extends Screen {
     
     @Override
     public boolean mouseDragged(Click click, double deltaX, double deltaY) {
-        if (ImGui.getIO().getWantCaptureMouse()) {
+        if (isMouseOverDirectorGui(click.x(), click.y())) {
             return true;
         }
         return super.mouseDragged(click, deltaX, deltaY);
@@ -355,7 +346,7 @@ public class DirectorScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (ImGui.getIO().getWantCaptureMouse()) {
+        if (isMouseOverDirectorGui(mouseX, mouseY)) {
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
@@ -368,9 +359,7 @@ public class DirectorScreen extends Screen {
      * @return 如果鼠标在界面上返回true，否则返回false
      */
     public boolean isMouseOverDirectorGui(double mouseX, double mouseY) {
-        // 直接使用ImGui的鼠标捕获检测
-        // ImGui会自动检测鼠标是否在任何ImGui窗口或控件上
-        return ImGui.getIO().getWantCaptureMouse();
+        return DirectorServices.get().imgui().shouldCapturePrimaryMouse();
     }
 
     /**
@@ -590,7 +579,7 @@ public class DirectorScreen extends Screen {
         // 渲染错误信息
         String errorText = "Director UI 初始化失败";
         String detailText = "请检查日志获取详细信息";
-        String retryText = "按ESC键关闭此屏幕";
+        String retryText = "按ESC键或点击下方按钮返回游戏";
         
         int centerX = width / 2;
         int centerY = height / 2;
@@ -619,6 +608,9 @@ public class DirectorScreen extends Screen {
             centerY + 20,
             0xAAAAAA
         );
+        if (errorReturnButton != null) {
+            errorReturnButton.render(context, mouseX, mouseY, delta);
+        }
     }
     
     /**

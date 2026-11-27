@@ -496,8 +496,11 @@ public class UITheme {
      */
     public static void title(String text) {
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 0, Spacing.MEDIUM);
-        label(text, DarkTheme.TEXT_SELECTED);
-        ImGui.popStyleVar();
+        try {
+            label(text, DarkTheme.TEXT_SELECTED);
+        } finally {
+            ImGui.popStyleVar();
+        }
         separator();
     }
     
@@ -506,10 +509,28 @@ public class UITheme {
      */
     public static void beginGroup(String title) {
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, Spacing.GROUP_PADDING, Spacing.GROUP_PADDING);
-        ImGui.beginGroup();
-        if (title != null && !title.isEmpty()) {
-            label(title, DarkTheme.TEXT);
-            spacingSmall();
+        boolean groupStarted = false;
+        try {
+            ImGui.beginGroup();
+            groupStarted = true;
+            if (title != null && !title.isEmpty()) {
+                label(title, DarkTheme.TEXT);
+                spacingSmall();
+            }
+        } catch (RuntimeException | Error e) {
+            if (groupStarted) {
+                try {
+                    ImGui.endGroup();
+                } catch (RuntimeException | Error cleanupFailure) {
+                    e.addSuppressed(cleanupFailure);
+                }
+            }
+            try {
+                ImGui.popStyleVar();
+            } catch (RuntimeException | Error cleanupFailure) {
+                e.addSuppressed(cleanupFailure);
+            }
+            throw e;
         }
     }
     
@@ -517,8 +538,11 @@ public class UITheme {
      * 分组结束
      */
     public static void endGroup() {
-        ImGui.endGroup();
-        ImGui.popStyleVar();
+        try {
+            ImGui.endGroup();
+        } finally {
+            ImGui.popStyleVar();
+        }
         spacing(Spacing.GROUP_SPACING);
     }
 }

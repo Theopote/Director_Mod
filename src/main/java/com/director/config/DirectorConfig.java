@@ -32,11 +32,16 @@ public class DirectorConfig {
     private static final Path CONFIG_DIR = Paths.get("config");
     private static final Path CONFIG_FILE = CONFIG_DIR.resolve("director.json");
     
-    // 默认配置
-    private static final ConfigData DEFAULT_CONFIG = new ConfigData();
+    public static final float DEFAULT_FRAME_RATE = 60.0f;
+    public static final float MIN_FRAME_RATE = 1.0f;
+    public static final float MAX_FRAME_RATE = 240.0f;
+    public static final boolean DEFAULT_AUTO_SAVE_ENABLED = true;
+    public static final int DEFAULT_AUTO_SAVE_INTERVAL_SECONDS = 5;
+    public static final int MIN_AUTO_SAVE_INTERVAL_SECONDS = 1;
+    public static final int MAX_AUTO_SAVE_INTERVAL_SECONDS = 3600;
     
     // 当前配置实例
-    private static ConfigData currentConfig = DEFAULT_CONFIG;
+    private static ConfigData currentConfig = new ConfigData();
     
     /**
      * 配置数据结构
@@ -82,7 +87,9 @@ public class DirectorConfig {
         
         public static class UISettings {
             public String defaultTheme = "dark";
-
+            public float defaultFps = DEFAULT_FRAME_RATE;
+            public boolean autoSaveEnabled = DEFAULT_AUTO_SAVE_ENABLED;
+            public int autoSaveIntervalSeconds = DEFAULT_AUTO_SAVE_INTERVAL_SECONDS;
         }
         
         public static class DebugSettings {
@@ -117,7 +124,7 @@ public class DirectorConfig {
         } catch (Exception e) {
             LOGGER.error("[Director] 配置系统初始化失败: {}", e.getMessage(), e);
             // 使用默认配置
-            currentConfig = DEFAULT_CONFIG;
+            currentConfig = new ConfigData();
         }
     }
     
@@ -136,7 +143,7 @@ public class DirectorConfig {
             
             if (!"1.0".equals(version)) {
                 LOGGER.warn("[Director] 检测到旧版本配置文件 ({}), 将使用默认配置", version);
-                currentConfig = DEFAULT_CONFIG;
+                currentConfig = new ConfigData();
                 saveConfig();
             } else {
                 currentConfig = GSON.fromJson(configJson, ConfigData.class);
@@ -145,7 +152,7 @@ public class DirectorConfig {
         } else {
             // 创建默认配置文件
             LOGGER.info("[Director] 配置文件不存在，创建默认配置: {}", CONFIG_FILE);
-            currentConfig = DEFAULT_CONFIG;
+            currentConfig = new ConfigData();
             saveConfig();
         }
     }
@@ -153,13 +160,15 @@ public class DirectorConfig {
     /**
      * 保存配置文件
      */
-    public static void saveConfig() {
+    public static boolean saveConfig() {
         try {
             String configJson = GSON.toJson(currentConfig);
             Files.writeString(CONFIG_FILE, configJson);
             LOGGER.debug("[Director] 配置文件已保存: {}", CONFIG_FILE);
+            return true;
         } catch (IOException e) {
             LOGGER.error("[Director] 保存配置文件失败: {}", e.getMessage(), e);
+            return false;
         }
     }
     
@@ -168,6 +177,53 @@ public class DirectorConfig {
      */
     public static ConfigData getConfig() {
         return currentConfig;
+    }
+
+    public static float getDefaultFrameRate() {
+        float fps = currentConfig.ui.defaultFps;
+        return isValidDefaultFrameRate(fps) ? fps : DEFAULT_FRAME_RATE;
+    }
+
+    public static boolean isAutoSaveEnabled() {
+        return currentConfig.ui.autoSaveEnabled;
+    }
+
+    public static int getAutoSaveIntervalSeconds() {
+        return Math.clamp(currentConfig.ui.autoSaveIntervalSeconds,
+                MIN_AUTO_SAVE_INTERVAL_SECONDS, MAX_AUTO_SAVE_INTERVAL_SECONDS);
+    }
+
+    public static boolean isValidDefaultFrameRate(float fps) {
+        return Float.isFinite(fps) && fps >= MIN_FRAME_RATE && fps <= MAX_FRAME_RATE;
+    }
+
+    public static boolean isValidAutoSaveIntervalSeconds(int seconds) {
+        return seconds >= MIN_AUTO_SAVE_INTERVAL_SECONDS && seconds <= MAX_AUTO_SAVE_INTERVAL_SECONDS;
+    }
+
+    /**
+     * 更新并持久化通用设置。保存失败时恢复调用前的内存值。
+     */
+    public static boolean updateUISettings(float defaultFps, boolean autoSaveEnabled, int autoSaveIntervalSeconds) {
+        if (!isValidDefaultFrameRate(defaultFps) || !isValidAutoSaveIntervalSeconds(autoSaveIntervalSeconds)) {
+            return false;
+        }
+
+        ConfigData.UISettings ui = currentConfig.ui;
+        float previousFps = ui.defaultFps;
+        boolean previousAutoSaveEnabled = ui.autoSaveEnabled;
+        int previousInterval = ui.autoSaveIntervalSeconds;
+        ui.defaultFps = defaultFps;
+        ui.autoSaveEnabled = autoSaveEnabled;
+        ui.autoSaveIntervalSeconds = autoSaveIntervalSeconds;
+        if (saveConfig()) {
+            return true;
+        }
+
+        ui.defaultFps = previousFps;
+        ui.autoSaveEnabled = previousAutoSaveEnabled;
+        ui.autoSaveIntervalSeconds = previousInterval;
+        return false;
     }
 
     /**

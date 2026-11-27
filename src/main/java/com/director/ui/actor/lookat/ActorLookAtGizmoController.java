@@ -124,7 +124,7 @@ public final class ActorLookAtGizmoController {
         }
 
         // 3️⃣ 检查 ImGui 是否占用鼠标
-        if (ImGui.getIO().getWantCaptureMouse()) {
+        if (DirectorServices.get().imgui().shouldCapturePrimaryMouse()) {
             lastLeftMouseDown = isLeftMouseDown();
             return;
         }

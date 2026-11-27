@@ -3,6 +3,7 @@ package com.director.ui.timeline.state;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.director.config.DirectorConfig;
 import com.director.timeline.model.TimelineModel;
 
 /**
@@ -13,7 +14,6 @@ public final class AutoSaveManager {
 
     private final TimelineModel model;
     private long lastSaveTime = System.currentTimeMillis();
-    private static final long AUTO_SAVE_INTERVAL = 5000; // 5秒自动保存
     private boolean dirty = false;
 
     public AutoSaveManager(TimelineModel model) {
@@ -24,13 +24,16 @@ public final class AutoSaveManager {
      * 每帧调用，检查是否需要自动保存
      */
     public void tick() {
+        if (!dirty || !DirectorConfig.isAutoSaveEnabled()) {
+            return;
+        }
+
         long currentTime = System.currentTimeMillis();
-        if (dirty && (currentTime - lastSaveTime) >= AUTO_SAVE_INTERVAL) {
-            if (model.save()) {
-                dirty = false;
-                lastSaveTime = currentTime;
-                LOGGER.debug("[Timeline] 自动保存时间线数据");
-            }
+        long intervalMillis = DirectorConfig.getAutoSaveIntervalSeconds() * 1000L;
+        if (currentTime - lastSaveTime >= intervalMillis && model.save()) {
+            dirty = false;
+            lastSaveTime = currentTime;
+            LOGGER.debug("[Timeline] 自动保存时间线数据");
         }
     }
 

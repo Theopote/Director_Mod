@@ -152,10 +152,6 @@ public class TimelinePanel extends AbstractPanel
     private com.director.timeline.model.TimelineMarker draggedMarker = null;
     private float markerDragStartX = -1f;
 
-    // ========== 性能优化：基于时间的定时器 ==========
-    // 使用时间戳代替帧计数，避免受 FPS 波动影响
-    private long lastAutoSaveTime = 0;
-
     // ========== 常量定义 ==========
     private static final int MAX_HISTORY_SIZE = 100;
     private static final float KEYFRAME_TOLERANCE = 0.1f;
@@ -163,7 +159,6 @@ public class TimelinePanel extends AbstractPanel
     private static final float CLIP_DUPLICATE_OFFSET = 0.5f; // 预留：片段复制时的偏移量
     @SuppressWarnings("unused")
     private static final float FIXED_DELTA_TIME = 1.0f / 60.0f; // 预留：60 FPS 固定时间步长（可在updatePlayback中使用）
-    private static final long AUTO_SAVE_INTERVAL_MS = 5000; // 5秒（基于时间，不受FPS影响）
 
     public TimelinePanel() {
         this(new TimelineCommandHistory());
@@ -253,9 +248,6 @@ public class TimelinePanel extends AbstractPanel
 
         // 4. 初始化自动保存管理器
         this.autoSave = new AutoSaveManager(model);
-
-        // 初始化自动保存时钟
-        this.lastAutoSaveTime = System.currentTimeMillis();
 
         // 注册容器-时间线关联服务
         DirectorServices.get().containerTimeline().setTimelineModel(model);
@@ -435,12 +427,8 @@ public class TimelinePanel extends AbstractPanel
         // 6. 上下文菜单现在在子窗口内渲染（见 renderTimelineCanvas 方法）
         // 这样可以确保 popup 在正确的窗口上下文中间显示
 
-        // 7. 自动保存（性能优化：基于时间的检查，不受FPS波动影响）
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastAutoSaveTime >= AUTO_SAVE_INTERVAL_MS) {
-            autoSave.tick();
-            lastAutoSaveTime = currentTime;
-        }
+        // 7. 自动保存：开关和间隔统一从 DirectorConfig 读取
+        autoSave.tick();
     }
 
     // ⚠️ updatePlayback() 方法已迁移到 PlaybackCommandsImpl.tick()（Facade 架构）
@@ -505,7 +493,7 @@ public class TimelinePanel extends AbstractPanel
     /**
      * 标记数据已修改（委托给 AutoSaveManager）
      */
-    private void markDataChanged() {
+    public void markDataChanged() {
         autoSave.markDirty();
     }
 

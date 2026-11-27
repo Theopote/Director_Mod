@@ -239,7 +239,7 @@ public class ImGuiRenderer {
         synchronized (LOCK) {
             if (!initialized || frameInProgress) {
                 LOGGER.debug("[Director] Skipping beginFrame - initialized: {}, frameInProgress: {}", initialized, frameInProgress);
-                return frameInProgress;
+                return false;
             }
 
             try {
@@ -281,12 +281,72 @@ public class ImGuiRenderer {
     /**
      * 主窗口输入由 Mixin 单次转发；分离窗口已自带 GLFW 回调，勿再转发以免双倍字符。
      */
-    public boolean shouldFeedMinecraftInput() {
-        return initialized && imGuiGlfw != null && !detachedDirectorWindow.isOpen();
+    public boolean shouldFeedMinecraftInput(long window) {
+        return isPrimaryWindowInputActive() && imGuiGlfw != null && window == windowHandle;
+    }
+
+    public boolean isPrimaryWindowInputActive() {
+        return initialized && windowHandle != 0L && !detachedDirectorWindow.isOpen();
+    }
+
+    public boolean isDetachedDirectorWindowOpen() {
+        return detachedDirectorWindow.isOpen();
+    }
+
+    public boolean shouldCapturePrimaryMouse() {
+        if (!isPrimaryWindowInputActive() || !isPrimaryWindowHovered()) {
+            return false;
+        }
+        try {
+            activateDirectorContext();
+            ImGuiIO io = ImGui.getIO();
+            float x = io.getMousePosX();
+            float y = io.getMousePosY();
+            return io.getWantCaptureMouse()
+                    && x >= 0.0f && y >= 0.0f
+                    && x < io.getDisplaySizeX() && y < io.getDisplaySizeY();
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    public boolean isPrimaryWindowTextInputActive() {
+        if (!isPrimaryWindowInputActive() || !isPrimaryWindowFocused()) {
+            return false;
+        }
+        try {
+            activateDirectorContext();
+            return ImGui.getIO().getWantTextInput();
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    public boolean shouldCapturePrimaryKeyboard() {
+        if (!isPrimaryWindowInputActive() || !isPrimaryWindowFocused()) {
+            return false;
+        }
+        try {
+            activateDirectorContext();
+            ImGuiIO io = ImGui.getIO();
+            return io.getWantTextInput() || io.getWantCaptureKeyboard();
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    public boolean isPrimaryWindowHovered() {
+        return windowHandle != 0L
+                && GLFW.glfwGetWindowAttrib(windowHandle, GLFW.GLFW_HOVERED) == GLFW.GLFW_TRUE;
+    }
+
+    public boolean isPrimaryWindowFocused() {
+        return windowHandle != 0L
+                && GLFW.glfwGetWindowAttrib(windowHandle, GLFW.GLFW_FOCUSED) == GLFW.GLFW_TRUE;
     }
 
     public void feedKeyEvent(long window, int key, int scancode, int action, int mods) {
-        if (!shouldFeedMinecraftInput()) {
+        if (!shouldFeedMinecraftInput(window)) {
             return;
         }
         activateDirectorContext();
@@ -294,7 +354,7 @@ public class ImGuiRenderer {
     }
 
     public void feedCharEvent(long window, int codepoint) {
-        if (!shouldFeedMinecraftInput() || codepoint <= 0) {
+        if (!shouldFeedMinecraftInput(window) || codepoint <= 0) {
             return;
         }
         activateDirectorContext();
@@ -302,7 +362,7 @@ public class ImGuiRenderer {
     }
 
     public void feedMouseButtonEvent(long window, int button, int action, int mods) {
-        if (!shouldFeedMinecraftInput()) {
+        if (!shouldFeedMinecraftInput(window)) {
             return;
         }
         activateDirectorContext();
@@ -310,7 +370,7 @@ public class ImGuiRenderer {
     }
 
     public void feedScrollEvent(long window, double horizontal, double vertical) {
-        if (!shouldFeedMinecraftInput()) {
+        if (!shouldFeedMinecraftInput(window)) {
             return;
         }
         activateDirectorContext();
@@ -401,14 +461,20 @@ public class ImGuiRenderer {
                 LOGGER.debug("[Director] Ending ImGui frame...");
                 activateDirectorContext();
                 
-                // 合并模式：不需要弹出字体
-                
+                drawDataReady = false;
                 ImGui.render();
                 drawDataReady = true;
                 
                 LOGGER.debug("[Director] ImGui frame ended successfully");
             } catch (Exception e) {
                 LOGGER.error("[Director] Failed to end frame", e);
+                frameInProgress = false;
+                drawDataReady = false;
+                try {
+                    reinitialize();
+                } catch (Exception reinitError) {
+                    LOGGER.error("[Director] ImGui reinitialize after endFrame failure also failed", reinitError);
+                }
             } finally {
                 frameInProgress = false;
             }

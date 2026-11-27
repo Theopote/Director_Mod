@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.function.Consumer;
 
 
 /**
@@ -115,6 +116,7 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
 
     private UICommandFacade commands;
     private OrbitPathClipPropertyAdapter orbitInspector;
+    private final Consumer<Object> selectionListener = this::onSelectionChanged;
 
     @Override
     public void setCommands(UICommandFacade commands) {
@@ -188,7 +190,7 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
         super();
         
         // 注册选择变化监听器
-        DirectorServices.get().uiSelection().addSelectionChangedListener(this::onSelectionChanged);
+        DirectorServices.get().uiSelection().addSelectionChangedListener(selectionListener);
         
         
         LOGGER.info("[PropertiesPanel] 已初始化智能属性面板");
@@ -548,13 +550,14 @@ public class PropertiesPanel extends AbstractPanel implements ICommandsAware {
 
     @Override
     public void dispose() {
-        finishOrbitInspector();
-        com.director.ui.lighting.PointLightParameterEditing.finish();
-        // Shared actor drafts remain valid in the timeline inspector.
-        // 移除监听器
-        DirectorServices.get().uiSelection().removeSelectionChangedListener(this::onSelectionChanged);
-        super.dispose();
-        LOGGER.debug("[PropertiesPanel] 已销毁");
+        try {
+            finishOrbitInspector();
+            com.director.ui.lighting.PointLightParameterEditing.finish();
+        } finally {
+            DirectorServices.get().uiSelection().removeSelectionChangedListener(selectionListener);
+            super.dispose();
+            LOGGER.debug("[PropertiesPanel] 已销毁");
+        }
     }
 
     private void finishOrbitInspector() {

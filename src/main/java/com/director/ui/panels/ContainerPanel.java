@@ -80,6 +80,12 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
     }
 
     @Override
+    public void dispose() {
+        containerManager.removeListener(this);
+        super.dispose();
+    }
+
+    @Override
     public String getPanelName() {
         return PanelId.CONTAINER;
     }

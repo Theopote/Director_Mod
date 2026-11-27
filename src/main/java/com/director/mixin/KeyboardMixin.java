@@ -34,12 +34,20 @@ public class KeyboardMixin {
         InputFocusManager focusManager = InputFocusManager.getInstance();
         boolean textInputActive = false;
         try {
-            textInputActive = imgui.ImGui.getIO() != null && imgui.ImGui.getIO().getWantTextInput();
+            textInputActive = DirectorServices.get().imgui().isPrimaryWindowTextInputActive();
         } catch (Exception ignored) {
             // ImGui 帧间状态不可用时，沿用既有捕获逻辑
         }
 
         feedImGuiKey(window, input, action);
+
+        if (input.key() == GLFW.GLFW_KEY_ESCAPE && action == GLFW.GLFW_PRESS
+                && MinecraftClient.getInstance().currentScreen instanceof DirectorScreen directorScreen
+                && directorScreen.isInitializationFailed()) {
+            directorScreen.close();
+            ci.cancel();
+            return;
+        }
 
         if (!textInputActive && input.key() == GLFW.GLFW_KEY_ESCAPE
                 && MinecraftClient.getInstance().currentScreen instanceof DirectorScreen
@@ -48,7 +56,9 @@ public class KeyboardMixin {
             ci.cancel();
             return;
         }
-        if (!textInputActive) {
+        if (!textInputActive
+                && MinecraftClient.getInstance().currentScreen instanceof DirectorScreen
+                && DirectorServices.get().imgui().isPrimaryWindowInputActive()) {
             if ((input.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0
                     && (input.key() == GLFW.GLFW_KEY_Z || input.key() == GLFW.GLFW_KEY_Y)) {
                 com.director.ui.lighting.PointLightParameterEditing.finish();
@@ -95,6 +105,9 @@ public class KeyboardMixin {
         try {
             var client = MinecraftClient.getInstance();
             if (client == null || !(client.currentScreen instanceof DirectorScreen directorScreen)) {
+                return;
+            }
+            if (!DirectorServices.get().imgui().isPrimaryWindowInputActive()) {
                 return;
             }
             var uiManager = directorScreen.getUIManager();

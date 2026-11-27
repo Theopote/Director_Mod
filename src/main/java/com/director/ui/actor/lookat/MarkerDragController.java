@@ -86,7 +86,7 @@ public final class MarkerDragController {
                 || (client != null && GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_ESCAPE) == GLFW.GLFW_PRESS))) {
             cancelDrag();
         }
-        boolean captured = ImGui.getIO().getWantCaptureMouse();
+        boolean captured = DirectorServices.get().imgui().shouldCapturePrimaryMouse();
         if (captured && !dragging) {
             lastLeftMouseDown = isLeftMouseDown();
             return;

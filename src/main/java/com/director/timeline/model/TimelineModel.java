@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.director.config.DirectorConfig;
 import com.director.persistence.PersistenceSaveStatus;
 import com.director.timeline.actor.ActorTimelineSource;
 import com.director.timeline.audio.TimelineAudioLoadHook;
@@ -35,7 +36,7 @@ import org.slf4j.LoggerFactory;
 public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineModel.class);
 
-    private float frameRate = 30.0f;
+    private float frameRate = DirectorConfig.getDefaultFrameRate();
     private int timeUnit = 0;
     // ========== 核心动画状态（现在直接拥有）==========
     private long actorEditContextRevision;
@@ -359,7 +360,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         loopEnabled = false;
         playbackSpeed = 1.0f;
         currentTime = 0f;
-        frameRate = 30.0f;
+        frameRate = DirectorConfig.getDefaultFrameRate();
         timeUnit = 0;
         duration = 20.0f;
         inPoint = null;
@@ -439,6 +440,23 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     public void setTimeUnit(int timeUnit) {
         this.timeUnit = Math.clamp(timeUnit, 0, 2);
         markDirty();
+    }
+
+    /**
+     * 校验并一次性提交时间线设置，全部成功后才通知模型变更。
+     */
+    public boolean applySettings(float frameRate, int timeUnit, TimelineSnapSettings snapSettings) {
+        if (!Float.isFinite(frameRate) || frameRate < 1.0f || frameRate > 240.0f
+                || timeUnit < 0 || timeUnit > 2
+                || snapSettings == null || !snapSettings.isValid()) {
+            return false;
+        }
+
+        this.frameRate = frameRate;
+        this.timeUnit = timeUnit;
+        this.snapSettings.copyFrom(snapSettings);
+        markDirty();
+        return true;
     }
     
     public void jumpToStart() {

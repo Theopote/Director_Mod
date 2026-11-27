@@ -10,6 +10,7 @@ import com.director.ui.PanelWindows;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
+import imgui.flag.ImGuiFocusedFlags;
 import imgui.flag.ImGuiTableBgTarget;
 import imgui.flag.ImGuiTableColumnFlags;
 import imgui.flag.ImGuiTableFlags;
@@ -115,6 +116,11 @@ public class SelectionHistoryPanel extends AbstractPanel {
     
     // ========== 快捷键处理 ==========
     private void handleKeyboardShortcuts() {
+        if (!shouldHandleKeyboardShortcuts(
+                ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows),
+                ImGui.getIO().getWantTextInput())) {
+            return;
+        }
         boolean ctrl = ImGui.isKeyDown(GLFW.GLFW_KEY_LEFT_CONTROL) || ImGui.isKeyDown(GLFW.GLFW_KEY_RIGHT_CONTROL);
         
         if (ctrl && ImGui.isKeyPressed(GLFW.GLFW_KEY_Z)) {
@@ -126,6 +132,10 @@ public class SelectionHistoryPanel extends AbstractPanel {
         }
     }
     
+    static boolean shouldHandleKeyboardShortcuts(boolean windowFocused, boolean wantTextInput) {
+        return windowFocused && !wantTextInput;
+    }
+
     // ========== UI Section: 工具栏 ==========
     private class ToolbarSection {
         void render() {

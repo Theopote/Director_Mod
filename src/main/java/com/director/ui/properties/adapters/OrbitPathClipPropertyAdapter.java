@@ -652,7 +652,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         boolean justPressed = currentLeftMouseDown && !lastLeftMouseDown;
         lastLeftMouseDown = currentLeftMouseDown;
         
-        if (justPressed && !ImGui.getIO().getWantCaptureMouse()) {
+        if (justPressed && !com.director.core.DirectorServices.get().imgui().shouldCapturePrimaryMouse()) {
             // 获取射线命中结果
             BlockHitResult hit = com.director.client.input.DirectorInputSystem.getCurrentRay();
             if (hit == null && client.crosshairTarget instanceof BlockHitResult crosshairHit) {

@@ -20,7 +20,6 @@ import com.director.timeline.model.camera.path.OrbitPathClip;
 import com.director.timeline.playback.camera.CameraSample;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import com.director.timeline.playback.camera.TimelineCameraPathManager;
-import com.director.ui.input.InputFocusManager;
 import com.director.ui.timeline.commands.StateChangeCommand;
 import com.director.ui.timeline.commands.TimelineCommandBridge;
 import imgui.ImGui;
@@ -494,9 +493,7 @@ public final class CameraPathEditController {
     }
 
     private boolean isMouseOverDirectorUi() {
-        return InputFocusManager.getInstance().isPanelHovered()
-                || ImGui.isAnyItemHovered()
-                || ImGui.isAnyItemActive();
+        return DirectorServices.get().imgui().shouldCapturePrimaryMouse();
     }
 
     private boolean isLeftMouseDown(MinecraftClient client) {
@@ -510,7 +507,9 @@ public final class CameraPathEditController {
 
         boolean deleteDown = GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_DELETE) == GLFW.GLFW_PRESS;
         if (deleteDown && !lastDeleteDown) {
-            if (!(ImGui.getIO().getWantTextInput() || ImGui.isAnyItemActive())) {
+            var imgui = DirectorServices.get().imgui();
+            boolean primaryItemActive = imgui.isPrimaryWindowInputActive() && ImGui.isAnyItemActive();
+            if (!(imgui.isPrimaryWindowTextInputActive() || primaryItemActive)) {
                 deleteSelectedKeyframes();
             }
         }

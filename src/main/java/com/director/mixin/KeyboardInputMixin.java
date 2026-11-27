@@ -1,6 +1,7 @@
 package com.director.mixin;
 
 import com.director.client.camera.CameraRenderOverride;
+import com.director.core.DirectorServices;
 import com.director.export.video.VideoExportManager;
 import com.director.ui.DirectorScreen;
 import net.minecraft.client.MinecraftClient;
@@ -45,11 +46,11 @@ public class KeyboardInputMixin extends Input {
                 return;
             }
 
-            // 直接检查鼠标是否在UI上
+            boolean primaryFocused = DirectorServices.get().imgui().isPrimaryWindowFocused();
             boolean mouseOverGui = screen.isMouseOverDirectorGui(client.mouse.getX(), client.mouse.getY());
-            
-            // 如果鼠标在UI外，允许移动输入
-            if (!mouseOverGui) {
+
+            // 只有主窗口聚焦且指针不在主窗口 UI 上时才接收移动输入。
+            if (primaryFocused && !mouseOverGui) {
                 var window = client.getWindow();
                 boolean anyMovementKey = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_W)
                         || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_S)

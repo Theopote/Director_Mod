@@ -86,6 +86,7 @@ public abstract class AbstractPanel implements IPanel {
 
     private void renderStandardWindow(boolean renderContent, boolean renderPlaceholder) {
         int windowFlags = computeWindowFlags(renderPlaceholder);
+        setDefaultWindowSize();
         beginWindowFrameStyling();
 
         try {
@@ -152,10 +153,6 @@ public abstract class AbstractPanel implements IPanel {
         }
 
         try {
-            if (ImGui.isWindowAppearing()) {
-                setDefaultWindowSize();
-            }
-
             if (!renderContent || renderPlaceholder || hidden) {
                 notifyContentUnavailable();
                 renderHiddenPlaceholder();
@@ -267,14 +264,13 @@ public abstract class AbstractPanel implements IPanel {
             return;
         }
 
-        // 使用透明背景
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.WindowBg, 0x00000000);
-
-        // 显示隐藏提示
-        UITheme.colored(UITheme.Semantic.TEXT_MUTED,
-                DirectorI18n.translate(DirectorLang.Panel.HIDDEN, PanelI18n.title(getPanelName())));
-
-        ImGui.popStyleColor();
+        try {
+            UITheme.colored(UITheme.Semantic.TEXT_MUTED,
+                    DirectorI18n.translate(DirectorLang.Panel.HIDDEN, PanelI18n.title(getPanelName())));
+        } finally {
+            ImGui.popStyleColor();
+        }
     }
     
     @Override

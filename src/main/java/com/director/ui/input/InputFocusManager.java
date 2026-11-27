@@ -1,7 +1,7 @@
 package com.director.ui.input;
 
-import imgui.ImGui;
-import imgui.ImGuiIO;
+import com.director.core.DirectorServices;
+import com.director.ui.imgui.ImGuiRenderer;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,26 +54,34 @@ public class InputFocusManager {
         }
 
         try {
-            ImGuiIO io = ImGui.getIO(); // ensure ImGui context exists
-            boolean mouseOverGui = panelHoveredThisFrame;
-            boolean imguiWantsMouse = io.getWantCaptureMouse();
-            boolean imguiWantsKeyboard = io.getWantTextInput() || io.getWantCaptureKeyboard();
+            ImGuiRenderer renderer = DirectorServices.get().imgui();
+            boolean primaryActive = renderer.isPrimaryWindowInputActive();
+            boolean mouseOverGui = primaryActive
+                    && renderer.isPrimaryWindowHovered()
+                    && panelHoveredThisFrame;
+            boolean imguiWantsMouse = primaryActive && renderer.shouldCapturePrimaryMouse();
+            boolean imguiWantsKeyboard = primaryActive && renderer.shouldCapturePrimaryKeyboard();
 
             shouldCaptureMouse = mouseOverGui || imguiWantsMouse;
-            shouldCaptureKeyboard = mouseOverGui || imguiWantsKeyboard;
+            shouldCaptureKeyboard = primaryActive
+                    && renderer.isPrimaryWindowFocused()
+                    && (mouseOverGui || imguiWantsKeyboard);
             allowGameInput = !shouldCaptureMouse && !shouldCaptureKeyboard;
 
             if (DEBUG) {
-                LOGGER.trace("[InputFocus] update: hover={}, wantMouse={}, wantText={}, wantKeyboard={}, captureMouse={}, captureKeyboard={}, allowGame={}",
+                LOGGER.trace("[InputFocus] update: primaryActive={}, hover={}, wantMouse={}, wantKeyboard={}, captureMouse={}, captureKeyboard={}, allowGame={}",
+                        primaryActive,
                         mouseOverGui,
                         imguiWantsMouse,
-                        io.getWantTextInput(),
-                        io.getWantCaptureKeyboard(),
+                        imguiWantsKeyboard,
                         shouldCaptureMouse,
                         shouldCaptureKeyboard,
                         allowGameInput);
             }
         } catch (Exception e) {
+            shouldCaptureMouse = false;
+            shouldCaptureKeyboard = false;
+            allowGameInput = true;
             LOGGER.error("[InputFocus] 更新焦点状态失败", e);
         }
     }
@@ -102,7 +110,9 @@ public class InputFocusManager {
     }
 
     public boolean shouldCaptureKeyboard() {
-        boolean result = directorScreenActive && shouldCaptureKeyboard;
+        boolean result = directorScreenActive
+                && shouldCaptureKeyboard
+                && DirectorServices.get().imgui().isPrimaryWindowInputActive();
         if (DEBUG) {
             LOGGER.trace("[InputFocus] shouldCaptureKeyboard: active={}, capture={}, result={}",
                     directorScreenActive, shouldCaptureKeyboard, result);
@@ -111,6 +121,9 @@ public class InputFocusManager {
     }
 
     public boolean isPanelHovered() {
-        return directorScreenActive && panelHoveredThisFrame;
+        return directorScreenActive
+                && DirectorServices.get().imgui().isPrimaryWindowInputActive()
+                && DirectorServices.get().imgui().isPrimaryWindowHovered()
+                && panelHoveredThisFrame;
     }
 }

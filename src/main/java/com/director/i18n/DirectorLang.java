@@ -1641,6 +1641,12 @@ public final class DirectorLang {
                 public static final String NAME_LABEL = "gui.director.properties.adapter.actor.selector.name_label";
                 public static final String TYPE_LABEL = "gui.director.properties.adapter.actor.selector.type_label";
                 public static final String PLACE_HINT = "gui.director.properties.adapter.actor.selector.place_hint";
+                public static final String PLACEMENT_CLIENT_NOT_READY = "gui.director.properties.adapter.actor.selector.placement_client_not_ready";
+                public static final String PLACEMENT_TIMELINE_NOT_READY = "gui.director.properties.adapter.actor.selector.placement_timeline_not_ready";
+                public static final String PLACEMENT_PLAYBACK_ACTIVE = "gui.director.properties.adapter.actor.selector.placement_playback_active";
+                public static final String PLACEMENT_SCRUBBING_ACTIVE = "gui.director.properties.adapter.actor.selector.placement_scrubbing_active";
+                public static final String PLACEMENT_PREVIEW_FAILED = "gui.director.properties.adapter.actor.selector.placement_preview_failed";
+                public static final String PLACEMENT_INTERNAL_ERROR = "gui.director.properties.adapter.actor.selector.placement_internal_error";
                 public static final String ACTOR_NAME_LABEL = "gui.director.properties.adapter.actor.selector.actor_name_label";
                 public static final String DELETE_CONFIRM = "gui.director.properties.adapter.actor.selector.delete_confirm";
                 public static final String DELETE_NAME_FMT = "gui.director.properties.adapter.actor.selector.delete_name_fmt";
@@ -2041,6 +2047,7 @@ public final class DirectorLang {
         public static final String UNBIND = "gui.director.common.unbind";
         public static final String SAVE = "gui.director.common.save";
         public static final String CONFIRM = "gui.director.common.confirm";
+        public static final String REFRESH = "gui.director.common.refresh";
 
         private Common() {
         }
@@ -2053,9 +2060,14 @@ public final class DirectorLang {
         public static final String SETTINGS_TITLE = "gui.director.dialog.settings.title";
         public static final String SETTINGS_GENERAL = "gui.director.dialog.settings.general";
         public static final String SETTINGS_AUTO_SAVE = "gui.director.dialog.settings.auto_save";
+        public static final String SETTINGS_AUTO_SAVE_TOOLTIP = "gui.director.dialog.settings.auto_save_tooltip";
+        public static final String SETTINGS_AUTO_SAVE_INTERVAL = "gui.director.dialog.settings.auto_save_interval";
+        public static final String SETTINGS_AUTO_SAVE_INTERVAL_TOOLTIP = "gui.director.dialog.settings.auto_save_interval_tooltip";
         public static final String SETTINGS_DEFAULT_FPS = "gui.director.dialog.settings.default_fps";
-        public static final String SETTINGS_THEME = "gui.director.dialog.settings.theme";
-        public static final String SETTINGS_THEME_CURRENT = "gui.director.dialog.settings.theme_current";
+        public static final String SETTINGS_DEFAULT_FPS_TOOLTIP = "gui.director.dialog.settings.default_fps_tooltip";
+        public static final String SETTINGS_RESET_DEFAULTS = "gui.director.dialog.settings.reset_defaults";
+        public static final String SETTINGS_INVALID_VALUES = "gui.director.dialog.settings.invalid_values";
+        public static final String SETTINGS_SAVE_ERROR = "gui.director.dialog.settings.save_error";
 
         public static final String ABOUT_VERSION_INFO = "gui.director.dialog.about.version_info";
         public static final String ABOUT_DESCRIPTION = "gui.director.dialog.about.description";
@@ -2087,6 +2099,8 @@ public final class DirectorLang {
         public static final class TimelineSettings {
             public static final String ACCESS_ERROR = "gui.director.dialog.timeline_settings.access_error";
             public static final String UNAVAILABLE = "gui.director.dialog.timeline_settings.unavailable";
+            public static final String INVALID_VALUES = "gui.director.dialog.timeline_settings.invalid_values";
+            public static final String COMMIT_ERROR = "gui.director.dialog.timeline_settings.commit_error";
             public static final String PROJECT_GROUP = "gui.director.dialog.timeline_settings.project_group";
             public static final String FRAME_RATE = "gui.director.dialog.timeline_settings.frame_rate";
             public static final String FRAME_RATE_ERROR_TOOLTIP = "gui.director.dialog.timeline_settings.frame_rate_error_tooltip";

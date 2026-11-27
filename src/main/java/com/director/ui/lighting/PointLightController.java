@@ -2,10 +2,10 @@ package com.director.ui.lighting;
 
 import com.director.client.gizmo.*;
 import com.director.client.input.DirectorInputSystem;
+import com.director.core.DirectorServices;
 import com.director.lighting.*;
 import com.director.lighting.PointLightRuntime;
 import com.director.timeline.model.TimelineModel;
-import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.hit.HitResult;
@@ -70,14 +70,15 @@ public final class PointLightController {
         boolean left=down(client,GLFW.GLFW_MOUSE_BUTTON_LEFT), right=down(client,GLFW.GLFW_MOUSE_BUTTON_RIGHT);
         boolean leftPressed=left&&!leftDown, rightPressed=right&&!rightDown;
         leftDown=left;rightDown=right;
-        if (!ImGui.getIO().getWantTextInput()
+        if (!DirectorServices.get().imgui().isPrimaryWindowTextInputActive()
                 && GLFW.glfwGetKey(client.getWindow().getHandle(),GLFW.GLFW_KEY_ESCAPE)==GLFW.GLFW_PRESS) { stop(); return; }
         if (com.director.export.video.VideoExportManager.getInstance().isExporting()) return;
         PointLight light=PointLightEditor.selected();
         if (!placing && light==null) { stop(); return; }
         if (!placing && dragBefore == null) attach(light);
         if (light==null && ownsGizmo()) { cancelDrag(); GizmoManager.get().deactivate(); }
-        if (ImGui.getIO().getWantCaptureMouse() || ImGui.getIO().getWantTextInput()) return;
+        if (DirectorServices.get().imgui().shouldCapturePrimaryMouse()
+                || DirectorServices.get().imgui().isPrimaryWindowTextInputActive()) return;
         if (placing && rightPressed) {
             var hit=DirectorInputSystem.raycastFromImGui();
             if (hit!=null && hit.getType()==HitResult.Type.BLOCK) {

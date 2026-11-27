@@ -1,12 +1,10 @@
 package com.director.ui.container;
 
 import com.director.ui.theme.UITheme;
-import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerType;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
-import com.director.timeline.container.ContainerTimelineService;
 import imgui.ImGui;
 import imgui.flag.ImGuiMouseButton;
 import org.slf4j.Logger;
@@ -16,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -52,6 +51,8 @@ class ContainerTreeInteractionHandler {
     private String lastDragPayloadData;
     private boolean anyNodeHoveredThisFrame;
     private boolean anyNodeClickedThisFrame;
+    private Set<UUID> timelineContainerIds = Set.of();
+    private final Map<UUID, Boolean> timelineControlledCache = new HashMap<>();
 
     private final ContainerPanelController controller;
     private final ContainerPanelState state;
@@ -65,9 +66,11 @@ class ContainerTreeInteractionHandler {
         this.inlineRenamer = inlineRenamer;
     }
 
-    void beginFrame() {
+    void beginFrame(Set<UUID> timelineContainerIds) {
         anyNodeHoveredThisFrame = false;
         anyNodeClickedThisFrame = false;
+        this.timelineContainerIds = timelineContainerIds;
+        timelineControlledCache.clear();
     }
 
     void handleNodeInteraction(Container container,
@@ -121,40 +124,46 @@ class ContainerTreeInteractionHandler {
         // 不依赖 hovered：beginDragDropSource() 仅在从本节点发起拖拽时为 true
         if (ImGui.beginDragDropSource()) {
             dragSourceActive = true;
-            java.util.Collection<Container> selectedContainers = controller.getSelectedContainers();
-            boolean isSelected = controller.isContainerSelected(container.getId());
-            boolean hasMultipleSelection = selectedContainers.size() > 1 && isSelected;
+            try {
+                java.util.Collection<Container> selectedContainers = controller.getSelectedContainers();
+                boolean isSelected = controller.isContainerSelected(container.getId());
+                boolean hasMultipleSelection = selectedContainers.size() > 1 && isSelected;
 
-            if (hasMultipleSelection) {
-                // 批量拖拽：将选中的容器ID用逗号连接
-                StringBuilder payloadBuilder = new StringBuilder();
-                for (Container c : selectedContainers) {
-                    if (!payloadBuilder.isEmpty()) {
-                        payloadBuilder.append(",");
+                if (hasMultipleSelection) {
+                    // 批量拖拽：将选中的容器ID用逗号连接
+                    StringBuilder payloadBuilder = new StringBuilder();
+                    for (Container c : selectedContainers) {
+                        if (!payloadBuilder.isEmpty()) {
+                            payloadBuilder.append(",");
+                        }
+                        payloadBuilder.append(c.getId().toString());
                     }
-                    payloadBuilder.append(c.getId().toString());
+                    lastDragPayloadData = payloadBuilder.toString();
+                    ImGui.setDragDropPayload(DND_PAYLOAD_TYPE, lastDragPayloadData);
+                    ImGui.text(tr(DirectorLang.ContainerPanel.ContextMenu.DRAG_MULTIPLE, selectedContainers.size()));
+                } else {
+                    lastDragPayloadData = container.getId().toString();
+                    ImGui.setDragDropPayload(DND_PAYLOAD_TYPE, lastDragPayloadData);
+                    ImGui.text(tr(DirectorLang.ContainerPanel.ContextMenu.DRAG_SINGLE, container.getName()));
                 }
-                lastDragPayloadData = payloadBuilder.toString();
-                ImGui.setDragDropPayload(DND_PAYLOAD_TYPE, lastDragPayloadData);
-                ImGui.text(tr(DirectorLang.ContainerPanel.ContextMenu.DRAG_MULTIPLE, selectedContainers.size()));
-            } else {
-                lastDragPayloadData = container.getId().toString();
-                ImGui.setDragDropPayload(DND_PAYLOAD_TYPE, lastDragPayloadData);
-                ImGui.text(tr(DirectorLang.ContainerPanel.ContextMenu.DRAG_SINGLE, container.getName()));
+            } finally {
+                ImGui.endDragDropSource();
             }
-            ImGui.endDragDropSource();
         }
 
         if (ImGui.beginDragDropTarget()) {
-            Object payload = ImGui.acceptDragDropPayload(DND_PAYLOAD_TYPE);
-            if (payload != null) {
-                String raw = (payload instanceof String) ? (String) payload : null;
-                if (raw == null || parsePayloadIds(raw).isEmpty()) raw = lastDragPayloadData;
-                if (raw != null && !parsePayloadIds(raw).isEmpty()) {
-                    handleDropPayload(container, raw);
+            try {
+                Object payload = ImGui.acceptDragDropPayload(DND_PAYLOAD_TYPE);
+                if (payload != null) {
+                    String raw = (payload instanceof String) ? (String) payload : null;
+                    if (raw == null || parsePayloadIds(raw).isEmpty()) raw = lastDragPayloadData;
+                    if (raw != null && !parsePayloadIds(raw).isEmpty()) {
+                        handleDropPayload(container, raw);
+                    }
                 }
+            } finally {
+                ImGui.endDragDropTarget();
             }
-            ImGui.endDragDropTarget();
         }
         return dragSourceActive;
     }
@@ -176,22 +185,25 @@ class ContainerTreeInteractionHandler {
         }
         
         if (ImGui.beginDragDropTarget()) {
-            Object payload = ImGui.acceptDragDropPayload(DND_PAYLOAD_TYPE);
-            if (payload != null) {
-                String raw = (payload instanceof String) ? (String) payload : null;
-                if (raw == null || parsePayloadIds(raw).isEmpty()) raw = lastDragPayloadData;
-                if (raw != null) {
-                    List<UUID> ids = parsePayloadIds(raw);
-                    if (!ids.isEmpty()) {
-                        if (inlineRenamer.isEditing()) {
-                            inlineRenamer.cancelEditing("dragToRoot");
+            try {
+                Object payload = ImGui.acceptDragDropPayload(DND_PAYLOAD_TYPE);
+                if (payload != null) {
+                    String raw = (payload instanceof String) ? (String) payload : null;
+                    if (raw == null || parsePayloadIds(raw).isEmpty()) raw = lastDragPayloadData;
+                    if (raw != null) {
+                        List<UUID> ids = parsePayloadIds(raw);
+                        if (!ids.isEmpty()) {
+                            if (inlineRenamer.isEditing()) {
+                                inlineRenamer.cancelEditing("dragToRoot");
+                            }
+                            controller.moveContainers(ids, null, -1);
+                            LOGGER.info("[ContainerTreeInteractionHandler] 将 {} 个容器移动到根", ids.size());
                         }
-                        controller.moveContainers(ids, null, -1);
-                        LOGGER.info("[ContainerTreeInteractionHandler] 将 {} 个容器移动到根", ids.size());
                     }
                 }
+            } finally {
+                ImGui.endDragDropTarget();
             }
-            ImGui.endDragDropTarget();
         }
     }
 
@@ -215,53 +227,57 @@ class ContainerTreeInteractionHandler {
         }
 
         if (ImGui.beginPopup(POPUP_CONTAINER_CONTEXT)) {
-            ImGui.textDisabled(tr(DirectorLang.ContainerPanel.ContextMenu.PANEL_TITLE));
-            ImGui.separator();
+            try {
+                ImGui.textDisabled(tr(DirectorLang.ContainerPanel.ContextMenu.PANEL_TITLE));
+                ImGui.separator();
 
-            if (ImGui.beginMenu(tr(DirectorLang.ContainerPanel.ContextMenu.NEW_CONTAINER))) {
-                for (ContainerType type : ContainerType.values()) {
-                    if (ImGui.menuItem(type.getDisplayName())) {
-                        controller.createNewContainer(type.getDisplayName(), type);
+                renderMenu(tr(DirectorLang.ContainerPanel.ContextMenu.NEW_CONTAINER), false, () -> {
+                    for (ContainerType type : ContainerType.values()) {
+                        if (ImGui.menuItem(type.getDisplayName())) {
+                            controller.createNewContainer(type.getDisplayName(), type);
+                        }
                     }
+                });
+
+                boolean hasSelection = controller.hasSelection();
+                boolean timelineSelection = hasTimelineControlledSelection();
+                renderMenuItem(tr(DirectorLang.ContainerPanel.ContextMenu.GROUP_SELECTED), "Ctrl+G", !hasSelection || timelineSelection, controller::groupSelectedContainers);
+                renderMenuItem(tr(DirectorLang.ContainerPanel.ContextMenu.UNGROUP_SELECTED), "", !controller.canUngroupSelection() || timelineSelection, controller::ungroupSelectedContainers);
+                renderMenuItem(tr(DirectorLang.ContainerPanel.ContextMenu.MERGE_SELECTED), "Ctrl+M", !controller.canMergeSelection() || timelineSelection, () -> controller.mergeSelection(null));
+                renderContextMenu_MoveToFromGroup();
+
+                boolean clipboardEmpty = controller.isClipboardEmpty();
+                renderMenuItem(tr(DirectorLang.ContainerPanel.ContextMenu.PASTE_AS_ROOT), "Ctrl+V", clipboardEmpty, () -> controller.pasteClipboard(null, -1));
+
+                ImGui.separator();
+
+                if (ImGui.menuItem(state.isExpandAll()
+                        ? tr(DirectorLang.ContainerPanel.ContextMenu.COLLAPSE_ALL)
+                        : tr(DirectorLang.ContainerPanel.ContextMenu.EXPAND_ALL))) {
+                    controller.toggleExpandAll();
                 }
-                ImGui.endMenu();
+
+                if (ImGui.menuItem(tr(DirectorLang.ContainerPanel.ContextMenu.CLEAR_ALL))) {
+                    ImGui.openPopup("ConfirmClearAll");
+                    ImGui.closeCurrentPopup();
+                }
+            } finally {
+                ImGui.endPopup();
             }
-
-            boolean hasSelection = controller.hasSelection();
-            boolean timelineSelection = hasTimelineControlledSelection();
-            renderMenuItem(tr(DirectorLang.ContainerPanel.ContextMenu.GROUP_SELECTED), "Ctrl+G", !hasSelection || timelineSelection, controller::groupSelectedContainers);
-            renderMenuItem(tr(DirectorLang.ContainerPanel.ContextMenu.UNGROUP_SELECTED), "", !controller.canUngroupSelection() || timelineSelection, controller::ungroupSelectedContainers);
-            renderMenuItem(tr(DirectorLang.ContainerPanel.ContextMenu.MERGE_SELECTED), "Ctrl+M", !controller.canMergeSelection() || timelineSelection, () -> controller.mergeSelection(null));
-            renderContextMenu_MoveToFromGroup();
-
-            boolean clipboardEmpty = controller.isClipboardEmpty();
-            renderMenuItem(tr(DirectorLang.ContainerPanel.ContextMenu.PASTE_AS_ROOT), "Ctrl+V", clipboardEmpty, () -> controller.pasteClipboard(null, -1));
-
-            ImGui.separator();
-
-            if (ImGui.menuItem(state.isExpandAll()
-                    ? tr(DirectorLang.ContainerPanel.ContextMenu.COLLAPSE_ALL)
-                    : tr(DirectorLang.ContainerPanel.ContextMenu.EXPAND_ALL))) {
-                controller.toggleExpandAll();
-            }
-
-            if (ImGui.menuItem(tr(DirectorLang.ContainerPanel.ContextMenu.CLEAR_ALL))) {
-                ImGui.openPopup("ConfirmClearAll");
-                ImGui.closeCurrentPopup();
-            }
-
-            ImGui.endPopup();
         }
     }
 
     void handleContextMenu(Container container) {
         if (ImGui.beginPopupContextItem(("ContainerContextMenu##" + container.getId()))) {
-            if (!controller.isContainerSelected(container.getId())) {
-                controller.selectContainer(container.getId(), false);
+            try {
+                if (!controller.isContainerSelected(container.getId())) {
+                    controller.selectContainer(container.getId(), false);
+                }
+                state.setContextMenuContainerId(container.getId());
+                renderItemContextMenu(container);
+            } finally {
+                ImGui.endPopup();
             }
-            state.setContextMenuContainerId(container.getId());
-            renderItemContextMenu(container);
-            ImGui.endPopup();
         }
     }
 
@@ -306,16 +322,13 @@ class ContainerTreeInteractionHandler {
         renderContextMenu_MoveToFromGroup();
 
         ImGui.separator();
-        if (timelineControlled) ImGui.beginDisabled();
-        if (ImGui.beginMenu(tr(DirectorLang.ContainerPanel.ContextMenu.NEW_CHILD_CONTAINER))) {
+        renderMenu(tr(DirectorLang.ContainerPanel.ContextMenu.NEW_CHILD_CONTAINER), timelineControlled, () -> {
             for (ContainerType type : ContainerType.values()) {
                 if (ImGui.menuItem(type.getDisplayName())) {
                     controller.createChildContainer(type, container.getId());
                 }
             }
-            ImGui.endMenu();
-        }
-        if (timelineControlled) ImGui.endDisabled();
+        });
 
         ImGui.separator();
         renderContextMenu_CommonMovementActions(container);
@@ -408,10 +421,28 @@ class ContainerTreeInteractionHandler {
 
     private void renderMenuItem(String label, String shortcut, boolean disabled, Runnable action) {
         if (disabled) ImGui.beginDisabled();
-        if (ImGui.menuItem(label, shortcut)) {
-            action.run();
+        try {
+            if (ImGui.menuItem(label, shortcut)) {
+                action.run();
+            }
+        } finally {
+            if (disabled) ImGui.endDisabled();
         }
-        if (disabled) ImGui.endDisabled();
+    }
+
+    private void renderMenu(String label, boolean disabled, Runnable content) {
+        if (disabled) ImGui.beginDisabled();
+        try {
+            if (ImGui.beginMenu(label)) {
+                try {
+                    content.run();
+                } finally {
+                    ImGui.endMenu();
+                }
+            }
+        } finally {
+            if (disabled) ImGui.endDisabled();
+        }
     }
 
     private void renderContextMenu_CommonEditActions(Container container) {
@@ -448,7 +479,7 @@ class ContainerTreeInteractionHandler {
 
         ImGui.separator();
         if (!validGroups.isEmpty()) {
-            if (ImGui.beginMenu(tr(DirectorLang.ContainerPanel.ContextMenu.MOVE_TO_GROUP))) {
+            renderMenu(tr(DirectorLang.ContainerPanel.ContextMenu.MOVE_TO_GROUP), false, () -> {
                 for (Container g : validGroups) {
                     if (ImGui.menuItem(g.getName())) {
                         List<UUID> ids = selected.stream().map(Container::getId).toList();
@@ -456,8 +487,7 @@ class ContainerTreeInteractionHandler {
                         LOGGER.debug("[ContainerTreeInteractionHandler] 将 {} 个容器移动到组: {}", ids.size(), g.getName());
                     }
                 }
-                ImGui.endMenu();
-            }
+            });
         }
         if (anyInGroup) {
             renderMenuItem(tr(DirectorLang.ContainerPanel.ContextMenu.MOVE_OUT_OF_GROUP), "", false, this::executeMoveOutOfGroup);
@@ -522,8 +552,7 @@ class ContainerTreeInteractionHandler {
             : tr(DirectorLang.ContainerPanel.ContextMenu.HIDE_BLOCKS);
 
         if (selCount > 1) {
-            if (timelineSelection) ImGui.beginDisabled();
-            if (ImGui.beginMenu(tr(DirectorLang.ContainerPanel.ContextMenu.BATCH_VISIBILITY))) {
+            renderMenu(tr(DirectorLang.ContainerPanel.ContextMenu.BATCH_VISIBILITY), timelineSelection, () -> {
                 ImGui.textDisabled(tr(DirectorLang.ContainerPanel.ContextMenu.BATCH_VISIBILITY_TARGET, selCount));
                 ImGui.separator();
                 if (ImGui.menuItem(tr(DirectorLang.ContainerPanel.ContextMenu.SHOW_ALL))) {
@@ -534,12 +563,9 @@ class ContainerTreeInteractionHandler {
                     controller.batchSetContainerState(
                         com.director.core.container.ContainerState.HIDDEN);
                 }
-                ImGui.endMenu();
-            }
-            if (timelineSelection) ImGui.endDisabled();
+            });
 
-            if (timelineSelection) ImGui.beginDisabled();
-            if (ImGui.beginMenu(tr(DirectorLang.ContainerPanel.ContextMenu.BATCH_LOCK))) {
+            renderMenu(tr(DirectorLang.ContainerPanel.ContextMenu.BATCH_LOCK), timelineSelection, () -> {
                 ImGui.textDisabled(tr(DirectorLang.ContainerPanel.ContextMenu.BATCH_LOCK_TARGET, selCount));
                 ImGui.separator();
                 if (ImGui.menuItem(tr(DirectorLang.ContainerPanel.ContextMenu.LOCK_ALL))) {
@@ -548,9 +574,7 @@ class ContainerTreeInteractionHandler {
                 if (ImGui.menuItem(tr(DirectorLang.ContainerPanel.ContextMenu.UNLOCK_ALL))) {
                     controller.batchSetContainerLocked(false);
                 }
-                ImGui.endMenu();
-            }
-            if (timelineSelection) ImGui.endDisabled();
+            });
         } else {
             boolean disabled = isTimelineControlled(container);
             boolean hidden = container.getState() == com.director.core.container.ContainerState.HIDDEN;
@@ -575,8 +599,7 @@ class ContainerTreeInteractionHandler {
         float[] tagColorBuffer = ContainerColorPicker.colorIntToFloat(defaultColor);
         
         boolean timelineSelection = hasTimelineControlledSelection();
-        if (timelineSelection) ImGui.beginDisabled();
-        if (ImGui.beginMenu(tr(DirectorLang.ContainerPanel.ContextMenu.SET_TAG_COLOR))) {
+        renderMenu(tr(DirectorLang.ContainerPanel.ContextMenu.SET_TAG_COLOR), timelineSelection, () -> {
             boolean hasSelection = controller.hasSelection();
             int selectedCount = hasSelection ? controller.getSelectedContainers().size() : 1;
 
@@ -589,30 +612,23 @@ class ContainerTreeInteractionHandler {
             if (ContainerColorPicker.renderColorPicker(tagColorLabel, tagColorBuffer)) {
                 int newTagColor = ContainerColorPicker.colorFloatToInt(tagColorBuffer);
                 if (hasSelection && selectedCount > 1) {
-                    // 批量设置
                     controller.batchSetContainerTagColors(newTagColor);
                 } else {
-                    // 单个设置
                     controller.setMetadata(container.getId(), "tagColor", newTagColor);
                 }
             }
-            
+
             ImGui.separator();
-            
-            // 重置颜色
+
             boolean hasTagColor = container.getMetadata("tagColor") != null;
             if (ImGui.menuItem(tr(DirectorLang.ContainerPanel.ContextMenu.RESET_TAG_COLOR), null, false, hasTagColor)) {
                 if (hasSelection && selectedCount > 1) {
-                    // 批量重置（通过命令系统，支持撤销）
                     controller.batchSetContainerTagColors(null);
                 } else {
                     controller.setMetadata(container.getId(), "tagColor", null);
                 }
             }
-            
-            ImGui.endMenu();
-        }
-        if (timelineSelection) ImGui.endDisabled();
+        });
     }
 
     private boolean hasTimelineControlledSelection() {
@@ -628,14 +644,20 @@ class ContainerTreeInteractionHandler {
         if (container == null) {
             return false;
         }
-        if (DirectorServices.get().containerTimeline().isContainerOnTimeline(container.getId())) {
-            return true;
+        Boolean cached = timelineControlledCache.get(container.getId());
+        if (cached != null) {
+            return cached;
         }
-        for (Container child : container.getChildren()) {
-            if (isTimelineControlled(child)) {
-                return true;
+        boolean controlled = timelineContainerIds.contains(container.getId());
+        if (!controlled) {
+            for (Container child : container.getChildren()) {
+                if (isTimelineControlled(child)) {
+                    controlled = true;
+                    break;
+                }
             }
         }
-        return false;
+        timelineControlledCache.put(container.getId(), controlled);
+        return controlled;
     }
 }

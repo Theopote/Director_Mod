@@ -3,6 +3,7 @@ package com.director.ui.actor.pick;
 import com.director.actor.Actor;
 import com.director.actor.preview.ActorPreviewManager;
 import com.director.client.input.DirectorInputSystem;
+import com.director.core.DirectorServices;
 import com.director.ui.actor.placement.ActorPlacementController;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.actor.pose.ActorBoneSelectionController;
@@ -96,7 +97,7 @@ public final class ActorPickController {
         }
 
         // ImGui 正在使用鼠标（拖 UI / Gizmo / Timeline），不要抢输入
-        if (ImGui.getIO().getWantCaptureMouse()) {
+        if (DirectorServices.get().imgui().shouldCapturePrimaryMouse()) {
             lastLeftMouseDown = isLeftMouseDown(client);
             lastRightMouseDown = isRightMouseDown(client);
             return;
@@ -214,7 +215,7 @@ public final class ActorPickController {
      */
     private void handlePlacementMode(MinecraftClient client) {
         // ImGui 正在使用鼠标，不要抢输入
-        if (ImGui.getIO().getWantCaptureMouse()) {
+        if (DirectorServices.get().imgui().shouldCapturePrimaryMouse()) {
             lastRightMouseDown = isRightMouseDown(client);
             return;
         }

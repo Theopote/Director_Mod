@@ -30,42 +30,53 @@ public class ContainerColorPicker {
         boolean changed = false;
 
         ImGui.beginGroup();
-        for (int i = 0; i < PRESET_COLORS.length; i++) {
-            if (i > 0 && i % 4 == 0) {
-                ImGui.newLine();
+        try {
+            for (int i = 0; i < PRESET_COLORS.length; i++) {
+                if (i > 0 && i % 4 == 0) {
+                    ImGui.newLine();
+                }
+
+                int presetColor = PRESET_COLORS[i];
+                float[] presetRgba = new float[]{
+                    ((presetColor >> 16) & 0xFF) / 255.0f,
+                    ((presetColor >> 8) & 0xFF) / 255.0f,
+                    (presetColor & 0xFF) / 255.0f,
+                    ((presetColor >> 24) & 0xFF) / 255.0f
+                };
+
+                ImGui.pushID(label + "_preset_" + i);
+                int stylePushes = 0;
+                try {
+                    ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,
+                        presetRgba[0], presetRgba[1], presetRgba[2], 1.0f);
+                    stylePushes++;
+                    ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered,
+                        presetRgba[0] * 0.8f, presetRgba[1] * 0.8f, presetRgba[2] * 0.8f, 1.0f);
+                    stylePushes++;
+                    ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive,
+                        presetRgba[0] * 0.6f, presetRgba[1] * 0.6f, presetRgba[2] * 0.6f, 1.0f);
+                    stylePushes++;
+
+                    if (ImGui.button("", 20, 20)) {
+                        System.arraycopy(presetRgba, 0, colorBuffer, 0, 4);
+                        changed = true;
+                    }
+
+                    if (ImGui.isItemHovered()) {
+                        ImGui.setTooltip(PRESET_COLOR_NAMES[i]);
+                    }
+                } finally {
+                    if (stylePushes > 0) {
+                        ImGui.popStyleColor(stylePushes);
+                    }
+                    ImGui.popID();
+                }
+
+                ImGui.sameLine();
             }
-
-            int presetColor = PRESET_COLORS[i];
-            float[] presetRgba = new float[]{
-                ((presetColor >> 16) & 0xFF) / 255.0f,
-                ((presetColor >> 8) & 0xFF) / 255.0f,
-                (presetColor & 0xFF) / 255.0f,
-                ((presetColor >> 24) & 0xFF) / 255.0f
-            };
-
-            ImGui.pushID(label + "_preset_" + i);
-            ImGui.pushStyleColor(imgui.flag.ImGuiCol.Button,
-                presetRgba[0], presetRgba[1], presetRgba[2], 1.0f);
-            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonHovered,
-                presetRgba[0] * 0.8f, presetRgba[1] * 0.8f, presetRgba[2] * 0.8f, 1.0f);
-            ImGui.pushStyleColor(imgui.flag.ImGuiCol.ButtonActive,
-                presetRgba[0] * 0.6f, presetRgba[1] * 0.6f, presetRgba[2] * 0.6f, 1.0f);
-
-            if (ImGui.button("", 20, 20)) {
-                System.arraycopy(presetRgba, 0, colorBuffer, 0, 4);
-                changed = true;
-            }
-
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(PRESET_COLOR_NAMES[i]);
-            }
-
-            ImGui.popStyleColor(3);
-            ImGui.popID();
-
-            ImGui.sameLine();
+        } finally {
+            ImGui.endGroup();
         }
-        ImGui.endGroup();
 
         ImGui.spacing();
 

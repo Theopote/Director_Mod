@@ -1,6 +1,5 @@
 package com.director.ui.container;
 
-import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
@@ -14,6 +13,7 @@ import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * 纯渲染层：负责绘制树节点、图标与提示，不处理业务逻辑。
@@ -84,6 +84,7 @@ class ContainerTreeRenderer {
     }
 
     private final java.util.Set<java.util.UUID> searchMatches = new java.util.HashSet<>();
+    private Set<java.util.UUID> timelineContainerIds = Set.of();
     private boolean searching;
 
     private boolean collectMatches(Container container, String query) {
@@ -95,7 +96,8 @@ class ContainerTreeRenderer {
         return matches;
     }
 
-    void renderTree(List<Container> roots, String search) {
+    void renderTree(List<Container> roots, String search, Set<java.util.UUID> timelineContainerIds) {
+        this.timelineContainerIds = timelineContainerIds;
         String query = search.strip().toLowerCase(java.util.Locale.ROOT);
         searching = !query.isEmpty();
         searchMatches.clear();
@@ -129,15 +131,16 @@ class ContainerTreeRenderer {
             return;
         }
 
-        // 检查容器是否在时间线上
-        boolean isOnTimeline = DirectorServices.get().containerTimeline()
-            .isContainerOnTimeline(container.getId());
+        boolean isOnTimeline = timelineContainerIds.contains(container.getId());
 
         // 使用 pushID 隔离节点，避免拖拽、上下文菜单、内联重命名、图标按钮的 ID 冲突
         ImGui.pushID(container.getId().toString());
+        boolean innerSpacingPushed = false;
+        boolean nodeOpen = false;
         try {
             // 减小树节点内部间距（箭头和文本之间），让布局更紧凑
             ImGui.pushStyleVar(ImGuiStyleVar.ItemInnerSpacing, TREE_NODE_INNER_SPACING, TREE_NODE_INNER_SPACING);
+            innerSpacingPushed = true;
             
             int flags = buildNodeFlags(container);
             // 保留 SpanAvailWidth：整行可点击，Ctrl/Shift 多选在组内子节点才可靠；
@@ -173,27 +176,35 @@ class ContainerTreeRenderer {
             boolean rowHovered = mouseX >= rx && mouseX < rx + rw && mouseY >= ry && mouseY < ry + rh;
             int rowBg = resolveRowBackground(isSelected, rowHovered, isOnTimeline);
             int headerStylePushes = 0;
-            if (isSelected) {
-                // TreeNode 选中态会自行绘制 Header 背景，会盖住 addRectFilled；须把 Header 设为蓝色才能持久高亮
-                headerStylePushes = pushHeaderColors(
-                        rowHovered
-                                ? UITheme.DarkTheme.LIST_ROW_BG_SELECTED_HOVERED
-                                : UITheme.DarkTheme.LIST_ROW_BG_SELECTED,
-                        UITheme.DarkTheme.LIST_ROW_BG_SELECTED_HOVERED,
-                        UITheme.DarkTheme.LIST_ROW_BG_SELECTED_HOVERED);
-            } else {
-                ImGui.getWindowDrawList().addRectFilled(rx, ry, rx + rw, ry + rh, rowBg);
-            }
+            boolean timelineTextPushed = false;
+            try {
+                if (isSelected) {
+                    // TreeNode 选中态会自行绘制 Header 背景，会盖住 addRectFilled；须把 Header 设为蓝色才能持久高亮
+                    int selectedColor = rowHovered
+                            ? UITheme.DarkTheme.LIST_ROW_BG_SELECTED_HOVERED
+                            : UITheme.DarkTheme.LIST_ROW_BG_SELECTED;
+                    pushImColStyleColor(ImGuiCol.Header, selectedColor);
+                    headerStylePushes++;
+                    pushImColStyleColor(ImGuiCol.HeaderHovered, UITheme.DarkTheme.LIST_ROW_BG_SELECTED_HOVERED);
+                    headerStylePushes++;
+                    pushImColStyleColor(ImGuiCol.HeaderActive, UITheme.DarkTheme.LIST_ROW_BG_SELECTED_HOVERED);
+                    headerStylePushes++;
+                } else {
+                    ImGui.getWindowDrawList().addRectFilled(rx, ry, rx + rw, ry + rh, rowBg);
+                }
 
-            if (isOnTimeline && !isSelected) {
-                pushTextColor(TIMELINE_TEXT_COLOR);
-            }
-            boolean nodeOpen = ImGui.treeNodeEx(label, flags);
-            if (headerStylePushes > 0) {
-                ImGui.popStyleColor(headerStylePushes);
-            }
-            if (isOnTimeline && !isSelected) {
-                ImGui.popStyleColor();
+                if (isOnTimeline && !isSelected) {
+                    pushTextColor(TIMELINE_TEXT_COLOR);
+                    timelineTextPushed = true;
+                }
+                nodeOpen = ImGui.treeNodeEx(label, flags);
+            } finally {
+                if (timelineTextPushed) {
+                    ImGui.popStyleColor();
+                }
+                if (headerStylePushes > 0) {
+                    ImGui.popStyleColor(headerStylePushes);
+                }
             }
 
             // 记录这一行的矩形（用于让右侧按钮/分割线与背景垂直居中对齐）
@@ -202,6 +213,7 @@ class ContainerTreeRenderer {
             
             // 恢复树节点内部间距
             ImGui.popStyleVar();
+            innerSpacingPushed = false;
 
             // 同步展开状态到 state（用户点击箭头或双击时）
             if (!searching && nodeOpen != wasExpanded) {
@@ -280,16 +292,27 @@ class ContainerTreeRenderer {
             );
 
             if (isHovered) {
-                renderTooltip(container);
+                renderTooltip(container, isOnTimeline);
             }
 
             if (nodeOpen) {
-                for (Container child : container.getChildren()) {
-                    renderContainerNode(child);
+                try {
+                    for (Container child : container.getChildren()) {
+                        renderContainerNode(child);
+                    }
+                } finally {
+                    nodeOpen = false;
+                    ImGui.treePop();
                 }
-                ImGui.treePop();
             }
         } finally {
+            if (nodeOpen) {
+                nodeOpen = false;
+                ImGui.treePop();
+            }
+            if (innerSpacingPushed) {
+                ImGui.popStyleVar();
+            }
             ImGui.popID();
         }
     }
@@ -399,14 +422,6 @@ class ContainerTreeRenderer {
         ImGui.pushStyleColor(styleCol, r, g, b, a);
     }
 
-    /** TreeNode 选中/悬停/按下时使用同一套行背景色，避免松开后回到灰色 Header。 */
-    private static int pushHeaderColors(int header, int hovered, int active) {
-        pushImColStyleColor(ImGuiCol.Header, header);
-        pushImColStyleColor(ImGuiCol.HeaderHovered, hovered);
-        pushImColStyleColor(ImGuiCol.HeaderActive, active);
-        return 3;
-    }
-
     private int buildNodeFlags(Container container) {
         int flags = ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.OpenOnArrow;
         if (!container.hasChildren()) {
@@ -435,20 +450,27 @@ class ContainerTreeRenderer {
         ImDrawList drawList = ImGui.getWindowDrawList();
         float mx = ImGui.getMousePosX();
         float my = ImGui.getMousePosY();
+        imgui.ImVec2 lockMin = null;
+        imgui.ImVec2 lockMax = null;
+        imgui.ImVec2 visMin = null;
+        imgui.ImVec2 visMax = null;
         try {
             if (showLock) {
                 String lockIcon = container.isLocked() ? Icons.LOCK : Icons.UNLOCK;
                 int lockColor = container.isLocked() ? LOCKED_COLOR : LOCKED_DISABLED_COLOR;
                 if (isOnTimeline) ImGui.beginDisabled();
-                ImGui.invisibleButton("lock_btn", ICON_BUTTON_SIZE, ICON_BUTTON_SIZE);
-                imgui.ImVec2 lockMin = ImGui.getItemRectMin();
-                imgui.ImVec2 lockMax = ImGui.getItemRectMax();
-                lockClicked = ImGui.isItemClicked(ImGuiMouseButton.Left)
-                    || (!isOnTimeline && ImGui.isMouseClicked(ImGuiMouseButton.Left) && rectContainsScreen(lockMin, lockMax, mx, my));
-                lockHovered = ImGui.isItemHovered();
-                if (isOnTimeline) {
-                    ImGui.endDisabled();
-                    lockClicked = false;
+                try {
+                    ImGui.invisibleButton("lock_btn", ICON_BUTTON_SIZE, ICON_BUTTON_SIZE);
+                    lockMin = ImGui.getItemRectMin();
+                    lockMax = ImGui.getItemRectMax();
+                    lockClicked = ImGui.isItemClicked(ImGuiMouseButton.Left)
+                        || (!isOnTimeline && ImGui.isMouseClicked(ImGuiMouseButton.Left) && rectContainsScreen(lockMin, lockMax, mx, my));
+                    lockHovered = ImGui.isItemHovered();
+                } finally {
+                    if (isOnTimeline) {
+                        ImGui.endDisabled();
+                        lockClicked = false;
+                    }
                 }
                 if (lockHovered) {
                     ImGui.setTooltip(DirectorI18n.translate(isOnTimeline
@@ -469,14 +491,18 @@ class ContainerTreeRenderer {
             if (isOnTimeline) {
                 ImGui.beginDisabled();
             }
-            ImGui.invisibleButton("vis_btn", ICON_BUTTON_SIZE, ICON_BUTTON_SIZE);
-            imgui.ImVec2 visMin = ImGui.getItemRectMin();
-            imgui.ImVec2 visMax = ImGui.getItemRectMax();
-            visibilityClicked = ImGui.isItemClicked(ImGuiMouseButton.Left)
-                || (!isOnTimeline && ImGui.isMouseClicked(ImGuiMouseButton.Left) && rectContainsScreen(visMin, visMax, mx, my));
-            visibilityHovered = ImGui.isItemHovered();
-            if (isOnTimeline) {
-                ImGui.endDisabled();
+            try {
+                ImGui.invisibleButton("vis_btn", ICON_BUTTON_SIZE, ICON_BUTTON_SIZE);
+                visMin = ImGui.getItemRectMin();
+                visMax = ImGui.getItemRectMax();
+                visibilityClicked = ImGui.isItemClicked(ImGuiMouseButton.Left)
+                    || (!isOnTimeline && ImGui.isMouseClicked(ImGuiMouseButton.Left) && rectContainsScreen(visMin, visMax, mx, my));
+                visibilityHovered = ImGui.isItemHovered();
+            } finally {
+                if (isOnTimeline) {
+                    ImGui.endDisabled();
+                    visibilityClicked = false;
+                }
             }
             if (visibilityHovered) {
                 if (isOnTimeline) {
@@ -513,34 +539,35 @@ class ContainerTreeRenderer {
         drawList.addText(x, y, abgr, icon);
     }
 
-    private void renderTooltip(Container container) {
+    private void renderTooltip(Container container, boolean isOnTimeline) {
         ImGui.beginTooltip();
-        ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_NAME, container.getName()));
-        ImGui.separator();
-        ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_TYPE, container.getType().getDisplayName()));
-        ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_BLOCK_COUNT, container.getBlockCount()));
-        ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_CHILD_COUNT, container.getChildren().size()));
-        ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_TOTAL_BLOCKS, container.getTotalBlockCount()));
-
-        if (container.getCenter() != null) {
-            ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_CENTER, container.getCenter()));
-        }
-
-        Container.BoundingBox bbox = container.getBoundingBox();
-        ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_SIZE,
-            bbox.getWidth(), bbox.getHeight(), bbox.getDepth()));
-        ImGui.separator();
-        boolean isOnTimeline = DirectorServices.get().containerTimeline()
-            .isContainerOnTimeline(container.getId());
-        if (isOnTimeline) {
-            UITheme.colored(UITheme.Semantic.INFO,
-                DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_ON_TIMELINE));
-            ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_READONLY));
+        try {
+            ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_NAME, container.getName()));
             ImGui.separator();
+            ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_TYPE, container.getType().getDisplayName()));
+            ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_BLOCK_COUNT, container.getBlockCount()));
+            ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_CHILD_COUNT, container.getChildren().size()));
+            ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_TOTAL_BLOCKS, container.getTotalBlockCount()));
+
+            if (container.getCenter() != null) {
+                ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_CENTER, container.getCenter()));
+            }
+
+            Container.BoundingBox bbox = container.getBoundingBox();
+            ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_SIZE,
+                bbox.getWidth(), bbox.getHeight(), bbox.getDepth()));
+            ImGui.separator();
+            if (isOnTimeline) {
+                UITheme.colored(UITheme.Semantic.INFO,
+                    DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_ON_TIMELINE));
+                ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_READONLY));
+                ImGui.separator();
+            }
+            ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_RIGHT_CLICK));
+            ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_DRAG_TO_TIMELINE));
+        } finally {
+            ImGui.endTooltip();
         }
-        ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_RIGHT_CLICK));
-        ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_DRAG_TO_TIMELINE));
-        ImGui.endTooltip();
     }
 
     private static int resolveRowBackground(boolean selected, boolean hovered, boolean onTimeline) {
