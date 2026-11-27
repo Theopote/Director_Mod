@@ -3,8 +3,10 @@ package com.director.actor.runtime;
 import com.director.actor.Actor;
 import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRef;
+import com.director.actor.runtime.ActorTrackSampleCache.CommittedPose;
 import com.director.actor.action.ActorActionType;
 import com.director.actor.animation.AnimationDataSampler;
+import com.director.actor.model.CustomModelPreviewRenderer;
 import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.rig.*;
 import com.director.timeline.playback.camera.CameraSample;
@@ -148,7 +150,7 @@ public final class ActorRuntimeController {
         if(timelineSource!=null) timelineSource.invalidateActorEditContext();
         diagnostics.clear();
         propRuntimes.values().forEach(ActorPropRuntime::dispose);propRuntimes.clear();
-        com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
+        CustomModelPreviewRenderer.getInstance().clear();
         com.director.actor.skin.ActorSkinTextureManager.clearAll();
         for(var runtime:runtimes.values()) runtime.resetWorldResources();
         lastUpdateTime=timelineSource==null?0:timelineSource.getCurrentTime();
@@ -266,7 +268,7 @@ public final class ActorRuntimeController {
             ActorAnimationEventEffects.getInstance().reset();
             diagnostics.clear();
             ActorPreviewManager.getInstance().clear();
-            com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
+            CustomModelPreviewRenderer.getInstance().clear();
             propRuntimes.values().forEach(ActorPropRuntime::dispose); propRuntimes.clear();
             LOGGER.info("[ActorRuntime] 已禁用，清空所有预览实体和道具");
         } else {
@@ -435,7 +437,7 @@ public final class ActorRuntimeController {
     private void pruneDeadTracks() {
         if (timelineSource == null) {
             ActorPreviewManager.getInstance().clear();
-            com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
+            CustomModelPreviewRenderer.getInstance().clear();
             return;
         }
         var tracks=java.util.List.copyOf(timelineSource.getTracks());
@@ -452,7 +454,7 @@ public final class ActorRuntimeController {
         }
         for (var id : ActorPreviewManager.getInstance().previewActorIds()) if (!liveActors.contains(id)) {
             ActorPreviewManager.getInstance().removePreview(id);
-            com.director.actor.model.CustomModelPreviewRenderer.getInstance().remove(id);
+            CustomModelPreviewRenderer.getInstance().remove(id);
         }
         for (var id : new java.util.ArrayList<>(propRuntimes.keySet())) if (!liveActors.contains(id))
             propRuntimes.remove(id).dispose();
@@ -503,28 +505,7 @@ public final class ActorRuntimeController {
         private long groundRevision = -1;
         private net.minecraft.world.World groundWorld;
         private com.director.actor.path.ActorCollisionDimensions groundDimensions;
-        private boolean clipCacheValid;
-        private float clipCacheTime;
-        private long clipCacheRevision;
-        private long clipCachePaths;
-        private EntitySample clipCache;
-        private final Map<Integer, EntitySample> relationByTime = new BoundedTimeCache<>(64);
-        private long relationKeyRevision = Long.MIN_VALUE;
-        private long relationKeyPaths;
-        private final Map<Integer, CommittedPose> committedByTime = new BoundedTimeCache<>(64);
-        private final Map<Integer, Boolean> committedAbsent = new BoundedTimeCache<>(64);
-        private long committedKeyRevision = Long.MIN_VALUE;
-        private long committedKeyPaths;
-        private long committedKeyAssets;
-        private long committedKeyGlobal;
-        private int committedKeyAppearance;
-        private ActorPropTimelineSampler.Snapshot propSnapshot;
-        private float propSnapshotTime = Float.NaN;
-        private long propSnapshotRevision;
-        private long propSnapshotGlobal;
-        private long propSnapshotPaths;
-        private long propSnapshotAssets;
-        private int propSnapshotAppearance;
+        private final ActorTrackSampleCache sampleCache;
 
         /**
          * 构造函数
@@ -539,6 +520,7 @@ public final class ActorRuntimeController {
                 throw new IllegalArgumentException("Track does not have ActorTrack payload");
             }
             this.sampler = new EntityClipSampler(actorTrack);
+            this.sampleCache = new ActorTrackSampleCache(actorTrack, sampler);
         }
 
         /**
@@ -549,46 +531,12 @@ public final class ActorRuntimeController {
         private void resetWorldResources() {
             spawned=false;lastSample=null;lastTime=-1;poseFeedback=null;
             groundRoute=null;groundClip=null;groundWorld=null;groundDimensions=null;groundRevision=-1;
-            clearSampleCaches();
+            sampleCache.clear();
             // Keep sampler event caches: loading a new world is not rewinding or replaying events.
         }
 
-        private void clearSampleCaches() {
-            clipCacheValid=false; clipCache=null;
-            relationByTime.clear(); relationKeyRevision=Long.MIN_VALUE;
-            committedByTime.clear(); committedAbsent.clear(); committedKeyRevision=Long.MIN_VALUE;
-            propSnapshot=null; propSnapshotTime=Float.NaN;
-        }
-
-        /** Pre-relation clip sample. Equal time reuses the copy so playback events are not emitted twice. */
         private EntitySample sampleClips(float time, boolean emitEvents) {
-            long revision=actorTrack.samplingRevision();
-            long paths=pathGeometryRevision();
-            int bits=Float.floatToIntBits(time);
-            if(clipCacheValid && Float.floatToIntBits(clipCacheTime)==bits && clipCacheRevision==revision && clipCachePaths==paths)
-                return clipCache==null?null:clipCache.copy();
-            if(!emitEvents) {
-                syncRelationEpoch(revision,paths);
-                EntitySample stored=relationByTime.get(bits);
-                if(stored!=null) return stored.copy();
-            }
-            EntitySample sampled=emitEvents?sampler.sampleAt(time):sampler.sampleSnapshot(time);
-            EntitySample stored=sampled==null?null:sampled.copy();
-            if(stored!=null) stored.actionEvents.clear();
-            if(emitEvents) {
-                clipCacheValid=true; clipCacheTime=time; clipCacheRevision=revision; clipCachePaths=paths; clipCache=stored;
-            } else if(stored!=null) {
-                syncRelationEpoch(revision,paths);
-                relationByTime.put(bits,stored);
-            }
-            return sampled;
-        }
-
-        private void syncRelationEpoch(long revision,long paths) {
-            if(relationKeyRevision!=revision || relationKeyPaths!=paths) {
-                relationByTime.clear();
-                relationKeyRevision=revision; relationKeyPaths=paths;
-            }
+            return sampleCache.sampleClips(time, pathGeometryRevision(), emitEvents);
         }
 
         void update(float time) {
@@ -707,23 +655,22 @@ public final class ActorRuntimeController {
             return null;
         }
 
-        private record CommittedPose(com.director.actor.Actor actor,EntitySample sample,com.director.actor.rig.skeleton.RigPose pose) {}
         private CommittedPose sampleCommittedPose(float time) {
             var sourceActor=actorRegistry.resolve(actorTrack.getActorRef()).orElse(null);
             if(sourceActor==null || ownerTrack.isMuted()) return null;
-            syncCommittedEpoch(sourceActor);
-            int key=Float.floatToIntBits(time);
-            if(committedAbsent.containsKey(key)) return null;
-            var cached=committedByTime.get(key);
-            if(cached!=null) return cached;
-            var at=sampleClips(time,false);
-            if(at==null) { committedAbsent.put(key,Boolean.TRUE); return null; }
+            return sampleCache.committedPose(time, pathGeometryRevision(), appearanceStamp(sourceActor),
+                    () -> reconstructCommittedPose(sourceActor, time));
+        }
+
+        private CommittedPose reconstructCommittedPose(Actor sourceActor, float time) {
+            var at = sampleClips(time, false);
+            if (at == null) return null;
             applyGroundRoute(sourceActor.getActorId(),at,time);
             ActorRelationTimeResolver.resolveInto(sourceActor.getActorId(),at,time,this::sampleRelationTarget,this::constrainRelationPlacement,
                             (id,message)->reportPlacement(id,time,"relation",false,message));
             restoreRelationJump(at,time);
             if (!previewActive(at) || at.visibility<=.01f || sourceActor.getRigProfile()==null) {
-                committedAbsent.put(key,Boolean.TRUE); return null;
+                return null;
             }
             var rig = com.director.actor.rig.ActorRigCompatibility.resolveRig(sourceActor).orElse(null);
             var base = ActorRouteGait.sample(at,sourceActor.getRigProfile(),new ActorRuntime()).pose;
@@ -750,26 +697,10 @@ public final class ActorRuntimeController {
                 pose=evaluated.pose();
             }
             var placed=resolveRootPlacement(sourceActor.getActorId(),pose,new Vec3d(at.position.x,at.position.y,at.position.z),at.rotation.x,at,time);
-            if(placed.position()==null) { committedAbsent.put(key,Boolean.TRUE); return null; }
+            if (placed.position() == null) return null;
             var feet=placed.position();at.position.set((float)feet.x,(float)feet.y,(float)feet.z);
             pose=placed.pose();
-            var committed=new CommittedPose(sourceActor,at,pose);
-            committedByTime.put(key,committed);
-            return committed;
-        }
-
-        private void syncCommittedEpoch(Actor sourceActor) {
-            long revision=actorTrack.samplingRevision();
-            long global=ActorTrack.globalSamplingRevision();
-            long paths=pathGeometryRevision();
-            long assets=com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().revision();
-            int appearance=appearanceStamp(sourceActor);
-            if(committedKeyRevision!=revision || committedKeyGlobal!=global || committedKeyPaths!=paths
-                    || committedKeyAssets!=assets || committedKeyAppearance!=appearance) {
-                committedByTime.clear(); committedAbsent.clear();
-                committedKeyRevision=revision; committedKeyGlobal=global; committedKeyPaths=paths;
-                committedKeyAssets=assets; committedKeyAppearance=appearance;
-            }
+            return new CommittedPose(sourceActor, at, pose);
         }
 
         private org.joml.Matrix4f samplePropLaunchTransform(Entity entity,float time,ActorPropSlot slot,
@@ -819,7 +750,7 @@ public final class ActorRuntimeController {
             if (ref != null) {
                 UUID actorId = ref.getActorId();
                 ActorPreviewManager.getInstance().removePreview(actorId);
-                com.director.actor.model.CustomModelPreviewRenderer.getInstance().remove(actorId);
+                CustomModelPreviewRenderer.getInstance().remove(actorId);
                 
                 // 清理 PropRuntime
                 ActorPropRuntime propRuntime = propRuntimes.remove(actorId);
@@ -860,7 +791,7 @@ public final class ActorRuntimeController {
             if (!previewActive(sample) && (spawned || ActorPreviewManager.getInstance().hasPreview(actor.getActorId()))) {
                 // 需要移除预览实体
                 ActorPreviewManager.getInstance().removePreview(actor.getActorId());
-                com.director.actor.model.CustomModelPreviewRenderer.getInstance().remove(actor.getActorId());
+                CustomModelPreviewRenderer.getInstance().remove(actor.getActorId());
                 spawned = false;
                 LOGGER.debug("[ActorRuntime] Despawn 预览实体: {}", actor.getName());
             }
@@ -944,74 +875,17 @@ public final class ActorRuntimeController {
             if (!spawned || actor == null || lastSample == null) return;
             Entity entity = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
             if (entity == null) return;
-            if (lastSample.visibility > 0.01f) syncCustomModel(entity);
-            else com.director.actor.model.CustomModelPreviewRenderer.getInstance().remove(actor.getActorId());
+            CustomModelPreviewRenderer.getInstance().syncActor(actor, entity, lastSample.visibility > 0.01f);
             float time = timelineSource.getCurrentTime();
             ActorPropRuntime propRuntime = getOrCreatePropRuntime(actor);
             propRuntime.setActorEntity(entity);
-            long propRevision = actorTrack.samplingRevision();
-            long propGlobal = ActorTrack.globalSamplingRevision();
-            long propPaths = pathGeometryRevision();
-            long propAssets = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().revision();
-            int propAppearance = appearanceStamp(actor);
-            ActorPropTimelineSampler.Snapshot propState;
-            if (propSnapshot != null && Float.floatToIntBits(propSnapshotTime) == Float.floatToIntBits(time)
-                    && propSnapshotRevision == propRevision && propSnapshotGlobal == propGlobal && propSnapshotPaths == propPaths
-                    && propSnapshotAssets == propAssets && propSnapshotAppearance == propAppearance) {
-                propState = propSnapshot;
-            } else {
-                propState = com.director.actor.prop.ActorPropTimelineSampler.sampleTransforms(actorTrack, time,
-                        (eventTime, slot, attachment) -> samplePropLaunchTransform(entity, eventTime, slot, attachment),
-                        (eventTime, reason) -> reportPlacement(actor.getActorId(), eventTime, "prop", true, reason.legacyMessage()));
-                propSnapshot = propState; propSnapshotTime = time; propSnapshotRevision = propRevision; propSnapshotGlobal = propGlobal;
-                propSnapshotPaths = propPaths; propSnapshotAssets = propAssets; propSnapshotAppearance = propAppearance;
-            }
+            var propState = sampleCache.propSnapshot(time, pathGeometryRevision(), appearanceStamp(actor),
+                    () -> ActorPropTimelineSampler.sampleTransforms(actorTrack, time,
+                            (eventTime, slot, attachment) -> samplePropLaunchTransform(entity, eventTime, slot, attachment),
+                            (eventTime, reason) -> reportPlacement(actor.getActorId(), eventTime, "prop", true, reason.legacyMessage())));
             propRuntime.sync(propState);
             propRuntime.setHeldVisible(lastSample.visibility > .01f);
             propRuntime.update(reason -> reportPlacement(actor.getActorId(), time, "prop", true, reason.legacyMessage()));
-        }
-
-        /**
-         * 若演员绑定了自定义方块模型，按当前骨架世界姿态重新定位各个 cuboid，
-         * 并隐藏作为锚点的 ArmorStand 宿主实体。
-         */
-        private void syncCustomModel(Entity entity) {
-            if (actor == null || entity == null) return;
-            String modelId = actor.getCustomModelId();
-            if (modelId == null || modelId.isBlank()) {
-                com.director.actor.model.CustomModelPreviewRenderer.getInstance().remove(actor.getActorId());
-                return;
-            }
-            var model = com.director.actor.model.CustomModelLibrary.getInstance().find(modelId).orElse(null);
-            if (model == null) {
-                com.director.actor.model.CustomModelPreviewRenderer.getInstance().remove(actor.getActorId());
-                return;
-            }
-            var rig = com.director.actor.rig.skeleton.RigDefinitions.find(model.rigId()).orElse(null);
-            if (rig == null) {
-                com.director.actor.model.CustomModelPreviewRenderer.getInstance().remove(actor.getActorId());
-                return;
-            }
-            com.director.actor.rig.skeleton.RigPose pose = null;
-            Vector3f scale = new Vector3f(1);
-            if (entity instanceof com.director.actor.preview.ActorPosePreview preview) {
-                var current = preview.getFinalRigPose();
-                if (current != null && com.director.actor.rig.skeleton.RigPoseComposer.sameLayout(current.rig(), rig))
-                    pose = current;
-                scale = preview.getActorTransformScale();
-                entity.setInvisible(true);
-            }
-            if (pose == null) pose = new com.director.actor.rig.skeleton.RigPose(rig);
-            if (scale == null || !scale.isFinite()) scale = new Vector3f(1);
-            var actorTransform = new org.joml.Matrix4f()
-                    .translate((float) entity.getX(), (float) entity.getY(), (float) entity.getZ())
-                    .rotateY((float) Math.toRadians(-entity.getYaw()))
-                    .scale(scale);
-            var worldPose = com.director.actor.rig.skeleton.RigWorldPose.resolve(pose, actorTransform);
-            if (entity.getEntityWorld() instanceof net.minecraft.client.world.ClientWorld clientWorld) {
-                com.director.actor.model.CustomModelPreviewRenderer.getInstance()
-                        .sync(actor.getActorId(), clientWorld, worldPose, model);
-            }
         }
 
         /**

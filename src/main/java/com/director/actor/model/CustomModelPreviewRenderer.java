@@ -1,5 +1,10 @@
 package com.director.actor.model;
 
+import com.director.actor.Actor;
+import com.director.actor.preview.ActorPosePreview;
+import com.director.actor.rig.skeleton.RigDefinitions;
+import com.director.actor.rig.skeleton.RigPose;
+import com.director.actor.rig.skeleton.RigPoseComposer;
 import com.director.actor.rig.skeleton.RigWorldPose;
 import com.director.mixin.accessor.BlockDisplayEntityAccessor;
 import com.director.mixin.accessor.DisplayEntityAccessor;
@@ -9,6 +14,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.component.DataComponentTypes;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.decoration.DisplayEntity;
 import net.minecraft.item.ItemDisplayContext;
@@ -47,6 +53,38 @@ public final class CustomModelPreviewRenderer {
     private CustomModelPreviewRenderer() {}
 
     public static CustomModelPreviewRenderer getInstance() { return INSTANCE; }
+
+    /** Uses the host's final pose, including gaze, to place its custom display model. */
+    public void syncActor(Actor actor, Entity host, boolean visible) {
+        UUID actorId = actor.getActorId();
+        String modelId = actor.getCustomModelId();
+        if (!visible || modelId == null || modelId.isBlank()) {
+            remove(actorId);
+            return;
+        }
+        var model = CustomModelLibrary.getInstance().find(modelId).orElse(null);
+        var rig = model == null ? null : RigDefinitions.find(model.rigId()).orElse(null);
+        if (rig == null) {
+            remove(actorId);
+            return;
+        }
+        RigPose pose = null;
+        Vector3f scale = null;
+        if (host instanceof ActorPosePreview preview) {
+            var current = preview.getFinalRigPose();
+            if (current != null && RigPoseComposer.sameLayout(current.rig(), rig)) pose = current;
+            scale = preview.getActorTransformScale();
+            host.setInvisible(true);
+        }
+        if (!(host.getEntityWorld() instanceof ClientWorld world)) return;
+        if (pose == null) pose = new RigPose(rig);
+        if (scale == null || !scale.isFinite()) scale = new Vector3f(1);
+        var actorTransform = new Matrix4f()
+                .translate((float) host.getX(), (float) host.getY(), (float) host.getZ())
+                .rotateY((float) Math.toRadians(-host.getYaw()))
+                .scale(scale);
+        sync(actorId, world, RigWorldPose.resolve(pose, actorTransform), model);
+    }
 
     public void sync(UUID actorId, ClientWorld world, RigWorldPose worldPose, CustomModelDefinition model) {
         if (actorId == null || world == null || worldPose == null || model == null) {
