@@ -73,11 +73,11 @@ public class EntityTransformClip extends EntityClip {
     }
 
     public Vector3f getFromPos() {
-        return fromPos;
+        return new Vector3f(fromPos);
     }
 
     public Vector3f getToPos() {
-        return toPos;
+        return new Vector3f(toPos);
     }
 
     public void setFromPos(float x, float y, float z) {
@@ -91,11 +91,11 @@ public class EntityTransformClip extends EntityClip {
     }
 
     public Vector3f getFromRot() {
-        return fromRot;
+        return new Vector3f(fromRot);
     }
 
     public Vector3f getToRot() {
-        return toRot;
+        return new Vector3f(toRot);
     }
 
     public void setFromRot(float yaw, float pitch, float roll) {
@@ -111,11 +111,11 @@ public class EntityTransformClip extends EntityClip {
     }
 
     public Vector3f getFromScale() {
-        return fromScale;
+        return new Vector3f(fromScale);
     }
 
     public Vector3f getToScale() {
-        return toScale;
+        return new Vector3f(toScale);
     }
 
     public void setFromScale(float x, float y, float z) {

@@ -9,9 +9,9 @@ import static org.junit.jupiter.api.Assertions.*;
 class ActorPropFlightTransformTest {
     ActorTrack track() {
         var t=new ActorTrack(); var a=new EntityActionClip("Attach",0,.1f); a.setActionType(EntityActionClip.ActionType.ATTACH_PROP);
-        a.getParams().putAll(Map.of("propId","stone","slot","MAIN_HAND","propScale",2)); t.addClip(a);
+        a.setParams(Map.of("propId","stone","slot","MAIN_HAND","propScale",2)); t.addClip(a);
         var b=new EntityActionClip("Throw",1,1.1f); b.setActionType(EntityActionClip.ActionType.THROW_PROP);
-        b.getParams().putAll(Map.of("slot","MAIN_HAND","targetX",8,"targetY",4,"targetZ",0,"flightTime",2,"arcHeight",0)); t.addClip(b); return t;
+        b.setParams(Map.of("slot","MAIN_HAND","targetX",8,"targetY",4,"targetZ",0,"flightTime",2,"arcHeight",0)); t.addClip(b); return t;
     }
     @Test void flightFreezesLaunchRotationAndNonuniformScaleAtEventTime() {
         var launch=new Matrix4f().translate(2,4,0).rotateXYZ(.3f,.8f,.1f).scale(2,3,4);

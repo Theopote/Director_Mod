@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ActorPropTimelineSamplerTest {
     ActorTrack track=new ActorTrack();
     EntityActionClip event(float time,EntityActionClip.ActionType type,Map<String,Object> params) {
-        var c=new EntityActionClip("Prop",time,time+.1f); c.setActionType(type); c.getParams().putAll(params); track.addClip(c); return c;
+        var c=new EntityActionClip("Prop",time,time+.1f); c.setActionType(type); c.setParams(params); track.addClip(c); return c;
     }
     EntityActionClip attach(float at,String prop) { return event(at,EntityActionClip.ActionType.ATTACH_PROP,Map.of("slot","MAIN_HAND","propId",prop)); }
     ActorPropTimelineSampler.Snapshot sample(float t) { return ActorPropTimelineSampler.sample(track,t,at->new Vec3d(at,2,0)); }

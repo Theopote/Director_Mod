@@ -374,19 +374,25 @@ public class EntityClipSampler {
             }
 
             // 位置插值
-            result.position.x = lerp(clip.getFromPos().x, clip.getToPos().x, t);
-            result.position.y = lerp(clip.getFromPos().y, clip.getToPos().y, t);
-            result.position.z = lerp(clip.getFromPos().z, clip.getToPos().z, t);
+            var fromPos = clip.getFromPos();
+            var toPos = clip.getToPos();
+            result.position.x = lerp(fromPos.x, toPos.x, t);
+            result.position.y = lerp(fromPos.y, toPos.y, t);
+            result.position.z = lerp(fromPos.z, toPos.z, t);
 
             // 旋转插值（角度插值，处理 360° 环绕）
-            result.rotation.x = EntitySample.lerpAngle(clip.getFromRot().x, clip.getToRot().x, t);
-            result.rotation.y = EntitySample.lerpAngle(clip.getFromRot().y, clip.getToRot().y, t);
-            result.rotation.z = EntitySample.lerpAngle(clip.getFromRot().z, clip.getToRot().z, t);
+            var fromRot = clip.getFromRot();
+            var toRot = clip.getToRot();
+            result.rotation.x = EntitySample.lerpAngle(fromRot.x, toRot.x, t);
+            result.rotation.y = EntitySample.lerpAngle(fromRot.y, toRot.y, t);
+            result.rotation.z = EntitySample.lerpAngle(fromRot.z, toRot.z, t);
 
             // 缩放插值
-            result.scale.x = lerp(clip.getFromScale().x, clip.getToScale().x, t);
-            result.scale.y = lerp(clip.getFromScale().y, clip.getToScale().y, t);
-            result.scale.z = lerp(clip.getFromScale().z, clip.getToScale().z, t);
+            var fromScale = clip.getFromScale();
+            var toScale = clip.getToScale();
+            result.scale.x = lerp(fromScale.x, toScale.x, t);
+            result.scale.y = lerp(fromScale.y, toScale.y, t);
+            result.scale.z = lerp(fromScale.z, toScale.z, t);
         }
 
         applyRootKeys(result, clip.getKeyframes(), time);

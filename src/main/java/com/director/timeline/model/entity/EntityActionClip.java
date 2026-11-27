@@ -1,5 +1,7 @@
 package com.director.timeline.model.entity;
 
+import com.director.actor.prop.PropEventParameters;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -55,7 +57,7 @@ public class EntityActionClip extends EntityClip {
     private ActionType actionType = ActionType.INTERACT;
 
     /** 参数表：比如 {soundId:"minecraft:block.stone.place", volume:0.8} */
-    private final Map<String, Object> params = new HashMap<>();
+    private Map<String, Object> params = Map.of();
 
     /** 是否只触发一次（默认 true），否则可按 tick/间隔触发（后续扩展） */
     private boolean triggerOnce = true;
@@ -99,10 +101,16 @@ public class EntityActionClip extends EntityClip {
     /**
      * 获取参数表
      *
-     * @return 参数表（可修改）
+     * @return 不可修改的参数快照
      */
     public Map<String, Object> getParams() {
         return params;
+    }
+
+    public void setParams(Map<String, Object> values) {
+        if (params.equals(values)) return;
+        params = PropEventParameters.copy(java.util.Objects.requireNonNull(values, "values"), true);
+        samplingChanged();
     }
 
     /**
@@ -113,12 +121,13 @@ public class EntityActionClip extends EntityClip {
      */
     public void setParam(String key, Object value) {
         if (key != null && !key.isBlank()) {
+            var updated = new HashMap<>(params);
             if (value == null) {
-                params.remove(key);
+                updated.remove(key);
             } else {
-                params.put(key, value);
+                updated.put(key, value);
             }
-            samplingChanged();
+            setParams(updated);
         }
     }
 

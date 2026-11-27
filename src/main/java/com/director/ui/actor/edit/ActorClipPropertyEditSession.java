@@ -67,7 +67,7 @@ public final class ActorClipPropertyEditSession {
         public void apply(EntityClip clip) {
             var c = (EntityActionClip) clip;
             var copied = PropEventParameters.copy(params,false);
-            c.setActionType(type); c.setTriggerOnce(once); c.getParams().clear(); c.getParams().putAll(copied);
+            c.setActionType(type); c.setTriggerOnce(once); c.setParams(copied);
         }
         public void validate() { PropEventParameters.validate(type,params); }
     }

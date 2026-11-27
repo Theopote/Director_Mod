@@ -1789,7 +1789,7 @@ public class TimelineModelPersistence {
                 if (cdto.actionType != null) {
                     ParseUtils.setEnumIfValid(cdto.actionType, com.director.timeline.model.entity.EntityActionClip.ActionType.class, "ActionType", xac::setActionType);
                 }
-                if (cdto.actionParams != null) cdto.actionParams.forEach(xac::setParam);
+                if (cdto.actionParams != null) xac.setParams(cdto.actionParams);
                 if (cdto.triggerOnce != null) xac.setTriggerOnce(cdto.triggerOnce);
             }
             case com.director.timeline.model.entity.EntityDespawnClip dc -> {

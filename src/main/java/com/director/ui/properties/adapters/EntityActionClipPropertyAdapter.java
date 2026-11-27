@@ -65,7 +65,7 @@ public class EntityActionClipPropertyAdapter implements IPropertyAdapter<EntityA
         }
         ImGui.textWrapped(tr("trigger_hint"));
         if (!clip.isTriggerOnce() && ImGui.button(tr("normalize_trigger"))) clip.setTriggerOnce(true);
-        var params = clip.getParams(); var type = clip.getActionType();
+        var params = new java.util.LinkedHashMap<>(clip.getParams()); var type = clip.getActionType();
         if (PropEventParameters.supports(type)) {
             if (type == EntityActionClip.ActionType.SWITCH_PROP) {
                 slot(actor,type,params,"oldSlot",true); slot(actor,type,params,"newSlot",false); prop(params,"newPropId");
@@ -100,6 +100,7 @@ public class EntityActionClipPropertyAdapter implements IPropertyAdapter<EntityA
                     .forEach(entry -> ImGui.text(entry.getKey()+": "+entry.getValue()));
         }
         Card.end();
+        clip.setParams(params);
         if (ImGui.button(tr("apply")+"##propEventApply")) {
             var edit = session;
             try { error = edit.commit() ? "" : tr("cancelled"); session = null; }

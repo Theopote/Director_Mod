@@ -59,12 +59,13 @@ class ActorPropSpawnPropertyEditSessionTest {
         var edit = new ActorClipPropertyEditSession(model,source); ((EntitySpawnClip)edit.draft()).setVisibleOnSpawn(false);
         assertTrue(edit.commit()); history.undo(); assertSame(key,source.getKeyframes().getFirst());
     }
-    @Test @SuppressWarnings("unchecked") void eventDeepCopiesNestedMetadataAndUndoUsesIndependentSnapshots() {
+    @Test void eventDeepCopiesNestedMetadataAndUndoUsesIndependentSnapshots() {
         var source = event(); source.setParam("extra",new LinkedHashMap<>(Map.of("list",new ArrayList<>(List.of("old")))));
         var edit = new ActorClipPropertyEditSession(model,source); var draft = (EntityActionClip)edit.draft();
-        ((List<Object>)((Map<String,Object>)draft.getParam("extra")).get("list")).add("new"); draft.setParam("propId","dirt");
+        draft.setParam("extra", Map.of("list", List.of("old", "new")));
+        draft.setParam("propId","dirt");
         assertEquals(List.of("old"),((Map<?,?>)source.getParam("extra")).get("list")); assertTrue(edit.commit());
-        ((List<Object>)((Map<String,Object>)draft.getParam("extra")).get("list")).add("late draft change");
+        draft.setParam("extra", Map.of("list", List.of("old", "new", "late draft change")));
         assertEquals(List.of("old","new"),((Map<?,?>)source.getParam("extra")).get("list")); history.undo();
         assertEquals("stone",source.getParam("propId")); assertEquals(List.of("old"),((Map<?,?>)source.getParam("extra")).get("list"));
         history.redo(); assertEquals("dirt",source.getParam("propId")); assertEquals(1,history.getUndoSize());

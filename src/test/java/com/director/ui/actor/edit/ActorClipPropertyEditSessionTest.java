@@ -156,7 +156,7 @@ class ActorClipPropertyEditSessionTest {
     }
     @Test void noOpCancelAndReturningToOriginalDoNotCreateHistory() {
         var source = transform(); assertTrue(new ActorClipPropertyEditSession(model, source).commit());
-        var edit = new ActorClipPropertyEditSession(model, source); ((EntityTransformClip)edit.draft()).getFromPos().set(8);
+        var edit = new ActorClipPropertyEditSession(model, source); ((EntityTransformClip)edit.draft()).setFromPos(8, 8, 8);
         edit.cancel(); assertFalse(edit.commit());
         edit = new ActorClipPropertyEditSession(model, source); ((EntityTransformClip)edit.draft()).setFromPos(1,2,3);
         assertTrue(edit.commit()); assertEquals(0, history.getUndoSize());

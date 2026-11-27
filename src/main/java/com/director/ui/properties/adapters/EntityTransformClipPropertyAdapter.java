@@ -36,15 +36,15 @@ public class EntityTransformClipPropertyAdapter implements IPropertyAdapter<Enti
         }
         Card.end();
         if (Card.begin("entity_transform_clip.from", ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.from"))) {
-            vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.position") + "##transformFromPosition", clip.getFromPos());
-            vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.rotation") + "##transformFromRotation", clip.getFromRot());
-            vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.scale") + "##transformFromScale", clip.getFromScale());
+            vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.position") + "##transformFromPosition", clip.getFromPos(), clip::setFromPos);
+            vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.rotation") + "##transformFromRotation", clip.getFromRot(), clip::setFromRot);
+            vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.scale") + "##transformFromScale", clip.getFromScale(), clip::setFromScale);
         }
         Card.end();
         if (Card.begin("entity_transform_clip.to", ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.to"))) {
-            vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.position") + "##transformToPosition", clip.getToPos());
-            vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.rotation") + "##transformToRotation", clip.getToRot());
-            vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.scale") + "##transformToScale", clip.getToScale());
+            vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.position") + "##transformToPosition", clip.getToPos(), clip::setToPos);
+            vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.rotation") + "##transformToRotation", clip.getToRot(), clip::setToRot);
+            vector(ActorPropertyAdapterI18n.tr("gui.director.actor.clip_inspector.scale") + "##transformToScale", clip.getToScale(), clip::setToScale);
         }
         Card.end();
         ImGui.endDisabled();
@@ -56,12 +56,17 @@ public class EntityTransformClipPropertyAdapter implements IPropertyAdapter<Enti
         com.director.ui.properties.actor.ActorRootKeyframePropertyUI.render(source);
         return false; // The transaction marks the model dirty exactly once.
     }
-    private void vector(String label, Vector3f target) {
+    private void vector(String label, Vector3f target, VectorSetter setter) {
         float[] values = {target.x, target.y, target.z};
         int id = label.indexOf("##");
         PropertyRow.field(label.substring(0, id));
         boolean changed = ImGui.inputFloat3(label.substring(id), values);
-        if (changed) target.set(values[0], values[1], values[2]);
+        if (changed) setter.set(values[0], values[1], values[2]);
         gesture.observe(label, changed);
+    }
+
+    @FunctionalInterface
+    private interface VectorSetter {
+        void set(float x, float y, float z);
     }
 }

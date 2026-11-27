@@ -1,14 +1,44 @@
 package com.director.timeline.model.entity;
 
 import com.director.actor.ActorRef;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ActorSamplingRevisionTest {
+    @Test void transformEndpointsAndNestedEventParamsCannotBypassRevision() {
+        var track = new ActorTrack("actor");
+        var transform = new EntityTransformClip("Transform", 0, 1);
+        var event = new EntityActionClip("Event", 0, 1);
+        track.addClip(transform);
+        track.addClip(event);
+        long revision = track.samplingRevision();
+        transform.getToPos().set(8, 9, 10);
+        assertEquals(new Vector3f(), transform.getToPos());
+        assertEquals(revision, track.samplingRevision());
+        transform.setToPos(8, 9, 10);
+        assertTrue(track.samplingRevision() > revision);
+
+        revision = track.samplingRevision();
+        var list = new ArrayList<>(List.of("first"));
+        event.setParams(Map.of("meta", Map.of("list", list)));
+        assertTrue(track.samplingRevision() > revision);
+        revision = track.samplingRevision();
+        list.add("second");
+        var stored = (List<?>) ((Map<?, ?>) event.getParam("meta")).get("list");
+        assertEquals(List.of("first"), stored);
+        assertThrows(UnsupportedOperationException.class, stored::clear);
+        assertThrows(UnsupportedOperationException.class, () -> event.getParams().clear());
+        assertEquals(revision, track.samplingRevision());
+    }
     @Test void sampledEditsBumpAndLabelsOrTerrainWarningsDoNot() {
         var track = new ActorTrack("actor");
         long created = track.samplingRevision();

@@ -8,9 +8,9 @@ class ActorPropVisualConfigurationTest {
     Map<String,Object> params() { return new HashMap<>(Map.of("slot","MAIN_HAND","propId","stone")); }
     ActorPropTimelineSampler.Snapshot sample(Map<String,Object> params, boolean thrown) {
         var track=new ActorTrack(); var attach=new EntityActionClip("Attach",1,2);
-        attach.setActionType(EntityActionClip.ActionType.ATTACH_PROP); attach.getParams().putAll(params); track.addClip(attach);
+        attach.setActionType(EntityActionClip.ActionType.ATTACH_PROP); attach.setParams(params); track.addClip(attach);
         if(thrown) { var c=new EntityActionClip("Throw",3,4); c.setActionType(EntityActionClip.ActionType.THROW_PROP);
-            c.getParams().putAll(Map.of("slot","MAIN_HAND","targetX",3,"targetY",2,"targetZ",1,"flightTime",2)); track.addClip(c); }
+            c.setParams(Map.of("slot","MAIN_HAND","targetX",3,"targetY",2,"targetZ",1,"flightTime",2)); track.addClip(c); }
         return ActorPropTimelineSampler.sample(track,3.5f,t->new net.minecraft.util.math.Vec3d(0,0,0));
     }
     @Test void missingFieldsPreserveLegacyDefaults() {
