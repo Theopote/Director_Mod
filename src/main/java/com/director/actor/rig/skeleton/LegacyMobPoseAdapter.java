@@ -22,9 +22,8 @@ public final class LegacyMobPoseAdapter {
         var result = new RigPose(rig);
         rotate(result, VillagerRig.BODY, source.bodyPitch, source.bodyYaw, source.bodyRoll);
         rotate(result, VillagerRig.HEAD, source.headPitch, source.headYaw, 0);
-        rotate(result, VillagerRig.ARMS, (source.leftArmPitch + source.rightArmPitch) * .5f,
-                (source.leftArmYaw + source.rightArmYaw) * .5f,
-                (source.leftArmRoll + source.rightArmRoll) * .5f);
+        // The folded arms are one model part. Keep a fixed source throughout the motion cycle.
+        rotate(result, VillagerRig.ARMS, source.rightArmPitch, source.rightArmYaw, source.rightArmRoll);
         rotate(result, VillagerRig.LEFT_LEG, source.leftLegPitch, 0, 0);
         rotate(result, VillagerRig.RIGHT_LEG, source.rightLegPitch, 0, 0);
         return result;
