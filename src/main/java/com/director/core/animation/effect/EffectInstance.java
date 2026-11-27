@@ -71,6 +71,11 @@ public class EffectInstance {
         this.id = UUID.randomUUID();
         this.type = type;
     }
+
+    private EffectInstance(UUID id, @NotNull EffectType type) {
+        this.id = id;
+        this.type = type;
+    }
     
     // --------- 基本字段 ---------
     
@@ -209,6 +214,33 @@ public class EffectInstance {
         copy.triggerMode = this.triggerMode;
         copy.params.putAll(this.params);
         return copy;
+    }
+
+    public EffectInstance snapshot() {
+        EffectInstance copy = new EffectInstance(id, type);
+        copy.copyStateFrom(this);
+        return copy;
+    }
+
+    public void copyStateFrom(EffectInstance source) {
+        type = source.type;
+        enabled = source.enabled;
+        markedForRemoval = source.markedForRemoval;
+        startOffset = source.startOffset;
+        duration = source.duration;
+        phase = source.phase;
+        triggerMode = source.triggerMode;
+        params.clear();
+        params.putAll(source.params);
+    }
+
+    public boolean hasSameValues(EffectInstance other) {
+        return other != null && id.equals(other.id) && type == other.type
+                && enabled == other.enabled && markedForRemoval == other.markedForRemoval
+                && Float.compare(startOffset, other.startOffset) == 0
+                && Float.compare(duration, other.duration) == 0
+                && getPhase() == other.getPhase() && getTriggerMode() == other.getTriggerMode()
+                && params.equals(other.params);
     }
 }
 

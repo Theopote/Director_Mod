@@ -7,6 +7,9 @@ import com.director.timeline.model.TimelineViewportState;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.entity.EntityStateClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
+import com.director.timeline.model.entity.ActorActionClip;
+import com.director.timeline.model.entity.ActorPoseClip;
+import com.director.timeline.model.entity.EntityLookAtClip;
 import static org.junit.jupiter.api.Assertions.*;
 
 class TimelineRenderMathRowsTest {
@@ -73,5 +76,22 @@ class TimelineRenderMathRowsTest {
         var main = TimelineRenderer.actionPaintRow(layout, 1, false, true);
         assertEquals(layout.trackTop(1) + 2 * TimelineRenderer.clipBandHeight(128f), main.top());
         assertFalse(main.contains(expectedTop));
+    }
+
+    @Test void tallActorGivesEachBehaviorASeparateDefaultHeightBand() {
+        float height = TimelineRenderer.getTrackHeight();
+        float tall = 6 * height;
+        var behaviors = java.util.List.of(new ActorActionClip("Action", 1, 2),
+                new ActorPoseClip("Pose", 1, 2), new EntityLookAtClip("Look", 1, 2),
+                new EntityStateClip("State", 1, 2));
+        assertEquals(height, TimelineRenderer.clipBandHeight(tall));
+        for (int i = 0; i < behaviors.size(); i++) {
+            var wrapper = new EntityTimelineClip(behaviors.get(i), 0);
+            assertEquals((2 + i) * height, TimelineRenderer.clipBandOffset(wrapper, tall));
+            assertEquals(0f, TimelineRenderer.clipBandOffset(wrapper, height));
+        }
+        var actionPaint = TimelineRenderer.actionPaintRow(new TimelineRowLayout(tall, 2, 24, 0), 0, false, false);
+        assertEquals(height, actionPaint.height());
+        assertFalse(actionPaint.contains(3 * height));
     }
 }

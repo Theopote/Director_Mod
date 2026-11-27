@@ -9,12 +9,12 @@ import org.junit.jupiter.api.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
-class WholeContainerAnimationEditSessionTest {
+class TimelineClipEditSessionTest {
     TimelineModel model;
     TimelineTrack track;
     TimelineClip clip;
     TimelineCommandHistory history;
-    WholeContainerAnimationEditSession edits;
+    TimelineClipEditSession edits;
     AtomicInteger refreshes;
 
     @BeforeEach void setup() {
@@ -27,7 +27,7 @@ class WholeContainerAnimationEditSessionTest {
         history = new TimelineCommandHistory();
         TimelineCommandBridge.bind(history);
         refreshes = new AtomicInteger();
-        edits = new WholeContainerAnimationEditSession(c -> {
+        edits = new TimelineClipEditSession(c -> {
             assertSame(clip, c); refreshes.incrementAndGet();
         });
     }
@@ -181,10 +181,12 @@ class WholeContainerAnimationEditSessionTest {
         history.undo(); assertEquals(10.5f, model.getCurrentTime());
         history.redo(); assertEquals(10.25f, model.getCurrentTime());
     }
-    @Test void perBlockOnlyEditsDoNotEnterWholeAnimationHistory() {
+    @Test void perBlockEditsAlsoEnterClipHistory() {
         clip.getAnimationConfig().setScope(ClipAnimationConfig.AnimationScope.PER_BLOCK);
         change(() -> clip.getAnimationConfig().setDuration(1), false);
-        assertEquals(0, history.getUndoSize()); assertEquals(0, refreshes.get());
+        assertEquals(1, history.getUndoSize()); assertEquals(1, refreshes.get());
+        history.undo(); assertEquals(2, clip.getAnimationConfig().getDuration());
+        history.redo(); assertEquals(1, clip.getAnimationConfig().getDuration());
     }
     @Test void motionModifierAndParametersUndoAndRedoTogether() {
         var s = clip.getAnimationConfig().getWholeContainer();
@@ -304,5 +306,96 @@ class WholeContainerAnimationEditSessionTest {
         history.redo();
         assertEquals(7, clip.getLength());
         assertFalse(clip.getAnimationConfig().isWholeContainer());
+    }
+
+    @Test void basicPropertiesRestorePrunedKeyframesAndVisibilityAsOneGesture() {
+        clip.addKeyframe(10);
+        clip.addKeyframe(15);
+        clip.addKeyframe(20);
+        clip.addVisibilityKeyframe(VisibilityKeyframe.ghost(2, 0.4f));
+        var ids = clip.getClipKeyframes().stream().map(k -> k.getId()).toList();
+        change(() -> {
+            clip.setStartTime(12);
+            clip.setLength(5);
+            clip.setColor(0x123456);
+            clip.setAutoFadePreviousClips(false);
+            clip.setAutoFadeOpacity(0.7f);
+            clip.setPostAnimationFadeEnabled(true);
+            clip.setPostAnimationFadeStart(1);
+            clip.setPostAnimationFadeEnd(3);
+            clip.clearVisibilityKeyframes();
+            clip.addVisibilityKeyframe(VisibilityKeyframe.hide(1));
+        }, false);
+        assertEquals(1, clip.getClipKeyframes().size());
+        assertEquals(15, clip.getClipKeyframes().getFirst().getTime());
+        history.undo();
+        assertEquals(10, clip.getStartTime());
+        assertEquals(20, clip.getEndTime());
+        assertEquals(0, clip.getColor());
+        assertTrue(clip.isAutoFadePreviousClips());
+        assertEquals(0.35f, clip.getAutoFadeOpacity());
+        assertFalse(clip.isPostAnimationFadeEnabled());
+        assertEquals(ids, clip.getClipKeyframes().stream().map(k -> k.getId()).toList());
+        assertEquals(VisibilityKeyframe.ghost(2, 0.4f), clip.getVisibilityKeyframes().first());
+        history.redo();
+        assertEquals(12, clip.getStartTime());
+        assertEquals(17, clip.getEndTime());
+        assertEquals(0x123456, clip.getColor());
+        assertFalse(clip.isAutoFadePreviousClips());
+        assertEquals(0.7f, clip.getAutoFadeOpacity());
+        assertTrue(clip.isPostAnimationFadeEnabled());
+        assertEquals(VisibilityKeyframe.hide(1), clip.getVisibilityKeyframes().first());
+    }
+
+    @Test void perBlockSequenceAndEffectEditsUndoAndRedoTogether() {
+        var config = clip.getAnimationConfig();
+        config.setScope(ClipAnimationConfig.AnimationScope.PER_BLOCK);
+        var sequence = config.getSequenceParameters();
+        var effect = new com.director.core.animation.effect.EffectInstance(
+                com.director.core.animation.effect.EffectType.FLASH_WHITE);
+        change(() -> {
+            config.setDelay(1.5f);
+            config.setDuration(0.75f);
+            config.setEasing("EASE_IN_CUBIC");
+            config.setParam("strength", 3);
+            sequence.setFlowType(com.director.core.animation.sequence.evaluator.FlowType.RANDOM);
+            sequence.setBatchSize(4);
+            config.addEffect(effect);
+        }, false);
+        var effectId = effect.getId();
+        history.undo();
+        assertSame(config, clip.getAnimationConfig());
+        assertSame(sequence, config.getSequenceParameters());
+        assertEquals(0, config.getDelay());
+        assertEquals(2, config.getDuration());
+        assertEquals("LINEAR", config.getEasing());
+        assertFalse(config.getParams().containsKey("strength"));
+        assertEquals(com.director.core.animation.sequence.evaluator.FlowType.PLANAR, sequence.getFlowType());
+        assertEquals(10, sequence.getBatchSize());
+        assertTrue(config.getEffects().isEmpty());
+        history.redo();
+        assertEquals(1.5f, config.getDelay());
+        assertEquals(0.75f, config.getDuration());
+        assertEquals("EASE_IN_CUBIC", config.getEasing());
+        assertEquals(3, config.getParams().get("strength"));
+        assertEquals(com.director.core.animation.sequence.evaluator.FlowType.RANDOM, sequence.getFlowType());
+        assertEquals(4, sequence.getBatchSize());
+        assertEquals(effectId, config.getEffects().getFirst().getId());
+    }
+
+    @Test void cancelRestoresTheLivePreviewWithoutCreatingHistory() {
+        clip.addKeyframe(15);
+        clip.addKeyframe(20);
+        edits.beginFrame(model, clip);
+        clip.setStartTime(12);
+        clip.setLength(2);
+        clip.setColor(0xabcdef);
+        edits.endFrame(true, true, "Edit clip properties");
+        edits.cancel();
+        assertEquals(0, history.getUndoSize());
+        assertEquals(10, clip.getStartTime());
+        assertEquals(20, clip.getEndTime());
+        assertEquals(0, clip.getColor());
+        assertEquals(2, clip.getClipKeyframes().size());
     }
 }

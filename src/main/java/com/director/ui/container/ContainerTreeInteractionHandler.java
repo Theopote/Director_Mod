@@ -121,16 +121,20 @@ class ContainerTreeInteractionHandler {
 
     boolean setupDragAndDrop(Container container, boolean hovered) {
         boolean dragSourceActive = false;
+        java.util.Collection<Container> selectedContainers = controller.getSelectedContainers();
+        boolean isSelected = controller.isContainerSelected(container.getId());
+        boolean hasMultipleSelection = selectedContainers.size() > 1 && isSelected;
+        boolean canDrag = !container.isGroup() && !container.isLocked();
+        if (hasMultipleSelection) {
+            canDrag &= selectedContainers.stream()
+                    .allMatch(c -> c != null && !c.isGroup() && !c.isLocked());
+        }
+
         // 不依赖 hovered：beginDragDropSource() 仅在从本节点发起拖拽时为 true
-        if (ImGui.beginDragDropSource()) {
+        if (canDrag && ImGui.beginDragDropSource()) {
             dragSourceActive = true;
             try {
-                java.util.Collection<Container> selectedContainers = controller.getSelectedContainers();
-                boolean isSelected = controller.isContainerSelected(container.getId());
-                boolean hasMultipleSelection = selectedContainers.size() > 1 && isSelected;
-
                 if (hasMultipleSelection) {
-                    // 批量拖拽：将选中的容器ID用逗号连接
                     StringBuilder payloadBuilder = new StringBuilder();
                     for (Container c : selectedContainers) {
                         if (!payloadBuilder.isEmpty()) {

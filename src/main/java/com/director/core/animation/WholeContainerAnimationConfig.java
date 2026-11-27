@@ -148,22 +148,75 @@ public final class WholeContainerAnimationConfig implements Serializable {
     }
     public WholeContainerAnimationConfig copy() {
         WholeContainerAnimationConfig copy = new WholeContainerAnimationConfig();
-        copy.setEffect(getEffect());
-        copy.setPivot(getPivot());
-        copy.setScale(getScale());
-        copy.setOffset(getOffsetX(), getOffsetY(), getOffsetZ());
-        copy.setRotation(getRotationX(), getRotationY(), getRotationZ());
-        copy.setCustomPivot(getPivotX(), getPivotY(), getPivotZ());
-        copy.translationEnabled = translationEnabled;
-        copy.rotationEnabled = rotationEnabled;
-        copy.scaleEnabled = scaleEnabled;
-        copy.opacityEnabled = opacityEnabled;
-        copy.setOpacity(getOpacity());
-        copy.setFlightPath(getFlightPath()); copy.setArcHeight(getArcHeight());
-        copy.setMotionDamping(getMotionDamping());
-        copy.setMotion(getMotion()); copy.setMotionStrength(getMotionStrength());
-        copy.setMotionCycles(getMotionCycles()); copy.setBounceHeight(getBounceHeight());
-        copy.copyDustFrom(this);
+        copy.copyStateFrom(this);
         return copy;
+    }
+
+    public void copyStateFrom(WholeContainerAnimationConfig source) {
+        flightPath = source.flightPath;
+        arcHeight = source.arcHeight;
+        motion = source.motion;
+        motionStrength = source.motionStrength;
+        motionCycles = source.motionCycles;
+        bounceHeight = source.bounceHeight;
+        motionDamping = source.motionDamping;
+        debrisRatio = source.debrisRatio;
+        dustPreset = source.dustPreset;
+        dustEnabled = source.dustEnabled;
+        dustIntensity = source.dustIntensity;
+        dustSpread = source.dustSpread;
+        shockwaveCount = source.shockwaveCount;
+        shockwaveDecay = source.shockwaveDecay;
+        effect = source.effect;
+        pivot = source.pivot;
+        scale = source.scale;
+        offsetX = source.offsetX;
+        offsetY = source.offsetY;
+        offsetZ = source.offsetZ;
+        rotationX = source.rotationX;
+        rotationY = source.rotationY;
+        rotationZ = source.rotationZ;
+        translationEnabled = source.translationEnabled;
+        rotationEnabled = source.rotationEnabled;
+        scaleEnabled = source.scaleEnabled;
+        opacityEnabled = source.opacityEnabled;
+        opacity = source.opacity;
+        pivotX = source.pivotX;
+        pivotY = source.pivotY;
+        pivotZ = source.pivotZ;
+    }
+
+    public boolean hasSameValues(WholeContainerAnimationConfig other) {
+        return other != null
+                && getEffect() == other.getEffect() && getPivot() == other.getPivot()
+                && Float.compare(getScale(), other.getScale()) == 0
+                && Float.compare(getOffsetX(), other.getOffsetX()) == 0
+                && Float.compare(getOffsetY(), other.getOffsetY()) == 0
+                && Float.compare(getOffsetZ(), other.getOffsetZ()) == 0
+                && Float.compare(getRotationX(), other.getRotationX()) == 0
+                && Float.compare(getRotationY(), other.getRotationY()) == 0
+                && Float.compare(getRotationZ(), other.getRotationZ()) == 0
+                && isTranslationEnabled() == other.isTranslationEnabled()
+                && isRotationEnabled() == other.isRotationEnabled()
+                && isScaleEnabled() == other.isScaleEnabled()
+                && isOpacityEnabled() == other.isOpacityEnabled()
+                && Float.compare(getOpacity(), other.getOpacity()) == 0
+                && getFlightPath() == other.getFlightPath()
+                && Float.compare(getArcHeight(), other.getArcHeight()) == 0
+                && getMotion() == other.getMotion()
+                && Float.compare(getMotionStrength(), other.getMotionStrength()) == 0
+                && getMotionCycles() == other.getMotionCycles()
+                && Float.compare(getBounceHeight(), other.getBounceHeight()) == 0
+                && Float.compare(getMotionDamping(), other.getMotionDamping()) == 0
+                && getDustPreset() == other.getDustPreset()
+                && isDustEnabled() == other.isDustEnabled()
+                && Float.compare(getDustIntensity(), other.getDustIntensity()) == 0
+                && Float.compare(getDustSpread(), other.getDustSpread()) == 0
+                && getShockwaveCount() == other.getShockwaveCount()
+                && Float.compare(getShockwaveDecay(), other.getShockwaveDecay()) == 0
+                && Float.compare(getDebrisRatio(), other.getDebrisRatio()) == 0
+                && Float.compare(getPivotX(), other.getPivotX()) == 0
+                && Float.compare(getPivotY(), other.getPivotY()) == 0
+                && Float.compare(getPivotZ(), other.getPivotZ()) == 0;
     }
 }

@@ -163,5 +163,9 @@ public class ClipKeyframe implements TimelineSelectable, Comparable<ClipKeyframe
     public ClipKeyframe copy() {
         return new ClipKeyframe(time, interpolation);
     }
+
+    public ClipKeyframe snapshot() {
+        return new ClipKeyframe(id, time, interpolation);
+    }
 }
 

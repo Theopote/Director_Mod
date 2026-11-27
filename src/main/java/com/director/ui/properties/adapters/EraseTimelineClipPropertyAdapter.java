@@ -69,6 +69,7 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         try {
             return renderPropertiesInternal(clip);
         } catch (Exception e) {
+            propertyUi.cancelClipEdit();
             LOGGER.error("渲染拆除片段属性时发生异常: {}", e.getMessage(), e);
             InlineNotice.draw(InlineNotice.Level.ERROR, "渲染错误: " + e.getMessage());
             return false;
@@ -77,6 +78,7 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
 
     private boolean renderPropertiesInternal(TimelineClip clip) {
         boolean modified = false;
+        propertyUi.beginClipEdit(clip);
 
         final float oldStartTime = clip.getStartTime();
         final float oldEndTime = clip.getEndTime();
@@ -129,7 +131,8 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
             }
         }
 
-        propertyUi.finishAnimationEditIfIdle(clip);
+        propertyUi.endClipEdit(clip, modified);
+        propertyUi.finishClipEditIfIdle(clip);
 
         return modified;
     }

@@ -74,6 +74,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         try {
             return renderPropertiesInternal(clip);
         } catch (Exception e) {
+            propertyUi.cancelClipEdit();
             LOGGER.error("渲染片段属性时发生异常: {}", e.getMessage(), e);
             InlineNotice.draw(InlineNotice.Level.ERROR,
                     TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineCommon.RENDER_ERROR, e.getMessage()));
@@ -86,6 +87,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
 
     private boolean renderPropertiesInternal(TimelineClip clip) {
         boolean modified = false;
+        propertyUi.beginClipEdit(clip);
 
         final float oldStartTime = clip.getStartTime();
         final float oldEndTime = clip.getEndTime();
@@ -144,7 +146,8 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             }
         }
 
-        propertyUi.finishAnimationEditIfIdle(clip);
+        propertyUi.endClipEdit(clip, modified);
+        propertyUi.finishClipEditIfIdle(clip);
 
         return modified;
     }

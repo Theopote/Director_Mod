@@ -98,6 +98,58 @@ public class TimelineClip {
             this.visibilityKeyframes.add(new VisibilityKeyframe(key.getTime(), key.getAlpha(), key.getMode()));
     }
 
+    public TimelineClip snapshot() {
+        TimelineClip copy = new TimelineClip(this);
+        copy.clipKeyframes.clear();
+        for (var keyframe : clipKeyframes) copy.clipKeyframes.add(keyframe.snapshot());
+        copy.animationConfig = animationConfig.snapshot();
+        return copy;
+    }
+
+    public void restoreStateFrom(TimelineClip source) {
+        if (source == null || source == this) throw new IllegalArgumentException("A distinct clip snapshot is required");
+        label = source.label;
+        startTime = source.startTime;
+        endTime = source.endTime;
+        color = source.color;
+        clipKeyframes.clear();
+        for (var keyframe : source.clipKeyframes) clipKeyframes.add(keyframe.snapshot());
+        animationConfig.copyStateFrom(source.animationConfig);
+        boundContainerId = source.boundContainerId;
+        boundContainerName = source.boundContainerName;
+        autoFadePreviousClips = source.autoFadePreviousClips;
+        autoFadeOpacity = source.autoFadeOpacity;
+        postAnimationFadeStart = source.postAnimationFadeStart;
+        postAnimationFadeEnabled = source.postAnimationFadeEnabled;
+        postAnimationFadeEnd = source.postAnimationFadeEnd;
+        visibilityKeyframes.clear();
+        for (var keyframe : source.visibilityKeyframes) visibilityKeyframes.add(keyframe.copy());
+        cachedRestoreTime = null;
+    }
+
+    public boolean hasSameStateAs(TimelineClip other) {
+        if (other == null) return false;
+        if (Float.compare(startTime, other.startTime) != 0 || Float.compare(endTime, other.endTime) != 0
+                || color != other.color || !Objects.equals(label, other.label)
+                || !Objects.equals(boundContainerId, other.boundContainerId)
+                || !Objects.equals(boundContainerName, other.boundContainerName)
+                || autoFadePreviousClips != other.autoFadePreviousClips
+                || Float.compare(autoFadeOpacity, other.autoFadeOpacity) != 0
+                || postAnimationFadeEnabled != other.postAnimationFadeEnabled
+                || Float.compare(postAnimationFadeStart, other.postAnimationFadeStart) != 0
+                || Float.compare(postAnimationFadeEnd, other.postAnimationFadeEnd) != 0
+                || !visibilityKeyframes.equals(other.visibilityKeyframes)
+                || clipKeyframes.size() != other.clipKeyframes.size()) return false;
+        for (int i = 0; i < clipKeyframes.size(); i++) {
+            var left = clipKeyframes.get(i);
+            var right = other.clipKeyframes.get(i);
+            if (!left.getId().equals(right.getId())
+                    || Float.compare(left.getTime(), right.getTime()) != 0
+                    || left.getInterpolation() != right.getInterpolation()) return false;
+        }
+        return animationConfig.hasSameValues(other.animationConfig);
+    }
+
     // ========== 时间操作 ==========
 
     public float getLength() {

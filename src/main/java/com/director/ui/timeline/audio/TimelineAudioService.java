@@ -131,6 +131,10 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         rebuildAudioLinksFromTimeline();
     }
 
+    public TimelineModel getTimelineModel() {
+        return timelineModel;
+    }
+
     /**
      * 释放面板关闭时持有的运行态资源（单例本身不销毁）。
      */
@@ -1384,6 +1388,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         }
 
         if (!isContainerClip(clip)) {
+            removeSoundEventsForClip(clip);
             return;
         }
 

@@ -80,15 +80,27 @@ public class TimelineClipPropertyUi {
         if (!modified) return;
         pendingSoundRefreshes.put(clip, DirectorServices.get().containerTimeline().getTimelineModel());
     }
-    private final WholeContainerAnimationEditSession wholeAnimationEdits =
-            new WholeContainerAnimationEditSession(clip ->
+    private final TimelineClipEditSession clipEdits =
+            new TimelineClipEditSession(clip ->
                     com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                             .refreshAutoSoundEventsIfNeeded(clip));
 
-    void finishAnimationEditIfIdle(TimelineClip clip) {
-        // Observe selection/project changes even when the animation section is collapsed.
-        wholeAnimationEdits.beginFrame(DirectorServices.get().containerTimeline().getTimelineModel(), clip);
-        wholeAnimationEdits.finishIfIdle(ImGui.isAnyItemActive());
+    void beginClipEdit(TimelineClip clip) {
+        clipEdits.beginFrame(DirectorServices.get().containerTimeline().getTimelineModel(), clip);
+    }
+
+    void endClipEdit(TimelineClip clip, boolean modified) {
+        clipEdits.endFrame(modified, ImGui.isAnyItemActive(), wholeText("edit"));
+    }
+
+    void cancelClipEdit() {
+        clipEdits.cancel();
+    }
+
+    void finishClipEditIfIdle(TimelineClip clip) {
+        // Observe selection/project changes even when every section is collapsed.
+        clipEdits.beginFrame(DirectorServices.get().containerTimeline().getTimelineModel(), clip);
+        clipEdits.finishIfIdle(ImGui.isAnyItemActive());
         if (!ImGui.isAnyItemActive() && !pendingSoundRefreshes.isEmpty()) {
             var pending = new java.util.HashMap<>(pendingSoundRefreshes);
             pendingSoundRefreshes.clear();
@@ -331,11 +343,7 @@ public class TimelineClipPropertyUi {
 
     boolean renderAnimationSettings(TimelineClip clip, TimelineClipUiVariant variant) {
         try {
-            var model = DirectorServices.get().containerTimeline().getTimelineModel();
-            wholeAnimationEdits.beginFrame(model, clip);
-            boolean modified = renderAnimationSettingsInternal(clip, TimelineClipAnimationPolicy.forVariant(variant));
-            wholeAnimationEdits.endFrame(modified, ImGui.isAnyItemActive(), wholeText("edit"));
-            return modified;
+            return renderAnimationSettingsInternal(clip, TimelineClipAnimationPolicy.forVariant(variant));
         } catch (Exception e) {
             LOGGER.error("渲染动画设置时发生异常: {}", e.getMessage(), e);
             InlineNotice.draw(InlineNotice.Level.ERROR, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_RENDER_ANIMATION, e.getMessage()));
@@ -1493,8 +1501,6 @@ public class TimelineClipPropertyUi {
      * </ul>
      */
     private boolean renderWholeEffectsSection(TimelineClip clip) {
-        var model = DirectorServices.get().containerTimeline().getTimelineModel();
-        wholeAnimationEdits.beginFrame(model, clip);
         var settings = clip.getAnimationConfig().getWholeContainer();
         ImInt preset = new ImInt(settings.getDustPreset().ordinal());
         boolean modified = false;
@@ -1538,7 +1544,6 @@ public class TimelineClipPropertyUi {
             }
         }
         Card.end();
-        wholeAnimationEdits.endFrame(modified, ImGui.isAnyItemActive(), wholeText("visual_edit"));
         return modified;
     }
 

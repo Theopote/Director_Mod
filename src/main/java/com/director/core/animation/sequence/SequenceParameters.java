@@ -304,27 +304,53 @@ public class SequenceParameters implements Serializable, Cloneable {
     // --- 复制 ---
     public SequenceParameters copy() {
         SequenceParameters clone = new SequenceParameters();
-        clone.flowType = this.flowType;
-        clone.fillType = this.fillType;
-        clone.originType = this.originType;
-        clone.planeYaw = this.planeYaw;
-        clone.planePitch = this.planePitch;
-        clone.layerStep = this.layerStep;
-        clone.customX = this.customX;
-        clone.customY = this.customY;
-        clone.customZ = this.customZ;
-        clone.priorityWeight = this.priorityWeight;
-        clone.reverse = this.reverse;
-        clone.alternating = this.alternating;
-        clone.floodSeedMode = this.floodSeedMode;
-        clone.extraParams.putAll(this.extraParams);
-        clone.concurrencyMode = this.concurrencyMode;
-        clone.batchSize = this.batchSize;
-        clone.batchInterval = this.batchInterval;
-        clone.timeMappingStrategy = this.timeMappingStrategy;
-        clone.perBlockDuration = this.perBlockDuration;
-        clone.globalDelay = this.globalDelay;
+        clone.copyStateFrom(this);
         return clone;
+    }
+
+    public void copyStateFrom(SequenceParameters source) {
+        flowType = source.flowType;
+        fillType = source.fillType;
+        originType = source.originType;
+        planeYaw = source.planeYaw;
+        planePitch = source.planePitch;
+        layerStep = source.layerStep;
+        floodSeedMode = source.floodSeedMode;
+        customX = source.customX;
+        customY = source.customY;
+        customZ = source.customZ;
+        priorityWeight = source.priorityWeight;
+        reverse = source.reverse;
+        alternating = source.alternating;
+        extraParams.clear();
+        extraParams.putAll(source.extraParams);
+        concurrencyMode = source.concurrencyMode;
+        batchSize = source.batchSize;
+        batchInterval = source.batchInterval;
+        timeMappingStrategy = source.timeMappingStrategy;
+        perBlockDuration = source.perBlockDuration;
+        globalDelay = source.globalDelay;
+    }
+
+    public boolean hasSameValues(SequenceParameters other) {
+        return other != null
+                && getFlowType() == other.getFlowType() && getFillType() == other.getFillType()
+                && getOriginType() == other.getOriginType()
+                && Float.compare(getPlaneYaw(), other.getPlaneYaw()) == 0
+                && Float.compare(getPlanePitch(), other.getPlanePitch()) == 0
+                && Float.compare(getLayerStep(), other.getLayerStep()) == 0
+                && getFloodSeedMode() == other.getFloodSeedMode()
+                && getCustomX() == other.getCustomX() && getCustomY() == other.getCustomY()
+                && getCustomZ() == other.getCustomZ()
+                && Float.compare(getPriorityWeight(), other.getPriorityWeight()) == 0
+                && isReverse() == other.isReverse() && isAlternating() == other.isAlternating()
+                && extraParams.equals(other.extraParams)
+                && getConcurrencyMode() == other.getConcurrencyMode()
+                && getBatchSize() == other.getBatchSize()
+                && Float.compare(getBatchInterval(), other.getBatchInterval()) == 0
+                && getTimeMappingStrategy() == other.getTimeMappingStrategy()
+                && Float.compare(getPerBlockDuration(), other.getPerBlockDuration()) == 0
+                && Float.compare(getGlobalDelay(), other.getGlobalDelay()) == 0;
     }
 
     @Override

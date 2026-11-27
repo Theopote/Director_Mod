@@ -84,12 +84,31 @@ public class MoveClipCommand extends BaseTimelineCommand {
         var current = item.getParentTrack();
         if (current != target) {
             if (current != null) current.removeClip(item);
-            if (!target.addClip(item)) {
-                if (current != null) current.addClip(item);
-                throw new IllegalStateException("Target track rejected clip");
+            try {
+                if (!target.addClip(item)) {
+                    throw new IllegalStateException("Target track rejected clip");
+                }
+            } catch (RuntimeException | Error e) {
+                if (current != null && !current.addClip(item)) {
+                    e.addSuppressed(new IllegalStateException("Source track rejected move rollback"));
+                }
+                throw e;
             }
         }
         com.director.ui.timeline.audio.TimelineAudioService.getInstance().moveLinkedEventsToTrack(item, target);
+    }
+
+    private void applyRange(TimelineClip timelineClip, float start, float end, float fromStart, float fromEnd) {
+        if (timelineClip != null) {
+            if (Float.compare(end - start, fromEnd - fromStart) == 0) {
+                timelineClip.offsetTime(start - fromStart);
+            } else {
+                timelineClip.setTimeRange(start, end);
+            }
+        } else {
+            clip.setStartTime(start);
+            clip.setEndTime(end);
+        }
     }
 
     @Override
@@ -100,8 +119,7 @@ public class MoveClipCommand extends BaseTimelineCommand {
         }
         TimelineClip timelineClip = (clip instanceof ClipAdapter adapter) ? adapter.getTimelineClip() : null;
         moveTo(newTrack);
-        if(timelineClip!=null)timelineClip.setTimeRange(newStartTime,newEndTime);
-        else { clip.setStartTime(newStartTime); clip.setEndTime(newEndTime); }
+        applyRange(timelineClip, newStartTime, newEndTime, oldStartTime, oldEndTime);
         // 同步：自动生成的音频事件默认跟随片段移动（可对单个事件取消链接）
         if (timelineClip != null) {
             com.director.ui.timeline.audio.TimelineAudioService.getInstance()
@@ -119,8 +137,7 @@ public class MoveClipCommand extends BaseTimelineCommand {
         }
         TimelineClip timelineClip = (clip instanceof ClipAdapter adapter) ? adapter.getTimelineClip() : null;
         moveTo(oldTrack);
-        if(timelineClip!=null)timelineClip.setTimeRange(oldStartTime,oldEndTime);
-        else { clip.setStartTime(oldStartTime); clip.setEndTime(oldEndTime); }
+        applyRange(timelineClip, oldStartTime, oldEndTime, newStartTime, newEndTime);
         if (timelineClip != null) {
             com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                     .onClipTimeRangeChanged(timelineClip, newStartTime, newEndTime, oldStartTime, oldEndTime);

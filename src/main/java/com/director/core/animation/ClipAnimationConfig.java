@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * {@code ClipAnimationConfig} 描述时间线片段的动画行为。
@@ -138,6 +139,59 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
         }
         
         return clone;
+    }
+
+    public ClipAnimationConfig snapshot() {
+        ClipAnimationConfig clone = copy();
+        clone.effects.clear();
+        for (EffectInstance effect : effects) {
+            clone.effects.add(effect.snapshot());
+        }
+        return clone;
+    }
+
+    public void copyStateFrom(ClipAnimationConfig source) {
+        mode = source.mode;
+        scope = source.scope;
+        phase = source.phase;
+        duration = source.duration;
+        delay = source.delay;
+        easing = source.easing;
+        ordering = source.ordering;
+        sequenceMode = source.sequenceMode;
+        occlusionTransparencyEnabled = source.occlusionTransparencyEnabled;
+        params.clear();
+        params.putAll(source.params);
+        wholeContainer.copyStateFrom(source.getWholeContainer());
+        sequenceParameters.copyStateFrom(source.getSequenceParameters());
+        var existingEffects = new java.util.HashMap<UUID, EffectInstance>();
+        for (EffectInstance effect : effects) existingEffects.put(effect.getId(), effect);
+        effects.clear();
+        for (EffectInstance saved : source.effects) {
+            EffectInstance effect = existingEffects.get(saved.getId());
+            if (effect == null) {
+                effect = saved.snapshot();
+            } else {
+                effect.copyStateFrom(saved);
+            }
+            effects.add(effect);
+        }
+    }
+
+    public boolean hasSameValues(ClipAnimationConfig other) {
+        return other != null && mode == other.mode && getScope() == other.getScope()
+                && getPhase() == other.getPhase()
+                && Float.compare(duration, other.duration) == 0
+                && Float.compare(delay, other.delay) == 0
+                && Objects.equals(easing, other.easing) && Objects.equals(ordering, other.ordering)
+                && getSequenceMode() == other.getSequenceMode()
+                && occlusionTransparencyEnabled == other.occlusionTransparencyEnabled
+                && params.equals(other.params)
+                && getWholeContainer().hasSameValues(other.getWholeContainer())
+                && getSequenceParameters().hasSameValues(other.getSequenceParameters())
+                && effects.size() == other.effects.size()
+                && java.util.stream.IntStream.range(0, effects.size())
+                        .allMatch(i -> effects.get(i).hasSameValues(other.effects.get(i)));
     }
 
     // ========== Getters and Setters ==========

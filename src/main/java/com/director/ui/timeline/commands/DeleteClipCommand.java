@@ -27,7 +27,11 @@ public class DeleteClipCommand extends BaseTimelineCommand {
     private final List<TimelineClip> clipList;
     private int removedIndex = -1;
     private Runnable restoreAudio = () -> {};
+    private Runnable deletedAudioState = () -> {};
     private TimelineTrack ownerTrack;
+    private boolean applied;
+    private boolean undoEntityAdded;
+    private boolean undoLightsRestored;
     private List<com.director.lighting.PointLight> removedLights=List.of();
     private EntityClip linkedEntityClip;
     private ActorTrack linkedActorTrack;
@@ -51,6 +55,9 @@ public class DeleteClipCommand extends BaseTimelineCommand {
         linkedActorTrack = null;
         removedActor = null;
         removedActorFromRegistry = false;
+        applied = false;
+        undoEntityAdded = false;
+        undoLightsRestored = false;
         ownerTrack = clip.getParentTrack();
         if (ownerTrack == null && model != null) {
             ownerTrack = model.findTrackForClip(clip);
@@ -83,6 +90,7 @@ public class DeleteClipCommand extends BaseTimelineCommand {
                 removedLights=com.director.lighting.LightLifecycle.removeUnreferenced(model,List.of(light.lightId()));
             // Clip deletion removes animation data, not the project actor instance.
             LOGGER.debug("[Timeline] 删除片段，索引: {}", removedIndex);
+            applied = true;
             
             // ★ 功能：删除片段后，如果这是该容器的最后一个片段，允许容器显示
             if (containerId != null) {
@@ -106,27 +114,111 @@ public class DeleteClipCommand extends BaseTimelineCommand {
 
     @Override
     protected void doUndo() {
-        if (clip == null || clipList == null) {
-            LOGGER.warn("[Timeline] 恢复片段失败：clip 或 clipList 为 null");
+        if (!applied || clip == null || clipList == null) {
             return;
         }
-        if (removedIndex >= 0 && removedIndex <= clipList.size()) {
-            com.director.lighting.LightLifecycle.restore(model,removedLights);
+        if (removedIndex < 0 || removedIndex > clipList.size()) {
+            throw new IllegalStateException("Clip list no longer accepts restoration at the original index");
+        }
+        if (ownerTrack != null) {
+            if (ownerTrack.isLocked()) {
+                throw new IllegalStateException("Track is locked");
+            }
+            if (ownerTrack.getClips().contains(clip)) {
+                throw new IllegalStateException("Clip is already attached to the track");
+            }
+        } else if (clipList.contains(clip)) {
+            throw new IllegalStateException("Clip is already present in the clip list");
+        }
+
+        var audio = com.director.ui.timeline.audio.TimelineAudioService.getInstance();
+        deletedAudioState = audio.captureRemovalState(clip);
+        undoEntityAdded = false;
+        undoLightsRestored = false;
+        if (ownerTrack != null) {
+            boolean previous = audio.isSuppressAutoCreate();
+            audio.setSuppressAutoCreate(true);
+            try {
+                if (!ownerTrack.addClip(clip)) {
+                    throw new IllegalStateException("Track rejected clip restoration: " + clip.getLabel());
+                }
+            } finally {
+                audio.setSuppressAutoCreate(previous);
+            }
+        } else {
+            clipList.add(removedIndex, clip);
+        }
+        if (linkedActorTrack != null && linkedEntityClip != null) {
+            linkedActorTrack.addClip(linkedEntityClip);
+            undoEntityAdded = true;
+        }
+        if (!removedLights.isEmpty()) {
+            com.director.lighting.LightLifecycle.restore(model, removedLights);
+            undoLightsRestored = true;
+        }
+        restoreAudio.run();
+        applied = false;
+        LOGGER.debug("[Timeline] 恢复片段到索引: {}", removedIndex);
+    }
+
+    @Override
+    protected void compensateExecute() {
+        if (clip == null) {
+            return;
+        }
+        var audio = com.director.ui.timeline.audio.TimelineAudioService.getInstance();
+        boolean present = ownerTrack != null
+                ? ownerTrack.getClips().contains(clip)
+                : clipList != null && clipList.contains(clip);
+        if (!present) {
             if (ownerTrack != null) {
-                var audio = com.director.ui.timeline.audio.TimelineAudioService.getInstance();
                 boolean previous = audio.isSuppressAutoCreate();
                 audio.setSuppressAutoCreate(true);
-                try { ownerTrack.addClip(clip); } finally { audio.setSuppressAutoCreate(previous); }
-            } else {
+                try {
+                    if (!ownerTrack.addClip(clip)) {
+                        throw new IllegalStateException("Track rejected delete rollback");
+                    }
+                } finally {
+                    audio.setSuppressAutoCreate(previous);
+                }
+            } else if (removedIndex >= 0 && removedIndex <= clipList.size()) {
                 clipList.add(removedIndex, clip);
             }
-
-            if (linkedActorTrack != null && linkedEntityClip != null) {
-                linkedActorTrack.addClip(linkedEntityClip);
-            }
-            restoreAudio.run();
-            LOGGER.debug("[Timeline] 恢复片段到索引: {}", removedIndex);
         }
+        if (linkedActorTrack != null && linkedEntityClip != null) {
+            linkedActorTrack.addClip(linkedEntityClip);
+        }
+        com.director.lighting.LightLifecycle.restore(model, removedLights);
+        restoreAudio.run();
+        applied = false;
+    }
+
+    @Override
+    protected void compensateUndo() {
+        if (clip == null) {
+            return;
+        }
+        var audio = com.director.ui.timeline.audio.TimelineAudioService.getInstance();
+        boolean present = ownerTrack != null
+                ? ownerTrack.getClips().contains(clip)
+                : clipList != null && clipList.contains(clip);
+        if (present) {
+            audio.onClipRemoved(clip);
+            if (ownerTrack != null) {
+                ownerTrack.removeClip(clip);
+            } else {
+                clipList.remove(clip);
+            }
+        }
+        if (undoEntityAdded && linkedActorTrack != null && linkedEntityClip != null) {
+            linkedActorTrack.removeClip(linkedEntityClip.getId());
+        }
+        if (undoLightsRestored) {
+            com.director.lighting.LightLifecycle.removeUnreferenced(model,
+                    removedLights.stream().map(com.director.lighting.PointLight::id).toList());
+        }
+        deletedAudioState.run();
+        applied = true;
     }
 
     /**
@@ -140,7 +232,7 @@ public class DeleteClipCommand extends BaseTimelineCommand {
 
     @Override
     public boolean canUndo() {
-        return removedIndex >= 0;
+        return applied;
     }
 }
 

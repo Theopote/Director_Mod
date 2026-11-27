@@ -42,8 +42,13 @@ public abstract class BaseTimelineCommand implements TimelineCommand {
      */
     @Override
     public final void execute() {
-        doExecute();
-        notifyModelChanged();
+        try {
+            doExecute();
+            notifyModelChanged();
+        } catch (RuntimeException | Error e) {
+            compensate(e, this::compensateExecute);
+            throw e;
+        }
     }
     
     /**
@@ -52,8 +57,13 @@ public abstract class BaseTimelineCommand implements TimelineCommand {
      */
     @Override
     public final void undo() {
-        doUndo();
-        notifyModelChanged();
+        try {
+            doUndo();
+            notifyModelChanged();
+        } catch (RuntimeException | Error e) {
+            compensate(e, this::compensateUndo);
+            throw e;
+        }
     }
     
     /**
@@ -65,6 +75,21 @@ public abstract class BaseTimelineCommand implements TimelineCommand {
      * 子类实现此方法来执行具体撤销逻辑
      */
     protected abstract void doUndo();
+
+    protected void compensateExecute() {
+    }
+
+    protected void compensateUndo() {
+    }
+
+    private void compensate(Throwable failure, Runnable compensation) {
+        try {
+            compensation.run();
+        } catch (RuntimeException | Error rollbackFailure) {
+            failure.addSuppressed(rollbackFailure);
+            LOGGER.error("[{}] 命令补偿失败", changeType, rollbackFailure);
+        }
+    }
     
     /**
      * 通知模型已变更

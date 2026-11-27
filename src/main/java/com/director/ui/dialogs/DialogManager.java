@@ -647,8 +647,6 @@ public class DialogManager {
                     ImGui.text(tr(DirectorLang.SystemDialog.LOAD_LAYOUT_SAVE_FIRST));
                     ImGui.spacing();
                     ImGui.separator();
-                    ImGui.spacing();
-                    renderLoadLayoutButtons();
                 } else {
                     ImGui.text(tr(DirectorLang.SystemDialog.LOAD_LAYOUT_SELECT_PROMPT));
                     ImGui.spacing();
@@ -681,10 +679,10 @@ public class DialogManager {
 
                     ImGui.spacing();
                     UITheme.separator();
-                    ImGui.spacing();
 
-                    renderLoadLayoutButtons();
                 }
+                ImGui.spacing();
+                renderLoadLayoutButtons();
             } finally {
                 ImGui.endPopup();
             }
