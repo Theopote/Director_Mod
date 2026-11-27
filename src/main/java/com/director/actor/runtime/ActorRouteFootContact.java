@@ -85,6 +85,7 @@ public final class ActorRouteFootContact {
     private static float contactWeight(java.util.Map<String,Float> weights, LegChain chain) {
         float authored = weights.getOrDefault(chain.legBone(), 0f);
         if (chain.lowerBone() != null) authored = Math.max(authored, weights.getOrDefault(chain.lowerBone(), 0f));
+        if (chain.footBone() != null) authored = Math.max(authored, weights.getOrDefault(chain.footBone(), 0f));
         return Float.isFinite(authored) ? 1 - Math.clamp(authored, 0f, 1f) : 0;
     }
 
@@ -112,32 +113,18 @@ public final class ActorRouteFootContact {
         var direction=new Vector3f(routePoint.direction());
         if(traversal.reversed()) direction.negate();
         float yaw = (float)Math.atan2(-direction.x,direction.z);
-        var rest = pose.rig().bone(pose.rig().requireBoneIndex(bone)).restLocal().translation();
+        var rest = chain.footBone() == null
+                ? pose.rig().bone(pose.rig().requireBoneIndex(bone)).restLocal().translation()
+                : solePosition(new RigPose(pose.rig()), chain);
         var side = new Quaternionf().rotateY(-yaw).transform(new Vector3f(
                 rest.x * sample.scale.x, 0, rest.z * sample.scale.z));
         var target = new Vector3f(routePoint.position()).add(side).sub(sample.position);
         new Quaternionf().rotateY((float)Math.toRadians(sample.rotation.x)).transform(target);
         target.div(sample.scale);
-        var current = pose.localTransform(bone);
         var sole = solePosition(pose, chain);
         var correction = target.sub(sole);
         if (correction.length() > .3f) correction.normalize().mul(.3f);
-        if (chain.hasKnee() && RigPoseComposer.sameLayout(pose.rig(),ArticulatedPlayerRig.DEFINITION)) {
-            ActorLegContactIk.solve(pose,chain,new Vector3f(sole).add(correction),weight*strength);
-            return;
-        }
-        if (!chain.hasKnee()) {
-            ActorLegContactIk.solve(pose, chain, new Vector3f(sole).add(correction), weight * strength);
-            return;
-        }
-        int parent = pose.rig().bone(pose.rig().requireBoneIndex(bone)).parentIndex();
-        if (parent >= 0) {
-            var inverse = pose.calculateModelTransforms()[parent].invert();
-            inverse.transformDirection(correction);
-        }
-        if (!correction.isFinite()) return;
-        var translation = current.translation().add(correction.mul(weight*strength));
-        pose.setLocalTransform(pose.rig().requireBoneIndex(bone), new BoneTransform(translation, current.rotation(), current.scale()), RigPose.TRANSLATION);
+        ActorLegContactIk.solve(pose, chain, sole.add(correction), weight * strength);
     }
 
     /** Model-space foot endpoint, including thigh, knee and segment scales. */
@@ -148,6 +135,10 @@ public final class ActorRouteFootContact {
     }
 
     public static Vector3f solePosition(RigPose pose, LegChain chain) {
+        if (chain.footBone() != null) {
+            int foot = pose.rig().requireBoneIndex(chain.footBone());
+            return pose.calculateModelTransform(foot).getTranslation(new Vector3f());
+        }
         if (chain.hasKnee()) {
             int shin = pose.rig().findBoneIndex(chain.lowerBone());
             if (shin >= 0) {

@@ -95,10 +95,17 @@ public final class ActorPoseEvaluator {
         if(layer==null) return base;
         var result=RigPoseComposer.compose(base,List.of(layer.settings().layer(layer.pose,layer.envelope())));
         for(var diagnostic:result.diagnostics()) diagnostics.add(new Diagnostic(stage,diagnostic));
-        if(result.diagnostics().isEmpty()) for(int i=0;i<layer.pose.rig().boneCount();i++)
-            if(layer.settings().contributes(layer.pose,i,layer.envelope())
-                    && (layer.pose.authoredChannels(i)&layer.settings().channels()&RigPose.ROTATION)!=0)
-                weights.merge(layer.pose.rig().bone(i).id(),layer.settings().effectiveWeight(layer.envelope()),Math::max);
+        if (result.diagnostics().isEmpty()) {
+            for (int i = 0; i < layer.pose.rig().boneCount(); i++) {
+                if (!layer.settings().contributes(layer.pose, i, layer.envelope())) continue;
+                String bone = layer.pose.rig().bone(i).id();
+                int channels = layer.pose.authoredChannels(i) & layer.settings().channels();
+                if ((channels & RigPose.ROTATION) != 0 || ((channels & RigPose.TRANSLATION) != 0
+                        && base.rig().legs().stream().anyMatch(leg -> bone.equals(leg.footBone())))) {
+                    weights.merge(bone, layer.settings().effectiveWeight(layer.envelope()), Math::max);
+                }
+            }
+        }
         return result.pose();
     }
     static void applyQuickPose(RigPose pose,EntitySample s) {

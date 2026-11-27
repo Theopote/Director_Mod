@@ -1,6 +1,7 @@
 package com.director.actor.preview;
 
 import com.director.actor.rig.skeleton.HumanoidRig;
+import com.director.actor.rig.skeleton.BoneTransform;
 import com.director.actor.rig.skeleton.RigPose;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -16,15 +17,23 @@ public final class NativeMobPoseAngles {
         if (pose == null || bone == null) return null;
         int index = pose.rig().findBoneIndex(bone);
         if (index < 0) return null;
-        Quaternionf rotation = pose.localTransform(index).rotation();
-        if (followBody) {
-            int parent = pose.rig().bone(index).parentIndex();
-            if (parent >= 0 && HumanoidRig.BODY.equals(pose.rig().bone(parent).id())) {
-                rotation = pose.localTransform(parent).rotation().mul(rotation);
-            }
-        }
+        Quaternionf rotation = rotation(pose, bone, followBody);
         Vector3f euler = ArmorStandEulerAngles.fromQuaternion(rotation);
         return new Euler(euler.x, euler.y, euler.z);
+    }
+
+    static Quaternionf rotation(RigPose pose, String bone, boolean followBody) {
+        Quaternionf rotation = pose.localTransform(bone).rotation();
+        var body = bodyParent(pose, bone, followBody);
+        return body == null ? rotation : body.rotation().mul(rotation);
+    }
+
+    private static BoneTransform bodyParent(
+            RigPose pose, String bone, boolean followBody) {
+        if (!followBody) return null;
+        int parent = pose.rig().bone(pose.rig().requireBoneIndex(bone)).parentIndex();
+        return parent >= 0 && HumanoidRig.BODY.equals(pose.rig().bone(parent).id())
+                ? pose.localTransform(parent) : null;
     }
 
     /** Villager has one arm mesh. Equal magnitude keeps the right arm so a symmetric carry still shows. */
@@ -64,23 +73,19 @@ public final class NativeMobPoseAngles {
      * Extra ModelPart origin shift when a sibling mesh must follow body rotation around the torso pivot.
      * Vanilla head/arm parts are often not hierarchy children of body, so rotation alone leaves them behind.
      */
-    public static Vector3f bodyPivotPixels(RigPose pose, String bone, boolean followBody) {
-        Vector3f delta = new Vector3f();
-        if (!followBody || pose == null || bone == null) return delta;
-        int index = pose.rig().findBoneIndex(bone);
-        if (index < 0) return delta;
-        int parent = pose.rig().bone(index).parentIndex();
-        if (parent < 0 || !HumanoidRig.BODY.equals(pose.rig().bone(parent).id())) return delta;
-        Vector3f rest = new Vector3f(pose.rig().bone(index).restLocal().translation()).mul(16f);
-        rest.y = -rest.y;
-        Vector3f rotated = pose.localTransform(parent).rotation().transform(new Vector3f(rest));
-        return rotated.sub(rest);
+    static Vector3f offsetPixels(RigPose pose, String bone, Vector3f restFromBody, boolean followBody) {
+        Vector3f offset = translationPixels(pose, bone);
+        var body = bodyParent(pose, bone, followBody);
+        if (body == null) return offset;
+        offset.add(restFromBody).mul(body.scale());
+        return body.rotation().transform(offset).sub(restFromBody)
+                .add(translationPixels(pose, HumanoidRig.BODY));
     }
 
-    public static Vector3f scale(RigPose pose, String bone) {
-        if (pose == null || bone == null) return new Vector3f(1);
-        int index = pose.rig().findBoneIndex(bone);
-        if (index < 0) return new Vector3f(1);
-        return pose.localTransform(index).scale();
+    static Vector3f scale(RigPose pose, String bone, boolean followBody) {
+        Vector3f scale = pose.localTransform(bone).scale();
+        var body = bodyParent(pose, bone, followBody);
+        // ModelPart stores separate rotation and scale, so it cannot represent inherited shear.
+        return body == null ? scale : scale.mul(body.scale());
     }
 }

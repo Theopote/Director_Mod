@@ -29,19 +29,34 @@ public final class RigDefinition {
         this.displayName = displayName == null || displayName.isBlank() ? id : displayName;
         this.bones = Collections.unmodifiableList(new ArrayList<>(bones));
         this.boneIndexById = buildAndValidateIndex(this.bones);
-        this.legs = validateLegs(legs == null ? List.of() : legs, this.boneIndexById);
+        this.legs = validateLegs(legs == null ? List.of() : legs, this.boneIndexById, this.bones);
     }
 
-    private static List<LegChain> validateLegs(List<LegChain> legs, Map<String, Integer> index) {
+    private static List<LegChain> validateLegs(List<LegChain> legs, Map<String, Integer> index,
+                                              List<BoneDefinition> bones) {
         for (LegChain leg : legs) {
             if (!index.containsKey(leg.legBone()))
                 throw new IllegalArgumentException("Unknown leg bone: " + leg.legBone());
             if (leg.lowerBone() != null && !index.containsKey(leg.lowerBone()))
                 throw new IllegalArgumentException("Unknown lower leg bone: " + leg.lowerBone());
-            if (leg.footBone() != null && !index.containsKey(leg.footBone()))
-                throw new IllegalArgumentException("Unknown foot bone: " + leg.footBone());
+            if (leg.footBone() != null) {
+                Integer foot = index.get(leg.footBone());
+                if (foot == null) throw new IllegalArgumentException("Unknown foot bone: " + leg.footBone());
+                int segment = index.get(leg.hasKnee() ? leg.lowerBone() : leg.legBone());
+                if (!descendsFrom(bones, foot, segment)
+                        || (leg.hasKnee() && !descendsFrom(bones, segment, index.get(leg.legBone())))) {
+                    throw new IllegalArgumentException("Foot bone must descend through its leg chain: " + leg.footBone());
+                }
+            }
         }
         return Collections.unmodifiableList(new ArrayList<>(legs));
+    }
+
+    private static boolean descendsFrom(List<BoneDefinition> bones, int child, int ancestor) {
+        for (int parent = bones.get(child).parentIndex(); parent >= 0; parent = bones.get(parent).parentIndex()) {
+            if (parent == ancestor) return true;
+        }
+        return false;
     }
 
     private static Map<String, Integer> buildAndValidateIndex(List<BoneDefinition> bones) {

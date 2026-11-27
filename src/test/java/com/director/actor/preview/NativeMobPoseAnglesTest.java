@@ -4,13 +4,32 @@ import com.director.actor.action.ActorActionType;
 import com.director.actor.rig.HumanoidRigProfile;
 import com.director.actor.rig.QuadrupedRigProfile;
 import com.director.actor.rig.skeleton.HumanoidRig;
+import com.director.actor.rig.skeleton.BoneTransform;
 import com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter;
+import com.director.actor.rig.skeleton.QuadrupedRig;
+import com.director.actor.rig.skeleton.RigPose;
 import org.junit.jupiter.api.Test;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NativeMobPoseAnglesTest {
+    @Test void quadrupedLegInheritsBodyRotationScaleAndPivot() {
+        var pose = new RigPose(QuadrupedRig.DEFINITION);
+        var body = pose.localTransform(QuadrupedRig.BODY);
+        pose.setLocalTransform(QuadrupedRig.BODY, new BoneTransform(body.translation(),
+                new Quaternionf().rotateX((float) Math.PI / 2), new Vector3f(2, 3, 4)));
+        String leg = QuadrupedRig.LEFT_FRONT_LEG;
+        var offset = NativeMobPoseAngles.offsetPixels(pose, leg, new Vector3f(4, 2, -5), true);
+        assertEquals(4f, offset.x, 1e-4f);
+        assertEquals(18f, offset.y, 1e-4f);
+        assertEquals(11f, offset.z, 1e-4f);
+        assertEquals(new Vector3f(2, 3, 4), NativeMobPoseAngles.scale(pose, leg, true));
+        assertEquals((float) Math.PI / 2, NativeMobPoseAngles.local(pose, leg, true).pitch(), 1e-4f);
+    }
+
     @Test void bodyYawReachesAHeadThatIsNotParentedToTheBody() {
         var built = new HumanoidRigProfile().buildPose(ActorActionType.DANCE, 1f, 0.4f).pose;
         var rig = LegacyHumanoidPoseAdapter.convert(built);

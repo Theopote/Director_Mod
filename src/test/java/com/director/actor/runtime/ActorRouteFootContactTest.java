@@ -7,6 +7,44 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 class ActorRouteFootContactTest {
+    private RigDefinition footRig(String foot) {
+        return new RigDefinition("test:foot", "Foot rig", List.of(
+                new BoneDefinition("root", "Root", -1, BoneTransform.identity(), BoneCapabilities.full()),
+                new BoneDefinition("hip", "Hip", 0, BoneTransform.translation(.2f, 1, 0), BoneCapabilities.full()),
+                new BoneDefinition("shin", "Shin", 1, BoneTransform.translation(0, -.4f, 0), BoneCapabilities.full()),
+                new BoneDefinition("sole", "Sole", 2, BoneTransform.translation(0, -.6f, .3f), BoneCapabilities.full())
+        ), List.of(new LegChain("hip", "shin", foot)));
+    }
+
+    @Test void customContactUsesTheFootOriginAndRespectsItsAuthoredWeight() {
+        var pose = new RigPose(footRig("sole"));
+        var rest = ActorRouteFootContact.solePosition(pose, "hip");
+        assertTrue(rest.equals(new Vector3f(.2f, 0, .3f), 1e-6f));
+        var s = sample(.1f);
+        var target = new Vector3f(.2f, 0, .5f);
+        var corrected = pose.copy();
+        ActorRouteFootContact.apply(corrected, s);
+        var worldSole = ActorRouteFootContact.solePosition(corrected, "hip").add(s.position);
+        assertTrue(worldSole.equals(target, 1e-5f));
+        ActorRouteFootContact.apply(pose, s, java.util.Map.of("sole", 1f));
+        assertEquals(rest, ActorRouteFootContact.solePosition(pose, "hip"));
+        assertThrows(IllegalArgumentException.class, () -> footRig("root"));
+    }
+
+    @Test void footTranslationKeyframeReleasesContactDuringPoseEvaluation() {
+        var rig = footRig("sole");
+        var authored = new RigPose(rig);
+        int foot = rig.requireBoneIndex("sole");
+        authored.setLocalTransform(foot, BoneTransform.translation(0, -.6f, .35f), RigPose.TRANSLATION);
+        var layer = new ActorPoseEvaluator.Layer(authored, PoseBlendSettings.DEFAULT, 1f);
+        var result = ActorPoseEvaluator.evaluate(com.director.actor.ActorType.CUSTOM,
+                new com.director.actor.rig.HumanoidRigProfile(), rig, new com.director.actor.rig.Pose(),
+                sample(.1f), null, layer, LimbBendMode.SMOOTH);
+        assertEquals(1f, result.authoredWeights().get("sole"));
+        assertEquals(new Vector3f(.2f, 1, 0), result.pose().localTransform("hip").translation());
+        assertEquals(.35f, ActorRouteFootContact.solePosition(result.pose(), "hip").z, 1e-6f);
+    }
+
     private EntitySample sample(float time) {
         var s = new EntitySample(); s.routeClip = new ActorRouteClip("Route",0,4);
         s.routeClip.setWaypoints(List.of(new Vector3f(),new Vector3f(0,0,4)));

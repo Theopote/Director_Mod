@@ -26,6 +26,10 @@ final class ActorLegContactIk {
             solveSingleSegment(pose, chain, target, weight);
             return;
         }
+        if (chain.footBone() != null || !RigPoseComposer.sameLayout(pose.rig(), ArticulatedPlayerRig.DEFINITION)) {
+            translateLeg(pose, chain, target, weight);
+            return;
+        }
         var solved = solveTwoBone(pose, chain, target);
         if (solved == null) return;
         for (String bone : new String[]{chain.legBone(), chain.lowerBone()}) {
@@ -37,6 +41,17 @@ final class ActorLegContactIk {
             var rotation = before.rotation().slerp(after.rotation(), weight);
             pose.setLocalTransform(i, before.withRotation(rotation), RigPose.ROTATION);
         }
+    }
+
+    private static void translateLeg(RigPose pose, LegChain chain, Vector3f target, float weight) {
+        int leg = pose.rig().requireBoneIndex(chain.legBone());
+        var correction = target.sub(ActorRouteFootContact.solePosition(pose, chain), new Vector3f());
+        int parent = pose.rig().bone(leg).parentIndex();
+        if (parent >= 0) pose.calculateModelTransform(parent).invert().transformDirection(correction);
+        if (!correction.isFinite()) return;
+        var current = pose.localTransform(leg);
+        var translation = current.translation().add(correction.mul(weight));
+        pose.setLocalTransform(leg, new BoneTransform(translation, current.rotation(), current.scale()), RigPose.TRANSLATION);
     }
 
     /** Single-segment limbs (villager / quadruped): pitch the thigh toward the target sole. */
@@ -62,7 +77,7 @@ final class ActorLegContactIk {
     }
 
     private static RigPose solveTwoBone(RigPose pose, LegChain chain, Vector3f target) {
-        if (!target.isFinite() || !RigPoseComposer.sameLayout(pose.rig(), ArticulatedPlayerRig.DEFINITION)) return null;
+        if (!target.isFinite()) return null;
         int hip = pose.rig().requireBoneIndex(chain.legBone());
         int knee = pose.rig().requireBoneIndex(chain.lowerBone());
         var hipRest = pose.localTransform(hip);
