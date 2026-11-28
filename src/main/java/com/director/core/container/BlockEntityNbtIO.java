@@ -2,6 +2,7 @@ package com.director.core.container;
 
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.storage.NbtReadView;
 import net.minecraft.util.ErrorReporter;
@@ -47,5 +48,36 @@ public final class BlockEntityNbtIO {
             LOGGER.debug("[BlockEntityNbtIO] 恢复 BlockEntity NBT 失败: {}", e.getMessage());
             return false;
         }
+    }
+
+    public static boolean matches(World world, BlockEntity blockEntity, NbtCompound expected) {
+        if (world == null || blockEntity == null || expected == null) {
+            return false;
+        }
+        NbtCompound actual = capture(world, blockEntity);
+        return actual != null && matches(expected, actual);
+    }
+
+    static boolean matches(NbtCompound expected, NbtCompound actual) {
+        if (expected == null || actual == null) {
+            return false;
+        }
+        for (String key : expected.getKeys()) {
+            // BlockEntity snapshots may be restored at an equivalent position representation.
+            if (key.equals("x") || key.equals("y") || key.equals("z")) continue;
+            if (!matchesValue(expected.get(key), actual.get(key))) return false;
+        }
+        return true;
+    }
+
+    private static boolean matchesValue(NbtElement expected, NbtElement actual) {
+        if (expected instanceof NbtCompound expectedCompound) {
+            if (!(actual instanceof NbtCompound actualCompound)) return false;
+            for (String key : expectedCompound.getKeys()) {
+                if (!matchesValue(expectedCompound.get(key), actualCompound.get(key))) return false;
+            }
+            return true;
+        }
+        return expected.equals(actual);
     }
 }

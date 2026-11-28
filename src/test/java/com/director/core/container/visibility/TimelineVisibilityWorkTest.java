@@ -123,6 +123,43 @@ class TimelineVisibilityWorkTest {
         assertFalse(work.hasFailures());
     }
 
+    @Test void writeFailureRetriesOnTheNextTickAndCanConverge() {
+        var shown = new LongOpenHashSet();
+        var work = new TimelineVisibilityWork(shown, new LongOpenHashSet(new long[] {1}));
+        var attempts = new AtomicInteger();
+        work.process(10, Long.MAX_VALUE, (pos, visible) -> {
+            attempts.incrementAndGet();
+            return RETRY;
+        });
+        assertFalse(work.isComplete());
+        assertEquals(1, work.pendingRetries());
+        assertFalse(work.hasFailures());
+
+        work.process(10, Long.MAX_VALUE, (pos, visible) -> {
+            attempts.incrementAndGet();
+            return SUCCESS;
+        });
+        assertTrue(work.isComplete());
+        assertEquals(2, attempts.get());
+        assertEquals(new LongOpenHashSet(new long[] {1}), shown);
+    }
+
+    @Test void repeatedWriteFailureStopsAtRetryLimit() {
+        var work = new TimelineVisibilityWork(new LongOpenHashSet(), new LongOpenHashSet(new long[] {1}));
+        var attempts = new AtomicInteger();
+        for (int i = 0; i < TimelineVisibilityWork.MAX_TRANSIENT_ATTEMPTS; i++) {
+            work.process(10, Long.MAX_VALUE, (pos, visible) -> {
+                attempts.incrementAndGet();
+                return RETRY;
+            });
+        }
+        assertTrue(work.isComplete());
+        assertTrue(work.hasFailures());
+        assertEquals(TimelineVisibilityWork.MAX_TRANSIENT_ATTEMPTS, attempts.get());
+        assertEquals(1, work.retriesExhausted());
+        assertEquals(0, work.pendingRetries());
+    }
+
     @Test void transientFailureBacksOffAndStopsAtRetryLimit() {
         var shown = new LongOpenHashSet();
         var work = new TimelineVisibilityWork(shown, new LongOpenHashSet(new long[] {1}));

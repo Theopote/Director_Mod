@@ -13,7 +13,9 @@ final class TimelineVisibilityWork {
         SUCCESS,
         /** The chunk is not loaded yet; retry with bounded exponential backoff. */
         WAITING,
-        /** Missing/corrupt snapshot data or a failed write; never retry the same target. */
+        /** A world write failed or did not materialize; retry on the next tick. */
+        RETRY,
+        /** Missing/corrupt snapshot data; never retry the same target. */
         FAILED
     }
 
@@ -122,7 +124,7 @@ final class TimelineVisibilityWork {
             retryStates.remove(pos);
             return false;
         }
-        transientWaits++;
+        if (result == ApplyResult.WAITING) transientWaits++;
         RetryState state = retryStates.computeIfAbsent(pos, ignored -> new RetryState(visible));
         state.attempts++;
         if (state.attempts >= MAX_TRANSIENT_ATTEMPTS) {
@@ -131,7 +133,7 @@ final class TimelineVisibilityWork {
             retryStates.remove(pos);
             return false;
         }
-        long delayTicks = 1L << Math.min(state.attempts, 5);
+        long delayTicks = result == ApplyResult.RETRY ? 1 : 1L << Math.min(state.attempts, 5);
         state.nextAttemptTick = tick + delayTicks;
         return true;
     }

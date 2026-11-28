@@ -7,6 +7,26 @@ import java.util.Collections;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VisibilityTaskBudgetTest {
+    @Test void permanentFailureQuarantinesTheContainerInsteadOfReportingSuccess() throws Exception {
+        var service = new ContainerVisibilityService(null);
+        var taskClass = Class.forName(ContainerVisibilityService.class.getName() + "$VisibilityTask");
+        var kind = Class.forName(ContainerVisibilityService.class.getName() + "$TaskKind").getEnumConstants()[0];
+        var constructor = taskClass.getDeclaredConstructors()[0]; constructor.setAccessible(true);
+        var task = constructor.newInstance(service, new Container("failed"), null, new BlockStore(),
+                java.util.List.of(net.minecraft.util.math.BlockPos.ORIGIN), kind, "hide");
+        var process = taskClass.getDeclaredMethod("process", int.class, long.class); process.setAccessible(true);
+        var isComplete = taskClass.getDeclaredMethod("isComplete"); isComplete.setAccessible(true);
+        var finish = taskClass.getDeclaredMethod("finish"); finish.setAccessible(true);
+
+        assertEquals(1, process.invoke(task, 1, Long.MAX_VALUE));
+        assertTrue((boolean) isComplete.invoke(task));
+        assertEquals(0, service.diagnostics().quarantined());
+
+        finish.invoke(task);
+
+        assertEquals(1, service.diagnostics().quarantined());
+    }
+
     @Test void panelTaskRetainsItsCursorWhenDeadlineExpiresAndResumesWithinCountBudget() throws Exception {
         var service = new ContainerVisibilityService(null);
         var taskClass = Class.forName(ContainerVisibilityService.class.getName() + "$VisibilityTask");

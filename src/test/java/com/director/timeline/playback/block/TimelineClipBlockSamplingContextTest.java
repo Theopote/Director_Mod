@@ -1,6 +1,7 @@
 package com.director.timeline.playback.block;
 
 import com.director.core.DirectorServices;
+import com.director.core.animation.ClipAnimationConfig;
 import com.director.core.container.Container;
 import com.director.core.container.visibility.ContainerVisibilityService;
 import com.director.timeline.model.TimelineClip;
@@ -216,6 +217,58 @@ class TimelineClipBlockSamplingContextTest {
             assertFalse(field("previewResyncPending").getBoolean(controller));
             assertFalse(controller.needsClipBlockUpdate(model));
         }
+    }
+
+    @Test void simultaneousEntryKeepsItsFinalVisibilityThroughoutTheClipWhileExitStaysCleared() throws Exception {
+        var controller = controller();
+        for (boolean exit : new boolean[] {false, true}) {
+            var container = new Container(exit ? "demolition" : "building",
+                    exit ? com.director.core.container.ContainerType.DEMOLITION
+                            : com.director.core.container.ContainerType.GENERAL);
+            container.addBlocks(List.of(BlockPos.ORIGIN));
+            var clip = new TimelineClip("clip", 0, 5, 0);
+            var config = clip.getAnimationConfigForEditing();
+            config.setMode(com.director.core.container.AnimationMode.FADE_IN);
+            config.setDuration(1);
+            config.setDelay(0);
+            config.setPhase(exit ? ClipAnimationConfig.AnimationPhase.EXIT
+                    : ClipAnimationConfig.AnimationPhase.ENTER);
+            config.getSequenceParameters().setConcurrencyMode(
+                    com.director.core.animation.sequence.ConcurrencyMode.ALL_AT_ONCE);
+
+            assertFalse(controller.sampleClipFrame(clip, 0.5f, true, container, config, true)
+                    .visibility().renderBlocks().isEmpty());
+            assertEquals(exit, controller.sampleClipFrame(clip, 2, true, container, config, true)
+                    .visibility().renderBlocks().isEmpty());
+            assertEquals(exit, controller.sampleClipFrame(clip, 5, true, container, config, true)
+                    .visibility().renderBlocks().isEmpty());
+            assertEquals(exit, controller.sampleClipFrame(clip, 5.1f, true, container, config, true)
+                    .visibility().renderBlocks().isEmpty());
+            if (exit) {
+                assertEquals(1, controller.sampleClipFrame(clip, -0.5f, true, container, config, true).opacity());
+            }
+        }
+    }
+
+    @Test void previewVisibilityCacheDoesNotCrossSubMillisecondCompletionCutoffs() throws Exception {
+        var controller = controller();
+        var container = new Container("demolition", com.director.core.container.ContainerType.DEMOLITION);
+        container.addBlocks(List.of(BlockPos.ORIGIN));
+        var clip = new TimelineClip("clip", 0, 0.05f, 0);
+        var config = clip.getAnimationConfigForEditing();
+        config.setMode(com.director.core.container.AnimationMode.FADE_IN);
+        config.setPhase(ClipAnimationConfig.AnimationPhase.EXIT);
+        config.setDuration(0.0002f);
+        config.setDelay(0);
+        config.getSequenceParameters().setConcurrencyMode(
+                com.director.core.animation.sequence.ConcurrencyMode.ALL_AT_ONCE);
+
+        TimelineSamplingContext.run(TimelineSamplingContext.PREVIEW, () -> {
+            assertFalse(controller.sampleClipFrame(clip, 0.00019f, true, container, config, true)
+                    .visibility().renderBlocks().isEmpty());
+            assertTrue(controller.sampleClipFrame(clip, 0.0002f, true, container, config, true)
+                    .visibility().renderBlocks().isEmpty());
+        });
     }
 
     @SuppressWarnings("unchecked")

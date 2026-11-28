@@ -199,7 +199,8 @@ public class ContainerVisibilityService {
                     var result = visible
                             ? timelineShowAt(world, store, BlockPos.fromLong(pos), affectedChunks)
                             : timelineHideAt(world, store, BlockPos.fromLong(pos), affectedChunks);
-                    if (result == TimelineVisibilityWork.ApplyResult.WAITING) perfTransientWaits++;
+                    if (result == TimelineVisibilityWork.ApplyResult.WAITING
+                            || result == TimelineVisibilityWork.ApplyResult.RETRY) perfTransientWaits++;
                     if (result == TimelineVisibilityWork.ApplyResult.FAILED) perfPermanentFailures++;
                     return result;
                 });
@@ -703,26 +704,7 @@ public class ContainerVisibilityService {
 
     private TimelineVisibilityWork.ApplyResult timelineHideAt(ServerWorld world, BlockStore store, BlockPos pos,
                                    LongOpenHashSet affectedChunks) {
-        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-        if (!world.getChunkManager().isChunkLoaded(cx, cz)) return TimelineVisibilityWork.ApplyResult.WAITING;
-        if (world.getBlockState(pos).isAir()) return TimelineVisibilityWork.ApplyResult.SUCCESS;
-        try {
-            if (!store.contains(pos)) store.capture(world, pos);
-            net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
-            if (be != null) world.removeBlockEntity(pos);
-            if (world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH)) {
-                tickWrites++;
-            }
-        } catch (Exception e) {
-            LOGGER.warn("[Visibility] Failed to timeline-hide block at {}: {}", pos, e.toString());
-            return TimelineVisibilityWork.ApplyResult.FAILED;
-        }
-        if (!world.getBlockState(pos).isAir()) {
-            LOGGER.warn("[Visibility] Timeline-hide did not materialize at {}", pos);
-            return TimelineVisibilityWork.ApplyResult.FAILED;
-        }
-        trackAffectedChunk(affectedChunks, cx, cz);
-        return TimelineVisibilityWork.ApplyResult.SUCCESS;
+        return hideBlockAt(world, store, pos, affectedChunks);
     }
 
     private TimelineVisibilityWork.ApplyResult timelineShowAt(ServerWorld world, BlockStore store, BlockPos pos,
@@ -734,7 +716,6 @@ public class ContainerVisibilityService {
             LOGGER.warn("[Visibility] Timeline-show snapshot entry is missing/invalid at {}", pos);
             return TimelineVisibilityWork.ApplyResult.FAILED;
         }
-        if (world.getBlockState(pos).equals(entry.state)) return TimelineVisibilityWork.ApplyResult.SUCCESS;
         return restoreBlockEntry(world, pos, entry, affectedChunks);
     }
 
@@ -814,6 +795,45 @@ public class ContainerVisibilityService {
         if (world != null && affectedChunks != null && !affectedChunks.isEmpty()) lightingWorlds.add(world);
     }
 
+    private TimelineVisibilityWork.ApplyResult hideBlockAt(ServerWorld world, BlockStore store, BlockPos pos,
+                                   LongOpenHashSet affectedChunks) {
+        if (world == null || store == null || pos == null) {
+            return TimelineVisibilityWork.ApplyResult.FAILED;
+        }
+        int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
+        if (!world.getChunkManager().isChunkLoaded(cx, cz)) {
+            return TimelineVisibilityWork.ApplyResult.WAITING;
+        }
+        try {
+            net.minecraft.block.BlockState current = world.getBlockState(pos);
+            BlockStore.Entry entry = store.get(pos);
+            if (entry == null || entry.state == null || current.hasBlockEntity() && entry.beNbt == null) {
+                store.capture(world, pos);
+                entry = store.get(pos);
+            }
+            if (entry == null || entry.state == null
+                    || current.hasBlockEntity() && entry.beNbt == null) {
+                LOGGER.warn("[Visibility] Refusing to hide block without a complete snapshot at {}", pos);
+                return TimelineVisibilityWork.ApplyResult.FAILED;
+            }
+            if (current.isAir()) {
+                return TimelineVisibilityWork.ApplyResult.SUCCESS;
+            }
+            if (world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH)) {
+                tickWrites++;
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[Visibility] Failed to hide block at {}: {}", pos, e.toString());
+            return TimelineVisibilityWork.ApplyResult.RETRY;
+        }
+        if (!world.getBlockState(pos).isAir()) {
+            LOGGER.warn("[Visibility] Hide did not materialize at {}", pos);
+            return TimelineVisibilityWork.ApplyResult.RETRY;
+        }
+        trackAffectedChunk(affectedChunks, cx, cz);
+        return TimelineVisibilityWork.ApplyResult.SUCCESS;
+    }
+
     private TimelineVisibilityWork.ApplyResult restoreBlockEntry(ServerWorld world, BlockPos pos, BlockStore.Entry entry,
                                    LongOpenHashSet affectedChunks) {
         if (world == null || pos == null || entry == null || entry.state == null) {
@@ -824,35 +844,50 @@ public class ContainerVisibilityService {
             return TimelineVisibilityWork.ApplyResult.WAITING;
         }
 
-        boolean changed;
+        boolean changed = false;
+        boolean restoredNbt = false;
         try {
-            changed = world.setBlockState(pos, entry.state, ContainerBlockUpdateFlags.BATCH);
-            if (changed) tickWrites++;
-        } catch (Exception e) {
-            // Defense in depth: never let one bad block (e.g. pumpkin pattern NPE) crash the server.
-            LOGGER.warn("[Visibility] Failed to restore block at {} to {}: {}",
-                    pos, entry.state, e.toString());
-            return TimelineVisibilityWork.ApplyResult.FAILED;
-        }
-        if (!world.getBlockState(pos).equals(entry.state)) {
-            LOGGER.warn("[Visibility] Restore did not materialize at {}", pos);
-            return TimelineVisibilityWork.ApplyResult.FAILED;
-        }
-        if (changed) trackAffectedChunk(affectedChunks, cx, cz);
+            net.minecraft.block.BlockState current = world.getBlockState(pos);
+            boolean stateMatches = current.equals(entry.state);
+            net.minecraft.block.entity.BlockEntity existing = entry.beNbt == null ? null : world.getBlockEntity(pos);
+            if (!stateMatches || entry.beNbt != null && existing == null) {
+                if (stateMatches && !world.setBlockState(pos, Blocks.AIR.getDefaultState(),
+                        ContainerBlockUpdateFlags.BATCH)) {
+                    LOGGER.warn("[Visibility] Could not replace block with missing block entity at {}", pos);
+                    return TimelineVisibilityWork.ApplyResult.RETRY;
+                }
+                changed = world.setBlockState(pos, entry.state, ContainerBlockUpdateFlags.BATCH);
+                if (changed) tickWrites++;
+            }
+            if (!world.getBlockState(pos).equals(entry.state)) {
+                LOGGER.warn("[Visibility] Restore did not materialize at {}", pos);
+                return TimelineVisibilityWork.ApplyResult.RETRY;
+            }
 
-        if (entry.beNbt != null) {
-            try {
+            if (entry.beNbt != null) {
                 net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
                 if (be == null) {
                     LOGGER.warn("[Visibility] Snapshot block entity is missing at {}", pos);
+                    return TimelineVisibilityWork.ApplyResult.RETRY;
+                }
+                if (!BlockEntityNbtIO.matches(world, be, entry.beNbt)) {
+                    if (!BlockEntityNbtIO.restore(be, entry.beNbt, world.getRegistryManager())) {
+                        LOGGER.warn("[Visibility] Snapshot block entity NBT is invalid at {}", pos);
+                        return TimelineVisibilityWork.ApplyResult.FAILED;
+                    }
+                    restoredNbt = true;
+                }
+                if (!BlockEntityNbtIO.matches(world, be, entry.beNbt)) {
+                    LOGGER.warn("[Visibility] Restored block entity data does not match snapshot at {}", pos);
                     return TimelineVisibilityWork.ApplyResult.FAILED;
                 }
-                BlockEntityNbtIO.restore(be, entry.beNbt, world.getRegistryManager());
-            } catch (Exception e) {
-                LOGGER.warn("[Visibility] Failed to restore block entity at {}: {}", pos, e.toString());
-                return TimelineVisibilityWork.ApplyResult.FAILED;
             }
+        } catch (Exception e) {
+            LOGGER.warn("[Visibility] Failed to restore block at {} to {}: {}",
+                    pos, entry.state, e.toString());
+            return TimelineVisibilityWork.ApplyResult.RETRY;
         }
+        if (changed || restoredNbt) trackAffectedChunk(affectedChunks, cx, cz);
         return TimelineVisibilityWork.ApplyResult.SUCCESS;
     }
 
@@ -864,21 +899,25 @@ public class ContainerVisibilityService {
         final UUID containerId;
         final String containerName;
         final String actionLabel;
+        private final Container container;
         private final ServerWorld world;
         private final BlockStore store;
         private final BlockStore fallbackStore;
         private final List<BlockPos> positions;
         private final TaskKind kind;
         private final LongSet shown;
-        private final Map<Long, Boolean> chunkLoadCache = new HashMap<>();
         private final LongOpenHashSet affectedChunks = new LongOpenHashSet();
+        private final Deque<BlockPos> retries = new ArrayDeque<>();
+        private final Map<Long, Integer> transientAttempts = new HashMap<>();
         private int index = 0;
         private int changed = 0;
+        private int permanentFailures;
 
         VisibilityTask(Container container, ServerWorld world, BlockStore store,
                        List<BlockPos> positions, TaskKind kind, String actionLabel) {
             this.containerId = container.getId();
             this.containerName = container.getName();
+            this.container = container;
             this.world = world;
             this.store = store;
             this.fallbackStore = container.getBlockStore();
@@ -890,68 +929,80 @@ public class ContainerVisibilityService {
 
         int process(int budget, long deadline) {
             int processed = 0;
+            int pendingRetries = retries.size();
+            while (processed < budget && pendingRetries-- > 0 && System.nanoTime() < deadline) {
+                BlockPos pos = retries.removeFirst();
+                processed++;
+                applyOne(pos);
+            }
             while (processed < budget && index < positions.size() && System.nanoTime() < deadline) {
                 BlockPos pos = positions.get(index++);
                 processed++;
-                if (pos == null) continue;
-                switch (kind) {
-                    case HIDE -> hideOne(pos);
-                    case SHOW -> showOne(pos);
-                    case RESTORE -> restoreOne(pos);
-                }
+                if (pos != null) applyOne(pos);
             }
             return processed;
         }
 
-        private boolean isChunkLoaded(int cx, int cz) {
-            long key = chunkKey(cx, cz);
-            Boolean cached = chunkLoadCache.get(key);
-            if (cached != null) return cached;
-            boolean loaded = world.getChunkManager().isChunkLoaded(cx, cz);
-            chunkLoadCache.put(key, loaded);
-            return loaded;
-        }
-
-        private void hideOne(BlockPos pos) {
-            int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-            if (!isChunkLoaded(cx, cz)) return;
-            if (!store.contains(pos)) store.capture(world, pos);
-            if (world.getBlockState(pos).isAir()) return;
-            var be = world.getBlockEntity(pos);
-            if (be != null) world.removeBlockEntity(pos);
-            try {
-                if (world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH)) {
-                    tickWrites++;
-                }
-            } catch (Exception e) {
-                LOGGER.warn("[Visibility] Failed to hide block at {}: {}", pos, e.toString());
+        private void applyOne(BlockPos pos) {
+            TimelineVisibilityWork.ApplyResult result;
+            switch (kind) {
+                case HIDE -> result = hideOne(pos);
+                case SHOW -> result = showOne(pos);
+                case RESTORE -> result = restoreOne(pos);
+                default -> throw new IllegalStateException("Unknown visibility task: " + kind);
+            }
+            if (result == TimelineVisibilityWork.ApplyResult.SUCCESS) {
+                transientAttempts.remove(pos.asLong());
+                changed++;
                 return;
             }
-            trackAffectedChunk(affectedChunks, cx, cz);
-            changed++;
+            if (result == TimelineVisibilityWork.ApplyResult.FAILED) {
+                transientAttempts.remove(pos.asLong());
+                permanentFailures++;
+                return;
+            }
+            int attempts = transientAttempts.merge(pos.asLong(), 1, Integer::sum);
+            if (attempts >= TimelineVisibilityWork.MAX_TRANSIENT_ATTEMPTS) {
+                transientAttempts.remove(pos.asLong());
+                permanentFailures++;
+                LOGGER.warn("[Visibility] {} retries exhausted for container {} at {}",
+                        actionLabel, containerName, pos);
+            } else {
+                retries.addLast(pos);
+            }
         }
 
-        private void showOne(BlockPos pos) {
+        private TimelineVisibilityWork.ApplyResult hideOne(BlockPos pos) {
+            return hideBlockAt(world, store, pos, affectedChunks);
+        }
+
+        private TimelineVisibilityWork.ApplyResult showOne(BlockPos pos) {
             BlockStore.Entry entry = store.get(pos);
-            if (entry == null) return;
-            restoreBlockEntry(world, pos, entry, affectedChunks);
-            changed++;
+            if (entry == null) return TimelineVisibilityWork.ApplyResult.FAILED;
+            return restoreBlockEntry(world, pos, entry, affectedChunks);
         }
 
-        private void restoreOne(BlockPos pos) {
+        private TimelineVisibilityWork.ApplyResult restoreOne(BlockPos pos) {
             BlockStore.Entry entry = store.get(pos);
             if (entry == null && fallbackStore != null) entry = fallbackStore.get(pos);
-            if (entry == null) return;
-            restoreBlockEntry(world, pos, entry, affectedChunks);
-            store.remove(pos);
-            if (shown != null) shown.remove(pos.asLong());
-            changed++;
+            if (entry == null) return TimelineVisibilityWork.ApplyResult.FAILED;
+            TimelineVisibilityWork.ApplyResult result = restoreBlockEntry(world, pos, entry, affectedChunks);
+            if (result == TimelineVisibilityWork.ApplyResult.SUCCESS) {
+                store.remove(pos);
+                if (shown != null) shown.remove(pos.asLong());
+            }
+            return result;
         }
 
-        boolean isComplete() { return index >= positions.size(); }
-        int remaining() { return Math.max(0, positions.size() - index); }
+        boolean isComplete() { return index >= positions.size() && retries.isEmpty(); }
+        int remaining() { return Math.max(0, positions.size() - index) + retries.size(); }
 
         void finish() {
+            if (permanentFailures > 0) {
+                ContainerVisibilityFeedback.reset();
+                quarantine(container, positions, actionLabel + "失败（永久失败=" + permanentFailures + "）", false);
+                return;
+            }
             flushLightingForChunks(world, affectedChunks);
             ContainerVisibilityFeedback.onTaskComplete(containerName, actionLabel);
             if (kind == TaskKind.SHOW) {

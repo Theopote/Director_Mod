@@ -137,11 +137,13 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             if (timeChanged) {
                 com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                         .onClipTimeRangeChanged(clip, oldStartTime, oldEndTime, newStart, newEnd);
-
+            }
+            if (modified) {
                 var timelineModel = DirectorServices.get().containerTimeline()
                         .getTimelineModel();
                 if (timelineModel != null) {
                     timelineModel.markDirty();
+                    timelineModel.markDurationDirty();
                 }
             }
         }

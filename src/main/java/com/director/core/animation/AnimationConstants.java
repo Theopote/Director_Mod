@@ -84,11 +84,4 @@ public final class AnimationConstants {
      */
     public static final float NORMALIZED_TIME_EPSILON = 1e-4f;
 
-    /**
-     * 可见方块缓存的时间容差（秒）
-     *
-     * <p>在静止预览模式下，时间变化小于此值时可以复用缓存结果。
-     * 该值略大于 TIME_EPSILON，以提高缓存命中率。
-     */
-    public static final float VISIBLE_BLOCKS_CACHE_TIME_EPSILON = 1e-3f;
 }

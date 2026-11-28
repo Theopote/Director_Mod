@@ -509,7 +509,7 @@ public class ContainerManager {
                 return;
             }
         }
-        for (Container c : all) {
+        for (Container c : new ArrayList<>(all)) {
             List<Container> descendants = new ArrayList<>();
             collectAllDescendants(c, descendants);
             all.addAll(descendants);

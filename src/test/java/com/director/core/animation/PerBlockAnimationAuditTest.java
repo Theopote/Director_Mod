@@ -92,6 +92,58 @@ class PerBlockAnimationAuditTest {
         config.setDuration(10); model.markDirty(); assertEquals(11, model.getDuration());
     }
 
+    @Test void dynamicDurationIncludesEnabledFadeAndDoesNotShrinkAfterItIsDisabled() {
+        var model = new TimelineModel(new TimelineViewportState()); model.setSuppressPersistenceWrites(true);
+        var track = new TimelineTrack("blocks", TrackType.CONTAINER);
+        var clip = new TimelineClip("blocks", 0, 10, 0);
+        track.addClip(clip); model.addTrack(track);
+        clip.bindToContainer(java.util.UUID.randomUUID(), "building");
+        clip.setPostAnimationFadeEnabled(true);
+        clip.setPostAnimationFadeStart(0);
+        clip.setPostAnimationFadeEnd(2);
+        model.setDuration(10);
+
+        assertEquals(12, model.getDuration());
+        clip.setPostAnimationFadeEnd(4); model.markDirty();
+        assertEquals(14, model.getDuration());
+        clip.setPostAnimationFadeEnabled(false); model.markDirty();
+        assertEquals(14, model.getDuration());
+    }
+
+    @Test void dynamicDurationStartsFadeAfterTheEffectiveAnimationTail() {
+        var model = new TimelineModel(new TimelineViewportState()); model.setSuppressPersistenceWrites(true);
+        var track = new TimelineTrack("blocks", TrackType.CONTAINER);
+        var clip = new TimelineClip("blocks", 0, 1, 0);
+        track.addClip(clip); model.addTrack(track);
+        clip.bindToContainer(java.util.UUID.randomUUID(), "building");
+        var config = clip.getAnimationConfigForEditing();
+        config.setMode(AnimationMode.FADE_IN); config.setDuration(2); config.setDelay(0.5f);
+        config.getSequenceParameters().setConcurrencyMode(ConcurrencyMode.ONE_BY_ONE);
+        clip.setPostAnimationFadeEnabled(true);
+        clip.setPostAnimationFadeStart(1);
+        clip.setPostAnimationFadeEnd(3);
+        model.setDuration(1);
+
+        assertEquals(6.5f, model.getDuration(), 0.00001f);
+    }
+
+    @Test void wholeContainerDynamicDurationKeepsTheClipBoundaryBeforeFade() {
+        var model = new TimelineModel(new TimelineViewportState()); model.setSuppressPersistenceWrites(true);
+        var track = new TimelineTrack("blocks", TrackType.CONTAINER);
+        var clip = new TimelineClip("blocks", 0, 10, 0);
+        track.addClip(clip); model.addTrack(track);
+        clip.bindToContainer(java.util.UUID.randomUUID(), "building");
+        var config = clip.getAnimationConfigForEditing();
+        config.setMode(AnimationMode.FADE_IN); config.setDuration(100);
+        config.setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER);
+        clip.setPostAnimationFadeEnabled(true);
+        clip.setPostAnimationFadeStart(0);
+        clip.setPostAnimationFadeEnd(2);
+        model.setDuration(10);
+
+        assertEquals(12, model.getDuration());
+    }
+
     @Test void fadeSettingsAndOcclusionSurviveProjectJson() {
         var viewport = new TimelineViewportState(); var model = new TimelineModel(viewport);
         model.setSuppressPersistenceWrites(true); var track = new TimelineTrack("blocks", TrackType.CONTAINER);

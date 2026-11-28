@@ -142,7 +142,6 @@ public class TimelineClipBlockController {
      * 避免每帧重新构建包含数万元素的 HashSet
      */
     private static final class VisibleBlocksCache {
-        float lastCurrentTime;
         boolean lastTrackEnabled;
         boolean lastPreviewMode;
         Container container;
@@ -1410,10 +1409,6 @@ public class TimelineClipBlockController {
                     && cache.sequenceParamsHash == paramsHash
                     && cache.animationHash == visibleAnimationHash(clip, config)
                     && cache.result != null;
-            if (sameInputs && Math.abs(cache.lastCurrentTime - currentTime)
-                    < com.director.core.animation.AnimationConstants.VISIBLE_BLOCKS_CACHE_TIME_EPSILON) {
-                return cache.result;
-            }
             if (sameInputs) {
                 int bucket = staticTimeBucket(clip, currentTime, trackEnabled, container);
                 if (bucket >= 0 && cache.staticBucket == bucket) return cache.result;
@@ -1439,7 +1434,6 @@ public class TimelineClipBlockController {
             cache = new VisibleBlocksCache();
             visibleBlocksCacheByClip.put(clip, cache);
         }
-        cache.lastCurrentTime = currentTime;
         cache.lastTrackEnabled = trackEnabled;
         cache.lastPreviewMode = previewMode;
         cache.container = container;
