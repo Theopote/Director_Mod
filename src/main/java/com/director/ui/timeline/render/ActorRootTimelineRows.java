@@ -67,7 +67,7 @@ final class ActorRootTimelineRows {
         var clip = wrapper.getEntityClip();
         if (model.isPlaying() || model.isScrubbing()) return;
         var times = new LinkedHashMap<EntityClipKeyframe, Float>();
-        clip.getKeyframes().forEach(k -> times.put(k, k.getTime()));
+        clip.getKeyframes().forEach(k ->  { if (inRange(clip, k)) times.put(k, k.getTime()); });
         boolean keep = additive && focusModel == model && focusClip == clip;
         inspectorOwner=this;focusModel = model; focusOwner = track; focusClip = clip;
         marquee = new Marquee(model, track, clip, model.getActorEditContextRevision(), mx, my, left, right,
@@ -77,7 +77,7 @@ final class ActorRootTimelineRows {
     boolean updateMarquee(TimelineModel model, float left, float right, float top, float height, float scroll, TimelineRenderMath math) {
         if (marquee == null) return false;
         var box = marquee;
-        var times = new LinkedHashMap<EntityClipKeyframe, Float>(); box.clip().getKeyframes().forEach(k -> times.put(k, k.getTime()));
+        var times = new LinkedHashMap<EntityClipKeyframe, Float>(); box.clip().getKeyframes().forEach(k -> { if (inRange(box.clip(), k)) times.put(k, k.getTime()); });
         if (box.model() != model || box.revision() != model.getActorEditContextRevision()
                 || model.getSelectedClip() != box.clip().getTimelineClip() || !model.getAllTracks().contains(box.owner())
                 || !clips(box.owner()).contains(box.clip()) || !times.equals(box.times())
@@ -209,6 +209,10 @@ final class ActorRootTimelineRows {
     static boolean selectedAt(TimelineModel model, EntityClip clip, EntityClipKeyframe key) {
         return model.getSelectedClip() == clip.getTimelineClip() && Math.abs(key.getTime() - model.getCurrentTime()) <= 1e-4f;
     }
+    private static boolean inRange(EntityClip clip, EntityClipKeyframe key) {
+        return key.getTime() >= clip.getStartTime() && key.getTime() <= clip.getEndTime();
+    }
+
     private static String tr(String key) {
         return net.minecraft.client.resource.language.I18n.translate("gui.director.actor.root_rows." + key);
     }
@@ -249,11 +253,12 @@ final class ActorRootTimelineRows {
                     if (!key.hasChannel(1 << row)) continue;
                     float kx = math.timeToX(drag != null && (drag.channels() & (1<<row))!=0 && drag.contains(key) && drag.clip() == clip ? drag.previewTime(key, previewTime) : key.getTime()), ky = y + height / 2;
                     if (kx < left - 6 || kx > right + 6) continue;
-                    int color = clip.isMuted() || track.isMuted() ? TimelineColors.rgba(110,110,110,255)
+                    boolean trimmed = !inRange(clip, key);
+                    int color = trimmed || clip.isMuted() || track.isMuted() ? TimelineColors.rgba(110,110,110,255)
                             : (focusModel == model && focusClip == clip && model.getSelectedClip() == clip.getTimelineClip() && selected.contains(key) || selectedAt(model,clip,key)) ? TimelineColors.rgba(255,255,255,255) : colors[row];
                     draw.addQuadFilled(kx,ky-5,kx+5,ky,kx,ky+5,kx-5,ky,color);
                     if (drag == null && ImGui.isWindowHovered() && Math.abs(ImGui.getMousePosX() - kx) <= 7
-                            && Math.abs(ImGui.getMousePosY() - ky) <= 7) ImGui.setTooltip(tr("selection_hint"));
+                            && Math.abs(ImGui.getMousePosY() - ky) <= 7) ImGui.setTooltip(trimmed ? tr("trimmed_key") : tr("selection_hint"));
                 }
             } finally { draw.popClipRect(); }
         }
@@ -269,7 +274,7 @@ final class ActorRootTimelineRows {
         var preferred = model.getSelectedClip();
         List<Hit> hits = new ArrayList<>();
         if (mouseX >= left) for (var clip : clips(track)) for (var key : clip.getKeyframes()) {
-                    if (!key.hasChannel(1 << row)) continue;
+                    if (!key.hasChannel(1 << row) || !inRange(clip, key)) continue;
             float x = math.timeToX(key.getTime());
             if (Math.abs(x - mouseX) <= 7) hits.add(new Hit(clip,key,x));
         }

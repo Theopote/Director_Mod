@@ -3,6 +3,8 @@ package com.director.timeline.layout;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.camera.path.CameraPathClip;
+import com.director.timeline.model.entity.EntityTimelineClip;
+import com.director.timeline.model.entity.EntityClipType;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,10 +35,24 @@ public final class TimelineClipLayoutResolver {
             if (clip == null || clip == exclude) {
                 continue;
             }
+            if (exclude instanceof EntityTimelineClip editing) {
+                if (!(clip instanceof EntityTimelineClip other) || other.getEntityClip().isMuted()) continue;
+                var type = editing.getEntityClip().getClipType();
+                var otherType = other.getEntityClip().getClipType();
+                if (!actorRangesConflict(type, otherType)) continue;
+            }
             out.add(new Interval(clip.getStartTime(), clip.getEndTime()));
         }
         out.sort(Comparator.comparingDouble(Interval::start));
         return out;
+    }
+
+    public static boolean actorRangesConflict(EntityClipType editing, EntityClipType other) {
+        return switch (editing) {
+            case ACTOR_ROUTE, TRANSFORM -> other == EntityClipType.ACTOR_ROUTE || other == EntityClipType.TRANSFORM;
+            case SPAWN -> other == EntityClipType.SPAWN;
+            default -> false;
+        };
     }
 
     public static List<Interval> pathClipIntervalsOnTrack(TimelineTrack track, CameraPathClip exclude) {

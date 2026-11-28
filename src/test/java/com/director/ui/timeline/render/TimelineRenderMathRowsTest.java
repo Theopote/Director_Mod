@@ -107,4 +107,19 @@ class TimelineRenderMathRowsTest {
         assertTrue(TimelineRenderer.actionPaintRow(layout, 0, false, true).contains(2 * height));
         assertEquals(tall + 2f + (rootRows + 1) * ActorBoneTimelineRows.CHILD_HEIGHT, layout.trackTop(1));
     }
+
+    @Test void spatialClipRowsAreDistinctAndMovementIgnoresSpawnOccupancy() {
+        var track = new TimelineTrack("Actor", TrackType.ACTOR);
+        var spawn = new EntityTimelineClip(new com.director.timeline.model.entity.EntitySpawnClip("Spawn", 0, 10), 0);
+        var transform = new EntityTimelineClip(new com.director.timeline.model.entity.EntityTransformClip("Transform", 4, 6), 0);
+        var route = new EntityTimelineClip(new com.director.timeline.model.entity.ActorRouteClip("Route", 1, 3), 0);
+        track.addClip(spawn);
+        track.addClip(transform);
+        track.addClip(route);
+        float height = TimelineRenderer.getTrackHeight();
+        assertEquals(height, TimelineRenderer.clipBandOffset(transform, 7 * height));
+        assertEquals(2 * height, TimelineRenderer.clipBandOffset(route, 7 * height));
+        var occupied = com.director.timeline.layout.TimelineClipLayoutResolver.clipIntervalsOnTrack(track, route);
+        assertEquals(java.util.List.of(new com.director.timeline.layout.TimelineClipLayoutResolver.Interval(4, 6)), occupied);
+    }
 }

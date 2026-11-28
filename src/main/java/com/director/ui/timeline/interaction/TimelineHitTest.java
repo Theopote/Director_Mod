@@ -183,6 +183,7 @@ public final class TimelineHitTest {
         float pps = model.getPixelsPerSecond();
         float scrollX = model.getScrollX();
 
+        TimelineClip firstHit = null;
         for (TimelineClip clip : clips) {
             float x1 = contentX + (clip.getStartTime() * pps) - scrollX;
             float x2 = contentX + (clip.getEndTime() * pps) - scrollX;
@@ -196,11 +197,14 @@ public final class TimelineHitTest {
             float y2 = bandTop + TimelineRenderer.clipBandHeight(headerHeight) - 3f;
 
             if (mouseX >= x1 && mouseX <= x2 && mouseY >= y1 && mouseY <= y2) {
-                return TimelineHitResult.clip(track, clip, timeAtMouse, trackIndex);
+                if (track.getType() != com.director.timeline.model.TrackType.ACTOR || clip == model.getSelectedClip())
+                    return TimelineHitResult.clip(track, clip, timeAtMouse, trackIndex);
+                if (firstHit == null) firstHit = clip;
             }
         }
 
-        return TimelineHitResult.empty(timeAtMouse);
+        return firstHit == null ? TimelineHitResult.empty(timeAtMouse)
+                : TimelineHitResult.clip(track, firstHit, timeAtMouse, trackIndex);
     }
 
     private static TimelineHitResult hitTestKeyframes(

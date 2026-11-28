@@ -268,7 +268,8 @@ public final class ActorPathEditing {
     static void rejectOverlap(ActorTrack payload, ActorRouteClip excluded, float start, float end) {
         if (!Float.isFinite(end)) throw new IllegalArgumentException("路径时间范围无效");
         for (var clip : payload.getClips()) if (clip != excluded && !clip.isMuted()
-                && (clip instanceof ActorRouteClip || clip instanceof EntityTransformClip)
+                && com.director.timeline.layout.TimelineClipLayoutResolver.actorRangesConflict(
+                        com.director.timeline.model.entity.EntityClipType.ACTOR_ROUTE, clip.getClipType())
                 && clip.getEndTime() > start && clip.getStartTime() < end)
             throw new IllegalArgumentException("路线与已有移动片段重叠，请调整播放头或片段时间");
     }

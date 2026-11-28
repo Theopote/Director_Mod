@@ -2515,6 +2515,8 @@
   "gui.director.actor.look_interval.apply": "Apply",
   "gui.director.actor.look_interval.partially_trimmed": "Visible range: %.2f–%.2f s. Extend the performance clip to reveal the hidden portion.",
   "gui.director.actor.look_interval.fully_trimmed": "This interval is outside the visible performance clip. Extend the performance clip to reveal it.",
+  "gui.director.actor.look_interval.paste_invalid": "Cannot paste this behavior here. Check the performance clip bounds, actor capabilities, and action conflicts.",
+  "gui.director.actor.root_rows.trimmed_key": "Outside the clip range. Extend the clip to edit this keyframe.",
   "gui.director.actor.look_interval.invalid": "Enter an increasing time range inside this performance clip.",
   "gui.director.actor.look_interval.back_to_spawn": "Back to performance clip",
   "gui.director.actor.look_interval.edit_target": "Edit look target",

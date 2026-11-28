@@ -170,14 +170,19 @@ public class TimelineRenderer {
     }
 
     private static int behaviorBand(float headerHeight, int band) {
-        return headerHeight < (STATE_BAND + 1) * TRACK_HEIGHT ? band - 1 : band;
+        return Math.round(headerHeight / TRACK_HEIGHT) - STATE_BAND - 1 + band;
     }
 
-    private static boolean spatialClip(EntityClip clip) {
-        return switch (clip.getClipType()) {
-            case TRANSFORM, ACTOR_ROUTE, ACTOR_RELATION -> true;
-            default -> false;
-        };
+    private static final List<com.director.timeline.model.entity.EntityClipType> SPATIAL_TYPES = List.of(
+            com.director.timeline.model.entity.EntityClipType.TRANSFORM,
+            com.director.timeline.model.entity.EntityClipType.ACTOR_ROUTE,
+            com.director.timeline.model.entity.EntityClipType.ACTOR_RELATION);
+
+    private static List<com.director.timeline.model.entity.EntityClipType> spatialTypes(TimelineTrack track) {
+        var present = java.util.EnumSet.noneOf(com.director.timeline.model.entity.EntityClipType.class);
+        for (var clip : track.getClips())
+            if (clip instanceof EntityTimelineClip actor) present.add(actor.getEntityClip().getClipType());
+        return SPATIAL_TYPES.stream().filter(present::contains).toList();
     }
 
     private record ActorIntervalSummary(EntityTimelineClip owner, EntityClip target,
@@ -203,8 +208,13 @@ public class TimelineRenderer {
     private record ActorIntervalSelection(EntityTimelineClip owner, EntityClip target) {}
 
     private static final String ACTOR_INTERVAL_MENU = "##ActorIntervalMenu";
+    private static final String ACTOR_SPATIAL_MENU = "##ActorSpatialMenu";
+    private record SpatialHit(EntityTimelineClip clip, float left, float right, float top, float bottom) {}
+    private final List<SpatialHit> spatialHits = new java.util.ArrayList<>();
+    private List<EntityTimelineClip> spatialChoices = List.of();
     private List<ActorIntervalSelection> actorIntervalMenuChoices = List.of();
     private boolean actorIntervalDragValid;
+    private float actorIntervalSnapTime = Float.NaN;
     private String actorIntervalDragError;
     private double actorIntervalDragErrorUntil;
 
@@ -241,6 +251,13 @@ public class TimelineRenderer {
                 var selected = selectedActorInterval();
                 if (selected == null || !choices.contains(selected)) selectIntervalOwner(choices.getFirst());
                 ImGui.openPopup(ACTOR_INTERVAL_MENU);
+                return true;
+            }
+            spatialChoices = spatialHits.stream()
+                    .filter(hit -> x >= hit.left && x <= hit.right && y >= hit.top && y < hit.bottom)
+                    .map(SpatialHit::clip).toList();
+            if (spatialChoices.size() > 1) {
+                ImGui.openPopup(ACTOR_SPATIAL_MENU);
                 return true;
             }
         }
@@ -282,6 +299,23 @@ public class TimelineRenderer {
     }
 
     public void renderActorIntervalMenu() {
+        if (ImGui.beginPopup(ACTOR_SPATIAL_MENU)) {
+            try {
+                for (var clip : spatialChoices) {
+                    var track = clip.getParentTrack();
+                    if (track == null || !model.getAllTracks().contains(track) || !track.getClips().contains(clip)) continue;
+                    ImGui.pushID(clip.getEntityClip().getId().toString());
+                    if (ImGui.menuItem(clip.getLabel(), "", model.getSelectedClip() == clip)) {
+                        model.selectItem(clip, false);
+                        com.director.core.DirectorServices.get().uiSelection().selectClip(clip.getEntityClip());
+                        com.director.ui.properties.PropertyContextService.get().onTimelineSelectionChanged(clip);
+                    }
+                    ImGui.popID();
+                }
+            } finally {
+                ImGui.endPopup();
+            }
+        }
         if (!ImGui.beginPopup(ACTOR_INTERVAL_MENU)) return;
         try {
             var selection = selectedActorInterval();
@@ -379,10 +413,19 @@ public class TimelineRenderer {
             actorIntervalDragMoved |= Math.abs(mouseX - drag.pressX) >= 4f;
             if (actorIntervalDragMoved) {
                 float delta = math.xToTime(mouseX) - drag.pressTime;
+                float edge = drag.mode == DragMode.END ? drag.original.end() : drag.original.start();
+                float candidate = edge + delta;
+                var snap = com.director.timeline.snapping.TimelineSnapping.snapTime(model, candidate,
+                        drag.summary.owner.getParentTrack(), null, 0f, target);
+                delta += snap.snappedTime - candidate;
                 actorIntervalDragPreview = ActorOwnedIntervalEditing.dragRange(drag.original, drag.bounds, drag.mode, delta,
                         target instanceof ActorActionClip ? .1f : .01f);
                 actorIntervalDragValid = ActorOwnedIntervalEditing.canResize(model, spawn, target,
                         actorIntervalDragPreview.start(), actorIntervalDragPreview.end());
+                float previewEdge = drag.mode == DragMode.END ? actorIntervalDragPreview.end() : actorIntervalDragPreview.start();
+                actorIntervalSnapTime = actorIntervalDragValid && Math.abs(previewEdge - snap.snappedTime) < 1e-4f
+                        && (snap.snappedToGrid || snap.snappedToClipEdge || snap.snappedToKeyframe)
+                        ? snap.snappedTime : Float.NaN;
                 if (!actorIntervalDragValid) ImGui.setTooltip(intervalDragError(target));
             }
             if (ImGui.isMouseDown(ImGuiMouseButton.Left)) return true;
@@ -400,6 +443,7 @@ public class TimelineRenderer {
         }
         actorIntervalDrag = null;
         actorIntervalDragPreview = null;
+        actorIntervalSnapTime = Float.NaN;
         actorIntervalDragMoved = false;
         return true;
     }
@@ -585,22 +629,23 @@ public class TimelineRenderer {
         float bandHeight = clipBandHeight(headerHeight);
         int band = switch (actor.getEntityClip().getClipType()) {
             case SPAWN, DESPAWN -> 0;
-            case TRANSFORM, ACTOR_ROUTE, ACTOR_RELATION -> 1;
+            case TRANSFORM, ACTOR_ROUTE, ACTOR_RELATION -> {
+                var track = clip.getParentTrack();
+                yield 1 + (track == null ? 0 : Math.max(0, spatialTypes(track).indexOf(actor.getEntityClip().getClipType())));
+            }
             case ANIMATION, ACTOR_ACTION -> ACTION_BAND;
             case ACTOR_POSE -> POSE_BAND;
             case LOOK_AT -> LOOK_BAND;
             case STATE, ACTION -> STATE_BAND;
         };
         if (!hasActorHeaderBehaviorRows(headerHeight)) return 0f;
-        return (band >= ACTION_BAND ? behaviorBand(headerHeight, band) : band) * bandHeight;
+        return (band == 0 || SPATIAL_TYPES.contains(actor.getEntityClip().getClipType()) ? band : behaviorBand(headerHeight, band)) * bandHeight;
     }
 
     public float prepareTrackRows() {
         var layout = actorBoneRows.prepare(model, track -> {
             if (actorHeightSteps.getOrDefault(track, 0) == 0) return TRACK_HEIGHT;
-            boolean hasSpatial = track.getClips().stream().anyMatch(clip ->
-                    clip instanceof EntityTimelineClip actor && spatialClip(actor.getEntityClip()));
-            return TRACK_HEIGHT * (STATE_BAND + (hasSpatial ? 1 : 0));
+            return TRACK_HEIGHT * (STATE_BAND + spatialTypes(track).size());
         }, TRACK_GAP);
         math.setRowLayout(layout);
         return layout.totalHeight();
@@ -641,6 +686,9 @@ public class TimelineRenderer {
                     selectIntervalOwner(new ActorIntervalSelection(wrapper, pasted));
                     return true;
                 }
+                actorIntervalDragError = DirectorI18n.translate("gui.director.actor.look_interval.paste_invalid");
+                actorIntervalDragErrorUntil = ImGui.getTime() + 2;
+                return true;
             }
         }
         return actorBoneRows.handleKeyCommand(model, action);
@@ -650,6 +698,7 @@ public class TimelineRenderer {
         actorBoneRows.cancelKeyInteraction();
         actorIntervalDrag = null;
         actorIntervalDragPreview = null;
+        actorIntervalSnapTime = Float.NaN;
         actorIntervalDragMoved = false;
         actorIntervalMenuChoices = List.of();
         actorIntervalDragError = null;
@@ -853,6 +902,7 @@ public class TimelineRenderer {
         // 保存 trackAreaTop 供简化版本的 getTrackHeaderBounds 使用
         this.trackAreaTop = winY;
         actorIntervalSummaries.clear();
+        spatialHits.clear();
         compactActorIntervals.clear();
 
         syncViewportFromState();
@@ -907,6 +957,12 @@ public class TimelineRenderer {
                     float offset = clipBandOffset(clip, headerHeight);
                     clipRenderer.renderClip(drawList, clip, track, idx, contentX, trackY + offset,
                             clipBandHeight(headerHeight), contentW);
+                    if (clip instanceof EntityTimelineClip actor && SPATIAL_TYPES.contains(actor.getEntityClip().getClipType())) {
+                        float left = Math.max(contentX, math.timeToX(clip.getStartTime()));
+                        float right = Math.min(contentX + contentW, math.timeToX(clip.getEndTime()));
+                        if (right > left) spatialHits.add(new SpatialHit(actor, left, right,
+                                trackY + offset, trackY + offset + clipBandHeight(headerHeight)));
+                    }
                 }
                 if (track.getType() == TrackType.ACTOR)
                     renderActorIntervalSummaries(drawList, track, contentX, contentW, trackY, headerHeight);
@@ -926,6 +982,11 @@ public class TimelineRenderer {
                     audioRenderer.renderAudioEvents(drawList, track, contentX, trackY, contentW);
                 }
             }
+        }
+        if (Float.isFinite(actorIntervalSnapTime)) {
+            float guideX = math.timeToX(actorIntervalSnapTime);
+            if (guideX >= contentX && guideX <= contentX + contentW)
+                drawList.addLine(guideX, winY, guideX, winY + viewportHeight, TimelineColors.COLOR_SELECTED_BORDER);
         }
         var selectedInterval = selectedActorInterval();
         if (selectedInterval != null) {

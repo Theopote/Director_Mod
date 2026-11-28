@@ -2515,6 +2515,8 @@
   "gui.director.actor.look_interval.apply": "应用",
   "gui.director.actor.look_interval.partially_trimmed": "可见区间 %.2f–%.2f 秒。拉长出场片段可恢复隐藏部分。",
   "gui.director.actor.look_interval.fully_trimmed": "该区间完全位于出场片段的可见范围外。拉长出场片段可恢复显示。",
+  "gui.director.actor.look_interval.paste_invalid": "无法在此粘贴行为。请检查出场范围、演员支持的行为和动作冲突。",
+  "gui.director.actor.root_rows.trimmed_key": "关键帧位于片段范围外。延长片段后即可编辑。",
   "gui.director.actor.look_interval.invalid": "起止时间须在出场片段内，且结束时间晚于开始时间。",
   "gui.director.actor.look_interval.back_to_spawn": "返回出场片段",
   "gui.director.actor.look_interval.edit_target": "编辑注视目标",

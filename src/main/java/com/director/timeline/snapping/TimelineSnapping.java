@@ -97,6 +97,20 @@ public final class TimelineSnapping {
             if (model.snapToKeyframes() && clip != excluded) {
                 for (var key : clip.getClipKeyframes()) if (key != excluded) best.offer(key.getTime(), 3);
             }
+            if (model.snapToClipEdges() && clip != activeClip && clip != excluded
+                    && clip instanceof com.director.timeline.model.entity.EntityTimelineClip actor
+                    && actor.getEntityClip() instanceof com.director.timeline.model.entity.EntitySpawnClip spawn
+                    && !spawn.isMuted()) {
+                for (var intervals : java.util.List.of(spawn.getActionIntervals(), spawn.getPoseIntervals(),
+                        spawn.getLookTargets(), spawn.getStateIntervals())) {
+                    for (var interval : intervals) {
+                        if (interval == excluded || interval.isMuted()) continue;
+                        float start = Math.max(interval.getStartTime(), spawn.getStartTime());
+                        float end = Math.min(interval.getEndTime(), spawn.getEndTime());
+                        if (end > start) { best.offer(start, 2); best.offer(end, 2); }
+                    }
+                }
+            }
         }
         if (model.snapToKeyframes())
             for (var key : track.getAutomationKeyframes()) if (key != excluded) best.offer(key.getStartTime(), 3);
