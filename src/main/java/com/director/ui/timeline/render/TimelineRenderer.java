@@ -153,7 +153,7 @@ public class TimelineRenderer {
         float top = layout.trackTop(index);
         float headerHeight = layout.headerHeight(index);
         if (expanded) {
-            return trackExpanded ? new ActionPaintRow(index, true,
+            return trackExpanded && !hasActorHeaderBehaviorRows(headerHeight) ? new ActionPaintRow(index, true,
                     top + ActorBoneTimelineRows.behaviorRowsOffset(headerHeight, TRACK_GAP), ActorBoneTimelineRows.CHILD_HEIGHT) : null;
         }
         if (!hasActorBand(headerHeight, ACTION_BAND))
@@ -163,6 +163,10 @@ public class TimelineRenderer {
 
     public static float clipBandHeight(float headerHeight) {
         return Math.min(headerHeight, TRACK_HEIGHT);
+    }
+
+    static boolean hasActorHeaderBehaviorRows(float headerHeight) {
+        return hasActorBand(headerHeight, STATE_BAND);
     }
 
     static boolean hasActorBand(float headerHeight, int band) {
@@ -432,7 +436,7 @@ public class TimelineRenderer {
 
     private void renderActorBehaviorRows(ImDrawList draw, TimelineTrack track, float left, float contentX,
                                          float contentW, float trackY, float headerHeight) {
-        if (!actorBoneRows.isExpanded(track)) return;
+        if (!actorBoneRows.isExpanded(track) || hasActorHeaderBehaviorRows(headerHeight)) return;
         float rowHeight = ActorBoneTimelineRows.CHILD_HEIGHT;
         float top = trackY + ActorBoneTimelineRows.behaviorRowsOffset(headerHeight, TRACK_GAP);
         float right = contentX + contentW;
@@ -470,6 +474,7 @@ public class TimelineRenderer {
             var poses = spawn.getPoseIntervals();
             var actions = spawn.getActionIntervals();
             if (!hasActorBand(headerHeight, ACTION_BAND)) {
+                if (actorBoneRows.isExpanded(track)) continue;
                 for (var action : actions)
                     renderCompactActorInterval(draw, track, owner, action, contentX, contentW, trackY, bandHeight, 0,
                             ActionTypeColors.getColorForActionType(action.getActionType()));
@@ -868,7 +873,7 @@ public class TimelineRenderer {
                 
                 // 使用 TimelineTrackRenderer 渲染轨道
                 trackRenderer.renderTrack(drawList, track, idx, winX, contentX, trackY, contentW, actorBoneRows.supports(track), headerHeight);
-                if (track.getType() == TrackType.ACTOR && hasActorBand(headerHeight, STATE_BAND))
+                if (track.getType() == TrackType.ACTOR && hasActorHeaderBehaviorRows(headerHeight))
                     renderActorHeaderBands(drawList, winX, contentX, contentX + contentW, trackY);
                 actorBoneRows.render(drawList, track, winX, contentX, contentX + contentW, trackY, headerHeight, TRACK_GAP, math);
                 renderActorBehaviorRows(drawList, track, winX, contentX, contentW, trackY, headerHeight);

@@ -94,4 +94,16 @@ class TimelineRenderMathRowsTest {
         assertEquals(height, actionPaint.height());
         assertFalse(actionPaint.contains(3 * height));
     }
+
+    @Test void tallActorWithExpandedBonesUsesOnlyTheHeaderBehaviorRows() {
+        float height = TimelineRenderer.getTrackHeight();
+        float tall = 6 * height;
+        int rootRows = ActorRootTimelineRows.COUNT;
+        assertEquals(rootRows + 4, ActorBoneTimelineRows.boneRowStart(height));
+        assertEquals(rootRows, ActorBoneTimelineRows.boneRowStart(tall));
+        var layout = new TimelineRowLayout(tall, 2f, ActorBoneTimelineRows.CHILD_HEIGHT, rootRows + 1, 0);
+        assertNull(TimelineRenderer.actionPaintRow(layout, 0, true, true));
+        assertTrue(TimelineRenderer.actionPaintRow(layout, 0, false, true).contains(2 * height));
+        assertEquals(tall + 2f + (rootRows + 1) * ActorBoneTimelineRows.CHILD_HEIGHT, layout.trackTop(1));
+    }
 }

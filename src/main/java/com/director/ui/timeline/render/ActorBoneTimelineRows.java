@@ -37,7 +37,10 @@ public final class ActorBoneTimelineRows {
     }
     public static final float CHILD_HEIGHT = 24f;
     static final int BEHAVIOR_ROW_COUNT = 4;
-    private static final int BONE_ROW_START = ActorRootTimelineRows.COUNT + BEHAVIOR_ROW_COUNT;
+    static int boneRowStart(float headerHeight) {
+        return ActorRootTimelineRows.COUNT
+                + (TimelineRenderer.hasActorHeaderBehaviorRows(headerHeight) ? 0 : BEHAVIOR_ROW_COUNT);
+    }
     private final ActorRootTimelineRows rootRows = new ActorRootTimelineRows();
     private final ActorKeyframeInterpolationPanel interpolationPanel = new ActorKeyframeInterpolationPanel();
     private TimelineModel renderModel;
@@ -378,7 +381,7 @@ public final class ActorBoneTimelineRows {
             supported.add(track);
             if (rig.isPresent()) trackRigs.put(track, rig.get());
             else trackRigs.remove(track);
-            if (expanded.contains(track)) counts[i] = BONE_ROW_START + rig.map(r -> boneRows(track,r).size()).orElse(0);
+            if (expanded.contains(track)) counts[i] = boneRowStart(heights[i]) + rig.map(r -> boneRows(track,r).size()).orElse(0);
         }
         return new TimelineRowLayout(heights, gap, CHILD_HEIGHT, counts);
     }
@@ -415,16 +418,17 @@ public final class ActorBoneTimelineRows {
         if (rig == null) return;
         var projections=new IdentityHashMap<EntityAnimationClip,com.director.ui.actor.pose.ActorAnimationKeyClock.Projection>();
         var rows=boneRows(track,rig);
+        int boneStart = boneRowStart(height);
         for (int i = 0; i < rows.size(); i++) {
             var row=rows.get(i);
             var bone = rig.bone(row.boneIndex());
-            float top = y + height + gap + (BONE_ROW_START + i) * CHILD_HEIGHT;
+            float top = y + height + gap + (boneStart + i) * CHILD_HEIGHT;
             var selectedMode=com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance().getBoneGizmoMode();
             int selectedChannel=selectedMode==com.director.client.gizmo.GizmoMode.TRANSLATE?0:selectedMode==com.director.client.gizmo.GizmoMode.SCALE?2:1;
             boolean selected = actorId.equals(selection.getActorId()) && selection.isBoneSelected(bone.id()) && (row.channel()<0 || row.channel()==selectedChannel);
             draw.addRectFilled(x, top, right, top + CHILD_HEIGHT,
                     selected ? TimelineColors.rgba(48, 77, 100, 255)
-                            : ((BONE_ROW_START+i)&1)==0 ? TimelineColors.COLOR_ACTOR_CHILD_BG : TimelineColors.COLOR_ACTOR_CHILD_BG_ALT);
+                            : ((boneStart+i)&1)==0 ? TimelineColors.COLOR_ACTOR_CHILD_BG : TimelineColors.COLOR_ACTOR_CHILD_BG_ALT);
             if(row.channel()<0) draw.addLine(x,(float)Math.floor(top)+.5f,right,(float)Math.floor(top)+.5f,
                     TimelineColors.COLOR_ACTOR_BONE_SEPARATOR);
             int depth = 0;
@@ -473,7 +477,7 @@ public final class ActorBoneTimelineRows {
             renderKeys(draw, track, bone.id(), contentX, right, top, math, row.channel(),projections);
         }
         float childrenTop=y+height+gap;
-        float childrenBottom=childrenTop+(BONE_ROW_START+rows.size())*CHILD_HEIGHT;
+        float childrenBottom=childrenTop+(boneStart+rows.size())*CHILD_HEIGHT;
         draw.addRectFilled(x,childrenTop,x+3,childrenBottom,track.getType().getClipColor());
         draw.addLine(x,(float)Math.floor(childrenBottom)-1,right,(float)Math.floor(childrenBottom)-1,
                 TimelineColors.COLOR_ACTOR_BONE_SEPARATOR,2f);
@@ -545,7 +549,7 @@ public final class ActorBoneTimelineRows {
         height = layout.headerHeight(owner);
         float local = contentY - layout.trackTop(owner);
         if(local<height) { keyFocus=false; rootRows.clearFocus(); }
-        if (local < height && mx < Math.min(contentX, x + 26)) {
+        if (local < TimelineRenderer.getTrackHeight() && mx < Math.min(contentX, x + 26)) {
             if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) { rootRows.cancel(); if (!expanded.remove(track)) expanded.add(track); }
             return true;
         }
@@ -563,8 +567,9 @@ public final class ActorBoneTimelineRows {
             return consumed;
         }
         rootRows.clearFocus();
-        if (bone < BONE_ROW_START) return false;
-        bone -= BONE_ROW_START;
+        int boneStart = boneRowStart(height);
+        if (bone < boneStart) return false;
+        bone -= boneStart;
         var rig = trackRigs.get(track);
         if (rig == null) return false;
         var rows=boneRows(track,rig);
@@ -669,8 +674,8 @@ public final class ActorBoneTimelineRows {
                             var frozen=new ArrayList<PendingKey>();
                             for(var hit:keyHits) if(hit.track()==track && hit.clip()==animation)
                                 frozen.add(new PendingKey(hit,context,source(hit)));
-                            float rowsTop=Math.max(top,top+layout.trackTop(owner)+height+gap+BONE_ROW_START*CHILD_HEIGHT-scrollY);
-                            float rowsBottom=Math.min(top+viewportHeight,top+layout.trackTop(owner)+height+gap+(BONE_ROW_START+rows.size())*CHILD_HEIGHT-scrollY);
+                            float rowsTop=Math.max(top,top+layout.trackTop(owner)+height+gap+boneStart*CHILD_HEIGHT-scrollY);
+                            float rowsBottom=Math.min(top+viewportHeight,top+layout.trackTop(owner)+height+gap+(boneStart+rows.size())*CHILD_HEIGHT-scrollY);
                             focusReference(track,animation,context.asset());
                             cancelAllKeyInteractions();
                             com.director.ui.actor.pose.ActorAnimationDopeSheet.cancelKeyInteraction();
