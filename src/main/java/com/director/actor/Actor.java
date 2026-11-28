@@ -94,7 +94,8 @@ public final class Actor {
      */
     public Actor(UUID actorId, String name, ActorType type) {
         this.actorId = Objects.requireNonNull(actorId, "actorId");
-        this.name = (com.director.util.DisplayNames.clean(name) == null || com.director.util.DisplayNames.clean(name).isBlank()) ? "Actor" : com.director.util.DisplayNames.clean(name);
+        String cleanedName = com.director.util.DisplayNames.clean(name);
+        this.name = (cleanedName == null || cleanedName.isBlank()) ? "Actor" : cleanedName;
         this.type = type != null ? type : ActorType.CUSTOM;
         // 根据类型自动设置默认 RigProfile
         this.rigProfile = createDefaultRigProfile(type);
@@ -113,7 +114,8 @@ public final class Actor {
     }
 
     public void setName(String name) {
-        this.name = (com.director.util.DisplayNames.clean(name) == null || com.director.util.DisplayNames.clean(name).isBlank()) ? this.name : com.director.util.DisplayNames.clean(name);
+        String cleaned = com.director.util.DisplayNames.clean(name);
+        this.name = (cleaned == null || cleaned.isBlank()) ? this.name : cleaned;
     }
 
     public ActorType getType() {
@@ -122,6 +124,8 @@ public final class Actor {
 
     public void setType(ActorType type) {
         if (type == null || type == this.type) return;
+        // When leaving CUSTOM, customRigId is intentionally left intact so switching back can
+        // restore the previous binding. Callers must validate compatibility before use.
         this.type = type;
         this.rigProfile = createDefaultRigProfile(type);
     }

@@ -1484,6 +1484,7 @@ public final class DirectorLang {
             }
 
             public static final class Pose {
+                public static final String ARM_RANGE_HINT = "gui.director.properties.adapter.actor.pose.arm_range_hint";
                 public static final String ADAPTER_NAME = "gui.director.properties.adapter.actor.pose.name";
                 public static final String SECTION_OVERRIDE = "gui.director.properties.adapter.actor.pose.section_override";
                 public static final String BODY = "gui.director.properties.adapter.actor.pose.body";
@@ -1821,6 +1822,40 @@ public final class DirectorLang {
 
             private AdapterActor() {
             }
+        }
+
+        /**
+         * i18n keys for {@code ActorAnimationBlendPropertyUI}.
+         * Key prefix: {@code gui.director.actor.blend.*}
+         */
+        public static final class AdapterActorBlend {
+            public static final String TITLE                = "gui.director.actor.blend.title";
+            public static final String INVALID_REF          = "gui.director.actor.blend.invalid_ref";
+            public static final String INCOMPATIBLE_RIG     = "gui.director.actor.blend.incompatible_rig";
+            public static final String DEFAULT_BONES_FMT    = "gui.director.actor.blend.default_bones_fmt";
+            public static final String NO_KEYFRAMES_HINT    = "gui.director.actor.blend.no_keyframes_hint";
+            public static final String MODE                 = "gui.director.actor.blend.mode";
+            public static final String MODE_OVERRIDE        = "gui.director.actor.blend.mode_override";
+            public static final String MODE_ADDITIVE        = "gui.director.actor.blend.mode_additive";
+            public static final String WEIGHT               = "gui.director.actor.blend.weight";
+            public static final String FADE_IN              = "gui.director.actor.blend.fade_in";
+            public static final String FADE_OUT             = "gui.director.actor.blend.fade_out";
+            public static final String FADE_HINT            = "gui.director.actor.blend.fade_hint";
+            public static final String CHANNEL_TRANSLATION  = "gui.director.actor.blend.channel_translation";
+            public static final String CHANNEL_ROTATION     = "gui.director.actor.blend.channel_rotation";
+            public static final String CHANNEL_SCALE        = "gui.director.actor.blend.channel_scale";
+            public static final String ALL_BONES            = "gui.director.actor.blend.all_bones";
+            public static final String NO_RIG               = "gui.director.actor.blend.no_rig";
+            public static final String NO_BONES             = "gui.director.actor.blend.no_bones";
+            public static final String CHANNEL_HINT         = "gui.director.actor.blend.channel_hint";
+            public static final String CURRENT_WEIGHT_FMT   = "gui.director.actor.blend.current_weight_fmt";
+            public static final String MUTED                = "gui.director.actor.blend.muted";
+            public static final String OUT_OF_RANGE         = "gui.director.actor.blend.out_of_range";
+            public static final String EMPTY_CHANNELS       = "gui.director.actor.blend.empty_channels";
+            public static final String ENVELOPE_HINT        = "gui.director.actor.blend.envelope_hint";
+            public static final String FADE_INVALID         = "gui.director.actor.blend.fade_invalid";
+
+            private AdapterActorBlend() {}
         }
 
         public static final class AdapterEditorTool {

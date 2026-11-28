@@ -117,6 +117,17 @@ public final class ActorAnimationAssetPanel {
         if (selected != null) {
             ImGui.sameLine();
             if (ImGui.button("复制##assetDuplicate")) run(() -> selectAsset(ActorAnimationAssetEditing.duplicate(model, library, selected.id(), targetId.get().trim(), name.get()), library));
+            var alternateRig = ActorAnimationAssetEditing.alternatePlayerRig(selected);
+            if (alternateRig != null) {
+                boolean missingTracks = ActorAnimationAssetEditing.hasMissingTracks(selected, alternateRig);
+                ImGui.beginDisabled(missingTracks);
+                if (ImGui.button(I18n.translate("gui.director.actor.assets.copy_to_rig", alternateRig.displayName()) + "##assetCopyToRig")) {
+                    run(() -> selectAsset(ActorAnimationAssetEditing.copyToPlayerRig(model, library,
+                            selected.id(), targetId.get().trim(), name.get()), library));
+                }
+                ImGui.endDisabled();
+                if (missingTracks) ImGui.textWrapped(I18n.translate("gui.director.actor.assets.copy_to_rig_joint_keys"));
+            }
             if (ImGui.button("重命名##assetRename")) run(() ->
                     ActorAnimationAssetEditing.rename(model, library, selected.id(), name.get()));
             ImGui.sameLine();

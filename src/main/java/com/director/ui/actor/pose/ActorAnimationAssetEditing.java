@@ -126,10 +126,43 @@ public final class ActorAnimationAssetEditing {
         return copy;
     }
 
+    public static AnimationAsset copyToPlayerRig(TimelineModel model, AnimationAssetLibrary library,
+                                                  String sourceId, String id, String name) {
+        requireNewId(model, library, id);
+        AnimationAsset source = requireAsset(library, sourceId);
+        var target = alternatePlayerRig(source);
+        if (target == null || hasMissingTracks(source, target)) {
+            throw new IllegalArgumentException(com.director.i18n.DirectorI18n.translate(
+                    "gui.director.actor.assets.copy_to_rig_joint_keys"));
+        }
+        AnimationAsset converted = copy(source, id, name, target);
+        insert(model, library, converted);
+        return converted;
+    }
+
+    static com.director.actor.rig.skeleton.RigDefinition alternatePlayerRig(AnimationAsset asset) {
+        var humanoid = com.director.actor.rig.skeleton.HumanoidRig.DEFINITION;
+        var articulated = com.director.actor.rig.skeleton.ArticulatedPlayerRig.DEFINITION;
+        if (humanoid.id().equals(asset.rigId())) return articulated;
+        if (articulated.id().equals(asset.rigId())) return humanoid;
+        return null;
+    }
+
+    static boolean hasMissingTracks(AnimationAsset asset, com.director.actor.rig.skeleton.RigDefinition target) {
+        return asset.boneTracks().entrySet().stream().anyMatch(entry ->
+                !entry.getValue().isEmpty() && target.findBoneIndex(entry.getKey()) < 0);
+    }
+
     private static AnimationAsset copy(AnimationAsset source, String id, String name) {
-        AnimationAsset copy = new AnimationAsset(id, name, source.rig(), source.duration(), source.loopMode());
+        return copy(source, id, name, source.rig());
+    }
+
+    private static AnimationAsset copy(AnimationAsset source, String id, String name,
+                                       com.director.actor.rig.skeleton.RigDefinition rig) {
+        AnimationAsset copy = new AnimationAsset(id, name, rig, source.duration(), source.loopMode());
         copy.setPurpose(source.purpose());
         source.boneTracks().forEach((bone, track) -> {
+            if (rig.findBoneIndex(bone) < 0) return;
             BoneTrack target = copy.getOrCreateBoneTrack(bone);
             track.translation().keyframes().forEach(k -> target.translation().put(k.time(), k.value(), k.interpolation(), k.ease()));
             track.rotation().keyframes().forEach(k -> target.rotation().put(k.time(), k.value(), k.interpolation(), k.ease()));

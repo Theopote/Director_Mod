@@ -24,7 +24,11 @@ import java.util.*;
 public final class ActorBoneTimelineRows {
     private static final Set<ActorBoneTimelineRows> instances=Collections.newSetFromMap(new WeakHashMap<>());
     public ActorBoneTimelineRows() { instances.add(this); }
-    public static void cancelAllKeyInteractions() { for(var rows:new ArrayList<>(instances)) rows.cancelKeyInteraction(); }
+    public static void cancelAllKeyInteractions() {
+        // Snapshot instances into a temporary list to avoid ConcurrentModificationException if GC
+        // removes a WeakHashMap entry while we iterate.
+        for (var rows : new ArrayList<>(instances)) rows.cancelKeyInteraction();
+    }
     public static void closeAllTransientEditors() {
         for(var rows:new ArrayList<>(instances)) {
             rows.cancelKeyInteraction(); rows.timePanel.cancel();

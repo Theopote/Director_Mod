@@ -26,7 +26,7 @@ public final class HumanoidRigProfile implements ActorRigProfile {
     @Override
     public boolean supports(ActorActionType action) {
         return switch (action) {
-            case IDLE, WALK, RUN, DANCE, CARRY, THROW_PREPARE -> true;
+            case IDLE, WALK, RUN, DANCE, CELEBRATE, SIT, MEDITATE, CARRY, THROW_PREPARE, ATTACK -> true;
             default -> false;
         };
     }
@@ -88,6 +88,13 @@ public final class HumanoidRigProfile implements ActorRigProfile {
                 runtime.lockArmsForward();
                 runtime.setBodyLean(0.05f);
                 runtime.setStepFrequency(0f);
+            }
+
+            case CELEBRATE, SIT, MEDITATE, ATTACK -> {
+                Pose pose = buildPose(action, intensity, runtime.getTime()).pose;
+                runtime.setBodyLean(pose.bodyPitch);
+                runtime.setBodyTwist(pose.bodyYaw);
+                runtime.setHeadPitch(pose.headPitch);
             }
 
             default -> {
@@ -158,6 +165,30 @@ public final class HumanoidRigProfile implements ActorRigProfile {
                 pose.bodyPitch = 0.05f;
                 pose.leftArmPitch = 0.8f; // 向后准备
                 pose.rightArmPitch = 0.8f; // 向后准备
+            }
+
+            case CELEBRATE -> {
+                float cheer = (float) Math.sin(time * 8f * tempo);
+                pose.leftArmPitch = (-2.3f + .35f * cheer) * motion;
+                pose.rightArmPitch = (-2.3f - .35f * cheer) * motion;
+                pose.bodyRoll = .15f * cheer * motion;
+            }
+            case SIT, MEDITATE -> {
+                pose.bodyPitch = .15f * motion;
+                pose.leftLegPitch = -1.4f * motion;
+                pose.rightLegPitch = -1.4f * motion;
+                pose.leftArmPitch = -.4f * motion;
+                pose.rightArmPitch = -.4f * motion;
+                if (action == ActorActionType.MEDITATE) {
+                    pose.headPitch = .25f * motion;
+                    pose.leftArmYaw = -.35f * motion;
+                    pose.rightArmYaw = .35f * motion;
+                }
+            }
+            case ATTACK -> {
+                float swing = Math.max(0f, (float) Math.sin(time * 6f * tempo));
+                pose.rightArmPitch = -1.7f * swing * motion;
+                pose.bodyYaw = -.35f * swing * motion;
             }
 
             default -> {

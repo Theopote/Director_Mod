@@ -3,6 +3,8 @@ package com.director.ui.properties.adapters;
 import com.director.actor.Actor;
 import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRegistryManager;
+import com.director.core.DirectorServices;
+import com.director.timeline.model.TimelineModel;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.timeline.model.entity.ActorRelationClip;
@@ -25,7 +27,10 @@ import java.util.UUID;
 public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<ActorRelationClip> {
     private final ActorClipInspectorGesture gesture = new ActorClipInspectorGesture();
     private static final int MAX_RECENT_TARGETS = 5;
-    private static final Deque<UUID> RECENT_TARGETS = new ArrayDeque<>();
+    private final Deque<UUID> recentTargets = new ArrayDeque<>();
+    private ActorRegistry recentTargetsRegistry;
+    private TimelineModel recentTargetsModel;
+    private long recentTargetsProjectRevision;
 
     @Override
     public Class<ActorRelationClip> getTargetType() {
@@ -39,6 +44,16 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
 
     @Override
     public boolean renderProperties(ActorRelationClip source) {
+        ActorRegistry registry = ActorRegistryManager.getInstance();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+        long projectRevision = model == null ? 0 : model.getProjectRevision();
+        if (recentTargetsRegistry != registry || recentTargetsModel != model
+                || recentTargetsProjectRevision != projectRevision) {
+            recentTargets.clear();
+            recentTargetsRegistry = registry;
+            recentTargetsModel = model;
+            recentTargetsProjectRevision = projectRevision;
+        }
         var draft = gesture.begin(source);
         if (!(draft instanceof ActorRelationClip clip)) { gesture.end(); return false; }
 
@@ -134,7 +149,6 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
         Card.end();
 
         if (Card.begin("actor_relation_clip.section_target", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_TARGET))) {
-            ActorRegistry registry = ActorRegistryManager.getInstance();
             // Guard against the clip not yet being attached to a track (e.g. during undo/redo).
             var _wrapper  = source.getTimelineClip();
             var _track    = _wrapper  == null ? null : _wrapper.getParentTrack();
@@ -198,7 +212,7 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
     }
 
     private boolean renderRecentTargets(ActorRelationClip clip, List<Actor> availableActors) {
-        if (availableActors == null || availableActors.isEmpty() || RECENT_TARGETS.isEmpty()) {
+        if (availableActors == null || availableActors.isEmpty() || recentTargets.isEmpty()) {
             return false;
         }
 
@@ -206,7 +220,7 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
         ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.RECENT_TARGETS));
         String recentPrefix = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.TARGET_RECENT_PREFIX);
         int index = 0;
-        for (UUID actorId : RECENT_TARGETS) {
+        for (UUID actorId : recentTargets) {
             Actor actor = findActorById(availableActors, actorId);
             if (actor == null) {
                 continue;
@@ -233,14 +247,14 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
         return null;
     }
 
-    private static void pushRecentTarget(UUID actorId) {
+    private void pushRecentTarget(UUID actorId) {
         if (actorId == null) {
             return;
         }
-        RECENT_TARGETS.remove(actorId);
-        RECENT_TARGETS.addFirst(actorId);
-        while (RECENT_TARGETS.size() > MAX_RECENT_TARGETS) {
-            RECENT_TARGETS.removeLast();
+        recentTargets.remove(actorId);
+        recentTargets.addFirst(actorId);
+        while (recentTargets.size() > MAX_RECENT_TARGETS) {
+            recentTargets.removeLast();
         }
     }
 }

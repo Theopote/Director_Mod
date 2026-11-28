@@ -124,9 +124,7 @@ public final class ActorTrackPropertyAdapter implements IPropertyAdapter<Timelin
                 tooltip = TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineTrack.ACTOR_CLIP_STATE_TOOLTIP);
                 break;
             default:
-                label = kind.name();
-                tooltip = kind.name();
-                break;
+                throw new IllegalStateException("Unhandled ActorTrackClipKind: " + kind);
         }
 
         if (ImGui.button(label + "##actorTrackCreate" + kind, 0, UITheme.Spacing.BUTTON_HEIGHT)) {

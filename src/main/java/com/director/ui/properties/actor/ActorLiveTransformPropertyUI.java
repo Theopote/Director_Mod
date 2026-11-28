@@ -24,37 +24,43 @@ import java.util.UUID;
  */
 public final class ActorLiveTransformPropertyUI {
 
-    private static final ImFloat posX = new ImFloat();
-    private static final ImFloat posY = new ImFloat();
-    private static final ImFloat posZ = new ImFloat();
-    private static final ImFloat rotYaw = new ImFloat();
-    private static final ImFloat rotPitch = new ImFloat();
-    private static final ImFloat rotRoll = new ImFloat();
-    private static final ImFloat scaleX = new ImFloat(1f);
-    private static final ImFloat scaleY = new ImFloat(1f);
-    private static final ImFloat scaleZ = new ImFloat(1f);
-    private static final ImFloat lookAtX = new ImFloat();
-    private static final ImFloat lookAtY = new ImFloat();
-    private static final ImFloat lookAtZ = new ImFloat();
-    private static final ImFloat lookAtStrength = new ImFloat(1f);
-    private static final ImInt lookAtModeIndex = new ImInt();
+    private final ImFloat posX = new ImFloat();
+    private final ImFloat posY = new ImFloat();
+    private final ImFloat posZ = new ImFloat();
+    private final ImFloat rotYaw = new ImFloat();
+    private final ImFloat rotPitch = new ImFloat();
+    private final ImFloat rotRoll = new ImFloat();
+    private final ImFloat scaleX = new ImFloat(1f);
+    private final ImFloat scaleY = new ImFloat(1f);
+    private final ImFloat scaleZ = new ImFloat(1f);
+    private final ImFloat lookAtX = new ImFloat();
+    private final ImFloat lookAtY = new ImFloat();
+    private final ImFloat lookAtZ = new ImFloat();
+    private final ImFloat lookAtStrength = new ImFloat(1f);
+    private final ImInt lookAtModeIndex = new ImInt();
 
-    private static ActorNumericEditSession gesture;
-    private static UUID editingActor;
-    private static TimelineModel editingModel;
-    private static com.director.timeline.model.TimelineTrack editingTrack;
-    private static String gestureWidget;
-    private static boolean widgetRendered, cancelledUntilRelease;
-    private static int lastFrame = -1;
-    private static boolean chooseEntityTarget;
-    private static String error = "";
-    private static UUID cachedActorId;
-    private static float cachedTime = Float.NaN;
+    private ActorNumericEditSession gesture;
+    private UUID editingActor;
+    private TimelineModel editingModel;
+    private com.director.timeline.model.TimelineTrack editingTrack;
+    private String gestureWidget;
+    private boolean widgetRendered, cancelledUntilRelease;
+    private int lastFrame = -1;
+    private boolean chooseEntityTarget;
+    private String error = "";
+    private UUID cachedActorId;
+    private float cachedTime = Float.NaN;
 
-    private ActorLiveTransformPropertyUI() {
+    public void render(UUID actorId) {
+        ImGui.pushID(System.identityHashCode(this));
+        try {
+            renderControls(actorId);
+        } finally {
+            ImGui.popID();
+        }
     }
 
-    public static void render(UUID actorId) {
+    private void renderControls(UUID actorId) {
         if (actorId == null) {
             return;
         }
@@ -227,7 +233,7 @@ public final class ActorLiveTransformPropertyUI {
         ImGui.endDisabled();
     }
 
-    private static void applyCurrentLookAt() {
+    private void applyCurrentLookAt() {
         try {
             finishGesture();
             beginGesture("target", ActorNumericEditSession.Kind.LOOK_AT);
@@ -238,7 +244,7 @@ public final class ActorLiveTransformPropertyUI {
         } catch (RuntimeException failure) { failGesture(failure); }
     }
 
-    private static void beginGesture(String widget, ActorNumericEditSession.Kind kind) {
+    private void beginGesture(String widget, ActorNumericEditSession.Kind kind) {
         if (gesture != null && !widget.equals(gestureWidget)) finishGesture();
         if (gesture == null) {
             gesture = new ActorNumericEditSession(editingModel, editingTrack, kind,
@@ -248,7 +254,7 @@ public final class ActorLiveTransformPropertyUI {
         }
         widgetRendered = true;
     }
-    private static void observe(String widget, ActorNumericEditSession.Kind kind, boolean changed) {
+    private void observe(String widget, ActorNumericEditSession.Kind kind, boolean changed) {
         if (cancelledUntilRelease) return;
         try {
             if (ImGui.isItemActivated() || changed) beginGesture(widget, kind);
@@ -267,22 +273,22 @@ public final class ActorLiveTransformPropertyUI {
             }
         } catch (RuntimeException failure) { failGesture(failure); }
     }
-    private static void finishGesture() {
+    private void finishGesture() {
         if (gesture == null) return;
         var current = gesture; gesture = null; gestureWidget = null;
         if (current.isCurrent(editingModel, editingTrack, editingActor)) current.commit();
         else current.cancel();
         cachedActorId = null; error = "";
     }
-    private static void cancelGesture() {
+    private void cancelGesture() {
         if (gesture != null) gesture.cancel();
         gesture = null; gestureWidget = null; cachedActorId = null; cancelledUntilRelease = true;
     }
-    private static void failGesture(RuntimeException failure) {
+    private void failGesture(RuntimeException failure) {
         cancelGesture(); error = failure.getMessage() == null ? ActorPropertyAdapterI18n.tr("gui.director.actor.live.edit_cancelled") : failure.getMessage();
     }
 
-    private static void syncFromSample(UUID actorId, float time) {
+    private void syncFromSample(UUID actorId, float time) {
         if (Objects.equals(actorId, cachedActorId) && Math.abs(time - cachedTime) < 1e-4f && gesture != null) {
             return;
         }
@@ -310,12 +316,12 @@ public final class ActorLiveTransformPropertyUI {
         cachedTime = time;
     }
 
-    private static ActorNumericEditSession.Kind scaleKind() {
+    private ActorNumericEditSession.Kind scaleKind() {
         return com.director.ui.actor.pose.ActorMovementSource.routeOwnsInterval(editingModel, editingTrack)
                 ? ActorNumericEditSession.Kind.SCALE : ActorNumericEditSession.Kind.TRANSFORM;
     }
 
-    private static void inputScale(String label, ImFloat value, int axis) {
+    private void inputScale(String label, ImFloat value, int axis) {
         var before = new Vector3f(scaleX.get(), scaleY.get(), scaleZ.get());
         boolean changed = ImGui.inputFloat(label, value);
         if (changed && com.director.ui.actor.edit.ActorScaleEditing.isLocked(editingActor)) {
@@ -325,7 +331,7 @@ public final class ActorLiveTransformPropertyUI {
         observe(label, scaleKind(), changed);
     }
 
-    private static void inputFloat(String label, ImFloat value) {
+    private void inputFloat(String label, ImFloat value) {
         boolean changed = ImGui.inputFloat(label, value);
         observe(label, label.contains("actorLiveLook") ? ActorNumericEditSession.Kind.LOOK_AT
                 : ActorNumericEditSession.Kind.TRANSFORM, changed);

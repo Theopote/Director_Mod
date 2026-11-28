@@ -94,7 +94,13 @@ public enum ActorActionType {
     // ========== 扩展 ==========
 
     /**
-     * 自定义动作（预留）
+     * 自定义动作（预留，暂未实现）。当前没有任何 RigProfile 支持此类型，
+     * 创建 ACTION 片段时不可选。
+     * <p>
+     * 保留枚举位置以维持序号稳定，未来实现前请勿依赖此值。
+     *
+     * @deprecated 未实现占位符；任何 RigProfile 均不返回 {@code true}，不应在运行时使用。
      */
+    @Deprecated
     CUSTOM
 }

@@ -32,8 +32,9 @@ public final class LightTimelineClipPropertyAdapter implements IPropertyAdapter<
                 () -> {clip.restoreState(before);PointLightRuntime.update(model);},
                 () -> {clip.restoreState(after);PointLightRuntime.update(model);}));
         }
+        ImGui.endDisabled();
         float time=model.getCurrentTime();
-        ImGui.beginDisabled(time<clip.getStartTime() || time>clip.getEndTime());
+        ImGui.beginDisabled(locked || time<clip.getStartTime() || time>clip.getEndTime());
         if(ImGui.button(LightsPanel.tr("add_key"))) {
             PointLightParameterEditing.finish();
             var key=clip.findKeyframeAt(time,1e-4f);
@@ -41,12 +42,14 @@ public final class LightTimelineClipPropertyAdapter implements IPropertyAdapter<
             model.setPlaying(false);model.selectItem(key,false);
             com.director.core.DirectorServices.get().uiSelection().setSelection(SelectionType.KEYFRAME,key);
         }
-        ImGui.endDisabled();ImGui.endDisabled();
+        ImGui.endDisabled();
         ImGui.separator();
         var keys=clip.getClipKeyframes();
         if(keys.isEmpty()) {
             ImGui.textWrapped(LightsPanel.tr("base_hint"));
-            ImGui.beginDisabled(locked);baseProperties.renderProperties(base);ImGui.endDisabled();
+            ImGui.beginDisabled(locked);
+            baseProperties.renderProperties(base);
+            ImGui.endDisabled();
         } else {
             ImGui.textWrapped(LightsPanel.tr("animation_hint"));
             for(var item:keys) {

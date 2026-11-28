@@ -10,7 +10,11 @@ public final class ActorKeyframeDrag {
         double limit = Math.max(0, Math.min(duration, clipDuration * rate));
         return (float) Math.max(0, Math.min(limit, source + pixels / (double) pps * rate));
     }
-    /** Apply one delta to the whole selection, preserving every spacing. */
+    /** Apply one delta to the whole selection, preserving every spacing.
+     *
+     * <p>The upper bound {@code limit - time} for the last keyframe is 0 when {@code time == limit},
+     * so the Math.min clamp implicitly handles the boundary without a special case.
+     */
     public static float groupDelta(java.util.Collection<Float> times, float pixels, float pps,
                                    float speed, float duration, float clipDuration) {
         if (times==null || times.isEmpty() || !Float.isFinite(pixels) || !Float.isFinite(pps) || pps<=0

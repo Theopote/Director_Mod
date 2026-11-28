@@ -31,7 +31,8 @@ public final class ActorRootKeyframePropertyUI {
         ImGui.beginDisabled(!hasKey || route);
         if (ImGui.button(ActorPropertyAdapterI18n.tr("gui.director.actor.root_keys.remove")))
             ActorRootKeyframeEditing.remove(model, owner, clip);
-        ImGui.endDisabled(); ImGui.endDisabled();
+        ImGui.endDisabled(); // end: !hasKey || route
+        ImGui.endDisabled(); // end: !editable
         if (route) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.movement.route_protected"));
         if (conversionBlocked) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.root_keys.smooth_conversion"));
         if (!editable) ImGui.textWrapped(ActorPropertyAdapterI18n.tr("gui.director.actor.root_keys.readonly"));

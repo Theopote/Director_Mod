@@ -45,6 +45,34 @@ class ActorAnimationAssetLifecycleTest {
         target.getActorTrackPayload().addClip(clip);
         target.addClip(new EntityTimelineClip(clip, target.getActorTrackPayload().getColorRgba())); return clip;
     }
+    @Test void playerRigCopyPreservesKeysAndReferencesAndSupportsUndo() {
+        var clip = bind(track, source.id(), 0);
+        var copy = ActorAnimationAssetEditing.copyToPlayerRig(
+                model, library, source.id(), "project:articulated", "Articulated");
+        assertSame(ArticulatedPlayerRig.DEFINITION, copy.rig());
+        assertEquals(source.id(), clip.getAnimationId());
+        assertEquals(source.markers(), copy.markers());
+        assertEquals(source.loopMode(), copy.loopMode());
+        assertEquals(source.findBoneTrack("head").orElseThrow().rotation().keyframes(),
+                copy.findBoneTrack("head").orElseThrow().rotation().keyframes());
+        assertEquals(source.sample(1).localTransform("root").translation(),
+                copy.sample(1).localTransform("root").translation());
+        assertTrue(history.undo());
+        assertFalse(library.contains(copy.id()));
+        assertTrue(history.redo());
+        assertSame(copy, library.find(copy.id()).orElseThrow());
+
+        var flat = ActorAnimationAssetEditing.copyToPlayerRig(
+                model, library, copy.id(), "project:flat", "Flat");
+        assertSame(HumanoidRig.DEFINITION, flat.rig());
+        copy.getOrCreateBoneTrack(ArticulatedPlayerRig.LEFT_FOREARM).rotation()
+                .put(1, new Quaternionf().rotateX(.5f), InterpolationMode.LINEAR);
+        assertTrue(ActorAnimationAssetEditing.hasMissingTracks(copy, HumanoidRig.DEFINITION));
+        assertThrows(IllegalArgumentException.class, () -> ActorAnimationAssetEditing.copyToPlayerRig(
+                model, library, copy.id(), "project:lossy", "Lossy"));
+        assertFalse(library.contains("project:lossy"));
+    }
+
     @Test void independentCopyRebindsOnlyOneClipAndUndoRestoresBothAssetAndBinding() {
         var clip = bind(track, source.id(), 0); clip.setSpeed(1.5f); clip.setLoop(false);
         var wrapper = clip.getTimelineClip(); var other = bind(track(actor.getActorId()), source.id(), 0);

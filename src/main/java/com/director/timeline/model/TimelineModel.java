@@ -40,6 +40,10 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     private int timeUnit = 0;
     // ========== 核心动画状态（现在直接拥有）==========
     private long actorEditContextRevision;
+    private long projectRevision;
+
+    /** Changes when the active project's contents are replaced or reset. */
+    public long getProjectRevision() { return projectRevision; }
     /** Transient gesture invalidation; never serialized or used to guard committed undo commands. */
     public long getActorEditContextRevision() { return actorEditContextRevision; }
     @Override public void invalidateActorEditContext() { actorEditContextRevision++; }
@@ -323,6 +327,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         selectedItems.clear();
         lastClickedItem = null;
         multiSelectMode = false;
+        projectRevision++;
         actorEditContextRevision++;
         audioSeekRevision++;
 
@@ -422,6 +427,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      * 用于“切换世界”这类场景：让 UI 从干净状态开始，然后再选择性加载该世界的存档。
      */
     private void resetInMemoryToDefaults() {
+        projectRevision++;
         com.director.ui.actor.pose.ActorAnimationEditingLifecycle.cancelTransientWork();
         actorEditContextRevision++;
         lastTimelineSave = null;

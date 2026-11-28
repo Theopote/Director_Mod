@@ -96,6 +96,10 @@ public final class ActorRigCompatibility {
 
     public static boolean acceptsBuiltin(RigDefinition rig, AnimationData data) {
         if (rig == null || data == null) return false;
+        if (data.getSource() == AnimationData.AnimationSource.BUILT_IN
+                && ("graze".equals(data.getId()) || "roar".equals(data.getId()))) {
+            return QuadrupedRig.DEFINITION.id().equals(rig.id());
+        }
         if (HumanoidTopology.matches(rig)) return true;
         // Partial remap needs a shared limb/control bone — not just torso ids like body/head
         // that exist on every family (otherwise "wave" would incorrectly bind to cows).

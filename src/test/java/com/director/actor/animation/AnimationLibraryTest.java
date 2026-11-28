@@ -18,6 +18,21 @@ class AnimationLibraryTest {
     }
 
     @Test
+    void concreteActionSemanticsHaveAssetsAndProceduralSupport() {
+        var humanoid = new com.director.actor.rig.HumanoidRigProfile();
+        var quadruped = new com.director.actor.rig.QuadrupedRigProfile();
+        var library = AnimationLibrary.getInstance();
+        for (var action : com.director.actor.action.ActorActionType.values()) {
+            boolean concrete = !action.name().equals("CUSTOM");
+            assertEquals(concrete, humanoid.supports(action) || quadruped.supports(action), action.name());
+            assertEquals(concrete, library.get(action.name().toLowerCase(java.util.Locale.ROOT)).isPresent(), action.name());
+        }
+        var quadrupedRig = com.director.actor.rig.skeleton.QuadrupedRig.DEFINITION;
+        assertTrue(AnimationDataSampler.sampleRig("roar", quadrupedRig, .4f, false, 1f)
+                .isAuthored(quadrupedRig.requireBoneIndex(HumanoidRig.HEAD)));
+    }
+
+    @Test
     void clearRestoresBuiltIns() {
         AnimationLibrary library = AnimationLibrary.getInstance();
         library.clear();

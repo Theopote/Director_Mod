@@ -30,7 +30,7 @@ public final class QuadrupedRigProfile implements ActorRigProfile {
     @Override
     public boolean supports(ActorActionType action) {
         return switch (action) {
-            case IDLE, WALK, RUN, GRAZE -> true;
+            case IDLE, WALK, RUN, GRAZE, ROAR -> true;
             default -> false;
         };
     }
@@ -74,6 +74,12 @@ public final class QuadrupedRigProfile implements ActorRigProfile {
                 runtime.setHeadDown(true);
                 runtime.setStepFrequency(0f);
                 runtime.setBodyLean(0.1f);
+            }
+
+            case ROAR -> {
+                Pose pose = buildPose(action, intensity, runtime.getTime()).pose;
+                runtime.setBodyLean(pose.bodyPitch);
+                runtime.setHeadPitch(pose.headPitch);
             }
 
             default -> runtime.resetPose();
@@ -120,6 +126,12 @@ public final class QuadrupedRigProfile implements ActorRigProfile {
             case GRAZE -> {
                 pose.headPitch = 0.5f; // 头部向下
                 pose.bodyPitch = 0.1f;
+            }
+
+            case ROAR -> {
+                float lift = Math.max(0f, (float) Math.sin(time * 4f * tempo));
+                pose.headPitch = -.65f * lift * motion;
+                pose.bodyPitch = -.2f * lift * motion;
             }
 
             default -> // 默认站姿

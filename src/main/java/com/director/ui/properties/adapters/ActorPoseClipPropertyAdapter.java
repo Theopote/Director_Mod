@@ -93,6 +93,7 @@ public final class ActorPoseClipPropertyAdapter implements IPropertyAdapter<Acto
         Card.end();
 
         if (Card.beginIf(clip.isOverrideArms(), "actor_pose_clip.section_arms", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.SECTION_ARMS))) {
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.ARM_RANGE_HINT));
             String leftArm = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEFT_ARM);
             String rightArm = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.RIGHT_ARM);
             radSlider(leftArm + " Pitch##poseLeftArmPitch",

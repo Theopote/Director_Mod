@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorTool> {
+    private final ActorLiveTransformPropertyUI liveTransform = new ActorLiveTransformPropertyUI();
     private final ImInt actionIndex = new ImInt(0);
     private final ImFloat actionIntensity = new ImFloat(1.0f);
     private final ImFloat actionDuration = new ImFloat(1.0f);
@@ -160,7 +161,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
             var mode = ActorGizmoController.getInstance().getPreferredMode();
             if (mode == GizmoMode.LOOK_AT) renderLookAtAuthoring(actor);
             if (actor != null) {
-                ActorLiveTransformPropertyUI.render(actor.getActorId());
+                liveTransform.render(actor.getActorId());
             } else {
                 renderTransformHint();
             }
