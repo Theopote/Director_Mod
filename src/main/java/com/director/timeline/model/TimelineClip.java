@@ -44,14 +44,14 @@ public class TimelineClip {
     private float autoFadeOpacity = 0.35f;
     
     // ========== Post-Animation Fade 状态（问题2修复）==========
-    /** 动画结束后的淡化开始时间（相对于片段结束时间，秒）*/
+    /** 动画结束后的淡化开始时间（相对于有效动画完成时间，秒）*/
     private float postAnimationFadeStart = 0.0f;
     private boolean postAnimationFadeEnabled;
     
-    /** 动画结束后的淡化结束时间（相对于片段结束时间，秒）。超过此时间后，方块恢复为完全不透明 */
-    private float postAnimationFadeEnd = DEFAULT_POST_ANIMATION_FADE_END; // 默认在片段结束后2秒恢复
+    /** 动画结束后的淡化结束时间（相对于有效动画完成时间，秒）。超过此时间后，方块恢复为最终透明度 */
+    private float postAnimationFadeEnd = DEFAULT_POST_ANIMATION_FADE_END; // 默认在动画完成后2秒恢复
     
-    /** 片段恢复为最终状态的绝对时间（endTime + postAnimationFadeEnd），缓存计算 */
+    /** 片段恢复为最终状态的绝对时间（有效动画完成时间 + postAnimationFadeEnd），缓存计算 */
     private transient Float cachedRestoreTime = null;
     
     // ========== 可见性关键帧（问题5修复）==========
@@ -664,20 +664,26 @@ public class TimelineClip {
     public float computeAlphaAtGlobalTime(float globalTime) {
         float localTime = globalTime - startTime;
         if (localTime < 0) {
-            return 0.0f; // 片段还没开始
+            return 0.0f;
+        }
+        float completion = getEffectiveAnimationEndTime();
+        float finalAlpha = computeAlphaAt(getLength());
+        if (postAnimationFadeEnabled && postAnimationFadeEnd > postAnimationFadeStart) {
+            float fadeStart = completion + postAnimationFadeStart;
+            float fadeEnd = completion + postAnimationFadeEnd;
+            if (globalTime > fadeEnd) {
+                return finalAlpha;
+            }
+            if (globalTime >= fadeStart) {
+                float fadeT = (globalTime - fadeStart) / (fadeEnd - fadeStart);
+                return finalAlpha * (1.0f - (1.0f - autoFadeOpacity) * fadeT);
+            }
+            if (globalTime >= completion) {
+                return finalAlpha;
+            }
         }
         if (localTime > getLength()) {
-            // 片段已结束，可能需要考虑 post-animation fade
-            if (isInPostAnimationFade(globalTime)) {
-                // 在淡化阶段，以有效动画结束时间为基准计算淡化透明度
-                float fadeStart = getEffectiveAnimationEndTime() + postAnimationFadeStart;
-                float fadeEnd = getEffectiveAnimationEndTime() + postAnimationFadeEnd;
-                float fadeT = (globalTime - fadeStart) / (fadeEnd - fadeStart);
-                // 从 1.0 淡出到 autoFadeOpacity
-                return computeAlphaAt(getLength()) * (1.0f - (1.0f - autoFadeOpacity) * fadeT);
-            }
-            // 片段结束且已恢复
-            return computeAlphaAt(getLength());
+            return finalAlpha;
         }
         return computeAlphaAt(localTime);
     }

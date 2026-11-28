@@ -986,7 +986,7 @@ public class ContainerManager {
             }
         }
         Container restoredPrimary = restored.contains(primary) ? primary
-            : (restored.isEmpty() ? null : restored.get(0));
+            : (restored.isEmpty() ? null : restored.getFirst());
         if (hasUnrelatedSelection && isRegistered(currentPrimary)) {
             restoredPrimary = currentPrimary;
         }

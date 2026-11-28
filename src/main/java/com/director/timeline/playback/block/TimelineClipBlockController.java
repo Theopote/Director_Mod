@@ -15,6 +15,7 @@ import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.playback.TimelinePlaybackSampler;
+import com.director.timeline.playback.TimelineSamplingContext;
 import com.director.core.container.visibility.BlockVisualStateManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.block.BlockState;
@@ -96,6 +97,7 @@ public class TimelineClipBlockController {
     private float lastHandledPreviewTime = Float.NaN;
     private boolean timelineDrivingPaused = true;
     private boolean worldHandoffPending;
+    private boolean previewResyncPending;
     private long frameSequenceVisits;
     private long frameSettledChecks, frameSettledSkipped;
     private long lastHandledSectionRevision = -1;
@@ -213,7 +215,7 @@ public class TimelineClipBlockController {
         wholeRenderCacheByContainer.remove(container.getId());
         perBlockRenderCacheByContainer.remove(container.getId());
         lastVisualParamsByContainerId.remove(container.getId());
-        resetPerBlockEffects();
+        if (TimelineSamplingContext.current().isPreview()) resetPerBlockEffects();
     }
 
     private static int hashSequenceParameters(com.director.core.animation.sequence.SequenceParameters p) {
@@ -335,6 +337,17 @@ public class TimelineClipBlockController {
         long geometryRevision;
         RegistryKey<World> levelKey;
         int animationHash;
+
+        LastVisualParams copy() {
+            var copy = new LastVisualParams();
+            copy.opacity = opacity;
+            copy.occluded = occluded;
+            copy.container = container;
+            copy.geometryRevision = geometryRevision;
+            copy.levelKey = levelKey;
+            copy.animationHash = animationHash;
+            return copy;
+        }
     }
 
     private final Map<UUID, LastVisualParams> lastVisualParamsByContainerId = new HashMap<>();
@@ -356,6 +369,61 @@ public class TimelineClipBlockController {
     private final Map<TimelineClip, Integer> lastStaticBucketByClip = new IdentityHashMap<>();
     private final Map<UUID, WholeRenderCache> wholeRenderCacheByContainer = new HashMap<>();
     private final Map<UUID, PerBlockRenderCache> perBlockRenderCacheByContainer = new HashMap<>();
+
+    private final class PreviewFrameState {
+        final Map<UUID, Set<BlockPos>> visibleBlocks = new HashMap<>(lastFrameVisibleBlocks);
+        final Map<UUID, Set<BlockPos>> worldBlocks = new HashMap<>(lastFrameWorldBlocks);
+        final Map<UUID, LastVisualParams> visualParams = new HashMap<>();
+        final Map<UUID, StableContainerFrame> stableFrames = new HashMap<>(stableFramesByContainer);
+        final Map<TimelineClip, Integer> staticBuckets = new IdentityHashMap<>(lastStaticBucketByClip);
+        final Map<UUID, WholeRenderCache> wholeRenderCache = new HashMap<>(wholeRenderCacheByContainer);
+        final Map<UUID, PerBlockRenderCache> perBlockRenderCache = new HashMap<>(perBlockRenderCacheByContainer);
+        final Set<UUID> retries = new HashSet<>(containersNeedingRetry);
+        final boolean wasScrubbing = TimelineClipBlockController.this.wasScrubbing;
+        final boolean timelineDrivingPaused = TimelineClipBlockController.this.timelineDrivingPaused;
+        final boolean worldHandoffPending = TimelineClipBlockController.this.worldHandoffPending;
+        final boolean lastObservedPlaying = TimelineClipBlockController.this.lastObservedPlaying;
+        final long lastHandledRevision = TimelineClipBlockController.this.lastHandledRevision;
+        final long lastHandledSectionRevision = TimelineClipBlockController.this.lastHandledSectionRevision;
+        final float lastHandledPreviewTime = TimelineClipBlockController.this.lastHandledPreviewTime;
+        final int cacheCleanupCounter = TimelineClipBlockController.this.cacheCleanupCounter;
+        final long frameSequenceVisits = TimelineClipBlockController.this.frameSequenceVisits;
+        final long frameSettledChecks = TimelineClipBlockController.this.frameSettledChecks;
+        final long frameSettledSkipped = TimelineClipBlockController.this.frameSettledSkipped;
+
+        PreviewFrameState() {
+            lastVisualParamsByContainerId.forEach((id, params) -> visualParams.put(id, params.copy()));
+        }
+
+        void restore() {
+            restoreMap(lastFrameVisibleBlocks, visibleBlocks);
+            restoreMap(lastFrameWorldBlocks, worldBlocks);
+            restoreMap(lastVisualParamsByContainerId, visualParams);
+            restoreMap(stableFramesByContainer, stableFrames);
+            restoreMap(lastStaticBucketByClip, staticBuckets);
+            restoreMap(wholeRenderCacheByContainer, wholeRenderCache);
+            restoreMap(perBlockRenderCacheByContainer, perBlockRenderCache);
+            containersNeedingRetry.clear();
+            containersNeedingRetry.addAll(retries);
+            TimelineClipBlockController.this.wasScrubbing = wasScrubbing;
+            TimelineClipBlockController.this.timelineDrivingPaused = timelineDrivingPaused;
+            TimelineClipBlockController.this.worldHandoffPending = worldHandoffPending;
+            TimelineClipBlockController.this.lastObservedPlaying = lastObservedPlaying;
+            TimelineClipBlockController.this.lastHandledRevision = lastHandledRevision;
+            TimelineClipBlockController.this.lastHandledSectionRevision = lastHandledSectionRevision;
+            TimelineClipBlockController.this.lastHandledPreviewTime = lastHandledPreviewTime;
+            TimelineClipBlockController.this.cacheCleanupCounter = cacheCleanupCounter;
+            TimelineClipBlockController.this.frameSequenceVisits = frameSequenceVisits;
+            TimelineClipBlockController.this.frameSettledChecks = frameSettledChecks;
+            TimelineClipBlockController.this.frameSettledSkipped = frameSettledSkipped;
+        }
+    }
+
+    private static <K, V> void restoreMap(Map<K, V> target, Map<K, V> saved) {
+        target.clear();
+        target.putAll(saved);
+    }
+
     private final Map<UUID, Long> containerFailureCounts = new HashMap<>();
     private final Set<UUID> containersNeedingRetry = new HashSet<>();
     private long containerFailureCount;
@@ -496,6 +564,7 @@ public class TimelineClipBlockController {
      */
     public boolean needsClipBlockUpdate(TimelineModel model) {
         if (model == null) return false;
+        if (previewResyncPending) return true;
         boolean playing = model.isPlaying();
         if (model.isScrubbing()) return true;
         if (!containersNeedingRetry.isEmpty()) return true;
@@ -581,9 +650,12 @@ public class TimelineClipBlockController {
             lastContainerFailureMessage = containerId + ":" + failure.getClass().getSimpleName() + ":" + failure.getMessage();
             long failures = containerFailureCounts.getOrDefault(containerId, 1L);
             if (failures <= 3 || (failures & (failures - 1)) == 0) {
-                LOGGER.warn("[TimelineClipBlockController] container {} update failed; retaining last stable frame: {}",
-                        containerId, failure.toString(), failure);
+                LOGGER.warn("[TimelineClipBlockController] container {} update failed; {}: {}",
+                        containerId, TimelineSamplingContext.current().isStrict()
+                                ? "aborting deterministic sample" : "retaining last stable frame",
+                        failure.toString(), failure);
             }
+            if (TimelineSamplingContext.current().isStrict()) throw failure;
             return false;
         }
     }
@@ -598,15 +670,20 @@ public class TimelineClipBlockController {
     }
 
     private void ensureModelListenerBound(TimelineModel model) {
+        if (!TimelineSamplingContext.current().isPreview()) {
+            return;
+        }
         if (model == observedModel) {
             return;
         }
         if (observedModel != null) {
             observedModel.removeModelChangeListener(modelChangeListener);
         }
-        wholeEffectCursor.reset();
-        resetPerBlockEffects();
-        com.director.core.animation.WholeContainerImpactRingPlayer.clear();
+        if (TimelineSamplingContext.current().isPreview()) {
+            wholeEffectCursor.reset();
+            resetPerBlockEffects();
+            com.director.core.animation.WholeContainerImpactRingPlayer.clear();
+        }
         observedModel = model;
         if (observedModel != null) {
             observedModel.addModelChangeListener(modelChangeListener);
@@ -638,9 +715,11 @@ public class TimelineClipBlockController {
     public void update() {
         TimelineModel activeModel = resolveActiveModel();
         if (activeModel == null) {
-            wholeEffectCursor.reset();
-            resetPerBlockEffects();
-            com.director.core.animation.WholeContainerImpactRingPlayer.clear();
+            if (TimelineSamplingContext.current().isPreview()) {
+                wholeEffectCursor.reset();
+                resetPerBlockEffects();
+                com.director.core.animation.WholeContainerImpactRingPlayer.clear();
+            }
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[TimelineClipBlockController] timelineModel 为空，跳过更新");
             }
@@ -652,27 +731,33 @@ public class TimelineClipBlockController {
         var sectionChanges = com.director.core.container.visibility.ClientSectionInvalidation.getInstance();
         long sectionRevision = sectionChanges.revision();
 
+        final boolean preview = TimelineSamplingContext.current().isPreview();
+        final boolean forceStructureRefresh = preview && previewResyncPending;
         float currentTime = activeModel.getCurrentTime();
-        boolean playing = activeModel.isPlaying();
-        boolean scrubbing = activeModel.isScrubbing();
-        wholeEffectCursor.beginFrame(currentTime, playing, scrubbing);
-        if (wholeEffectCursor.shouldClearEffects(scrubbing))
-            com.director.core.animation.WholeContainerImpactRingPlayer.clear();
-        // Stateless poses can seek freely; particle gates belong to one forward playback run.
-        boolean finalAdvancingFrame = perBlockEffectsPlaying && currentTime > lastPerBlockEffectTime;
-        boolean effectsFrame = !scrubbing && (playing || finalAdvancingFrame);
-        if (!effectsFrame || !perBlockEffectsPlaying || currentTime < lastPerBlockEffectTime) {
-            resetPerBlockEffects();
+        boolean playing = preview && activeModel.isPlaying();
+        boolean scrubbing = preview && activeModel.isScrubbing();
+        boolean effectsFrame = false;
+        if (preview) {
+            wholeEffectCursor.beginFrame(currentTime, playing, scrubbing);
+            if (wholeEffectCursor.shouldClearEffects(scrubbing))
+                com.director.core.animation.WholeContainerImpactRingPlayer.clear();
+            // Stateless poses can seek freely; particle gates belong to one forward playback run.
+            boolean finalAdvancingFrame = perBlockEffectsPlaying && currentTime > lastPerBlockEffectTime;
+            effectsFrame = !scrubbing && (playing || finalAdvancingFrame);
+            if (!effectsFrame || !perBlockEffectsPlaying || currentTime < lastPerBlockEffectTime) {
+                resetPerBlockEffects();
+            }
+            lastPerBlockEffectTime = currentTime;
+            perBlockEffectsPlaying = playing && !scrubbing;
         }
-        lastPerBlockEffectTime = currentTime;
-        perBlockEffectsPlaying = playing && !scrubbing;
         boolean previewMode = !effectsFrame;
         boolean previewTimeChanged = Float.isNaN(lastHandledPreviewTime)
                 || Math.abs(currentTime - lastHandledPreviewTime) > com.director.core.animation.AnimationConstants.TIME_EPSILON;
 
-        if (!playing
+        if (preview && !playing
                 && !scrubbing
                 && playing == lastObservedPlaying
+                && !previewResyncPending
                 && !previewTimeChanged
                 && !worldHandoffPending
                 && !TimelinePlacementBudget.isCatchUp()
@@ -681,17 +766,21 @@ public class TimelineClipBlockController {
             timelineDrivingPaused = true;
             return;
         }
-        TimelinePlacementBudget.beginFrame(scrubbing, wasScrubbing, !playing && previewTimeChanged);
-        wasScrubbing = scrubbing;
-        worldHandoffPending = false;
+        if (preview) {
+            TimelinePlacementBudget.beginFrame(scrubbing, wasScrubbing, !playing && previewTimeChanged);
+            wasScrubbing = scrubbing;
+            worldHandoffPending = false;
+            // Changes made during this update receive a follow-up pass, including overlapping containers.
+            lastHandledSectionRevision = sectionRevision;
+        }
         frameSequenceVisits = 0;
         frameSettledChecks = frameSettledSkipped = 0;
-        // Changes made during this update receive a follow-up pass, including overlapping containers.
-        lastHandledSectionRevision = sectionRevision;
 
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
+        PreviewFrameState savedPreviewState = preview ? null : new PreviewFrameState();
 
-        runFrame(() -> {
+        try {
+            runFrame(() -> {
         Set<UUID> failedContainerIds = new HashSet<>();
         Map<UUID, BlockVisualStateManager.ContainerCheckpoint> checkpoints = new HashMap<>();
 
@@ -728,7 +817,9 @@ public class TimelineClipBlockController {
 
                 boolean sampled = runIsolatedContainer(containerId, () -> {
                     ensureContainerWorldBinding(container);
-                    reconcileContainerGeometry(container);
+                    if (preview) {
+                        reconcileContainerGeometry(container);
+                    }
                     ClipAnimationConfig config = clip.getAnimationConfigForEditing();
                     if (config == null) {
                         config = ClipAnimationConfig.defaultConfig();
@@ -910,7 +1001,7 @@ public class TimelineClipBlockController {
             boolean renderSetChanged = renderSetChangedByContainer.getOrDefault(containerId, true);
             long containerMod = container.getGeometryRevision();
             LastVisualParams lastParams = lastVisualParamsByContainerId.get(containerId);
-            boolean containerStructureChanged = (lastParams == null)
+            boolean containerStructureChanged = forceStructureRefresh || (lastParams == null)
                     || lastParams.container != container
                     || (lastParams.geometryRevision != containerMod)
                     || !Objects.equals(lastParams.levelKey, container.getLevelKey());
@@ -953,7 +1044,7 @@ public class TimelineClipBlockController {
                         || scrubbing
                         || TimelinePlacementBudget.isCatchUp()
                         || (previewMode && previewTimeChanged);
-                if (needsVisibilitySync) {
+                if (preview && needsVisibilitySync) {
                     visibilityService.resumeTimelineDriving();
                     // 时间线驱动：统一走分帧追平，避免 showContainerBlocks 的 firstCall 全量同步/强制光照刷新卡死主线程
                     visibilityService.showContainerBlocksForTimeline(container, worldBlocks);
@@ -1055,7 +1146,7 @@ public class TimelineClipBlockController {
                 visualStateManager.rollbackContainerUpdate(containerId);
                 // If server submission had started before a client-side failure, restore the
                 // previous stable target rather than leaving a half-applied container.
-                if (visibilityService != null) {
+                if (preview && visibilityService != null) {
                     try {
                         Set<BlockPos> previousWorld = lastFrameWorldBlocks.get(containerId);
                         visibilityService.showContainerBlocksForTimeline(container,
@@ -1121,43 +1212,45 @@ public class TimelineClipBlockController {
 
         final long tAfterRerender = System.nanoTime();
 
-        // 更新 lastFrameVisibleBlocks（渲染可见集）与 lastFrameWorldBlocks（世界落地集），并清理已不存在的容器
-        Set<UUID> retainedContainerIds = new HashSet<>(currentFrameContainers.keySet());
-        retainedContainerIds.addAll(failedContainerIds);
-        lastFrameVisibleBlocks.keySet().retainAll(retainedContainerIds);
-        lastFrameWorldBlocks.keySet().retainAll(retainedContainerIds);
-        lastVisualParamsByContainerId.keySet().retainAll(retainedContainerIds);
-        for (Map.Entry<UUID, Set<BlockPos>> e : currentFrameVisibleBlocks.entrySet()) {
-            UUID id = e.getKey();
-            Set<BlockPos> s = e.getValue();
-            // 性能关键：避免每帧复制大 Set；该 Set 在本帧之后不再被修改，直接复用引用即可。
-            lastFrameVisibleBlocks.put(id, s != null ? s : java.util.Collections.emptySet());
-        }
-        Map<UUID, Set<BlockPos>> lastWorldBlocksSource = desiredWorldBlocks;
-        for (Map.Entry<UUID, Set<BlockPos>> e : lastWorldBlocksSource.entrySet()) {
-            UUID id = e.getKey();
-            Set<BlockPos> s = e.getValue();
-            lastFrameWorldBlocks.put(id, s != null ? s : java.util.Collections.emptySet());
-        }
-        lastStaticBucketByClip.keySet().retainAll(currentFrameClips.keySet());
-        stableFramesByContainer.keySet().retainAll(retainedContainerIds);
-        wholeRenderCacheByContainer.keySet().retainAll(retainedContainerIds);
-        perBlockRenderCacheByContainer.keySet().retainAll(retainedContainerIds);
-        lastHandledRevision = timelineRevision;
-        lastHandledPreviewTime = currentTime;
-        lastObservedPlaying = playing;
-        if (!playing && !scrubbing) {
-            if (!timelineDrivingPaused && visibilityService != null) {
-                visibilityService.pauseTimelineDriving();
-                timelineDrivingPaused = true;
+        if (preview) {
+            // 更新 lastFrameVisibleBlocks（渲染可见集）与 lastFrameWorldBlocks（世界落地集），并清理已不存在的容器
+            Set<UUID> retainedContainerIds = new HashSet<>(currentFrameContainers.keySet());
+            retainedContainerIds.addAll(failedContainerIds);
+            lastFrameVisibleBlocks.keySet().retainAll(retainedContainerIds);
+            lastFrameWorldBlocks.keySet().retainAll(retainedContainerIds);
+            lastVisualParamsByContainerId.keySet().retainAll(retainedContainerIds);
+            for (Map.Entry<UUID, Set<BlockPos>> e : currentFrameVisibleBlocks.entrySet()) {
+                UUID id = e.getKey();
+                Set<BlockPos> s = e.getValue();
+                // 性能关键：避免每帧复制大 Set；该 Set 在本帧之后不再被修改，直接复用引用即可。
+                lastFrameVisibleBlocks.put(id, s != null ? s : java.util.Collections.emptySet());
             }
-        } else {
-            timelineDrivingPaused = false;
+            Map<UUID, Set<BlockPos>> lastWorldBlocksSource = desiredWorldBlocks;
+            for (Map.Entry<UUID, Set<BlockPos>> e : lastWorldBlocksSource.entrySet()) {
+                UUID id = e.getKey();
+                Set<BlockPos> s = e.getValue();
+                lastFrameWorldBlocks.put(id, s != null ? s : java.util.Collections.emptySet());
+            }
+            lastStaticBucketByClip.keySet().retainAll(currentFrameClips.keySet());
+            stableFramesByContainer.keySet().retainAll(retainedContainerIds);
+            wholeRenderCacheByContainer.keySet().retainAll(retainedContainerIds);
+            perBlockRenderCacheByContainer.keySet().retainAll(retainedContainerIds);
+            lastHandledRevision = timelineRevision;
+            lastHandledPreviewTime = currentTime;
+            lastObservedPlaying = playing;
+            if (!playing && !scrubbing) {
+                if (!timelineDrivingPaused && visibilityService != null) {
+                    visibilityService.pauseTimelineDriving();
+                }
+                timelineDrivingPaused = true;
+            } else {
+                timelineDrivingPaused = false;
+            }
         }
 
         // ✅ 修复：定期清理不再活跃的容器/片段缓存，防止内存泄漏
         // 每 N 帧（约 3 秒 @ 60fps）执行一次清理
-        if (++cacheCleanupCounter >= com.director.core.animation.AnimationConstants.CACHE_CLEANUP_INTERVAL) {
+        if (preview && ++cacheCleanupCounter >= com.director.core.animation.AnimationConstants.CACHE_CLEANUP_INTERVAL) {
             cacheCleanupCounter = 0;
             Set<UUID> activeContainerIds = currentFrameVisibleBlocks.keySet();
 
@@ -1232,8 +1325,15 @@ public class TimelineClipBlockController {
                     frameSettledSkipped,
                     visualCandidates,
                     renderEntryCount);
+            }
+            });
+            if (preview) previewResyncPending = false;
+        } finally {
+            if (savedPreviewState != null) {
+                savedPreviewState.restore();
+                previewResyncPending = true;
+            }
         }
-        });
     }
 
     /** Unified visibility/opacity phase sample (C-06), also used by focused boundary tests. */
@@ -1286,6 +1386,9 @@ public class TimelineClipBlockController {
                                                        Container container,
                                                        ClipAnimationConfig config,
                                                        boolean previewMode) {
+        if (!TimelineSamplingContext.current().isPreview()) {
+            return calculateVisibleBlocksInternal(clip, currentTime, trackEnabled, container, config, previewMode);
+        }
         // Whole-object boundaries must also react to property edits at a stationary playhead.
         if (config != null && config.isWholeContainer()) {
             return calculateVisibleBlocksInternal(clip, currentTime, trackEnabled, container, config, previewMode);
@@ -1535,7 +1638,7 @@ public class TimelineClipBlockController {
                 || (!clip.getParentTrack().isLocked() && clip.getParentTrack().isVisible());
         var frame = com.director.core.animation.WholeContainerAnimation.sample(
                 config, clip.getStartTime(), clip.getEndTime(), enabled ? time : clip.getStartTime() - 1, exit);
-        if (enabled && opacity > 0 && config.getWholeContainer().isDustEnabled()
+        if (TimelineSamplingContext.current().isPreview() && enabled && opacity > 0 && config.getWholeContainer().isDustEnabled()
                 && wholeEffectCursor.crosses(com.director.core.animation.WholeContainerDust.eventTime(
                         config, clip.getStartTime(), clip.getEndTime(), exit))) {
             emitWholeContainerDust(container, config);
@@ -1577,7 +1680,8 @@ public class TimelineClipBlockController {
                     : BlockVisualStateManager.BlockVisualState.normal();
             boolean worldReady = MinecraftClient.getInstance().world != null
                     && MinecraftClient.getInstance().world.getBlockState(pos).equals(state);
-            if (!frame.animating() && !worldReady) worldHandoffPending = true;
+            if (TimelineSamplingContext.current().isPreview() && !frame.animating() && !worldReady)
+                worldHandoffPending = true;
             boolean overlay = frame.animating() || !worldReady || opacity < 0.999f;
             if (!overlay) {
                 manager.setBlockState(new BlockVisualStateManager.PositionKey(level, pos), visual, container.getId());
@@ -1671,7 +1775,7 @@ public class TimelineClipBlockController {
             BlockState state = resolveBlockStateForRender(container, pos);
             if (state == null) return false;
             boolean ready = world != null && state.equals(world.getBlockState(pos));
-            if (!ready) worldHandoffPending = true;
+            if (TimelineSamplingContext.current().isPreview() && !ready) worldHandoffPending = true;
             if (ready && visual.isNormal() && !visual.shouldSuppressWorldRendering()) return true;
             var snapshot = new BlockAnimationSnapshot(pos, state);
             snapshot.markFullyVisible();
@@ -1697,7 +1801,7 @@ public class TimelineClipBlockController {
             float opacity,
             boolean previewMode,
             int staticBucket) {
-        if (previewMode && clip != null) {
+        if (TimelineSamplingContext.current().isPreview() && previewMode && clip != null) {
             // 拖动不是时间推进，恢复播放时不要补发拖动期间跨过的完成特效。
             perBlockEffectSampleTime.remove(clip);
         }
@@ -1836,7 +1940,7 @@ public class TimelineClipBlockController {
                     var expected = resolveBlockStateForRender(container, pos);
                     var world = MinecraftClient.getInstance().world;
                     if (expected == null || world != null && expected.equals(world.getBlockState(pos))) continue;
-                    worldHandoffPending = true;
+                    if (TimelineSamplingContext.current().isPreview()) worldHandoffPending = true;
                     visualState = visualState.withSuppressWorldRendering(true);
                 }
 
@@ -1953,7 +2057,7 @@ public class TimelineClipBlockController {
                     if (container != null) visualStateManager.clearOverridesFor(container);
                     else visualStateManager.clearOverridesFor(containerId); // registry-independent old-coordinate cleanup
                 }
-                if (visibilityService != null && container != null) {
+                if (TimelineSamplingContext.current().isPreview() && visibilityService != null && container != null) {
                     if (container.isHidden()) {
                         visibilityService.showContainerBlocksForTimeline(container, Collections.emptySet());
                     } else if (visibilityService.hasSnapshot(container)) {
@@ -2127,6 +2231,9 @@ public class TimelineClipBlockController {
         if (container.getLevelKey() != null) {
             return; // 已经绑定世界
         }
+        if (!TimelineSamplingContext.current().isPreview()) {
+            throw new IllegalStateException("非预览采样要求容器已绑定世界：" + container.getName());
+        }
 
         // 尝试从客户端获取当前世界
         try {
@@ -2168,7 +2275,8 @@ public class TimelineClipBlockController {
     private void ensureContainerSnapshot(Container container,
                                          com.director.core.container.visibility.ContainerVisibilityService visibilityService,
                                          TrackType trackType) {
-        if (container == null || visibilityService == null) {
+        if (container == null || visibilityService == null
+                || !TimelineSamplingContext.current().allowsWorldMutation()) {
             return;
         }
 
