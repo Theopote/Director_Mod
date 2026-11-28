@@ -65,16 +65,16 @@ class TimelineRenderMathRowsTest {
 
     @Test void actionPaintOnlyHitsTheFirstExpandedBehaviorRow() {
         float gap = com.director.ui.theme.UITheme.Spacing.TIMELINE_TRACK_GAP;
-        var layout = new TimelineRowLayout(new float[]{22f, 128f}, gap, 24f, 7, 7);
+        var layout = new TimelineRowLayout(new float[]{22f, 22f}, gap, 24f, 7, 7);
         var expanded = TimelineRenderer.actionPaintRow(layout, 1, true, true);
-        float expectedTop = layout.trackTop(1) + 128 + gap + ActorRootTimelineRows.COUNT * 24;
+        float expectedTop = layout.trackTop(1) + 22 + gap + ActorRootTimelineRows.COUNT * 24;
         assertEquals(expectedTop, expanded.top());
         assertFalse(expanded.contains(expectedTop - 1));
         assertTrue(expanded.contains(expectedTop));
         assertFalse(expanded.contains(expectedTop + 24));
         assertNull(TimelineRenderer.actionPaintRow(layout, 1, true, false));
         var main = TimelineRenderer.actionPaintRow(layout, 1, false, true);
-        assertEquals(layout.trackTop(1) + 2 * TimelineRenderer.clipBandHeight(128f), main.top());
+        assertEquals(layout.trackTop(1), main.top());
         assertFalse(main.contains(expectedTop));
     }
 
@@ -88,6 +88,7 @@ class TimelineRenderMathRowsTest {
         for (int i = 0; i < behaviors.size(); i++) {
             var wrapper = new EntityTimelineClip(behaviors.get(i), 0);
             assertEquals((2 + i) * height, TimelineRenderer.clipBandOffset(wrapper, tall));
+            assertEquals((1 + i) * height, TimelineRenderer.clipBandOffset(wrapper, 5 * height));
             assertEquals(0f, TimelineRenderer.clipBandOffset(wrapper, height));
         }
         var actionPaint = TimelineRenderer.actionPaintRow(new TimelineRowLayout(tall, 2, 24, 0), 0, false, false);

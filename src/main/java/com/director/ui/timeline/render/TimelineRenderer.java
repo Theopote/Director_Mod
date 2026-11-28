@@ -107,7 +107,7 @@ public class TimelineRenderer {
     private static final int POSE_BAND = 3;
     private static final int LOOK_BAND = 4;
     private static final int STATE_BAND = 5;
-    private static final int[] ACTOR_BAND_COUNTS = {1, STATE_BAND + 1};
+
     private final java.util.WeakHashMap<TimelineTrack, Integer> actorHeightSteps = new java.util.WeakHashMap<>();
 
     public boolean resizeActorRow(float contentY, float wheel) {
@@ -117,7 +117,7 @@ public class TimelineRenderer {
         var track = model.getTrackAt(row);
         if (track == null || track.getType() != com.director.timeline.model.TrackType.ACTOR) return false;
         int step = actorHeightSteps.getOrDefault(track, 0) + (wheel > 0f ? 1 : -1);
-        actorHeightSteps.put(track, Math.max(0, Math.min(ACTOR_BAND_COUNTS.length - 1, step)));
+        actorHeightSteps.put(track, Math.max(0, Math.min(1, step)));
         return true;
     }
 
@@ -156,9 +156,9 @@ public class TimelineRenderer {
             return trackExpanded && !hasActorHeaderBehaviorRows(headerHeight) ? new ActionPaintRow(index, true,
                     top + ActorBoneTimelineRows.behaviorRowsOffset(headerHeight, TRACK_GAP), ActorBoneTimelineRows.CHILD_HEIGHT) : null;
         }
-        if (!hasActorBand(headerHeight, ACTION_BAND))
+        if (!hasActorHeaderBehaviorRows(headerHeight))
             return new ActionPaintRow(index, false, top, headerHeight);
-        return new ActionPaintRow(index, false, top + ACTION_BAND * TRACK_HEIGHT, TRACK_HEIGHT);
+        return new ActionPaintRow(index, false, top + behaviorBand(headerHeight, ACTION_BAND) * TRACK_HEIGHT, TRACK_HEIGHT);
     }
 
     public static float clipBandHeight(float headerHeight) {
@@ -166,11 +166,18 @@ public class TimelineRenderer {
     }
 
     static boolean hasActorHeaderBehaviorRows(float headerHeight) {
-        return hasActorBand(headerHeight, STATE_BAND);
+        return headerHeight >= STATE_BAND * TRACK_HEIGHT;
     }
 
-    static boolean hasActorBand(float headerHeight, int band) {
-        return headerHeight >= (band + 1) * TRACK_HEIGHT;
+    private static int behaviorBand(float headerHeight, int band) {
+        return headerHeight < (STATE_BAND + 1) * TRACK_HEIGHT ? band - 1 : band;
+    }
+
+    private static boolean spatialClip(EntityClip clip) {
+        return switch (clip.getClipType()) {
+            case TRANSFORM, ACTOR_ROUTE, ACTOR_RELATION -> true;
+            default -> false;
+        };
     }
 
     private record ActorIntervalSummary(EntityTimelineClip owner, EntityClip target,
@@ -423,9 +430,9 @@ public class TimelineRenderer {
             "gui.director.actor.look_interval.title", "gui.director.actor.state_edit.intervals"
     };
 
-    private void renderActorHeaderBands(ImDrawList draw, float left, float contentX, float right, float top) {
+    private void renderActorHeaderBands(ImDrawList draw, float left, float contentX, float right, float top, float headerHeight) {
         for (int i = 0; i < ACTOR_BEHAVIOR_LABELS.length; i++) {
-            float y = top + (ACTION_BAND + i) * TRACK_HEIGHT;
+            float y = top + (behaviorBand(headerHeight, ACTION_BAND) + i) * TRACK_HEIGHT;
             draw.addLine(left, y, right, y, TimelineColors.COLOR_ACTOR_CHILD_SEPARATOR);
             draw.pushClipRect(left, y, contentX, y + TRACK_HEIGHT, true);
             float textY = y + Math.max(0, (TRACK_HEIGHT - ImGui.getTextLineHeight()) / 2);
@@ -473,7 +480,18 @@ public class TimelineRenderer {
             if (!(clip instanceof EntityTimelineClip owner) || !(owner.getEntityClip() instanceof EntitySpawnClip spawn)) continue;
             var poses = spawn.getPoseIntervals();
             var actions = spawn.getActionIntervals();
-            if (!hasActorBand(headerHeight, ACTION_BAND)) {
+            if (!actorBoneRows.isExpanded(track)) {
+                for (var key : spawn.getKeyframes()) {
+                    float time = key.getTime();
+                    if (time < spawn.getStartTime() || time > spawn.getEndTime()) continue;
+                    float x = math.timeToX(time);
+                    if (x < contentX || x > contentX + contentW) continue;
+                    float y = trackY + TRACK_HEIGHT - 5;
+                    draw.addQuadFilled(x, y - 2, x + 2, y, x, y + 2, x - 2, y,
+                            TimelineColors.COLOR_TEXT_LIGHT);
+                }
+            }
+            if (!hasActorHeaderBehaviorRows(headerHeight)) {
                 if (actorBoneRows.isExpanded(track)) continue;
                 for (var action : actions)
                     renderCompactActorInterval(draw, track, owner, action, contentX, contentW, trackY, bandHeight, 0,
@@ -489,22 +507,16 @@ public class TimelineRenderer {
             float y = trackY + 2;
             for (var action : actions)
                 renderActorInterval(draw, track, owner, spawn, action, contentX, contentW,
-                        y + ACTION_BAND * bandHeight, bandHeight, ActionTypeColors.getColorForActionType(action.getActionType()));
-            if (hasActorBand(headerHeight, POSE_BAND)) {
-                for (var pose : poses)
-                    renderActorInterval(draw, track, owner, spawn, pose, contentX, contentW,
-                            y + POSE_BAND * bandHeight, bandHeight, POSE_INTERVAL_COLOR);
-            }
-            if (hasActorBand(headerHeight, LOOK_BAND)) {
-                for (var target : spawn.getLookTargets())
-                    renderActorInterval(draw, track, owner, spawn, target, contentX, contentW,
-                            y + LOOK_BAND * bandHeight, bandHeight, LOOK_INTERVAL_COLOR);
-            }
-            if (hasActorBand(headerHeight, STATE_BAND)) {
-                for (var state : spawn.getStateIntervals())
-                    renderActorInterval(draw, track, owner, spawn, state, contentX, contentW,
-                            y + STATE_BAND * bandHeight, bandHeight, STATE_INTERVAL_COLOR);
-            }
+                        y + behaviorBand(headerHeight, ACTION_BAND) * bandHeight, bandHeight, ActionTypeColors.getColorForActionType(action.getActionType()));
+            for (var pose : poses)
+                renderActorInterval(draw, track, owner, spawn, pose, contentX, contentW,
+                        y + behaviorBand(headerHeight, POSE_BAND) * bandHeight, bandHeight, POSE_INTERVAL_COLOR);
+            for (var target : spawn.getLookTargets())
+                renderActorInterval(draw, track, owner, spawn, target, contentX, contentW,
+                        y + behaviorBand(headerHeight, LOOK_BAND) * bandHeight, bandHeight, LOOK_INTERVAL_COLOR);
+            for (var state : spawn.getStateIntervals())
+                renderActorInterval(draw, track, owner, spawn, state, contentX, contentW,
+                        y + behaviorBand(headerHeight, STATE_BAND) * bandHeight, bandHeight, STATE_INTERVAL_COLOR);
         }
     }
 
@@ -579,11 +591,17 @@ public class TimelineRenderer {
             case LOOK_AT -> LOOK_BAND;
             case STATE, ACTION -> STATE_BAND;
         };
-        return hasActorBand(headerHeight, band) ? band * bandHeight : 0f;
+        if (!hasActorHeaderBehaviorRows(headerHeight)) return 0f;
+        return (band >= ACTION_BAND ? behaviorBand(headerHeight, band) : band) * bandHeight;
     }
 
     public float prepareTrackRows() {
-        var layout = actorBoneRows.prepare(model, track -> TRACK_HEIGHT * ACTOR_BAND_COUNTS[actorHeightSteps.getOrDefault(track, 0)], TRACK_GAP);
+        var layout = actorBoneRows.prepare(model, track -> {
+            if (actorHeightSteps.getOrDefault(track, 0) == 0) return TRACK_HEIGHT;
+            boolean hasSpatial = track.getClips().stream().anyMatch(clip ->
+                    clip instanceof EntityTimelineClip actor && spatialClip(actor.getEntityClip()));
+            return TRACK_HEIGHT * (STATE_BAND + (hasSpatial ? 1 : 0));
+        }, TRACK_GAP);
         math.setRowLayout(layout);
         return layout.totalHeight();
     }
@@ -874,7 +892,7 @@ public class TimelineRenderer {
                 // 使用 TimelineTrackRenderer 渲染轨道
                 trackRenderer.renderTrack(drawList, track, idx, winX, contentX, trackY, contentW, actorBoneRows.supports(track), headerHeight);
                 if (track.getType() == TrackType.ACTOR && hasActorHeaderBehaviorRows(headerHeight))
-                    renderActorHeaderBands(drawList, winX, contentX, contentX + contentW, trackY);
+                    renderActorHeaderBands(drawList, winX, contentX, contentX + contentW, trackY, headerHeight);
                 actorBoneRows.render(drawList, track, winX, contentX, contentX + contentW, trackY, headerHeight, TRACK_GAP, math);
                 renderActorBehaviorRows(drawList, track, winX, contentX, contentW, trackY, headerHeight);
                 
