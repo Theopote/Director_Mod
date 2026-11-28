@@ -7,8 +7,6 @@ import com.director.timeline.model.audio.AudioEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
-
 /**
  * Move automation keyframe between tracks (supports undo/redo).
  */
@@ -20,6 +18,7 @@ public class MoveAutomationKeyframeBetweenTracksCommand extends BaseTimelineComm
     private final TimelineSelectable keyframe;
     private final float oldTime;
     private final float newTime;
+    private boolean moved;
 
     public MoveAutomationKeyframeBetweenTracksCommand(
             TimelineModel model,
@@ -29,35 +28,66 @@ public class MoveAutomationKeyframeBetweenTracksCommand extends BaseTimelineComm
             float oldTime,
             float newTime) {
         super(model, "automation_keyframe_moved_between_tracks");
-        this.fromTrack = Objects.requireNonNull(fromTrack, "fromTrack cannot be null");
-        this.toTrack = Objects.requireNonNull(toTrack, "toTrack cannot be null");
-        this.keyframe = Objects.requireNonNull(keyframe, "keyframe cannot be null");
+        this.fromTrack = fromTrack;
+        this.toTrack = toTrack;
+        this.keyframe = keyframe;
         this.oldTime = oldTime;
         this.newTime = newTime;
     }
 
     @Override
     protected void doExecute() {
-        apply(fromTrack, toTrack, newTime);
-        LOGGER.debug("[Command] MoveAutomationKeyframeBetweenTracks execute {} -> {}", oldTime, newTime);
+        if (fromTrack == null || toTrack == null || keyframe == null) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
+        }
+        if (apply(fromTrack, toTrack, newTime, false)) {
+            moved = true;
+            LOGGER.debug("[Command] MoveAutomationKeyframeBetweenTracks execute {} -> {}", oldTime, newTime);
+        }
     }
 
     @Override
     protected void doUndo() {
-        apply(toTrack, fromTrack, oldTime);
+        apply(toTrack, fromTrack, oldTime, true);
+        moved = false;
         LOGGER.debug("[Command] MoveAutomationKeyframeBetweenTracks undo {} <- {}", newTime, oldTime);
     }
 
-    private void apply(TimelineTrack from, TimelineTrack to, float time) {
-        if (keyframe == null || from == null || to == null) {
-            LOGGER.warn("[Timeline] MoveAutomationKeyframeBetweenTracks failed: null data");
-            return;
+    private boolean apply(TimelineTrack from, TimelineTrack to, float time, boolean undo) {
+        if (!from.getAutomationKeyframes().contains(keyframe)) {
+            if (undo) {
+                throw new IllegalStateException("Automation keyframe is missing: " + keyframe.getId());
+            }
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return false;
         }
+        if (from == to && Float.compare(keyframe.getStartTime(), time) == 0) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return false;
+        }
+        if (to.getAutomationKeyframes().stream().anyMatch(k -> k != keyframe
+                && Float.compare(k.getStartTime(), time) == 0)) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return false;
+        }
+        float previousTime = keyframe.getStartTime();
+        if (!from.removeAutomationKeyframe(keyframe.getId())) {
+            throw new IllegalStateException("Failed to remove automation keyframe: " + keyframe.getId());
+        }
+        try {
+            setKeyframeTime(keyframe, time);
+            to.addAutomationKeyframe(keyframe);
+        } catch (RuntimeException | Error e) {
+            setKeyframeTime(keyframe, previousTime);
+            from.addAutomationKeyframe(keyframe);
+            throw e;
+        }
+        notifyPlayback();
+        return true;
+    }
 
-        setKeyframeTime(keyframe, time);
-        from.removeAutomationKeyframe(keyframe.getId());
-        to.addAutomationKeyframe(keyframe);
-
+    private void notifyPlayback() {
         if (keyframe instanceof com.director.timeline.model.camera.CameraKeyframe) {
             com.director.timeline.playback.camera.TimelineCameraController.getInstance()
                     .onKeyframeChanged();
@@ -94,5 +124,10 @@ public class MoveAutomationKeyframeBetweenTracksCommand extends BaseTimelineComm
         return keyframe != null
                 ? "move_automation_keyframe_between_tracks " + keyframe.getName()
                 : "move_automation_keyframe_between_tracks";
+    }
+
+    @Override
+    public boolean canUndo() {
+        return moved;
     }
 }

@@ -17,6 +17,7 @@ public class BatchChangeCameraKeyframeHandleModeCommand extends BaseTimelineComm
 
     private final List<CameraKeyframe> keyframes = new ArrayList<>();
     private final List<CameraKeyframe.HandleMode> oldModes = new ArrayList<>();
+    private final List<Integer> changed = new ArrayList<>();
     private final CameraKeyframe.HandleMode newMode;
 
     public BatchChangeCameraKeyframeHandleModeCommand(TimelineModel model,
@@ -37,8 +38,24 @@ public class BatchChangeCameraKeyframeHandleModeCommand extends BaseTimelineComm
 
     @Override
     protected void doExecute() {
-        for (CameraKeyframe keyframe : keyframes) {
-            keyframe.setHandleMode(newMode);
+        if (newMode == null || keyframes.isEmpty()) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
+        }
+        try {
+            for (int i = 0; i < keyframes.size(); i++) {
+                CameraKeyframe keyframe = keyframes.get(i);
+                if (keyframe.getHandleMode() == newMode) continue;
+                keyframe.setHandleMode(newMode);
+                changed.add(i);
+            }
+        } catch (RuntimeException | Error e) {
+            restoreChanged();
+            throw e;
+        }
+        if (changed.isEmpty()) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
         }
         TimelineCameraController.getInstance().onKeyframeChanged();
         LOGGER.debug("[Timeline] 批量设置摄像机关键帧控制柄模式 -> {}", newMode);
@@ -46,15 +63,26 @@ public class BatchChangeCameraKeyframeHandleModeCommand extends BaseTimelineComm
 
     @Override
     protected void doUndo() {
-        for (int i = 0; i < keyframes.size(); i++) {
-            keyframes.get(i).setHandleMode(oldModes.get(i));
-        }
+        restoreChanged();
+        changed.clear();
         TimelineCameraController.getInstance().onKeyframeChanged();
         LOGGER.debug("[Timeline] 撤销批量设置摄像机关键帧控制柄模式");
+    }
+
+    private void restoreChanged() {
+        for (int i = changed.size() - 1; i >= 0; i--) {
+            int index = changed.get(i);
+            keyframes.get(index).setHandleMode(oldModes.get(index));
+        }
     }
 
     @Override
     public String getDescription() {
         return "设置控制柄模式（批量）";
+    }
+
+    @Override
+    public boolean canUndo() {
+        return !changed.isEmpty();
     }
 }

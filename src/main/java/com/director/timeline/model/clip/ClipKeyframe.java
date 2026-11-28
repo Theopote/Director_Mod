@@ -170,6 +170,13 @@ public class ClipKeyframe implements TimelineSelectable, Comparable<ClipKeyframe
         return new ClipKeyframe(id, time, interpolation);
     }
 
+    public boolean hasSameStateAs(ClipKeyframe other) {
+        return other != null && getClass() == other.getClass()
+                && id.equals(other.id)
+                && Float.compare(time, other.time) == 0
+                && interpolation == other.interpolation;
+    }
+
     private static void requireFiniteTime(float time) {
         if (!Float.isFinite(time)) {
             throw new IllegalArgumentException("Keyframe time must be finite");

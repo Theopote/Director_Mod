@@ -32,6 +32,7 @@ public class BatchChangeClipKeyframeInterpolationCommand extends BaseTimelineCom
     }
 
     private final List<Entry> entries = new ArrayList<>();
+    private final List<Integer> changed = new ArrayList<>();
     private final TimelineInterpolation newInterpolation;
 
     public BatchChangeClipKeyframeInterpolationCommand(TimelineModel model,
@@ -55,27 +56,46 @@ public class BatchChangeClipKeyframeInterpolationCommand extends BaseTimelineCom
 
     @Override
     protected void doExecute() {
-        apply(newInterpolation);
+        if (model == null || newInterpolation == null || entries.isEmpty()) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
+        }
+        try {
+            for (int i = 0; i < entries.size(); i++) {
+                Entry entry = entries.get(i);
+                ClipKeyframe keyframe = findKeyframe(entry.clip, entry.keyframeId);
+                if (keyframe == null || keyframe.getInterpolation() == newInterpolation) {
+                    continue;
+                }
+                keyframe.setInterpolation(newInterpolation);
+                changed.add(i);
+            }
+        } catch (RuntimeException | Error e) {
+            restoreChanged();
+            throw e;
+        }
+        if (changed.isEmpty()) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
         LOGGER.debug("[Timeline] 批量修改关键帧插值 -> {}", newInterpolation);
     }
 
     @Override
     protected void doUndo() {
-        for (Entry e : entries) {
-            ClipKeyframe kf = findKeyframe(e.clip, e.keyframeId);
-            if (kf != null) {
-                kf.setInterpolation(e.oldInterpolation);
-            }
-        }
+        restoreChanged();
+        changed.clear();
         LOGGER.debug("[Timeline] 撤销批量修改关键帧插值");
     }
 
-    private void apply(TimelineInterpolation interpolation) {
-        for (Entry e : entries) {
-            ClipKeyframe kf = findKeyframe(e.clip, e.keyframeId);
-            if (kf != null) {
-                kf.setInterpolation(interpolation);
+    private void restoreChanged() {
+        for (int i = changed.size() - 1; i >= 0; i--) {
+            Entry entry = entries.get(changed.get(i));
+            ClipKeyframe keyframe = findKeyframe(entry.clip, entry.keyframeId);
+            if (keyframe == null) {
+                throw new IllegalStateException("Clip keyframe is missing: " + entry.keyframeId);
             }
+            keyframe.setInterpolation(entry.oldInterpolation);
         }
     }
 
@@ -106,6 +126,11 @@ public class BatchChangeClipKeyframeInterpolationCommand extends BaseTimelineCom
     @Override
     public String getDescription() {
         return "修改插值（批量）";
+    }
+
+    @Override
+    public boolean canUndo() {
+        return !changed.isEmpty();
     }
 }
 

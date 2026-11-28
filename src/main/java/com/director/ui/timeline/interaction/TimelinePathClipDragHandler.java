@@ -136,7 +136,7 @@ public final class TimelinePathClipDragHandler {
                 mode, handle, mouseX, ImGui.getMousePosY(), clip.getStartTime(), clip.getEndTime());
 
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[Timeline] 开始 {} Path Clip: {} (时间: {:.2f}s - {:.2f}s)",
+            LOGGER.debug("[Timeline] 开始 {} Path Clip: {} (时间: {}s - {}s)",
                     mode, clip.getName(), clip.getStartTime(), clip.getEndTime());
         }
         callbacks.onDataChanged();

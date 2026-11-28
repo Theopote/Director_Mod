@@ -22,11 +22,13 @@ public class ToggleTrackLockCommand extends BaseTimelineCommand {
 
     @Override
     protected void doExecute() {
-        if (track != null) {
-            oldLockedState = track.isLocked();
-            track.setLocked(!oldLockedState);
-            LOGGER.debug("[Timeline] {}轨道: {}", oldLockedState ? "解锁" : "锁定", track.getName());
+        if (track == null) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
         }
+        oldLockedState = track.isLocked();
+        track.setLocked(!oldLockedState);
+        LOGGER.debug("[Timeline] {}轨道: {}", oldLockedState ? "解锁" : "锁定", track.getName());
     }
 
     @Override

@@ -180,7 +180,7 @@ public final class TimelineKeyframeDragHandler {
             com.director.timeline.playback.camera.TimelineCameraController.getInstance()
                     .previewAt(cameraKeyframe.getTime());
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[Timeline] 预览摄像机关键帧 @ {:.2f}s", cameraKeyframe.getTime());
+                LOGGER.debug("[Timeline] 预览摄像机关键帧 @ {}s", cameraKeyframe.getTime());
             }
         }
 

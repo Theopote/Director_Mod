@@ -273,7 +273,7 @@ public class AudioTrackSampler {
             client.getSoundManager().play(soundInstance);
 
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[AudioTrackSampler] 触发声音事件: {} at {:.2f}s (音量: {:.2f}, 音调: {:.2f})",
+                LOGGER.trace("[AudioTrackSampler] 触发声音事件: {} at {}s (音量: {}, 音调: {})",
                         soundId, ev.getTime(), volume, pitch);
             }
 

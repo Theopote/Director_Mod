@@ -1000,11 +1000,11 @@ public class TimelinePanel extends AbstractPanel
                 // ⭐ Facade 架构：通过 Facade 统一处理 seek（包括时间更新、季节/天气/相机采样一致化）
                 if (commands != null && commands.playback() != null) {
                     commands.playback().seek(clickTime);
-                    LOGGER.debug("[TimelinePanel] 点击时间标尺，跳转到 {:.2f}s (通过 Facade)", clickTime);
+                    LOGGER.debug("[TimelinePanel] 点击时间标尺，跳转到 {}s (通过 Facade)", clickTime);
                 } else {
                     // 降级方案：使用原有的 handler（向后兼容）
                     interactionHandler.clickTimeRuler(rulerClickStartX, contentX);
-                    LOGGER.debug("[TimelinePanel] 点击时间标尺，跳转到 {:.2f}s (降级方案)", clickTime);
+                    LOGGER.debug("[TimelinePanel] 点击时间标尺，跳转到 {}s (降级方案)", clickTime);
                 }
             }
             // 如果已经在拖动，endInteractionIfNeeded 会处理结束逻辑
@@ -1395,7 +1395,7 @@ public class TimelinePanel extends AbstractPanel
             commandHistory.executeCommand(cmd);
             model.markDurationDirty(); // 片段时间修改可能影响总时长
             markDataChanged();
-            LOGGER.info("[TimelinePanel] 完成片段移动操作 (片段: {}, 时间: {:.2f}s-{:.2f}s -> {:.2f}s-{:.2f}s)",
+            LOGGER.info("[TimelinePanel] 完成片段移动操作 (片段: {}, 时间: {}s-{}s -> {}s-{}s)",
                     clip.getLabel(), originalStartTime, originalEndTime, currentStartTime, currentEndTime);
         } else {
             if (LOGGER.isDebugEnabled()) {
@@ -1613,8 +1613,7 @@ public class TimelinePanel extends AbstractPanel
             executeCommand(new ToggleTrackMuteCommand(model, track));
             return;
         }
-        track.setVisible(!track.isVisible());
-        markDataChanged();
+        executeCommand(new SetTrackVisibleCommand(model, track, !track.isVisible()));
     }
 
 

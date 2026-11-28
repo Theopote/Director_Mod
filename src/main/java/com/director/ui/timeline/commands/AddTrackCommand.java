@@ -30,16 +30,18 @@ public class AddTrackCommand extends BaseTimelineCommand {
 
     @Override
     protected void doExecute() {
-        if (track != null && model != null) {
-            capturePreviousActiveState();
-            shouldAutoActivate = shouldAutoActivateTrack(track);
-            model.addTrack(track);
-            added = true;
-            if (shouldAutoActivate) {
-                activateTrack(track);
-            }
-            LOGGER.debug("[Timeline] 添加轨道: {}", track.getName());
+        if (track == null || model == null) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
         }
+        capturePreviousActiveState();
+        shouldAutoActivate = shouldAutoActivateTrack(track);
+        model.addTrack(track);
+        added = true;
+        if (shouldAutoActivate) {
+            activateTrack(track);
+        }
+        LOGGER.debug("[Timeline] 添加轨道: {}", track.getName());
     }
 
     @Override

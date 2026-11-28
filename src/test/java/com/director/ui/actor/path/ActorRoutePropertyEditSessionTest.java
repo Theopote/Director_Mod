@@ -22,9 +22,10 @@ class ActorRoutePropertyEditSessionTest {
         track = new TimelineTrack("Actor", TrackType.ACTOR);
         var payload = new ActorTrack(); payload.setActorRef(new ActorRef(actor.getActorId()));
         track.setActorTrackPayload(payload); model.addTrack(track);
+        history = new TimelineCommandHistory(); history.setModel(model); TimelineCommandBridge.bind(history);
         route = (ActorRouteClip) ActorPathEditing.attach(model, track,
                 List.of(new Vector3f(), new Vector3f(4,0,0)), ActorRouteClip.InterpolationMode.LINEAR, "Route").getEntityClip();
-        history = new TimelineCommandHistory(); TimelineCommandBridge.bind(history);
+        history.clear();
     }
     @AfterEach void cleanup() { TimelineCommandBridge.bind(null); ActorRegistryManager.setRegistry(null); }
     ActorRoutePropertyEditSession session() { return new ActorRoutePropertyEditSession(model, track, route); }

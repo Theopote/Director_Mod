@@ -23,6 +23,7 @@ public class MoveClipKeyframeCommand extends BaseTimelineCommand {
     private final UUID keyframeId;
     private final float oldTime;
     private final float newTime;
+    private boolean moved;
 
     public MoveClipKeyframeCommand(TimelineModel model,
                                    TimelineTrack track,
@@ -40,7 +41,26 @@ public class MoveClipKeyframeCommand extends BaseTimelineCommand {
 
     @Override
     protected void doExecute() {
-        apply(newTime);
+        if (clip == null || keyframeId == null) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
+        }
+        ClipKeyframe target = findKeyframe();
+        if (target == null || Float.compare(target.getTime(), newTime) == 0) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        if (clip.getClipKeyframes().stream().anyMatch(k -> k != target
+                && Float.compare(k.getTime(), newTime) == 0)) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        if (!clip.containsTime(newTime)) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        clip.moveKeyframe(target, newTime);
+        moved = true;
         LOGGER.debug("[Command] MoveClipKeyframe execute {} -> {} (clip: {}, track: {})",
                 oldTime, newTime, clip != null ? clip.getLabel() : "null", 
                 track != null ? track.getName() : "null");
@@ -48,20 +68,15 @@ public class MoveClipKeyframeCommand extends BaseTimelineCommand {
 
     @Override
     protected void doUndo() {
-        apply(oldTime);
+        ClipKeyframe target = findKeyframe();
+        if (target == null) {
+            throw new IllegalStateException("Clip keyframe is missing: " + keyframeId);
+        }
+        clip.moveKeyframe(target, oldTime);
+        moved = false;
         LOGGER.debug("[Command] MoveClipKeyframe undo {} <- {} (clip: {}, track: {})",
                 newTime, oldTime, clip != null ? clip.getLabel() : "null", 
                 track != null ? track.getName() : "null");
-    }
-
-    private void apply(float t) {
-        ClipKeyframe kf = findKeyframe();
-        if (kf == null) {
-            LOGGER.warn("[Timeline] MoveClipKeyframe: 未找到关键帧 id={}", keyframeId);
-            return;
-        }
-
-        clip.moveKeyframe(kf, t);
     }
 
     private ClipKeyframe findKeyframe() {
@@ -80,6 +95,11 @@ public class MoveClipKeyframeCommand extends BaseTimelineCommand {
     public String getDescription() {
         return String.format("移动关键帧: %s @ %.2fs -> %.2fs", 
                 clip != null ? clip.getLabel() : "未知", oldTime, newTime);
+    }
+
+    @Override
+    public boolean canUndo() {
+        return moved;
     }
 }
 

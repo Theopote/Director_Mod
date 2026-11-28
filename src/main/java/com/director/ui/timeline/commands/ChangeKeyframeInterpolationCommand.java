@@ -47,19 +47,19 @@ public class ChangeKeyframeInterpolationCommand extends BaseTimelineCommand {
         }
         ClipKeyframe keyframe = clip.findKeyframeAt(keyframeTime, KEYFRAME_TOLERANCE);
         if (keyframe == null) {
-            LOGGER.warn("[Timeline] 设置关键帧插值失败：关键帧不存在于时间 {:.2f}", keyframeTime);
+            LOGGER.warn("[Timeline] 设置关键帧插值失败：关键帧不存在于时间 {}", keyframeTime);
             return;
         }
         oldInterpolation = keyframe.getInterpolation() != null
                 ? keyframe.getInterpolation()
                 : TimelineInterpolation.LINEAR;
         if (newInterpolation == oldInterpolation) {
-            LOGGER.debug("[Timeline] 关键帧 {:.2f}s 插值类型未改变，跳过: {}", keyframeTime, newInterpolation.getDisplayName());
+            LOGGER.debug("[Timeline] 关键帧 {}s 插值类型未改变，跳过: {}", keyframeTime, newInterpolation.getDisplayName());
             return;
         }
         keyframe.setInterpolation(newInterpolation);
         executed = true;
-        LOGGER.debug("[Timeline] 设置关键帧 {:.2f}s 插值类型为 {} (原: {})",
+        LOGGER.debug("[Timeline] 设置关键帧 {}s 插值类型为 {} (原: {})",
                 keyframeTime, newInterpolation.getDisplayName(), oldInterpolation.getDisplayName());
     }
 
@@ -73,7 +73,7 @@ public class ChangeKeyframeInterpolationCommand extends BaseTimelineCommand {
             return;
         }
         keyframe.setInterpolation(oldInterpolation);
-        LOGGER.debug("[Timeline] 恢复关键帧 {:.2f}s 插值类型为 {}", keyframeTime, oldInterpolation.getDisplayName());
+        LOGGER.debug("[Timeline] 恢复关键帧 {}s 插值类型为 {}", keyframeTime, oldInterpolation.getDisplayName());
     }
 
     @Override

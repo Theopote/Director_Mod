@@ -3,13 +3,15 @@ package com.director.ui.timeline.commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineTrack;
+import com.director.timeline.model.audio.AudioTimelineClip;
+import com.director.timeline.model.entity.EntityTimelineClip;
+import com.director.ui.timeline.audio.TimelineAudioService;
 
 /**
  * 移动片段命令。
- * 
- * <p>优化：继承 BaseTimelineCommand 以确保模型更新和一致性。
  */
 public class MoveClipCommand extends BaseTimelineCommand {
     private static final Logger LOGGER = LoggerFactory.getLogger(MoveClipCommand.class);
@@ -23,48 +25,30 @@ public class MoveClipCommand extends BaseTimelineCommand {
     }
 
     private final Clip clip;
-    private com.director.timeline.model.TimelineTrack oldTrack;
-    private com.director.timeline.model.TimelineTrack newTrack;
+    private final TimelineTrack oldTrack;
+    private final TimelineTrack newTrack;
     private final float oldStartTime;
     private final float oldEndTime;
     private final float newStartTime;
     private final float newEndTime;
+    private TimelineClip oldState;
+    private TimelineClip newState;
+    private boolean applied;
 
-    /**
-     * 构造函数（自动从 clip 获取 old 值）
-     * 
-     * <p>注意：此构造函数假设 clip 的当前时间就是 old 值。
-     * 如果 clip 已经被修改，请使用另一个构造函数显式传递 old 值。
-     * 
-     * @param model Timeline 模型实例（用于自动模型更新）
-     * @param clip 片段
-     * @param newStartTime 新的开始时间
-     * @param newEndTime 新的结束时间
-     */
     public MoveClipCommand(TimelineModel model, Clip clip, float newStartTime, float newEndTime) {
-        super(model, "clip_moved");
-        this.clip = clip;
-        this.oldStartTime = clip.getStartTime();
-        this.oldEndTime = clip.getEndTime();
-        this.newStartTime = newStartTime;
-        this.newEndTime = newEndTime;
+        this(model, clip, clip != null ? clip.getStartTime() : 0f,
+                clip != null ? clip.getEndTime() : 0f, newStartTime, newEndTime);
+        if (clip instanceof ClipAdapter adapter) {
+            oldState = adapter.getTimelineClip().snapshot();
+        }
     }
-    
-    /**
-     * 构造函数（显式传递 old 值）
-     * 
-     * <p>★ 推荐使用：当 clip 已经被修改时，使用此构造函数显式传递拖动开始时的值
-     * 
-     * @param model Timeline 模型实例（用于自动模型更新）
-     * @param clip 片段
-     * @param oldStartTime 拖动开始时的开始时间
-     * @param oldEndTime 拖动开始时的结束时间
-     * @param newStartTime 拖动结束时的开始时间（当前值）
-     * @param newEndTime 拖动结束时的结束时间（当前值）
-     */
-    public MoveClipCommand(TimelineModel model, Clip clip, float oldStartTime, float oldEndTime, float newStartTime, float newEndTime) {
+
+    public MoveClipCommand(TimelineModel model, Clip clip,
+            float oldStartTime, float oldEndTime, float newStartTime, float newEndTime) {
         super(model, "clip_moved");
         this.clip = clip;
+        this.oldTrack = null;
+        this.newTrack = null;
         this.oldStartTime = oldStartTime;
         this.oldEndTime = oldEndTime;
         this.newStartTime = newStartTime;
@@ -72,30 +56,78 @@ public class MoveClipCommand extends BaseTimelineCommand {
     }
 
     public MoveClipCommand(TimelineModel model, TimelineClip clip,
-            com.director.timeline.model.TimelineTrack oldTrack, com.director.timeline.model.TimelineTrack newTrack,
+            TimelineTrack oldTrack, TimelineTrack newTrack,
             float oldStart, float oldEnd, float newStart, float newEnd) {
-        this(model, new ClipAdapter(clip), oldStart, oldEnd, newStart, newEnd);
-        this.oldTrack = oldTrack; this.newTrack = newTrack;
+        super(model, "clip_moved");
+        this.clip = new ClipAdapter(clip);
+        this.oldTrack = oldTrack;
+        this.newTrack = newTrack;
+        this.oldStartTime = oldStart;
+        this.oldEndTime = oldEnd;
+        this.newStartTime = newStart;
+        this.newEndTime = newEnd;
+        this.oldState = clip != null ? clip.snapshot() : null;
     }
 
-    private void moveTo(com.director.timeline.model.TimelineTrack target) {
-        if (!(clip instanceof ClipAdapter adapter) || target == null) return;
-        TimelineClip item = adapter.getTimelineClip();
-        var current = item.getParentTrack();
-        if (current != target) {
-            if (current != null) current.removeClip(item);
-            try {
-                if (!target.addClip(item)) {
-                    throw new IllegalStateException("Target track rejected clip");
-                }
-            } catch (RuntimeException | Error e) {
-                if (current != null && !current.addClip(item)) {
-                    e.addSuppressed(new IllegalStateException("Source track rejected move rollback"));
-                }
-                throw e;
-            }
+    public MoveClipCommand(TimelineModel model, TimelineClip clip,
+            TimelineTrack oldTrack, TimelineTrack newTrack,
+            float oldStart, float oldEnd, float newStart, float newEnd,
+            TimelineClip gestureStart) {
+        super(model, "clip_moved");
+        this.clip = new ClipAdapter(clip);
+        this.oldTrack = oldTrack;
+        this.newTrack = newTrack;
+        this.oldStartTime = oldStart;
+        this.oldEndTime = oldEnd;
+        this.newStartTime = newStart;
+        this.newEndTime = newEnd;
+        this.oldState = gestureStart != null ? gestureStart : clip != null ? clip.snapshot() : null;
+        this.newState = clip != null ? clip.snapshot() : null;
+    }
+
+    private TimelineClip timelineClip() {
+        return clip instanceof ClipAdapter adapter ? adapter.getTimelineClip() : null;
+    }
+
+    private void moveTo(TimelineTrack target) {
+        TimelineClip item = timelineClip();
+        if (item == null) {
+            return;
         }
-        com.director.ui.timeline.audio.TimelineAudioService.getInstance().moveLinkedEventsToTrack(item, target);
+        var current = item.getParentTrack();
+        if (current == target) {
+            return;
+        }
+        if (target == null) {
+            if (oldTrack == null && newTrack == null) {
+                return;
+            }
+            throw new IllegalStateException("Clip move requires a target track");
+        }
+        if (!target.canAddClip(item)) {
+            throw new IllegalStateException("Target track rejected clip: " + item.getLabel());
+        }
+        if (current != null) {
+            current.removeClip(item);
+        }
+        try {
+            if (!target.addClip(item)) {
+                throw new IllegalStateException("Target track rejected clip");
+            }
+        } catch (RuntimeException | Error e) {
+            if (current != null && !current.addClip(item)) {
+                e.addSuppressed(new IllegalStateException("Source track rejected move rollback"));
+            }
+            throw e;
+        }
+        TimelineAudioService.getInstance().moveLinkedEventsToTrack(item, target);
+    }
+
+    private void restore(TimelineClip item, TimelineClip state) {
+        item.restoreStateFrom(state);
+        if (item instanceof EntityTimelineClip) {
+            item.setTimeRange(state.getStartTime(), state.getEndTime());
+        }
     }
 
     private void applyRange(TimelineClip timelineClip, float start, float end) {
@@ -103,6 +135,10 @@ public class MoveClipCommand extends BaseTimelineCommand {
             if (Float.compare(end - start, timelineClip.getLength()) == 0) {
                 timelineClip.offsetTime(start - timelineClip.getStartTime());
             } else {
+                if (timelineClip instanceof AudioTimelineClip) {
+                    TimelineAudioService.getInstance().remapAudioClipKeyframes(
+                            timelineClip, timelineClip.getStartTime(), timelineClip.getEndTime(), start, end);
+                }
                 timelineClip.setTimeRange(start, end);
             }
         } else {
@@ -113,36 +149,84 @@ public class MoveClipCommand extends BaseTimelineCommand {
 
     @Override
     protected void doExecute() {
-        if (clip == null) {
-            LOGGER.warn("[Timeline] 移动片段失败：clip 为 null");
+        TimelineClip timelineClip = timelineClip();
+        if (clip == null || clip instanceof ClipAdapter adapter && adapter.getTimelineClip() == null) {
+            setResult(TimelineCommand.Result.REJECTED);
             return;
         }
-        TimelineClip timelineClip = (clip instanceof ClipAdapter adapter) ? adapter.getTimelineClip() : null;
-        moveTo(newTrack);
-        applyRange(timelineClip, newStartTime, newEndTime);
-        // 同步：自动生成的音频事件默认跟随片段移动（可对单个事件取消链接）
-        if (timelineClip != null) {
-            com.director.ui.timeline.audio.TimelineAudioService.getInstance()
-                    .onClipTimeRangeChanged(timelineClip, oldStartTime, oldEndTime, newStartTime, newEndTime);
+        if (Float.compare(oldStartTime, newStartTime) == 0
+                && Float.compare(oldEndTime, newEndTime) == 0 && oldTrack == newTrack) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
         }
-        LOGGER.debug("[Timeline] 移动片段: {:.2f}-{:.2f} -> {:.2f}-{:.2f}",
-                oldStartTime, oldEndTime, newStartTime, newEndTime);
+        applied = true;
+        moveTo(newTrack);
+        if (timelineClip != null) {
+            if (newState != null) {
+                restore(timelineClip, newState);
+            } else {
+                if (oldState != null) {
+                    restore(timelineClip, oldState);
+                }
+                applyRange(timelineClip, newStartTime, newEndTime);
+                newState = timelineClip.snapshot();
+            }
+        } else {
+            applyRange(null, newStartTime, newEndTime);
+        }
+        if (timelineClip != null) {
+            TimelineAudioService.getInstance().onClipTimeRangeChanged(
+                    timelineClip, oldStartTime, oldEndTime, newStartTime, newEndTime, false);
+        }
+        LOGGER.debug("[Timeline] 移动片段: {} -> {}", oldStartTime, newStartTime);
     }
 
     @Override
     protected void doUndo() {
-        if (clip == null) {
-            LOGGER.warn("[Timeline] 撤销移动片段失败：clip 为 null");
+        if (!applied || clip == null) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
             return;
         }
-        TimelineClip timelineClip = (clip instanceof ClipAdapter adapter) ? adapter.getTimelineClip() : null;
+        TimelineClip timelineClip = timelineClip();
         moveTo(oldTrack);
-        applyRange(timelineClip, oldStartTime, oldEndTime);
-        if (timelineClip != null) {
-            com.director.ui.timeline.audio.TimelineAudioService.getInstance()
-                    .onClipTimeRangeChanged(timelineClip, newStartTime, newEndTime, oldStartTime, oldEndTime);
+        if (timelineClip != null && oldState != null) {
+            restore(timelineClip, oldState);
+        } else {
+            applyRange(timelineClip, oldStartTime, oldEndTime);
         }
+        if (timelineClip != null) {
+            TimelineAudioService.getInstance().onClipTimeRangeChanged(
+                    timelineClip, newStartTime, newEndTime, oldStartTime, oldEndTime, false);
+        }
+        applied = false;
         LOGGER.debug("[Timeline] 撤销移动片段");
+    }
+
+    @Override
+    protected void compensateExecute() {
+        if (!applied) {
+            return;
+        }
+        TimelineClip timelineClip = timelineClip();
+        moveTo(oldTrack);
+        if (timelineClip != null && oldState != null) {
+            restore(timelineClip, oldState);
+        } else {
+            applyRange(timelineClip, oldStartTime, oldEndTime);
+        }
+        applied = false;
+    }
+
+    @Override
+    protected void compensateUndo() {
+        TimelineClip timelineClip = timelineClip();
+        moveTo(newTrack);
+        if (timelineClip != null && newState != null) {
+            restore(timelineClip, newState);
+        } else {
+            applyRange(timelineClip, newStartTime, newEndTime);
+        }
+        applied = true;
     }
 
     @Override
@@ -152,8 +236,6 @@ public class MoveClipCommand extends BaseTimelineCommand {
 
     @Override
     public boolean canUndo() {
-        return true;
+        return applied;
     }
 }
-
-

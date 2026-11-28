@@ -7,11 +7,18 @@ import com.director.core.container.ContainerType;
 import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TimelineViewportState;
 import com.director.timeline.model.TrackType;
+import com.director.timeline.model.TimelineInterpolation;
+import com.director.timeline.model.TimelineMarker;
+import com.director.timeline.model.audio.AudioClipKeyframe;
 import com.director.timeline.model.audio.AudioEvent;
+import com.director.timeline.model.audio.AudioTimelineClip;
 import com.director.timeline.model.audio.AudioTrack;
+import com.director.timeline.model.clip.ClipKeyframe;
+import com.director.timeline.model.weather.WeatherKeyframe;
 import com.director.ui.timeline.audio.TimelineAudioService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -224,6 +231,250 @@ class TimelineClipCommandCompensationTest {
         assertThrows(IllegalStateException.class, () -> history.executeCommand(command));
         assertFalse(value.get());
         assertEquals(0, history.getUndoSize());
+    }
+
+    @Test
+    void equalLengthAudioMovePreservesKeyframeIdentityAndAutomation() {
+        AudioTrack audioTrack = new AudioTrack("Audio");
+        model.addTrack(audioTrack);
+        AudioTimelineClip clip = new AudioTimelineClip("Volume", 1f, 3f, 0);
+        AudioClipKeyframe keyframe = new AudioClipKeyframe(
+                1.5f, TimelineInterpolation.SMOOTH, 0.35f);
+        clip.addKeyframe(keyframe);
+        audioTrack.addClip(clip);
+        var id = keyframe.getId();
+
+        history.executeCommand(new MoveClipCommand(
+                model, clip, audioTrack, audioTrack, 1f, 3f, 4f, 6f));
+
+        AudioClipKeyframe moved = (AudioClipKeyframe) clip.getClipKeyframes().getFirst();
+        assertEquals(id, moved.getId());
+        assertEquals(4.5f, moved.getTime(), 0.0001f);
+        assertEquals(TimelineInterpolation.SMOOTH, moved.getInterpolation());
+        assertEquals(0.35f, moved.getVolume(), 0.0001f);
+        assertTrue(history.undo());
+        AudioClipKeyframe restored = (AudioClipKeyframe) clip.getClipKeyframes().getFirst();
+        assertEquals(id, restored.getId());
+        assertEquals(1.5f, restored.getTime(), 0.0001f);
+        assertEquals(0.35f, restored.getVolume(), 0.0001f);
+        assertTrue(history.redo());
+        assertEquals(id, clip.getClipKeyframes().getFirst().getId());
+        assertEquals(4.5f, clip.getClipKeyframes().getFirst().getTime(), 0.0001f);
+    }
+
+    @Test
+    void audioLengthChangeRemapsKeyframesAndUndoRedoPreserveAutomation() {
+        AudioTrack audioTrack = new AudioTrack("Audio");
+        model.addTrack(audioTrack);
+        AudioTimelineClip clip = new AudioTimelineClip("Volume", 0f, 4f, 0);
+        AudioClipKeyframe keyframe = new AudioClipKeyframe(
+                3f, TimelineInterpolation.SMOOTH, 0.6f);
+        clip.addKeyframe(keyframe);
+        audioTrack.addClip(clip);
+        var id = keyframe.getId();
+
+        history.executeCommand(new SetClipLengthCommand(model, clip, 2f));
+        AudioClipKeyframe remapped = (AudioClipKeyframe) clip.getClipKeyframes().getFirst();
+        assertEquals(id, remapped.getId());
+        assertEquals(1.5f, remapped.getTime(), 0.0001f);
+        assertEquals(0.6f, remapped.getVolume(), 0.0001f);
+
+        assertTrue(history.undo());
+        AudioClipKeyframe restored = (AudioClipKeyframe) clip.getClipKeyframes().getFirst();
+        assertEquals(id, restored.getId());
+        assertEquals(3f, restored.getTime(), 0.0001f);
+        assertEquals(TimelineInterpolation.SMOOTH, restored.getInterpolation());
+        assertEquals(0.6f, restored.getVolume(), 0.0001f);
+        assertTrue(history.redo());
+        assertEquals(1.5f, clip.getClipKeyframes().getFirst().getTime(), 0.0001f);
+        assertEquals(2f, clip.getLength(), 0.0001f);
+    }
+
+    @Test
+    void noOpCommandsDoNotEnterOrClearHistory() {
+        TimelineTrack track = track("Visible");
+        track.setVisible(false);
+        history.executeCommand(new SetTrackVisibleCommand(model, track, true));
+        assertTrue(history.undo());
+        assertEquals(1, history.getRedoSize());
+
+        history.executeCommand(new SetTrackVisibleCommand(model, track, false));
+        history.executeCommand(new MoveTrackCommand(model, 0, 0));
+        history.executeCommand(new MoveMarkerCommand(model, null, 0f, 1f));
+        history.executeCommand(new MoveAutomationKeyframeCommand(model, null, null, 0f, 1f));
+        history.executeCommand(new MoveAutomationKeyframeBetweenTracksCommand(
+                model, null, null, null, 0f, 1f));
+
+        assertEquals(0, history.getUndoSize());
+        assertEquals(1, history.getRedoSize());
+        assertTrue(history.redo());
+        assertTrue(track.isVisible());
+    }
+
+    @Test
+    void unboundCommandBridgeRejectsInsteadOfMutatingTimeline() {
+        TimelineTrack track = track("Visible");
+        track.setVisible(false);
+        TimelineCommandBridge.bind(null);
+        try {
+            assertThrows(IllegalStateException.class, () ->
+                    TimelineCommandBridge.execute(new SetTrackVisibleCommand(model, track, true)));
+            assertFalse(track.isVisible());
+        } finally {
+            TimelineCommandBridge.bind(null);
+        }
+    }
+
+    @Test
+    void batchDeleteRollsBackEarlierSubcommandsWhenLaterSubcommandFails() {
+        TimelineCommandHistory failingHistory = new TimelineCommandHistory();
+        TimelineTrack track = new TimelineTrack("Batch", TrackType.CONTAINER);
+        TimelineClip first = new TimelineClip("First", 0f, 1f, 0);
+        TimelineClip second = new TimelineClip("Second", 2f, 3f, 0);
+        ClipKeyframe keyframe = new ClipKeyframe(0.5f, TimelineInterpolation.SMOOTH);
+        first.addKeyframe(keyframe);
+        track.addClip(first);
+        track.addClip(second);
+        TimelineMarker marker = new TimelineMarker("Fail", 5f);
+        TimelineModel markerFailureModel = new TimelineModel(new TimelineViewportState(), false) {
+            @Override
+            public void removeMarker(java.util.UUID markerId) {
+                throw new IllegalStateException("Marker deletion failed");
+            }
+        };
+        markerFailureModel.setSuppressPersistenceWrites(true);
+        markerFailureModel.addTrack(track);
+        markerFailureModel.addMarker(marker);
+        failingHistory.setModel(markerFailureModel);
+
+        BatchDeleteSelectionCommand command = new BatchDeleteSelectionCommand(
+                markerFailureModel, List.of(first, second, keyframe, marker));
+        assertThrows(IllegalStateException.class, () -> failingHistory.executeCommand(command));
+
+        assertEquals(List.of(first, second), track.getClips());
+        assertSame(keyframe, first.getClipKeyframes().getFirst());
+        assertTrue(markerFailureModel.getMarkers().contains(marker));
+        assertEquals(0, failingHistory.getUndoSize());
+    }
+
+    @Test
+    void batchAutomationDeleteRestoresOnlyEntriesActuallyRemoved() {
+        TimelineTrack track = track("Automation");
+        WeatherKeyframe present = new WeatherKeyframe("Present", 1f);
+        WeatherKeyframe absent = new WeatherKeyframe("Absent", 2f);
+        track.addAutomationKeyframe(present);
+        BatchRemoveAutomationKeyframesCommand command = new BatchRemoveAutomationKeyframesCommand(
+                model, List.of(
+                        new BatchRemoveAutomationKeyframesCommand.Entry(track, present),
+                        new BatchRemoveAutomationKeyframesCommand.Entry(track, absent)));
+
+        history.executeCommand(command);
+        assertTrue(track.getAutomationKeyframes().isEmpty());
+        assertTrue(history.undo());
+        assertEquals(List.of(present), track.getAutomationKeyframes());
+        assertTrue(history.redo());
+        assertTrue(track.getAutomationKeyframes().isEmpty());
+    }
+
+    @Test
+    void batchAutomationUndoFailureKeepsPreexistingEntries() {
+        WeatherKeyframe first = new WeatherKeyframe("First", 1f);
+        WeatherKeyframe second = new WeatherKeyframe("Second", 2f);
+        AtomicBoolean failRestore = new AtomicBoolean();
+        TimelineTrack track = new TimelineTrack("Automation", TrackType.CONTAINER) {
+            @Override
+            public void addAutomationKeyframe(TimelineSelectable keyframe) {
+                if (failRestore.get()) {
+                    throw new IllegalStateException("Automation restore failed");
+                }
+                super.addAutomationKeyframe(keyframe);
+            }
+        };
+        model.addTrack(track);
+        track.addAutomationKeyframe(first);
+        track.addAutomationKeyframe(second);
+        BatchRemoveAutomationKeyframesCommand command = new BatchRemoveAutomationKeyframesCommand(
+                model, List.of(
+                        new BatchRemoveAutomationKeyframesCommand.Entry(track, first),
+                        new BatchRemoveAutomationKeyframesCommand.Entry(track, second)));
+
+        history.executeCommand(command);
+        track.addAutomationKeyframe(first);
+        failRestore.set(true);
+        assertThrows(IllegalStateException.class, history::undo);
+
+        assertEquals(List.of(first), track.getAutomationKeyframes());
+        assertEquals(1, history.getUndoSize());
+        failRestore.set(false);
+        assertTrue(history.undo());
+        assertEquals(2, track.getAutomationKeyframes().size());
+        assertTrue(track.getAutomationKeyframes().containsAll(List.of(first, second)));
+    }
+
+    @Test
+    void audioEventMovesWithinAndBetweenTracksRemainUndoable() {
+        AudioTrack source = new AudioTrack("Source");
+        AudioTrack target = new AudioTrack("Target");
+        model.addTrack(source);
+        model.addTrack(target);
+        AudioEvent event = new AudioEvent("Place", "block.stone.place", 1f);
+        source.addEvent(event);
+
+        history.executeCommand(new MoveAutomationKeyframeCommand(model, source, event, 1f, 3f));
+        assertEquals(3f, event.getTime());
+        assertTrue(history.undo());
+        assertEquals(1f, event.getTime());
+        assertTrue(history.redo());
+        assertEquals(3f, event.getTime());
+
+        history.executeCommand(new MoveAutomationKeyframeBetweenTracksCommand(
+                model, source, target, event, 3f, 5f));
+        assertTrue(source.getEvents().isEmpty());
+        assertEquals(List.of(event), target.getEvents());
+        assertEquals(5f, event.getTime());
+        assertTrue(history.undo());
+        assertEquals(List.of(event), source.getEvents());
+        assertTrue(target.getEvents().isEmpty());
+        assertEquals(3f, event.getTime());
+        assertTrue(history.redo());
+        assertTrue(source.getEvents().isEmpty());
+        assertEquals(List.of(event), target.getEvents());
+        assertEquals(5f, event.getTime());
+    }
+
+    @Test
+    void clipKeyframeDeleteUndoPreservesSubtypeUuidInterpolationAndValue() {
+        TimelineTrack track = track("Audio automation");
+        AudioTimelineClip clip = new AudioTimelineClip("Volume", 0f, 2f, 0);
+        AudioClipKeyframe keyframe = new AudioClipKeyframe(
+                1f, TimelineInterpolation.SMOOTH, 0.25f);
+        clip.addKeyframe(keyframe);
+        track.addClip(clip);
+        var id = keyframe.getId();
+
+        history.executeCommand(new RemoveClipKeyframeCommand(model, track, clip, keyframe));
+        assertTrue(clip.getClipKeyframes().isEmpty());
+        assertTrue(history.undo());
+        ClipKeyframe restored = clip.getClipKeyframes().getFirst();
+        assertTrue(restored instanceof AudioClipKeyframe);
+        assertEquals(id, restored.getId());
+        assertEquals(TimelineInterpolation.SMOOTH, restored.getInterpolation());
+        assertEquals(0.25f, ((AudioClipKeyframe) restored).getVolume(), 0.0001f);
+    }
+
+    @Test
+    void trackMoveAndUndoEmitStructuralNotifications() {
+        TimelineTrack first = track("First");
+        TimelineTrack second = track("Second");
+        List<String> changes = new ArrayList<>();
+        model.addModelChangeListener(changes::add);
+
+        history.executeCommand(new MoveTrackCommand(model, 0, 1));
+        assertSame(first, model.getTrackAt(1));
+        assertTrue(history.undo());
+        assertSame(first, model.getTrackAt(0));
+        assertSame(second, model.getTrackAt(1));
+        assertEquals(2, changes.stream().filter("track_moved"::equals).count());
     }
 
     private TimelineTrack track(String name) {

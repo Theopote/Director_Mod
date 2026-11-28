@@ -3,6 +3,7 @@ package com.director.timeline.model.entity;
 import com.director.timeline.model.TimelineInterpolation;
 import com.director.timeline.model.clip.ClipKeyframe;
 import org.joml.Vector3f;
+import java.util.Objects;
 
 /**
  * Clip-level keyframe for actor/entity timeline clips.
@@ -157,19 +158,49 @@ public class EntityClipKeyframe extends ClipKeyframe {
     @Override
     public EntityClipKeyframe copy() {
         EntityClipKeyframe copy = new EntityClipKeyframe(getTime(), getInterpolation());
-        copy.channels = channels;
-        copy.position.set(position);
-        copy.rotation.set(rotation);
-        copy.scale.set(scale);
-        copy.actionType = actionType;
-        copy.actionSpeed = actionSpeed;
-        copy.actionLoop = actionLoop;
-        copy.visibility = visibility;
-        copy.active = active;
-        copy.displayName = displayName;
-        copy.showNameTag = showNameTag;
-        copy.entityType = entityType;
+        copy.copyStateFrom(this);
         return copy;
+    }
+
+    @Override
+    public EntityClipKeyframe snapshot() {
+        EntityClipKeyframe copy = new EntityClipKeyframe(getId(), getTime());
+        copy.setInterpolation(getInterpolation());
+        copy.copyStateFrom(this);
+        return copy;
+    }
+
+    @Override
+    public boolean hasSameStateAs(ClipKeyframe other) {
+        if (!super.hasSameStateAs(other)) return false;
+        EntityClipKeyframe that = (EntityClipKeyframe) other;
+        return channels == that.channels
+                && position.equals(that.position)
+                && rotation.equals(that.rotation)
+                && scale.equals(that.scale)
+                && actionType == that.actionType
+                && Float.compare(actionSpeed, that.actionSpeed) == 0
+                && actionLoop == that.actionLoop
+                && Float.compare(visibility, that.visibility) == 0
+                && active == that.active
+                && Objects.equals(displayName, that.displayName)
+                && showNameTag == that.showNameTag
+                && entityType == that.entityType;
+    }
+
+    private void copyStateFrom(EntityClipKeyframe source) {
+        channels = source.channels;
+        position.set(source.position);
+        rotation.set(source.rotation);
+        scale.set(source.scale);
+        actionType = source.actionType;
+        actionSpeed = source.actionSpeed;
+        actionLoop = source.actionLoop;
+        visibility = source.visibility;
+        active = source.active;
+        displayName = source.displayName;
+        showNameTag = source.showNameTag;
+        entityType = source.entityType;
     }
 
     private static float clamp01(float v) {

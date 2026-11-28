@@ -22,11 +22,13 @@ public class CollapseTrackCommand extends BaseTimelineCommand {
 
     @Override
     protected void doExecute() {
-        if (track != null) {
-            wasCollapsed = track.isCollapsed();
-            track.setCollapsed(!wasCollapsed);
-            LOGGER.debug("[Timeline] {}轨道: {}", wasCollapsed ? "展开" : "折叠", track.getName());
+        if (track == null) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
         }
+        wasCollapsed = track.isCollapsed();
+        track.setCollapsed(!wasCollapsed);
+        LOGGER.debug("[Timeline] {}轨道: {}", wasCollapsed ? "展开" : "折叠", track.getName());
     }
 
     @Override

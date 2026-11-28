@@ -47,16 +47,31 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
 
             float[] start = { clip.getStartTime() };
             PropertyRow.field("开始时间");
-            if (ImGui.dragFloat("##开始时间(秒)", start, 0.05f, 0.0f, 100000f, "%.2fs")) {
-                clip.setStartTime(Math.max(0.0f, start[0]));
-                modified = true;
+            ImGui.dragFloat("##开始时间(秒)", start, 0.05f, 0.0f, 100000f, "%.2fs");
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                float newStart = Math.max(0.0f, start[0]);
+                if (Float.compare(newStart, clip.getStartTime()) != 0) {
+                    var model = DirectorServices.get().containerTimeline().getTimelineModel();
+                    if (model != null) {
+                        com.director.ui.timeline.commands.TimelineCommandBridge.execute(
+                                new com.director.ui.timeline.commands.MoveClipCommand(
+                                        model, clip, model.findTrackForClip(clip), model.findTrackForClip(clip),
+                                        clip.getStartTime(), clip.getEndTime(), newStart, newStart + clip.getLength()));
+                        modified = true;
+                    }
+                }
             }
 
             float[] len = { clip.getLength() };
             PropertyRow.field("时长");
-            if (ImGui.dragFloat("##时长(秒)", len, 0.05f, 0.05f, 100000f, "%.2fs")) {
-                clip.setLength(len[0]);
-                modified = true;
+            ImGui.dragFloat("##时长(秒)", len, 0.05f, 0.05f, 100000f, "%.2fs");
+            if (ImGui.isItemDeactivatedAfterEdit() && Float.compare(len[0], clip.getLength()) != 0) {
+                var model = DirectorServices.get().containerTimeline().getTimelineModel();
+                if (model != null) {
+                    com.director.ui.timeline.commands.TimelineCommandBridge.execute(
+                            new com.director.ui.timeline.commands.SetClipLengthCommand(model, clip, len[0]));
+                    modified = true;
+                }
             }
 
             if (isBound) {

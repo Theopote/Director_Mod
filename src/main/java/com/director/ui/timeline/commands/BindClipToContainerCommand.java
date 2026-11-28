@@ -1,13 +1,15 @@
 package com.director.ui.timeline.commands;
 
 import com.director.core.DirectorServices;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TrackType;
+import com.director.timeline.model.audio.AudioTimelineClip;
+import com.director.ui.timeline.audio.TimelineAudioService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -21,6 +23,7 @@ public class BindClipToContainerCommand extends BaseTimelineCommand {
     private final String newContainerName;
     private UUID oldContainerId;
     private String oldContainerName;
+    private boolean applied;
 
     public BindClipToContainerCommand(
             TimelineModel model,
@@ -37,37 +40,67 @@ public class BindClipToContainerCommand extends BaseTimelineCommand {
     @Override
     protected void doExecute() {
         if (clip == null) {
+            setResult(TimelineCommand.Result.REJECTED);
             return;
         }
         oldContainerId = clip.getBoundContainerId();
         oldContainerName = clip.getBoundContainerName();
-        if (!canBind(newContainerId)) {
-            LOGGER.warn("[Timeline] 拒绝绑定片段 {} 到容器 {}：轨道类型不匹配或容器已有片段",
-                clip.getLabel(), newContainerId);
+        if (Objects.equals(oldContainerId, newContainerId)
+                && Objects.equals(oldContainerName, normalized(newContainerName))) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
             return;
         }
+        if (!canBind(newContainerId)) {
+            setResult(TimelineCommand.Result.REJECTED);
+            LOGGER.warn("[Timeline] 拒绝绑定片段 {} 到容器 {}：轨道类型不匹配或容器已有片段",
+                    clip.getLabel(), newContainerId);
+            return;
+        }
+        applied = true;
         clip.bindToContainer(newContainerId, newContainerName);
-        if (clip instanceof com.director.timeline.model.audio.AudioTimelineClip) {
-            com.director.ui.timeline.audio.TimelineAudioService.getInstance()
-                    .onAudioClipBindingChanged(clip, oldContainerId, newContainerId);
+        if (clip instanceof AudioTimelineClip) {
+            TimelineAudioService.getInstance().onAudioClipBindingChanged(clip, oldContainerId, newContainerId);
         }
         LOGGER.debug("[Timeline] 片段 {} 绑定容器: {} ({})",
-                clip.getLabel(),
-                newContainerName,
-                newContainerId);
+                clip.getLabel(), newContainerName, newContainerId);
     }
 
     @Override
     protected void doUndo() {
-        if (clip == null) {
+        if (!applied || clip == null) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
             return;
         }
         clip.bindToContainer(oldContainerId, oldContainerName);
-        if (clip instanceof com.director.timeline.model.audio.AudioTimelineClip) {
-            com.director.ui.timeline.audio.TimelineAudioService.getInstance()
-                    .onAudioClipBindingChanged(clip, newContainerId, oldContainerId);
+        if (clip instanceof AudioTimelineClip) {
+            TimelineAudioService.getInstance().onAudioClipBindingChanged(clip, newContainerId, oldContainerId);
         }
+        applied = false;
         LOGGER.debug("[Timeline] 撤销片段 {} 容器绑定，恢复为 {}", clip.getLabel(), oldContainerName);
+    }
+
+    @Override
+    protected void compensateExecute() {
+        if (!applied || clip == null) {
+            return;
+        }
+        clip.bindToContainer(oldContainerId, oldContainerName);
+        if (clip instanceof AudioTimelineClip) {
+            TimelineAudioService.getInstance().onAudioClipBindingChanged(clip, newContainerId, oldContainerId);
+        }
+        applied = false;
+    }
+
+    @Override
+    protected void compensateUndo() {
+        if (clip == null) {
+            return;
+        }
+        clip.bindToContainer(newContainerId, newContainerName);
+        if (clip instanceof AudioTimelineClip) {
+            TimelineAudioService.getInstance().onAudioClipBindingChanged(clip, oldContainerId, newContainerId);
+        }
+        applied = true;
     }
 
     @Override
@@ -75,8 +108,12 @@ public class BindClipToContainerCommand extends BaseTimelineCommand {
         return newContainerId == null ? "取消片段容器绑定" : "绑定片段到容器";
     }
 
+    private static String normalized(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
     private boolean canBind(UUID containerId) {
-        if (containerId == null || clip instanceof com.director.timeline.model.audio.AudioTimelineClip) {
+        if (containerId == null || clip instanceof AudioTimelineClip) {
             return true;
         }
         var track = clip.getParentTrack();
@@ -89,8 +126,7 @@ public class BindClipToContainerCommand extends BaseTimelineCommand {
         if (containerId.equals(oldContainerId)) {
             return true;
         }
-        for (TimelineClip existing : DirectorServices.get().containerTimeline()
-                .findClipsForContainer(containerId)) {
+        for (TimelineClip existing : DirectorServices.get().containerTimeline().findClipsForContainer(containerId)) {
             if (existing != null && existing != clip) {
                 return false;
             }
@@ -98,4 +134,3 @@ public class BindClipToContainerCommand extends BaseTimelineCommand {
         return true;
     }
 }
-

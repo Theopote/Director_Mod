@@ -160,11 +160,16 @@ public class ContainerVisibilityService {
         // 1) 优先处理 pendingTasks（hideContainer/showContainer 等整体操作）
         while (budget > 0 && !pendingTasks.isEmpty() && System.nanoTime() < deadline) {
             VisibilityTask task = pendingTasks.peekFirst();
-            int consumed = task.process(budget, deadline);
+            int consumed = 0;
+            if (task != null) {
+                consumed = task.process(budget, deadline);
+            }
             budget -= Math.max(1, consumed);
-            ContainerVisibilityFeedback.onTaskProgress(
-                    task.containerName, task.actionLabel, task.remaining());
-            if (task.isComplete()) {
+            if (task != null) {
+                ContainerVisibilityFeedback.onTaskProgress(
+                        task.containerName, task.actionLabel, task.remaining());
+            }
+            if (task != null && task.isComplete()) {
                 pendingTasks.removeFirst();
                 task.finish();
             }

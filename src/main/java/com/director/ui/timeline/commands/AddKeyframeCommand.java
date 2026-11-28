@@ -44,12 +44,12 @@ public class AddKeyframeCommand extends BaseTimelineCommand {
         }
         if (clip.hasKeyframeAt(time, KEYFRAME_TOLERANCE)) {
             added = false;
-            LOGGER.debug("[Timeline] 关键帧已存在，跳过添加: {:.2f}", time);
+            LOGGER.debug("[Timeline] 关键帧已存在，跳过添加: {}", time);
             return;
         }
         clip.addKeyframe(time);
         added = true;
-        LOGGER.debug("[Timeline] 添加关键帧 {:.2f}", time);
+        LOGGER.debug("[Timeline] 添加关键帧 {}", time);
     }
 
     @Override
@@ -62,7 +62,7 @@ public class AddKeyframeCommand extends BaseTimelineCommand {
             return;
         }
         if(lightKey!=null) clip.removeKeyframe(lightKey.getId());else clip.removeKeyframe(time);
-        LOGGER.debug("[Timeline] 撤销关键帧 {:.2f}", time);
+        LOGGER.debug("[Timeline] 撤销关键帧 {}", time);
     }
 
     @Override

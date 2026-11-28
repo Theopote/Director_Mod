@@ -32,23 +32,36 @@ public class AddPathClipCommand extends BaseTimelineCommand {
     protected void doExecute() {
         added = false;
         if (track == null || clip == null) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
+        }
+        if (track.getCameraPathClips().contains(clip)) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
             return;
         }
 
+        float originalStart = clip.getStartTime();
+        float originalEnd = clip.getEndTime();
         if (track.hasCameraPathOverlap(clip.getStartTime(), clip.getEndTime(), null)) {
             float length = clip.getEndTime() - clip.getStartTime();
             float resolved = track.resolvePathClipStartTime(clip.getStartTime(), length, clip);
             clip.setStartTime(resolved);
             clip.setEndTime(resolved + length);
             if (track.hasCameraPathOverlap(clip.getStartTime(), clip.getEndTime(), clip)) {
+                clip.setStartTime(originalStart);
+                clip.setEndTime(originalEnd);
                 LOGGER.warn("[AddPathClipCommand] 跳过重叠 Path Clip: {} @ {}s-{}s",
-                        clip.getName(), String.format("%.2f", clip.getStartTime()), String.format("%.2f", clip.getEndTime()));
+                        clip.getName(), originalStart, originalEnd);
+                setResult(TimelineCommand.Result.NO_CHANGE);
                 return;
             }
         }
         
         track.addCameraPathClip(clip);
-        added = true;
+        added = track.getCameraPathClips().contains(clip);
+        if (!added) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+        }
         
         // ⭐ 性能优化：BaseTimelineCommand.execute() 已经会调用 notifyModelChanged() → markDirty()
         // 这里不需要再次调用 markDirty()，避免重复触发模型变更通知
@@ -57,10 +70,12 @@ public class AddPathClipCommand extends BaseTimelineCommand {
     @Override
     protected void doUndo() {
         if (track == null || clip == null || !added) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
             return;
         }
-        
+
         track.removeCameraPathClip(clip);
+        added = false;
         
         // ⭐ 性能优化：BaseTimelineCommand.undo() 已经会调用 notifyModelChanged() → markDirty()
         // 这里不需要再次调用 markDirty()，避免重复触发模型变更通知
@@ -72,5 +87,10 @@ public class AddPathClipCommand extends BaseTimelineCommand {
                 clip != null ? clip.getName() : "Path Clip",
                 clip != null ? clip.getStartTime() : 0f,
                 clip != null ? clip.getEndTime() : 0f);
+    }
+
+    @Override
+    public boolean canUndo() {
+        return added;
     }
 }

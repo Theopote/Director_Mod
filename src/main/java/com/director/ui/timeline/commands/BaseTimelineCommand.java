@@ -25,6 +25,7 @@ public abstract class BaseTimelineCommand implements TimelineCommand {
     
     protected final TimelineModel model;
     private final String changeType;
+    private Result result = TimelineCommand.Result.NO_CHANGE;
     
     /**
      * 构造函数
@@ -42,10 +43,23 @@ public abstract class BaseTimelineCommand implements TimelineCommand {
      */
     @Override
     public final void execute() {
+        executeResult();
+    }
+
+    @Override
+    public final Result executeResult() {
+        result = TimelineCommand.Result.APPLIED;
         try {
             doExecute();
-            notifyModelChanged();
+            if (result == TimelineCommand.Result.APPLIED && !canUndo()) {
+                result = TimelineCommand.Result.NO_CHANGE;
+            }
+            if (result == TimelineCommand.Result.APPLIED) {
+                notifyModelChanged();
+            }
+            return result;
         } catch (RuntimeException | Error e) {
+            result = TimelineCommand.Result.REJECTED;
             compensate(e, this::compensateExecute);
             throw e;
         }
@@ -57,13 +71,27 @@ public abstract class BaseTimelineCommand implements TimelineCommand {
      */
     @Override
     public final void undo() {
+        undoResult();
+    }
+
+    @Override
+    public final Result undoResult() {
+        result = TimelineCommand.Result.APPLIED;
         try {
             doUndo();
-            notifyModelChanged();
+            if (result == TimelineCommand.Result.APPLIED) {
+                notifyModelChanged();
+            }
+            return result;
         } catch (RuntimeException | Error e) {
+            result = TimelineCommand.Result.REJECTED;
             compensate(e, this::compensateUndo);
             throw e;
         }
+    }
+
+    protected final void setResult(TimelineCommand.Result result) {
+        this.result = result;
     }
     
     /**

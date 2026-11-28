@@ -797,7 +797,7 @@ public class TimelineClipBlockController {
         // 本帧世界方块（AIR/恢复）变化导致的重渲染位置（与视觉覆盖层无关）
 
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("[TimelineClipBlockController] 开始更新 (当前时间: {:.2f}s)", currentTime);
+            LOGGER.trace("[TimelineClipBlockController] 开始更新 (当前时间: {}s)", currentTime);
         }
 
         final long tAfterClear = System.nanoTime();

@@ -20,6 +20,11 @@ public class AudioClipKeyframe extends ClipKeyframe {
         setVolume(volume);
     }
 
+    private AudioClipKeyframe(java.util.UUID id, float time, TimelineInterpolation interpolation, float volume) {
+        super(id, time, interpolation);
+        setVolume(volume);
+    }
+
     public float getVolume() {
         return volume;
     }
@@ -41,5 +46,16 @@ public class AudioClipKeyframe extends ClipKeyframe {
     @Override
     public AudioClipKeyframe copy() {
         return new AudioClipKeyframe(getTime(), getInterpolation(), volume);
+    }
+
+    @Override
+    public AudioClipKeyframe snapshot() {
+        return new AudioClipKeyframe(getId(), getTime(), getInterpolation(), volume);
+    }
+
+    @Override
+    public boolean hasSameStateAs(ClipKeyframe other) {
+        return super.hasSameStateAs(other)
+                && Float.compare(volume, ((AudioClipKeyframe) other).volume) == 0;
     }
 }

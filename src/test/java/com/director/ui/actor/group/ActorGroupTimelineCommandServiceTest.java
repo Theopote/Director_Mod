@@ -131,6 +131,8 @@ class ActorGroupTimelineCommandServiceTest {
     @org.junit.jupiter.api.BeforeEach void registry() {
         com.director.actor.ActorRegistryManager.setRegistry(null);
         com.director.actor.ActorRegistryManager.setRegistry(new com.director.actor.ActorRegistry());
+        com.director.ui.timeline.commands.TimelineCommandBridge.bind(
+                new com.director.ui.timeline.commands.TimelineCommandHistory());
     }
     @org.junit.jupiter.api.AfterEach void cleanup() {
         com.director.ui.timeline.commands.TimelineCommandBridge.bind(null);

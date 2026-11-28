@@ -17,6 +17,7 @@ public class BatchChangeCameraKeyframeRotationInterpolationCommand extends BaseT
 
     private final List<CameraKeyframe> keyframes = new ArrayList<>();
     private final List<CameraKeyframe.RotationInterpolation> oldTypes = new ArrayList<>();
+    private final List<Integer> changed = new ArrayList<>();
     private final CameraKeyframe.RotationInterpolation newType;
 
     public BatchChangeCameraKeyframeRotationInterpolationCommand(TimelineModel model,
@@ -35,8 +36,24 @@ public class BatchChangeCameraKeyframeRotationInterpolationCommand extends BaseT
 
     @Override
     protected void doExecute() {
-        for (CameraKeyframe kf : keyframes) {
-            kf.setRotationInterpolation(newType);
+        if (newType == null || keyframes.isEmpty()) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
+        }
+        try {
+            for (int i = 0; i < keyframes.size(); i++) {
+                CameraKeyframe keyframe = keyframes.get(i);
+                if (keyframe.getRotationInterpolation() == newType) continue;
+                keyframe.setRotationInterpolation(newType);
+                changed.add(i);
+            }
+        } catch (RuntimeException | Error e) {
+            restoreChanged();
+            throw e;
+        }
+        if (changed.isEmpty()) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
         }
         TimelineCameraController.getInstance().onKeyframeChanged();
         LOGGER.debug("[Timeline] 批量设置摄像机关键帧旋转插值 -> {}", newType);
@@ -44,16 +61,27 @@ public class BatchChangeCameraKeyframeRotationInterpolationCommand extends BaseT
 
     @Override
     protected void doUndo() {
-        for (int i = 0; i < keyframes.size(); i++) {
-            keyframes.get(i).setRotationInterpolation(oldTypes.get(i));
-        }
+        restoreChanged();
+        changed.clear();
         TimelineCameraController.getInstance().onKeyframeChanged();
         LOGGER.debug("[Timeline] 撤销批量设置摄像机关键帧旋转插值");
+    }
+
+    private void restoreChanged() {
+        for (int i = changed.size() - 1; i >= 0; i--) {
+            int index = changed.get(i);
+            keyframes.get(index).setRotationInterpolation(oldTypes.get(index));
+        }
     }
 
     @Override
     public String getDescription() {
         return "设置旋转插值（批量）";
+    }
+
+    @Override
+    public boolean canUndo() {
+        return !changed.isEmpty();
     }
 }
 

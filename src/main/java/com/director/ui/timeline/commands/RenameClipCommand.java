@@ -1,14 +1,13 @@
 package com.director.ui.timeline.commands;
 
 import com.director.core.DirectorServices;
-import com.director.core.container.ContainerManager;
+import com.director.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.director.timeline.model.TimelineClip;
-import com.director.timeline.model.TimelineModel;
-
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * 重命名片段命令（支持撤销）。
@@ -19,7 +18,9 @@ public class RenameClipCommand extends BaseTimelineCommand {
     private final TimelineClip clip;
     private final String newLabel;
     private String oldLabel;
-    private String oldContainerName; // 保存容器旧名称用于撤销
+    private String oldContainerName;
+    private UUID oldContainerId;
+    private boolean applied;
 
     public RenameClipCommand(TimelineModel model, TimelineClip clip, String newLabel) {
         super(model, "clip_renamed");
@@ -30,52 +31,62 @@ public class RenameClipCommand extends BaseTimelineCommand {
     @Override
     protected void doExecute() {
         if (clip == null || newLabel == null) {
+            setResult(TimelineCommand.Result.REJECTED);
             return;
         }
         oldLabel = clip.getLabel();
-        if (newLabel.equals(oldLabel)) {
+        oldContainerId = clip.getBoundContainerId();
+        oldContainerName = clip.getBoundContainerName();
+        if (Objects.equals(newLabel, oldLabel)) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
             return;
         }
+        applied = true;
         clip.setLabel(newLabel);
-        clip.setBoundContainerName(newLabel); // 同步更新绑定容器名称
-        LOGGER.debug("[Timeline] 重命名片段: {} -> {}", oldLabel, newLabel);
-        
-        // ★ 功能：片段重命名时，同步到对应的容器
-        // 注意：需要检查片段名称是否与容器名称不同，避免循环更新
-        java.util.UUID containerId = clip.getBoundContainerId();
-        if (containerId != null) {
-            com.director.core.container.Container container = 
-                DirectorServices.get().containers().getContainer(containerId);
-            if (container != null && !newLabel.equals(container.getName())) {
-                // 保存容器旧名称用于撤销
-                oldContainerName = container.getName();
-                // 使用ContainerManager的方法重命名容器（会触发onContainerRenamed事件）
-                // 但我们在onContainerRenamed中会检查片段名称是否已更新，避免循环
-                DirectorServices.get().containers().renameContainer(container, newLabel);
-                LOGGER.info("[Timeline] 片段重命名已同步到容器: {} -> {}", oldContainerName, newLabel);
+        if (oldContainerId != null) {
+            var container = DirectorServices.get().containers().getContainer(oldContainerId);
+            if (container != null) {
+                clip.setBoundContainerName(newLabel);
+                if (!newLabel.equals(container.getName())) {
+                    DirectorServices.get().containers().renameContainer(container, newLabel);
+                }
             }
         }
+        LOGGER.debug("[Timeline] 重命名片段: {} -> {}", oldLabel, newLabel);
     }
 
     @Override
     protected void doUndo() {
-        if (clip == null || oldLabel == null) {
+        if (!applied || clip == null) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
             return;
         }
         clip.setLabel(oldLabel);
-        clip.setBoundContainerName(oldLabel); // 同步更新绑定容器名称
-        LOGGER.debug("[Timeline] 撤销片段重命名: {} -> {}", newLabel, oldLabel);
-        
-        // ★ 功能：撤销时，同步恢复容器名称
-        java.util.UUID containerId = clip.getBoundContainerId();
-        if (containerId != null && oldContainerName != null) {
-            com.director.core.container.Container container = 
-                DirectorServices.get().containers().getContainer(containerId);
-            if (container != null && !oldContainerName.equals(container.getName())) {
+        if (oldContainerId != null) {
+            clip.setBoundContainerName(oldContainerName);
+            var container = DirectorServices.get().containers().getContainer(oldContainerId);
+            if (container != null && !Objects.equals(container.getName(), oldContainerName)) {
                 DirectorServices.get().containers().renameContainer(container, oldContainerName);
-                LOGGER.info("[Timeline] 撤销片段重命名已同步到容器: {} -> {}", newLabel, oldContainerName);
             }
         }
+        applied = false;
+        LOGGER.debug("[Timeline] 撤销片段重命名: {} -> {}", newLabel, oldLabel);
+    }
+
+    @Override
+    protected void compensateExecute() {
+        if (!applied || clip == null) {
+            return;
+        }
+        clip.setLabel(oldLabel);
+        if (oldContainerId != null) {
+            clip.setBoundContainerName(oldContainerName);
+            var container = DirectorServices.get().containers().getContainer(oldContainerId);
+            if (container != null && Objects.equals(container.getName(), newLabel)) {
+                DirectorServices.get().containers().renameContainer(container, oldContainerName);
+            }
+        }
+        applied = false;
     }
 
     @Override
@@ -83,4 +94,3 @@ public class RenameClipCommand extends BaseTimelineCommand {
         return "重命名片段";
     }
 }
-

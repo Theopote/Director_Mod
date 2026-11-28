@@ -56,18 +56,21 @@ public class TimelineCommandHistory {
      * ⭐ 性能优化：BaseTimelineCommand 已经会调用 markDirty()，这里不需要重复调用
      */
     public void executeCommand(TimelineCommand command) {
-        command.execute();
+        TimelineCommand.Result result = command.executeResult();
+        if (result != TimelineCommand.Result.APPLIED) {
+            LOGGER.debug("[Timeline] 跳过未生效命令: {} ({})", command.getDescription(), result);
+            return;
+        }
 
+        redoStack.clear();
         if (command.canUndo()) {
             undoStack.add(command);
-            redoStack.clear();
 
             if (undoStack.size() > maxHistorySize) {
                 undoStack.removeFirst();
             }
-
-            LOGGER.debug("[Timeline] 执行命令: {}", command.getDescription());
         }
+        LOGGER.debug("[Timeline] 执行命令: {}", command.getDescription());
         
         // ⭐ 性能优化：BaseTimelineCommand.execute() 已经会调用 notifyModelChanged() → markDirty()
         // 这里不需要再次调用，避免重复触发模型变更通知和保存操作
@@ -95,7 +98,9 @@ public class TimelineCommandHistory {
         }
 
         TimelineCommand command = undoStack.getLast();
-        command.undo();
+        if (command.undoResult() != TimelineCommand.Result.APPLIED) {
+            return false;
+        }
         cancelActorTransformPreview();
         undoStack.removeLast();
         redoStack.add(command);
@@ -123,10 +128,14 @@ public class TimelineCommandHistory {
         }
 
         TimelineCommand command = redoStack.getLast();
-        command.execute();
+        if (command.executeResult() != TimelineCommand.Result.APPLIED) {
+            return false;
+        }
         cancelActorTransformPreview();
         redoStack.removeLast();
-        undoStack.add(command);
+        if (command.canUndo()) {
+            undoStack.add(command);
+        }
         LOGGER.info("[Timeline] 重做命令: {}", command.getDescription());
         
         // ⭐ 性能优化：BaseTimelineCommand.execute() 已经会调用 notifyModelChanged() → markDirty()

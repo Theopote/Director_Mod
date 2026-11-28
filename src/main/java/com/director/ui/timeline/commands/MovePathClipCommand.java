@@ -21,6 +21,7 @@ public class MovePathClipCommand extends BaseTimelineCommand {
     private final float oldEnd;
     private final float newStart;
     private final float newEnd;
+    private boolean moved;
     
     public MovePathClipCommand(TimelineModel model, TimelineTrack track, CameraPathClip clip,
                                float oldStart, float oldEnd, float newStart, float newEnd) {
@@ -36,14 +37,28 @@ public class MovePathClipCommand extends BaseTimelineCommand {
     @Override
     protected void doExecute() {
         if (track == null || clip == null) {
+            setResult(TimelineCommand.Result.REJECTED);
             return;
         }
-        
-        if (clip instanceof CustomPathClip customPathClip) {
-            customPathClip.offsetKeyframes(newStart - oldStart);
+        if (!track.getCameraPathClips().contains(clip)) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
         }
-        clip.setStartTime(newStart);
-        clip.setEndTime(newEnd);
+        apply(newStart, newEnd);
+    }
+
+    private void apply(float start, float end) {
+        if (Float.compare(clip.getStartTime(), start) == 0
+                && Float.compare(clip.getEndTime(), end) == 0) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        if (clip instanceof CustomPathClip customPathClip) {
+            customPathClip.offsetKeyframes(start - clip.getStartTime());
+        }
+        clip.setStartTime(start);
+        clip.setEndTime(end);
+        moved = true;
         
         // ⭐ 性能优化：BaseTimelineCommand.execute() 已经会调用 notifyModelChanged() → markDirty()
         // 这里不需要再次调用 markDirty()，避免重复触发模型变更通知
@@ -51,15 +66,11 @@ public class MovePathClipCommand extends BaseTimelineCommand {
     
     @Override
     protected void doUndo() {
-        if (track == null || clip == null) {
-            return;
+        if (!track.getCameraPathClips().contains(clip)) {
+            throw new IllegalStateException("Path clip is missing from track: " + clip.getName());
         }
-        
-        if (clip instanceof CustomPathClip customPathClip) {
-            customPathClip.offsetKeyframes(oldStart - newStart);
-        }
-        clip.setStartTime(oldStart);
-        clip.setEndTime(oldEnd);
+        apply(oldStart, oldEnd);
+        moved = false;
         
         // ⭐ 性能优化：BaseTimelineCommand.undo() 已经会调用 notifyModelChanged() → markDirty()
         // 这里不需要再次调用 markDirty()，避免重复触发模型变更通知
@@ -70,5 +81,10 @@ public class MovePathClipCommand extends BaseTimelineCommand {
         return String.format("移动 Path Clip: %s (%.2fs-%.2fs -> %.2fs-%.2fs)",
                 clip != null ? clip.getName() : "Path Clip",
                 oldStart, oldEnd, newStart, newEnd);
+    }
+
+    @Override
+    public boolean canUndo() {
+        return moved;
     }
 }

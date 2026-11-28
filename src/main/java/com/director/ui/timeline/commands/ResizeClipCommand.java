@@ -1,16 +1,14 @@
 package com.director.ui.timeline.commands;
 
+import com.director.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineModel;
+import com.director.timeline.model.audio.AudioTimelineClip;
+import com.director.ui.timeline.audio.TimelineAudioService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.director.timeline.model.TimelineClip;
-import com.director.timeline.model.TimelineModel;
-
 /**
  * 调整片段边缘命令（支持撤销）。
- * 
- * <p>用于调整片段的开始或结束时间，与 MoveClipCommand 不同，
- * ResizeClipCommand 只改变片段的一个边缘，保持另一个边缘不变。
  */
 public class ResizeClipCommand extends BaseTimelineCommand {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResizeClipCommand.class);
@@ -22,14 +20,8 @@ public class ResizeClipCommand extends BaseTimelineCommand {
     private final float newEndTime;
     private TimelineClip oldState;
     private TimelineClip newState;
+    private boolean applied;
 
-    /**
-     * 构造函数
-     * @param model Timeline 模型
-     * @param clip 要调整的片段
-     * @param edge 要调整的边缘（START 或 END）
-     * @param newTime 新的时间位置
-     */
     public ResizeClipCommand(
             TimelineModel model,
             TimelineClip clip,
@@ -62,33 +54,57 @@ public class ResizeClipCommand extends BaseTimelineCommand {
     @Override
     protected void doExecute() {
         if (clip == null) {
+            setResult(TimelineCommand.Result.REJECTED);
             return;
         }
+        if (Float.compare(oldStartTime, newStartTime) == 0
+                && Float.compare(oldEndTime, newEndTime) == 0) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        applied = true;
         if (newState == null) {
+            if (clip instanceof AudioTimelineClip) {
+                TimelineAudioService.getInstance().remapAudioClipKeyframes(
+                        clip, oldStartTime, oldEndTime, newStartTime, newEndTime);
+            }
             clip.setTimeRange(newStartTime, newEndTime);
             newState = clip.snapshot();
         } else {
             clip.restoreStateFrom(newState);
         }
-        com.director.ui.timeline.audio.TimelineAudioService.getInstance()
-                .onClipTimeRangeChanged(clip, oldStartTime, oldEndTime, newStartTime, newEndTime);
-        LOGGER.debug("[Timeline] 调整片段范围: {:.2f}-{:.2f} -> {:.2f}-{:.2f}",
-                oldStartTime, oldEndTime, newStartTime, newEndTime);
+        TimelineAudioService.getInstance().onClipTimeRangeChanged(
+                clip, oldStartTime, oldEndTime, newStartTime, newEndTime, false);
+        LOGGER.debug("[Timeline] 调整片段范围: {} -> {}", oldStartTime, newStartTime);
     }
 
     @Override
     protected void doUndo() {
-        if (clip == null) {
+        if (!applied || clip == null || oldState == null) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
             return;
         }
-        if (oldState != null) {
-            clip.restoreStateFrom(oldState);
-        } else {
-            clip.setTimeRange(oldStartTime, oldEndTime);
-        }
-        com.director.ui.timeline.audio.TimelineAudioService.getInstance()
-                .onClipTimeRangeChanged(clip, newStartTime, newEndTime, oldStartTime, oldEndTime);
+        clip.restoreStateFrom(oldState);
+        TimelineAudioService.getInstance().onClipTimeRangeChanged(
+                clip, newStartTime, newEndTime, oldStartTime, oldEndTime, false);
+        applied = false;
         LOGGER.debug("[Timeline] 撤销调整片段范围");
+    }
+
+    @Override
+    protected void compensateExecute() {
+        if (applied && clip != null && oldState != null) {
+            clip.restoreStateFrom(oldState);
+        }
+        applied = false;
+    }
+
+    @Override
+    protected void compensateUndo() {
+        if (clip != null && newState != null) {
+            clip.restoreStateFrom(newState);
+        }
+        applied = true;
     }
 
     @Override
@@ -97,4 +113,3 @@ public class ResizeClipCommand extends BaseTimelineCommand {
                 oldStartTime, oldEndTime, newStartTime, newEndTime);
     }
 }
-

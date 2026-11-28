@@ -85,7 +85,7 @@ public final class TimelineClipDragHandler {
         }
 
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[Timeline] 点击片段: {} (时间: {:.2f}s - {:.2f}s)",
+            LOGGER.debug("[Timeline] 点击片段: {} (时间: {}s - {}s)",
                     clip.getLabel(), clip.getStartTime(), clip.getEndTime());
         }
 
@@ -134,7 +134,7 @@ public final class TimelineClipDragHandler {
                     mouseX, ImGui.getMousePosY(),
                     clip.getStartTime(), clip.getEndTime());
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[Timeline] 开始拖动片段: {} (@{:.2f}s)", clip.getLabel(), clip.getStartTime());
+                LOGGER.debug("[Timeline] 开始拖动片段: {} (@{}s)", clip.getLabel(), clip.getStartTime());
             }
         }
     }
@@ -205,7 +205,8 @@ public final class TimelineClipDragHandler {
             if (newTrackIndex >= 0 && newTrackIndex < model.getTrackCount()) {
                 TimelineTrack newTrack = model.getTrackAt(newTrackIndex);
                 if (newTrack != null && newTrack != currentTrack && !newTrack.isLocked()) {
-                    if (!isClipAllowedOnTrack(handle.clip, newTrack)) {
+                    if (!isClipAllowedOnTrack(handle.clip, newTrack)
+                            || !newTrack.canAddClip(handle.clip)) {
                         newTrack = null;
                     }
                     if (newTrack == null) {
@@ -214,8 +215,12 @@ public final class TimelineClipDragHandler {
                         if (currentTrack != null) {
                             currentTrack.removeClip(handle.clip);
                         }
-                        if (!newTrack.getClips().contains(handle.clip)) {
-                            newTrack.addClip(handle.clip);
+                        if (!newTrack.addClip(handle.clip)) {
+                            if (currentTrack != null) {
+                                currentTrack.addClip(handle.clip);
+                            }
+                            snapGuideState.clear();
+                            return;
                         }
                         targetTrack = newTrack;
                         if (newTrack.getType() == TrackType.AUDIO) {
@@ -335,7 +340,7 @@ public final class TimelineClipDragHandler {
                         || Math.abs(oldEnd - handle.clip.getEndTime()) > 0.001f) {
                     commandHistory.executeCommand(new com.director.ui.timeline.commands.MoveClipCommand(
                             model, handle.clip, handle.track, target, oldStart, oldEnd,
-                            handle.clip.getStartTime(), handle.clip.getEndTime()));
+                            handle.clip.getStartTime(), handle.clip.getEndTime(), handle.gestureState));
                     callbacks.onDataChanged();
                 }
                 com.director.ui.timeline.audio.TimelineAudioService.getInstance()
@@ -356,10 +361,18 @@ public final class TimelineClipDragHandler {
 
     public void cancelSilently(ClipHandle handle) {
         TimelineTrack currentTrack = model.findTrackForClip(handle.clip);
-        if (currentTrack != null && currentTrack != handle.track) {
-            currentTrack.removeClip(handle.clip);
-            if (handle.track != null && !handle.track.getClips().contains(handle.clip)) {
-                handle.track.addClip(handle.clip);
+        if (currentTrack != handle.track) {
+            if (handle.track != null && !handle.track.canAddClip(handle.clip)) {
+                throw new IllegalStateException("Cannot restore clip to its original track: " + handle.clip.getLabel());
+            }
+            if (currentTrack != null) {
+                currentTrack.removeClip(handle.clip);
+            }
+            if (handle.track != null && !handle.track.addClip(handle.clip)) {
+                if (currentTrack != null && !currentTrack.addClip(handle.clip)) {
+                    throw new IllegalStateException("Cannot restore clip after rejected cross-track move");
+                }
+                throw new IllegalStateException("Cannot restore clip to its original track: " + handle.clip.getLabel());
             }
         }
         com.director.ui.timeline.audio.TimelineAudioService.getInstance().moveLinkedEventsToTrack(handle.clip, handle.track);

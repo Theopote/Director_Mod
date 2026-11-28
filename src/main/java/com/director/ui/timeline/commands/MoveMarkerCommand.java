@@ -22,6 +22,7 @@ public class MoveMarkerCommand extends BaseTimelineCommand {
     private final UUID markerId;
     private final float oldTime;
     private final float newTime;
+    private boolean moved;
 
     /**
      * 创建移动标记命令
@@ -44,53 +45,50 @@ public class MoveMarkerCommand extends BaseTimelineCommand {
 
     @Override
     protected void doExecute() {
+        TimelineMarker marker = findMarker();
         if (model == null || markerId == null) {
-            LOGGER.warn("[Timeline] 移动标记失败：model 或 markerId 为 null");
+            setResult(TimelineCommand.Result.REJECTED);
             return;
         }
-        apply(newTime);
+        if (marker == null || Float.compare(marker.getTime(), newTime) == 0) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        marker.setTime(newTime);
+        moved = true;
         LOGGER.debug("[Command] MoveMarker execute {} -> {}", oldTime, newTime);
     }
 
     @Override
     protected void doUndo() {
-        if (model == null || markerId == null) {
-            LOGGER.warn("[Timeline] 撤销移动标记失败：model 或 markerId 为 null");
-            return;
+        TimelineMarker marker = findMarker();
+        if (marker == null) {
+            throw new IllegalStateException("Timeline marker is missing: " + markerId);
         }
-        apply(oldTime);
+        marker.setTime(oldTime);
+        moved = false;
         LOGGER.debug("[Command] MoveMarker undo {} <- {}", newTime, oldTime);
     }
 
     /**
      * 应用时间变化（Execute 和 Undo 共用）
      */
-    private void apply(float time) {
+    private TimelineMarker findMarker() {
         if (model == null || markerId == null) {
-            return;
+            return null;
         }
-        
-        // 查找标记
-        var markers = model.getMarkers();
-        TimelineMarker marker = null;
-        for (var m : markers) {
-            if (m != null && m.getId().equals(markerId)) {
-                marker = m;
-                break;
-            }
-        }
-        
-        if (marker == null) {
-            LOGGER.warn("[Timeline] 移动标记失败：找不到标记 {}", markerId);
-            return;
-        }
-        
-        // 更新标记时间
-        marker.setTime(time);
+        return model.getMarkers().stream()
+                .filter(m -> m != null && markerId.equals(m.getId()))
+                .findFirst().orElse(null);
     }
 
     @Override
     public String getDescription() {
         return String.format("移动标记: %.2fs -> %.2fs", oldTime, newTime);
+    }
+
+    @Override
+    public boolean canUndo() {
+        return moved;
     }
 }

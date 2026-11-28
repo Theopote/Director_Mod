@@ -28,6 +28,7 @@ public class ChangeBezierHandleCommand extends BaseTimelineCommand {
     private final Vector3f oldOutHandle;
     private final Vector3f newInHandle;
     private final Vector3f newOutHandle;
+    private boolean applied;
 
     /**
      * 创建修改控制柄命令
@@ -59,14 +60,15 @@ public class ChangeBezierHandleCommand extends BaseTimelineCommand {
 
     @Override
     protected void doExecute() {
-        if (keyframe == null) {
-            LOGGER.warn("[Timeline] 修改控制柄失败：keyframe 为 null");
+        if (keyframe.getBezierInHandle().equals(newInHandle)
+                && keyframe.getBezierOutHandle().equals(newOutHandle)) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
             return;
         }
 
-        // 设置新的控制柄
         keyframe.setBezierInHandle(newInHandle);
         keyframe.setBezierOutHandle(newOutHandle);
+        applied = true;
         TimelineCameraController.getInstance().onKeyframeChanged();
 
         LOGGER.debug("[Timeline] 修改控制柄: 关键帧 @ {}s", keyframe.getTime());
@@ -74,13 +76,9 @@ public class ChangeBezierHandleCommand extends BaseTimelineCommand {
 
     @Override
     protected void doUndo() {
-        if (keyframe == null) {
-            return;
-        }
-
-        // 恢复旧的控制柄
         keyframe.setBezierInHandle(oldInHandle);
         keyframe.setBezierOutHandle(oldOutHandle);
+        applied = false;
         TimelineCameraController.getInstance().onKeyframeChanged();
 
         LOGGER.debug("[Timeline] 撤销修改控制柄: 关键帧 @ {}s", keyframe.getTime());
@@ -91,6 +89,11 @@ public class ChangeBezierHandleCommand extends BaseTimelineCommand {
         return String.format("修改控制柄: %s @ %.2fs", 
                 keyframe != null ? keyframe.getName() : "未知", 
                 keyframe != null ? keyframe.getTime() : 0f);
+    }
+
+    @Override
+    public boolean canUndo() {
+        return applied;
     }
 }
 

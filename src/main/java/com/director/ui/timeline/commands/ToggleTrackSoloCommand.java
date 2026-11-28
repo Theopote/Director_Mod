@@ -22,11 +22,13 @@ public class ToggleTrackSoloCommand extends BaseTimelineCommand {
 
     @Override
     protected void doExecute() {
-        if (track != null) {
-            oldSoloState = track.isSolo();
-            track.setSolo(!oldSoloState);
-            LOGGER.debug("[Timeline] {}轨道: {}", oldSoloState ? "取消 Solo" : "Solo", track.getName());
+        if (track == null) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
         }
+        oldSoloState = track.isSolo();
+        track.setSolo(!oldSoloState);
+        LOGGER.debug("[Timeline] {}轨道: {}", oldSoloState ? "取消 Solo" : "Solo", track.getName());
     }
 
     @Override

@@ -80,7 +80,7 @@ public final class PlaybackCommandsImpl implements PlaybackCommands {
         withPlaybackModel(model -> {
             float current = model.getCurrentTime();
             model.setInPoint(current);
-            LOGGER.info("[PlaybackCommands] 设置入点: {:.2f}s", model.getInPoint());
+            LOGGER.info("[PlaybackCommands] 设置入点: {}s", model.getInPoint());
         }, "setInPoint");
     }
 
@@ -89,7 +89,7 @@ public final class PlaybackCommandsImpl implements PlaybackCommands {
         withPlaybackModel(model -> {
             float current = model.getCurrentTime();
             model.setOutPoint(current);
-            LOGGER.info("[PlaybackCommands] 设置出点: {:.2f}s", model.getOutPoint());
+            LOGGER.info("[PlaybackCommands] 设置出点: {}s", model.getOutPoint());
         }, "setOutPoint");
     }
 
@@ -214,7 +214,7 @@ public final class PlaybackCommandsImpl implements PlaybackCommands {
                 }
             }
 
-            LOGGER.debug("[PlaybackCommands] Seek to {:.2f}s", clampedTime);
+            LOGGER.debug("[PlaybackCommands] Seek to {}s", clampedTime);
         } else {
             LOGGER.warn("[PlaybackCommands] seek skipped: TimelineModel unavailable");
         }

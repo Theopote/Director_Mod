@@ -111,7 +111,9 @@ class LightTimelineTest {
     @Test void wholeClipMovementMovesKeysAndUndoRestoresTheirTimes() {
         var m=model();var l=point();var c=schedule(m,l,0,10);var k=new LightKeyframe(3,l);c.addKeyframe(k);var t=m.findTrackForClip(c);
         var h=new TimelineCommandHistory();h.executeCommand(new MoveClipCommand(m,c,t,t,0,10,20,30));
-        assertEquals(23,k.getTime());assertEquals(20,c.getStartTime());h.undo();assertEquals(3,k.getTime());h.redo();assertEquals(23,k.getTime());
+        assertEquals(k.getId(),c.getClipKeyframes().getFirst().getId());assertEquals(23,c.getClipKeyframes().getFirst().getTime());assertEquals(20,c.getStartTime());
+        h.undo();assertEquals(k.getId(),c.getClipKeyframes().getFirst().getId());assertEquals(3,c.getClipKeyframes().getFirst().getTime());
+        h.redo();assertEquals(k.getId(),c.getClipKeyframes().getFirst().getId());assertEquals(23,c.getClipKeyframes().getFirst().getTime());
     }
     @Test void clipCopyKeepsLightKindAndKeyValuesWithIndependentKeyObjects() {
         var l=line();var c=new LightTimelineClip("L",0,10,l.id());var k=new LightKeyframe(2,l);c.addKeyframe(k);

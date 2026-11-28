@@ -33,17 +33,26 @@ public class DuplicateClipCommand extends BaseTimelineCommand {
     protected void doExecute() {
         if (track == null || originalClip == null) {
             LOGGER.warn("[Timeline] 复制片段失败：track 或 originalClip 为 null");
+            setResult(TimelineCommand.Result.REJECTED);
             return;
         }
         if (originalClip.getBoundContainerId() != null
             && !(originalClip instanceof com.director.timeline.model.audio.AudioTimelineClip)) {
             LOGGER.warn("[Timeline] 容器片段不支持直接复制，请从容器列表重新拖入或移动现有片段: {}",
                 originalClip.getLabel());
+            setResult(TimelineCommand.Result.REJECTED);
             return;
         }
 
         // 创建副本（拷贝构造函数已实现深拷贝，包括 keyframes）
-        if (insertion != null) { insertion.execute(); return; }
+        if (insertion != null) {
+            TimelineCommand.Result result = insertion.executeResult();
+            setResult(result);
+            if (result != TimelineCommand.Result.APPLIED) {
+                duplicatedClip = null;
+            }
+            return;
+        }
         duplicatedClip = com.director.timeline.model.TimelineClipCopies.copy(originalClip);
         duplicatedClip.setLabel(originalClip.getLabel() + " (副本)");
 
@@ -54,9 +63,10 @@ public class DuplicateClipCommand extends BaseTimelineCommand {
         // 添加到轨道
         insertion = new InsertClipCommand(model, track, duplicatedClip,
                 com.director.ui.timeline.audio.TimelineAudioService.getInstance().captureClipEvents(originalClip), offset);
-        insertion.execute();
-        if (!insertion.canUndo()) {
+        TimelineCommand.Result result = insertion.executeResult();
+        if (result != TimelineCommand.Result.APPLIED) {
             duplicatedClip = null;
+            setResult(result);
             LOGGER.warn("[Timeline] 复制片段失败：轨道拒绝接收 {}", originalClip.getLabel());
             return;
         }
@@ -66,9 +76,12 @@ public class DuplicateClipCommand extends BaseTimelineCommand {
 
     @Override
     protected void doUndo() {
-        if (duplicatedClip != null && track != null) {
-            insertion.undo();
-            LOGGER.debug("[Timeline] 撤销复制片段");
+        if (duplicatedClip != null && track != null && insertion != null) {
+            TimelineCommand.Result result = insertion.undoResult();
+            setResult(result);
+            if (result == TimelineCommand.Result.APPLIED) {
+                LOGGER.debug("[Timeline] 撤销复制片段");
+            }
         }
     }
 
@@ -79,7 +92,7 @@ public class DuplicateClipCommand extends BaseTimelineCommand {
 
     @Override
     public boolean canUndo() {
-        return duplicatedClip != null;
+        return duplicatedClip != null && insertion != null && insertion.canUndo();
     }
 
     /**

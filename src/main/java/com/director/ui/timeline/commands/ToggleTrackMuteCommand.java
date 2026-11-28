@@ -22,11 +22,13 @@ public class ToggleTrackMuteCommand extends BaseTimelineCommand {
 
     @Override
     protected void doExecute() {
-        if (track != null) {
-            oldMutedState = track.isMuted();
-            track.setMuted(!oldMutedState);
-            LOGGER.debug("[Timeline] {}轨道: {}", oldMutedState ? "取消静音" : "静音", track.getName());
+        if (track == null) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
         }
+        oldMutedState = track.isMuted();
+        track.setMuted(!oldMutedState);
+        LOGGER.debug("[Timeline] {}轨道: {}", oldMutedState ? "取消静音" : "静音", track.getName());
     }
 
     @Override

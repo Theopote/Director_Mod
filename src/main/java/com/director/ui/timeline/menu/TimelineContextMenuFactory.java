@@ -158,7 +158,7 @@ public class TimelineContextMenuFactory {
 
         if(clip instanceof com.director.lighting.LightTimelineClip lightClip) {
             builder.command(tr(DirectorLang.Timeline.ContextMenu.DUPLICATE_CLIP),new DuplicateClipCommand(model,track,clip),"Ctrl+D")
-                .command(tr(DirectorLang.Timeline.ContextMenu.DELETE_CLIP),deleteCmd,"Del");
+                .item(tr(DirectorLang.Timeline.ContextMenu.DELETE_CLIP), () -> deleteClipAndClearSelection(deleteCmd, clip), "Del");
             builder.item(com.director.ui.panels.LightsPanel.tr("add_key"),() -> {
                 float time=model.getCurrentTime();var base=model.getPointLight(lightClip.lightId());
                 if(track.isLocked() || base==null || time<clip.getStartTime() || time>clip.getEndTime()) return;
@@ -178,7 +178,7 @@ public class TimelineContextMenuFactory {
         // ⭐ 音频片段：简化菜单（只保留基本操作）
         if (track.getType() == TrackType.AUDIO) {
             builder.command(tr(DirectorLang.Timeline.ContextMenu.DUPLICATE_CLIP), new DuplicateClipCommand(model, track, clip), "Ctrl+D")
-                   .command(tr(DirectorLang.Timeline.ContextMenu.DELETE_CLIP), deleteCmd, "Del")
+                   .item(tr(DirectorLang.Timeline.ContextMenu.DELETE_CLIP), () -> deleteClipAndClearSelection(deleteCmd, clip), "Del")
                    .separator();
 
             if (panel != null) {
@@ -190,7 +190,7 @@ public class TimelineContextMenuFactory {
 
         // ⭐ 容器片段和其他片段：完整菜单
         builder.command(tr(DirectorLang.Timeline.ContextMenu.DUPLICATE_CLIP), new DuplicateClipCommand(model, track, clip), "Ctrl+D")
-               .command(tr(DirectorLang.Timeline.ContextMenu.DELETE_CLIP), deleteCmd, "Del")
+               .item(tr(DirectorLang.Timeline.ContextMenu.DELETE_CLIP), () -> deleteClipAndClearSelection(deleteCmd, clip), "Del")
                .separator()
                .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_1S), new SetClipLengthCommand(model, clip, 1.0f))
                .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_2S), new SetClipLengthCommand(model, clip, 2.0f))
@@ -222,6 +222,19 @@ public class TimelineContextMenuFactory {
                 containerId != null);
 
         return builder.build();  // ⭐⭐ 修复：使用 build() 而不是 open()，由 openContextMenuForHit 统一打开
+    }
+
+    private void deleteClipAndClearSelection(DeleteClipCommand command, TimelineClip clip) {
+        if (command.executeResult() != com.director.ui.timeline.commands.TimelineCommand.Result.APPLIED) {
+            return;
+        }
+        if (model.getSelectedItems().contains(clip)) {
+            model.clearSelection();
+        }
+        DirectorServices.get().uiSelection().clearSelection();
+        if (panel != null) {
+            panel.onDataChanged();
+        }
     }
 
     // =========================================================
@@ -595,7 +608,7 @@ public class TimelineContextMenuFactory {
                                 );
                                 model.selectItem(customClip, false);
                                 DirectorServices.get().uiSelection().setCurrentSelection(customClip);
-                                LOGGER.info("[TimelineContextMenuFactory] 创建自定义路径: {} @ {:.2f}s",
+                                LOGGER.info("[TimelineContextMenuFactory] 创建自定义路径: {} @ {}s",
                                     customClip.getName(), currentTime);
                             })
                             .item(tr(DirectorLang.Timeline.ContextMenu.CREATE_ORBIT_PATH), () -> {
@@ -606,7 +619,7 @@ public class TimelineContextMenuFactory {
                                     new com.director.ui.timeline.commands.AddPathClipCommand(model, track, orbitClip);
                                 commandHistory.executeCommand(cmd);
                                 DirectorServices.get().uiSelection().selectTrack(track);
-                                LOGGER.info("[TimelineContextMenuFactory] 创建围绕路径: {} @ {:.2f}s", 
+                                LOGGER.info("[TimelineContextMenuFactory] 创建围绕路径: {} @ {}s",
                                     orbitClip.getName(), currentTime);
                             })
                             .item(tr(DirectorLang.Timeline.ContextMenu.CREATE_DOLLY_PATH), () -> {
@@ -616,7 +629,7 @@ public class TimelineContextMenuFactory {
                                     new com.director.ui.timeline.commands.AddPathClipCommand(model, track, dollyClip);
                                 commandHistory.executeCommand(cmd);
                                 DirectorServices.get().uiSelection().selectTrack(track);
-                                LOGGER.info("[TimelineContextMenuFactory] 创建推拉路径: {} @ {:.2f}s", 
+                                LOGGER.info("[TimelineContextMenuFactory] 创建推拉路径: {} @ {}s",
                                     dollyClip.getName(), currentTime);
                             })
                             .item(tr(DirectorLang.Timeline.ContextMenu.CREATE_CRANE_PATH), () -> {
@@ -626,7 +639,7 @@ public class TimelineContextMenuFactory {
                                     new com.director.ui.timeline.commands.AddPathClipCommand(model, track, craneClip);
                                 commandHistory.executeCommand(cmd);
                                 DirectorServices.get().uiSelection().selectTrack(track);
-                                LOGGER.info("[TimelineContextMenuFactory] 创建升降路径: {} @ {:.2f}s", 
+                                LOGGER.info("[TimelineContextMenuFactory] 创建升降路径: {} @ {}s",
                                     craneClip.getName(), currentTime);
                             })
                         .end();

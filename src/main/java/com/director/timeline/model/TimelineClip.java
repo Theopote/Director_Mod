@@ -149,9 +149,7 @@ public class TimelineClip {
         for (int i = 0; i < clipKeyframes.size(); i++) {
             var left = clipKeyframes.get(i);
             var right = other.clipKeyframes.get(i);
-            if (!left.getId().equals(right.getId())
-                    || Float.compare(left.getTime(), right.getTime()) != 0
-                    || left.getInterpolation() != right.getInterpolation()) return false;
+            if (!left.hasSameStateAs(right)) return false;
         }
         return animationConfig.hasSameValues(other.animationConfig);
     }
@@ -333,8 +331,8 @@ public class TimelineClip {
      * 
      * @param id 关键帧 ID
      */
-    public void removeKeyframe(java.util.UUID id) {
-        clipKeyframes.removeIf(kf -> kf.getId().equals(id));
+    public boolean removeKeyframe(java.util.UUID id) {
+        return clipKeyframes.removeIf(kf -> kf.getId().equals(id));
     }
 
     /**

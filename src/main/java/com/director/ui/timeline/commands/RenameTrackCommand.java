@@ -24,11 +24,17 @@ public class RenameTrackCommand extends BaseTimelineCommand {
 
     @Override
     protected void doExecute() {
-        if (track != null) {
-            oldName = track.getName();
-            track.setName(newName);
-            LOGGER.debug("[Timeline] 重命名轨道: {} -> {}", oldName, newName);
+        if (track == null || newName == null || newName.isBlank()) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
         }
+        oldName = track.getName();
+        if (oldName.equals(newName)) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        track.setName(newName);
+        LOGGER.debug("[Timeline] 重命名轨道: {} -> {}", oldName, newName);
     }
 
     @Override

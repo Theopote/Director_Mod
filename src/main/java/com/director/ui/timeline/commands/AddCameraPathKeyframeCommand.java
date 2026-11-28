@@ -8,6 +8,8 @@ import com.director.timeline.playback.camera.TimelineCameraController;
 public class AddCameraPathKeyframeCommand extends BaseTimelineCommand {
     private final CustomPathClip clip;
     private final CameraKeyframe keyframe;
+    private CameraKeyframe previous;
+    private boolean applied;
 
     public AddCameraPathKeyframeCommand(TimelineModel model, CustomPathClip clip, CameraKeyframe keyframe) {
         super(model, "camera_path_keyframe_added");
@@ -17,22 +19,43 @@ public class AddCameraPathKeyframeCommand extends BaseTimelineCommand {
 
     @Override
     protected void doExecute() {
-        if (clip != null && keyframe != null) {
-            clip.addKeyframe(keyframe);
-            TimelineCameraController.getInstance().onKeyframeChanged();
+        if (clip == null || keyframe == null) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
         }
+        previous = clip.getKeyframes().stream()
+                .filter(k -> k != null && keyframe.getId().equals(k.getId()))
+                .findFirst().orElse(null);
+        if (previous == keyframe) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        clip.addKeyframe(keyframe);
+        applied = true;
+        TimelineCameraController.getInstance().onKeyframeChanged();
     }
 
     @Override
     protected void doUndo() {
-        if (clip != null && keyframe != null) {
-            clip.removeKeyframe(keyframe.getId());
-            TimelineCameraController.getInstance().onKeyframeChanged();
+        if (!applied) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
         }
+        clip.removeKeyframe(keyframe.getId());
+        if (previous != null) {
+            clip.addKeyframe(previous);
+        }
+        applied = false;
+        TimelineCameraController.getInstance().onKeyframeChanged();
     }
 
     @Override
     public String getDescription() {
         return keyframe != null ? "添加自定义路径关键帧: " + keyframe.getName() : "添加自定义路径关键帧";
+    }
+
+    @Override
+    public boolean canUndo() {
+        return applied;
     }
 }

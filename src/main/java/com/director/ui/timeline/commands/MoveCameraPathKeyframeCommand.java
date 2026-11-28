@@ -10,6 +10,7 @@ public class MoveCameraPathKeyframeCommand extends BaseTimelineCommand {
     private final CameraKeyframe keyframe;
     private final float oldTime;
     private final float newTime;
+    private boolean moved;
 
     public MoveCameraPathKeyframeCommand(TimelineModel model, CustomPathClip clip, CameraKeyframe keyframe,
                                          float oldTime, float newTime) {
@@ -28,18 +29,40 @@ public class MoveCameraPathKeyframeCommand extends BaseTimelineCommand {
     @Override
     protected void doUndo() {
         apply(oldTime);
+        moved = false;
     }
 
     private void apply(float time) {
-        if (clip != null && keyframe != null) {
-            keyframe.setTime(time);
-            clip.onKeyframeChanged();
-            TimelineCameraController.getInstance().onKeyframeChanged();
+        if (clip == null || keyframe == null) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
         }
+        if (!clip.getKeyframes().contains(keyframe)) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        if (Float.compare(keyframe.getTime(), time) == 0) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        if (clip.getKeyframes().stream().anyMatch(k -> k != keyframe
+                && Float.compare(k.getTime(), time) == 0)) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        keyframe.setTime(time);
+        moved = true;
+        clip.onKeyframeChanged();
+        TimelineCameraController.getInstance().onKeyframeChanged();
     }
 
     @Override
     public String getDescription() {
         return "移动自定义路径关键帧";
+    }
+
+    @Override
+    public boolean canUndo() {
+        return moved;
     }
 }

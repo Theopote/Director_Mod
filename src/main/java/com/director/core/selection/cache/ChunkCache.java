@@ -66,7 +66,7 @@ public class ChunkCache {
      */
     public void clear() {
         cache.clear();
-        LOGGER.debug("[ChunkCache] 清除缓存，命中率: {}/{} ({:.2f}%)", 
+        LOGGER.debug("[ChunkCache] 清除缓存，命中率: {}/{} ({}%)",
             hits, hits + misses, hits * 100.0 / Math.max(1, hits + misses));
         hits = 0;
         misses = 0;

@@ -90,7 +90,7 @@ public final class TimelinePlayheadMarkerController {
         TimelineCameraController.getInstance().beginScrubbing(clampedTime);
 
         dataChangeNotifier.onDataChanged();
-        LOGGER.debug("[TimelinePlayheadMarkerController] 开始拖动播放头 @ {:.2f}s", clampedTime);
+        LOGGER.debug("[TimelinePlayheadMarkerController] 开始拖动播放头 @ {}s", clampedTime);
     }
 
     public void clickTimeRuler(float mouseX, float contentX) {
@@ -105,7 +105,7 @@ public final class TimelinePlayheadMarkerController {
         TimelineClipBlockController.getInstance().update();
 
         dataChangeNotifier.onDataChanged();
-        LOGGER.debug("[TimelinePlayheadMarkerController] 点击时间标尺，跳转到 {:.2f}s", clampedTime);
+        LOGGER.debug("[TimelinePlayheadMarkerController] 点击时间标尺，跳转到 {}s", clampedTime);
     }
 
     public void startMarkerDrag(TimelineMarker marker, float mouseX, float contentX) {
@@ -122,7 +122,7 @@ public final class TimelinePlayheadMarkerController {
                 marker.getTime(), 0f);
 
         dataChangeNotifier.onDataChanged();
-        LOGGER.debug("[TimelinePlayheadMarkerController] 开始拖动标记 @ {:.2f}s", marker.getTime());
+        LOGGER.debug("[TimelinePlayheadMarkerController] 开始拖动标记 @ {}s", marker.getTime());
     }
 
     public void updateMarkerDrag(float mouseX, float contentX) {
@@ -198,7 +198,7 @@ public final class TimelinePlayheadMarkerController {
         float finalTime = model.getCurrentTime();
         model.setScrubbing(false);
         TimelineCameraController.getInstance().endScrubbing(finalTime);
-        LOGGER.debug("[TimelinePlayheadMarkerController] 拖动播放头结束 @ {:.2f}s", finalTime);
+        LOGGER.debug("[TimelinePlayheadMarkerController] 拖动播放头结束 @ {}s", finalTime);
     }
 
     public void finishMarkerDragOnRelease(MarkerHandle handle) {

@@ -9,7 +9,7 @@ import com.director.timeline.model.clip.ClipKeyframe;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -33,11 +33,27 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
     protected void doExecute() {
         executed.clear();
         if (model == null || selectionSnapshot.isEmpty()) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
             return;
         }
 
-        // 1) Clip 优先删除（避免后续找不到 ClipKeyframe owner）
-        Set<TimelineClip> clipsToDelete = new HashSet<>();
+        try {
+            deleteClips();
+            deleteClipKeyframes();
+            deleteMarkers();
+            deletePathClips();
+            deleteAutomationKeyframes();
+        } catch (RuntimeException | Error failure) {
+            rollbackExecute(failure);
+            throw failure;
+        }
+        if (executed.isEmpty()) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+        }
+    }
+
+    private void deleteClips() {
+        Set<TimelineClip> clipsToDelete = new LinkedHashSet<>();
         for (Object it : selectionSnapshot) {
             if (it instanceof TimelineClip clip) {
                 clipsToDelete.add(clip);
@@ -50,65 +66,56 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
                 continue;
             }
             if (track != null) {
-                TimelineCommand cmd = new DeleteClipCommand(model, clip, track.getClips());
-                cmd.execute();
-                executed.add(cmd);
+                executeSubCommand(new DeleteClipCommand(model, clip, track.getClips()));
             }
         }
+    }
 
-        // 2) ClipKeyframe 删除（跨 clip）
+    private void deleteClipKeyframes() {
         for (Object it : selectionSnapshot) {
             if (!(it instanceof ClipKeyframe kf)) continue;
 
-            // 如果该 keyframe 所属 clip 已删，跳过
             Owner owner = findOwnerForClipKeyframe(kf);
             if (owner == null) continue;
-            if (clipsToDelete.contains(owner.clip)) continue;
+            if (model.findTrackForClip(owner.clip) == null) continue;
             if (owner.track != null && owner.track.isLocked()) continue;
 
-            TimelineCommand cmd = new RemoveClipKeyframeCommand(model, owner.track, owner.clip, kf);
-            cmd.execute();
-            executed.add(cmd);
+            executeSubCommand(new RemoveClipKeyframeCommand(model, owner.track, owner.clip, kf));
         }
+    }
 
-        // 3) 标记删除（全局标记，不属于轨道）
+    private void deleteMarkers() {
         for (Object it : selectionSnapshot) {
             if (it instanceof com.director.timeline.model.TimelineMarker marker) {
-                TimelineCommand cmd = new DeleteMarkerCommand(model, marker);
-                cmd.execute();
-                executed.add(cmd);
+                executeSubCommand(new DeleteMarkerCommand(model, marker));
             }
         }
+    }
 
-        // 4) Path Clip 删除（摄像机轨道级）
+    private void deletePathClips() {
         for (Object it : selectionSnapshot) {
             if (!(it instanceof CameraPathClip pathClip)) continue;
-            
-            TimelineTrack track = findOwnerTrackForPathClip(pathClip);
-            if (track == null) continue;
-            if (track.isLocked()) continue;
-            
-            TimelineCommand cmd = new DeletePathClipCommand(model, track, pathClip);
-            cmd.execute();
-            executed.add(cmd);
-        }
 
-        // 5) 自动化关键帧删除（轨道级）
+            TimelineTrack track = findOwnerTrackForPathClip(pathClip);
+            if (track == null || track.isLocked()) continue;
+
+            executeSubCommand(new DeletePathClipCommand(model, track, pathClip));
+        }
+    }
+
+    private void deleteAutomationKeyframes() {
         for (Object it : selectionSnapshot) {
             if (!(it instanceof TimelineSelectable selectable)) continue;
             switch (it) {
                 case TimelineClip ignored -> {
                     continue;
                 }
-                // 跳过标记（已在步骤3处理）
                 case com.director.timeline.model.TimelineMarker ignored -> {
                     continue;
                 }
-                // 跳过 Path Clip（已在步骤4处理）
                 case CameraPathClip ignored -> {
                     continue;
                 }
-                // 与现有删除逻辑一致：音频事件点默认不通过工具栏/Del 批量删除
                 case com.director.timeline.model.audio.AudioEvent ignored -> {
                     continue;
                 }
@@ -117,8 +124,7 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
             }
 
             TimelineTrack track = findOwnerTrackForAutomationKeyframe(selectable);
-            if (track == null) continue;
-            if (track.isLocked()) continue;
+            if (track == null || track.isLocked()) continue;
 
             TimelineCommand cmd;
             if (selectable instanceof com.director.timeline.model.camera.CameraKeyframe cameraKeyframe) {
@@ -132,19 +138,62 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
             } else {
                 cmd = new RemoveAutomationKeyframeCommand(model, track, selectable);
             }
-            cmd.execute();
-            executed.add(cmd);
+            executeSubCommand(cmd);
+        }
+    }
+
+    private void executeSubCommand(TimelineCommand command) {
+        if (command.executeResult() == TimelineCommand.Result.APPLIED) {
+            executed.add(command);
+        }
+    }
+
+    private void rollbackExecute(Throwable failure) {
+        for (int i = executed.size() - 1; i >= 0; i--) {
+            try {
+                TimelineCommand.Result result = executed.get(i).undoResult();
+                if (result != TimelineCommand.Result.APPLIED) {
+                    throw new IllegalStateException("Failed to compensate batch deletion: "
+                            + executed.get(i).getDescription() + " (" + result + ")");
+                }
+            } catch (RuntimeException | Error rollbackFailure) {
+                failure.addSuppressed(rollbackFailure);
+            }
         }
     }
 
     @Override
     protected void doUndo() {
-        if (executed.isEmpty()) return;
-        // 逆序撤销，恢复依赖关系
+        if (executed.isEmpty()) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
         List<TimelineCommand> reversed = new ArrayList<>(executed);
         Collections.reverse(reversed);
-        for (TimelineCommand cmd : reversed) {
-            cmd.undo();
+        int restored = 0;
+        try {
+            for (TimelineCommand cmd : reversed) {
+                TimelineCommand.Result result = cmd.undoResult();
+                if (result != TimelineCommand.Result.APPLIED) {
+                    throw new IllegalStateException("Batch deletion subcommand did not undo: " + cmd.getDescription());
+                }
+                restored++;
+            }
+        } catch (RuntimeException | Error failure) {
+            rollbackUndo(reversed, restored, failure);
+            throw failure;
+        }
+    }
+
+    private void rollbackUndo(List<TimelineCommand> commands, int restored, Throwable failure) {
+        for (int i = restored - 1; i >= 0; i--) {
+            try {
+                if (commands.get(i).executeResult() != TimelineCommand.Result.APPLIED) {
+                    throw new IllegalStateException("Failed to redo compensated batch deletion");
+                }
+            } catch (RuntimeException | Error rollbackFailure) {
+                failure.addSuppressed(rollbackFailure);
+            }
         }
     }
 
@@ -185,10 +234,7 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
         }
         return null;
     }
-    
-    /**
-     * 查找包含指定 Path Clip 的轨道
-     */
+
     private TimelineTrack findOwnerTrackForPathClip(CameraPathClip pathClip) {
         if (pathClip == null || model == null) return null;
         for (TimelineTrack t : model.getTracks()) {
@@ -200,5 +246,3 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
         return null;
     }
 }
-
-

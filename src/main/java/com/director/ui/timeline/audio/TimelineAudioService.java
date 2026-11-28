@@ -475,6 +475,11 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
     }
 
     public void onClipTimeRangeChanged(TimelineClip clip, float oldStartTime, float oldEndTime, float newStartTime, float newEndTime) {
+        onClipTimeRangeChanged(clip, oldStartTime, oldEndTime, newStartTime, newEndTime, true);
+    }
+
+    public void onClipTimeRangeChanged(TimelineClip clip, float oldStartTime, float oldEndTime,
+                                       float newStartTime, float newEndTime, boolean remapClipKeyframes) {
         if (clip == null) {
             return;
         }
@@ -527,7 +532,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
             }
         }
 
-        if (isAudio) {
+        if (isAudio && remapClipKeyframes) {
             updateAudioClipKeyframes(clip, oldStartTime, oldEndTime, newStartTime, newEndTime);
         }
 
@@ -1135,6 +1140,16 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         // Remap key times into the new range before setTimeRange prunes orphans.
         updateAudioClipKeyframes(audioClip, audioOldStart, audioOldEnd, newStartTime, audioNewEnd);
         audioClip.setTimeRange(newStartTime, audioNewEnd);
+    }
+
+    public void remapAudioClipKeyframes(TimelineClip audioClip,
+                                        float oldStartTime,
+                                        float oldEndTime,
+                                        float newStartTime,
+                                        float newEndTime) {
+        if (isAudioClip(audioClip)) {
+            updateAudioClipKeyframes(audioClip, oldStartTime, oldEndTime, newStartTime, newEndTime);
+        }
     }
 
     private void updateAudioClipKeyframes(TimelineClip audioClip,

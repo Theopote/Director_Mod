@@ -1,7 +1,6 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.feedback.InlineNotice;
-import com.director.ui.theme.UITheme;
 import com.director.core.DirectorServices;
 import com.director.core.animation.effect.EffectInstance;
 import com.director.core.container.Container;

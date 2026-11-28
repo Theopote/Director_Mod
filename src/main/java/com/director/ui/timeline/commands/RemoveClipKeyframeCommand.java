@@ -11,7 +11,7 @@ import java.util.UUID;
 
 /**
  * 从 Clip 中删除关键帧（可 Undo）
- * 
+ *
  * @author Director Team
  * @version 1.0
  */
@@ -21,7 +21,8 @@ public class RemoveClipKeyframeCommand extends BaseTimelineCommand {
     private final TimelineTrack track;
     private final TimelineClip clip;
     private final UUID keyframeId;
-    private ClipKeyframe snapshot; // 用于 Undo
+    private ClipKeyframe snapshot;
+    private boolean removed;
 
     public RemoveClipKeyframeCommand(TimelineModel model,
                                      TimelineTrack track,
@@ -31,38 +32,56 @@ public class RemoveClipKeyframeCommand extends BaseTimelineCommand {
         this.track = track;
         this.clip = clip;
         this.keyframeId = keyframe != null ? keyframe.getId() : null;
-        // 浅拷贝足够（只包含时间 & 插值）
-        if (keyframe != null) {
-            this.snapshot = keyframe.copy();
-        }
+        this.snapshot = keyframe != null ? keyframe.snapshot() : null;
     }
 
     @Override
     protected void doExecute() {
-        if (clip == null || keyframeId == null) {
-            LOGGER.warn("[Timeline] 删除 Clip 关键帧失败：clip 或 keyframeId 为 null");
+        if (clip == null || snapshot == null) {
+            setResult(TimelineCommand.Result.REJECTED);
             return;
         }
-        clip.removeKeyframe(keyframeId);
+        ClipKeyframe existing = clip.getClipKeyframes().stream()
+                .filter(k -> k != null && keyframeId.equals(k.getId()))
+                .findFirst().orElse(null);
+        if (existing == null) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        snapshot = existing.snapshot();
+        if (!clip.removeKeyframe(keyframeId)) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        removed = true;
         LOGGER.debug("[Command] RemoveClipKeyframe id={} (clip: {}, track: {})",
                 keyframeId, clip.getLabel(), track != null ? track.getName() : "null");
     }
 
     @Override
     protected void doUndo() {
-        if (clip == null || snapshot == null) {
+        if (!removed || snapshot == null) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
             return;
         }
+        if (clip.getClipKeyframes().stream().anyMatch(k -> k != null && keyframeId.equals(k.getId()))) {
+            throw new IllegalStateException("Keyframe ID conflict: " + keyframeId);
+        }
         clip.addKeyframe(snapshot);
+        removed = false;
         LOGGER.debug("[Command] Undo RemoveClipKeyframe id={} @ {}s (clip: {}, track: {})",
                 keyframeId, snapshot.getTime(), clip.getLabel(), track != null ? track.getName() : "null");
     }
 
     @Override
     public String getDescription() {
-        return String.format("删除关键帧: %s @ %.2fs", 
-                clip != null ? clip.getLabel() : "未知", 
+        return String.format("删除关键帧: %s @ %.2fs",
+                clip != null ? clip.getLabel() : "未知",
                 snapshot != null ? snapshot.getTime() : 0f);
     }
-}
 
+    @Override
+    public boolean canUndo() {
+        return removed;
+    }
+}

@@ -7,8 +7,6 @@ import com.director.timeline.model.audio.AudioEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
-
 /**
  * 移动自动化关键帧命令（支持撤销/重做）
  * 
@@ -34,6 +32,7 @@ public class MoveAutomationKeyframeCommand extends BaseTimelineCommand {
     private final TimelineSelectable keyframe;
     private final float oldTime;
     private final float newTime;
+    private boolean moved;
 
     /**
      * 创建移动自动化关键帧命令
@@ -51,41 +50,68 @@ public class MoveAutomationKeyframeCommand extends BaseTimelineCommand {
             float oldTime,
             float newTime) {
         super(model, "automation_keyframe_moved");
-        this.track = Objects.requireNonNull(track, "Track cannot be null");
-        this.keyframe = Objects.requireNonNull(keyframe, "Keyframe cannot be null");
+        this.track = track;
+        this.keyframe = keyframe;
         this.oldTime = oldTime;
         this.newTime = newTime;
     }
 
     @Override
     protected void doExecute() {
-        apply(newTime);
-        LOGGER.debug("[Command] MoveAutomationKeyframe execute {} -> {}", oldTime, newTime);
+        if (track == null || keyframe == null) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
+        }
+        if (apply(newTime, false)) {
+            moved = true;
+            LOGGER.debug("[Command] MoveAutomationKeyframe execute {} -> {}", oldTime, newTime);
+        }
     }
 
     @Override
     protected void doUndo() {
-        apply(oldTime);
+        apply(oldTime, true);
+        moved = false;
         LOGGER.debug("[Command] MoveAutomationKeyframe undo {} <- {}", newTime, oldTime);
     }
 
     /**
      * 应用时间变化（Execute 和 Undo 共用）
      */
-    private void apply(float t) {
-        if (keyframe == null || track == null) {
-            LOGGER.warn("[Timeline] 移动自动化关键帧失败：keyframe 或 track 为 null");
-            return;
+    private boolean apply(float time, boolean undo) {
+        if (!track.getAutomationKeyframes().contains(keyframe)) {
+            if (undo) {
+                throw new IllegalStateException("Automation keyframe is missing: " + keyframe.getId());
+            }
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return false;
         }
+        if (Float.compare(keyframe.getStartTime(), time) == 0) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return false;
+        }
+        if (track.getAutomationKeyframes().stream().anyMatch(k -> k != keyframe
+                && Float.compare(k.getStartTime(), time) == 0)) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return false;
+        }
+        float previousTime = keyframe.getStartTime();
+        if (!track.removeAutomationKeyframe(keyframe.getId())) {
+            throw new IllegalStateException("Failed to remove automation keyframe: " + keyframe.getId());
+        }
+        try {
+            setKeyframeTime(keyframe, time);
+            track.addAutomationKeyframe(keyframe);
+        } catch (RuntimeException | Error e) {
+            setKeyframeTime(keyframe, previousTime);
+            track.addAutomationKeyframe(keyframe);
+            throw e;
+        }
+        notifyPlayback();
+        return true;
+    }
 
-        // 修改关键帧时间
-        setKeyframeTime(keyframe, t);
-
-        // 重新排序（移除并重新添加以触发排序，如果使用 TreeSet）
-        track.removeAutomationKeyframe(keyframe.getId());
-        track.addAutomationKeyframe(keyframe);
-
-        // 通知播放系统刷新
+    private void notifyPlayback() {
         if (keyframe instanceof com.director.timeline.model.camera.CameraKeyframe) {
             com.director.timeline.playback.camera.TimelineCameraController.getInstance()
                     .onKeyframeChanged();
@@ -124,6 +150,11 @@ public class MoveAutomationKeyframeCommand extends BaseTimelineCommand {
     public String getDescription() {
         return String.format("移动关键帧: %s @ %.2fs -> %.2fs", 
                 keyframe != null ? keyframe.getName() : "未知", oldTime, newTime);
+    }
+
+    @Override
+    public boolean canUndo() {
+        return moved;
     }
 }
 

@@ -172,7 +172,7 @@ public final class PlaybackOrchestrator {
                 newTime = rangeStart + remaining;
                 audio.playWindow(rangeStart, newTime, true);
                 if (LOGGER.isTraceEnabled()) {
-                    LOGGER.trace("[PlaybackOrchestrator] 播放循环，回到开始 (时间: {:.2f}s)", newTime);
+                    LOGGER.trace("[PlaybackOrchestrator] 播放循环，回到开始 (时间: {}s)", newTime);
                 }
             } else {
                 newTime = rangeEnd;
@@ -181,7 +181,7 @@ public final class PlaybackOrchestrator {
                 onStop();
 
                 if (LOGGER.isTraceEnabled()) {
-                    LOGGER.trace("[PlaybackOrchestrator] 播放结束，停在终点 (时间: {:.2f}s)", newTime);
+                    LOGGER.trace("[PlaybackOrchestrator] 播放结束，停在终点 (时间: {}s)", newTime);
                 }
             }
         }

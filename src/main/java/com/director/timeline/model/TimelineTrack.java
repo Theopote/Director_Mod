@@ -90,46 +90,39 @@ public class TimelineTrack {
      * 添加片段到轨道，并自动设置父引用。
      */
     public boolean addClip(TimelineClip clip) {
-        if (clip != null && !this.clips.contains(clip)) {
-            if ((clip instanceof com.director.lighting.LightTimelineClip) != (type==TrackType.LIGHT)) return false;
-            // ✅ 轨道类型约束（防止“拆除容器/清除片段”被拖到其他轨道）
-            // - DEMOLITION 容器只能在 ERASE 轨道
-            // - 非 DEMOLITION 容器不能进 ERASE 轨道
-            // 说明：这里做成“模型层硬规则”，避免任何交互路径（拖拽/粘贴/命令）绕过限制。
-            // 注意：该约束只应作用于“容器类轨道”（CONTAINER/ERASE），不能误伤 AUDIO 轨道上的 AudioTimelineClip。
-            // 额外规则：普通容器片段只能在 CONTAINER 轨道，拆除容器片段只能在 ERASE 轨道；
-            // 且“容器片段”不允许被拖到其它轨道（相机/天气/时间等）。
-            //
-            // 重要：AudioTimelineClip 也可能绑定容器（用于音效同步），不能被当成容器片段处理。
-            boolean isAudioClip = clip instanceof com.director.timeline.model.audio.AudioTimelineClip;
-            if (!isAudioClip && clip.getBoundContainerId() != null) {
-                // 容器片段只允许出现在 CONTAINER 轨道
-                if (this.type != TrackType.CONTAINER) {
-                    LOGGER.warn("[TimelineTrack] 拒绝添加容器片段到非容器轨道: clip={}, track={}",
-                        clip.getLabel(), this.type);
-                    return false;
-                }
-
-                if (isContainerAlreadyOnOtherTimelineClip(clip)) {
-                    LOGGER.warn("[TimelineTrack] 容器 {} 已存在时间线片段，拒绝重复添加: clip={}",
-                        clip.getBoundContainerId(), clip.getLabel());
-                    return false;
-                }
-            }
-            this.clips.add(clip);
-            clip.setParentTrack(this); // 设置父引用，实现 O(1) 反向查找
-            // 按开始时间排序，保持时间线有序
-            clips.sort(Comparator.comparing(TimelineClip::getStartTime));
-            
-            // 如果片段绑定了容器：仅当时间线已存在音频轨道时才自动收集声音事件。
-            // 没有音频轨道/没有对应事件时，播放应保持静音（由音频轨道事件驱动）。
-            if (clip.getBoundContainerId() != null
-                    && type == TrackType.CONTAINER) {
-                clipSoundCollector.collectAndAddSoundEvents(clip);
-            }
-            return true;
+        if (!canAddClip(clip)) {
+            return false;
         }
-        return false;
+        this.clips.add(clip);
+        clip.setParentTrack(this);
+        clips.sort(Comparator.comparing(TimelineClip::getStartTime));
+        if (clip.getBoundContainerId() != null && type == TrackType.CONTAINER) {
+            clipSoundCollector.collectAndAddSoundEvents(clip);
+        }
+        return true;
+    }
+
+    public boolean canAddClip(TimelineClip clip) {
+        if (clip == null || this.clips.contains(clip)) {
+            return false;
+        }
+        if ((clip instanceof com.director.lighting.LightTimelineClip) != (type == TrackType.LIGHT)) {
+            return false;
+        }
+        boolean isAudioClip = clip instanceof com.director.timeline.model.audio.AudioTimelineClip;
+        if (!isAudioClip && clip.getBoundContainerId() != null) {
+            if (this.type != TrackType.CONTAINER) {
+                LOGGER.warn("[TimelineTrack] 拒绝添加容器片段到非容器轨道: clip={}, track={}",
+                        clip.getLabel(), this.type);
+                return false;
+            }
+            if (isContainerAlreadyOnOtherTimelineClip(clip)) {
+                LOGGER.warn("[TimelineTrack] 容器 {} 已存在时间线片段，拒绝重复添加: clip={}",
+                        clip.getBoundContainerId(), clip.getLabel());
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Atomically restores a command snapshot without replaying audio collection. */

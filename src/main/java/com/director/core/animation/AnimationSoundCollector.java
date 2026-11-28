@@ -198,7 +198,7 @@ public class AnimationSoundCollector {
             events.add(ev);
             
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[AnimationSoundCollector] 生成方块声音: {} at {:.2f}s (片段: {} phase={})",
+                LOGGER.trace("[AnimationSoundCollector] 生成方块声音: {} at {}s (片段: {} phase={})",
                         pos, eventTime, clip.getLabel(), isExit ? "EXIT" : "ENTER");
             }
         }

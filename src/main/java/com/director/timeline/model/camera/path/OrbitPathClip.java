@@ -372,7 +372,7 @@ public class OrbitPathClip extends CameraPathClip {
                 float newRadius = (float) dist;
                 setRadius(newRadius);
                 if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[OrbitPathClip] onEnter() 从当前位置计算半径: {} blocks (距离中心: {:.2f})", 
+                    LOGGER.debug("[OrbitPathClip] onEnter() 从当前位置计算半径: {} blocks (距离中心: {})",
                         newRadius, dist);
                 }
             } else {
@@ -489,7 +489,7 @@ public class OrbitPathClip extends CameraPathClip {
             float newRadius = (float) dist;
             setRadius(newRadius);
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[OrbitPathClip] alignRadiusFromCamera() 从当前位置计算半径: {} blocks (距离中心: {:.2f})", 
+                LOGGER.debug("[OrbitPathClip] alignRadiusFromCamera() 从当前位置计算半径: {} blocks (距离中心: {})",
                     newRadius, dist);
             }
         } else {

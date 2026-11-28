@@ -613,7 +613,7 @@ public final class CameraPathRenderer {
         }
         
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("[CameraPathRenderer] 渲染围绕轨迹: {} 个点, center=({:.2f}, {:.2f}, {:.2f}), radius={:.2f}",
+            LOGGER.trace("[CameraPathRenderer] 渲染围绕轨迹: {} 个点, center=({}, {}, {}), radius={}",
                     orbitPoints.size(), clip.getCenter().x, clip.getCenter().y, clip.getCenter().z, clip.getRadius());
         }
 

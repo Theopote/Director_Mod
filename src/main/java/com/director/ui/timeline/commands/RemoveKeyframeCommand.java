@@ -1,22 +1,19 @@
 package com.director.ui.timeline.commands;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
+import com.director.timeline.model.clip.ClipKeyframe;
+
 
 /**
- * 删除关键帧命令。
- * 
- * <p>优化：继承 BaseTimelineCommand 以确保模型更新和一致性。
+ * 删除关键帧命令（支持撤销）。
  */
 public class RemoveKeyframeCommand extends BaseTimelineCommand {
-    private static final Logger LOGGER = LoggerFactory.getLogger(RemoveKeyframeCommand.class);
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(RemoveKeyframeCommand.class);
 
     private final TimelineClip clip;
     private final float time;
-    private boolean removed = false;
+    private ClipKeyframe removed;
 
     public RemoveKeyframeCommand(TimelineModel model, TimelineClip clip, float time) {
         super(model, "keyframe_removed");
@@ -27,39 +24,35 @@ public class RemoveKeyframeCommand extends BaseTimelineCommand {
     @Override
     protected void doExecute() {
         if (clip == null) {
-            LOGGER.warn("[Timeline] 删除关键帧失败：clip 为 null");
+            setResult(TimelineCommand.Result.REJECTED);
             return;
         }
-        removed = clip.removeKeyframe(time);
-        if (removed) {
-            LOGGER.debug("[Timeline] 删除关键帧 {:.2f}", time);
-        } else {
-            LOGGER.debug("[Timeline] 关键帧不存在，跳过删除: {:.2f}", time);
+        ClipKeyframe target = clip.getClipKeyframes().stream()
+                .filter(k -> k != null && Float.compare(k.getTime(), time) == 0)
+                .findFirst().orElse(null);
+        if (target == null || !clip.removeKeyframe(target.getId())) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
         }
+        removed = target.snapshot();
+        LOGGER.debug("[Timeline] 删除关键帧: {}s", time);
     }
 
     @Override
     protected void doUndo() {
-        if (clip == null) {
-            LOGGER.warn("[Timeline] 恢复关键帧失败：clip 为 null");
+        if (removed == null) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
             return;
         }
-        if (!removed) {
-            return;
+        if (clip.getClipKeyframes().stream().anyMatch(k -> k != null && removed.getId().equals(k.getId()))) {
+            throw new IllegalStateException("Keyframe ID conflict: " + removed.getId());
         }
-        clip.addKeyframe(time);
-        LOGGER.debug("[Timeline] 恢复关键帧 {:.2f}", time);
+        clip.addKeyframe(removed);
+        LOGGER.debug("[Timeline] 撤销删除关键帧: {}s", time);
     }
 
     @Override
     public String getDescription() {
-        return String.format("删除关键帧(%.2fs)", time);
-    }
-
-    @Override
-    public boolean canUndo() {
-        return removed;
+        return String.format("删除关键帧: %ss", time);
     }
 }
-
-

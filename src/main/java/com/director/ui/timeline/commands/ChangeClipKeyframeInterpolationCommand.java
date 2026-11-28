@@ -24,6 +24,7 @@ public class ChangeClipKeyframeInterpolationCommand extends BaseTimelineCommand 
     private final UUID keyframeId;
     private final TimelineInterpolation oldInterpolation;
     private final TimelineInterpolation newInterpolation;
+    private boolean applied;
 
     public ChangeClipKeyframeInterpolationCommand(TimelineModel model,
                                                   TimelineTrack track,
@@ -40,7 +41,17 @@ public class ChangeClipKeyframeInterpolationCommand extends BaseTimelineCommand 
 
     @Override
     protected void doExecute() {
-        apply(newInterpolation);
+        if (clip == null || keyframeId == null || newInterpolation == null) {
+            setResult(TimelineCommand.Result.REJECTED);
+            return;
+        }
+        ClipKeyframe target = findKeyframe();
+        if (target == null || target.getInterpolation() == newInterpolation) {
+            setResult(TimelineCommand.Result.NO_CHANGE);
+            return;
+        }
+        target.setInterpolation(newInterpolation);
+        applied = true;
         LOGGER.debug("[Command] ChangeClipKeyframeInterpolation {} -> {} (clip: {}, track: {})",
                 oldInterpolation != null ? oldInterpolation.getDisplayName() : "null",
                 newInterpolation != null ? newInterpolation.getDisplayName() : "null",
@@ -50,22 +61,17 @@ public class ChangeClipKeyframeInterpolationCommand extends BaseTimelineCommand 
 
     @Override
     protected void doUndo() {
-        apply(oldInterpolation);
+        ClipKeyframe target = findKeyframe();
+        if (target == null) {
+            throw new IllegalStateException("Clip keyframe is missing: " + keyframeId);
+        }
+        target.setInterpolation(oldInterpolation);
+        applied = false;
         LOGGER.debug("[Command] Undo ChangeClipKeyframeInterpolation {} <- {} (clip: {}, track: {})",
                 newInterpolation != null ? newInterpolation.getDisplayName() : "null",
                 oldInterpolation != null ? oldInterpolation.getDisplayName() : "null",
                 clip != null ? clip.getLabel() : "null", 
                 track != null ? track.getName() : "null");
-    }
-
-    private void apply(TimelineInterpolation interpolation) {
-        ClipKeyframe kf = findKeyframe();
-        if (kf == null) {
-            LOGGER.warn("[Timeline] ChangeClipKeyframeInterpolation: 未找到关键帧 id={}", keyframeId);
-            return;
-        }
-
-        kf.setInterpolation(interpolation);
     }
 
     private ClipKeyframe findKeyframe() {
@@ -85,6 +91,11 @@ public class ChangeClipKeyframeInterpolationCommand extends BaseTimelineCommand 
         return String.format("修改插值: %s -> %s", 
                 oldInterpolation != null ? oldInterpolation.getDisplayName() : "未知",
                 newInterpolation != null ? newInterpolation.getDisplayName() : "未知");
+    }
+
+    @Override
+    public boolean canUndo() {
+        return applied;
     }
 }
 
