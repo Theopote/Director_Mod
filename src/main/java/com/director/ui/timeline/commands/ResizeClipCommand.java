@@ -20,6 +20,8 @@ public class ResizeClipCommand extends BaseTimelineCommand {
     private final float oldEndTime;
     private final float newStartTime;
     private final float newEndTime;
+    private TimelineClip oldState;
+    private TimelineClip newState;
 
     /**
      * 构造函数
@@ -41,6 +43,20 @@ public class ResizeClipCommand extends BaseTimelineCommand {
         this.oldEndTime = oldEndTime;
         this.newStartTime = newStartTime;
         this.newEndTime = newEndTime;
+        this.oldState = clip != null ? clip.snapshot() : null;
+    }
+
+    public ResizeClipCommand(TimelineModel model, TimelineClip clip,
+            float oldStartTime, float oldEndTime, float newStartTime, float newEndTime,
+            TimelineClip gestureStart) {
+        super(model, "clip_resized");
+        this.clip = clip;
+        this.oldStartTime = oldStartTime;
+        this.oldEndTime = oldEndTime;
+        this.newStartTime = newStartTime;
+        this.newEndTime = newEndTime;
+        this.oldState = gestureStart;
+        this.newState = clip != null ? clip.snapshot() : null;
     }
 
     @Override
@@ -48,7 +64,12 @@ public class ResizeClipCommand extends BaseTimelineCommand {
         if (clip == null) {
             return;
         }
-        clip.setTimeRange(newStartTime, newEndTime);
+        if (newState == null) {
+            clip.setTimeRange(newStartTime, newEndTime);
+            newState = clip.snapshot();
+        } else {
+            clip.restoreStateFrom(newState);
+        }
         com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                 .onClipTimeRangeChanged(clip, oldStartTime, oldEndTime, newStartTime, newEndTime);
         LOGGER.debug("[Timeline] 调整片段范围: {:.2f}-{:.2f} -> {:.2f}-{:.2f}",
@@ -60,7 +81,11 @@ public class ResizeClipCommand extends BaseTimelineCommand {
         if (clip == null) {
             return;
         }
-        clip.setTimeRange(oldStartTime, oldEndTime);
+        if (oldState != null) {
+            clip.restoreStateFrom(oldState);
+        } else {
+            clip.setTimeRange(oldStartTime, oldEndTime);
+        }
         com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                 .onClipTimeRangeChanged(clip, newStartTime, newEndTime, oldStartTime, oldEndTime);
         LOGGER.debug("[Timeline] 撤销调整片段范围");

@@ -1,6 +1,7 @@
 package com.director.core.animation;
 
 import com.google.gson.Gson;
+import com.director.timeline.playback.TimelineSamplingContext;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
@@ -27,6 +28,19 @@ class WholeContainerDustTest {
         var reversed = new ArrayList<>(blocks); Collections.reverse(reversed);
         assertEquals(particles, WholeContainerDust.sample(reversed, s, 42));
     }
+    @Test void exportAndHeadlessContextsSuppressDustWhilePreviewStillEmits() {
+        var blocks = List.of(new BlockPos(0, 0, 0), new BlockPos(1, 0, 0));
+        var settings = settings();
+        assertFalse(WholeContainerDust.sample(blocks, settings, 42).isEmpty());
+        for (var context : new TimelineSamplingContext[]{
+                TimelineSamplingContext.EXPORT, TimelineSamplingContext.HEADLESS}) {
+            try (var ignored = TimelineSamplingContext.open(context)) {
+                assertTrue(WholeContainerDust.sample(blocks, settings, 42).isEmpty());
+            }
+        }
+        assertFalse(WholeContainerDust.sample(blocks, settings, 42).isEmpty());
+    }
+
     @Test void quantityIsBoundedForLargeAssembliesAndZeroDisablesEmission() {
         var blocks = new ArrayList<BlockPos>();
         for (int i = 0; i < 10000; i++) blocks.add(new BlockPos(i, 0, 0));

@@ -41,6 +41,10 @@ public class ContainerCommandService {
         if (parent != null && parent.getType() != ContainerType.GROUP) {
             parent = null;
         }
+        if (parent != null && !containerManager.isEditable(parent)) {
+            LOGGER.warn("[ContainerCommandService] 添加子容器失败：目标组 {} 未注册或已锁定", parent.getName());
+            return null;
+        }
         if (isTimelineControlled(parent, "添加子容器")) {
             return null;
         }
@@ -53,6 +57,9 @@ public class ContainerCommandService {
     public void deleteSelectedContainers() {
         Collection<Container> selection = containerManager.getSelectedContainersView();
         if (selection.isEmpty()) {
+            return;
+        }
+        if (!requireAllEditable(selection, "删除")) {
             return;
         }
         if (hasTimelineControlledContainer(selection, "删除")) {
@@ -104,6 +111,10 @@ public class ContainerCommandService {
             targetParent = null;
             insertIndex = -1;
         }
+        if (targetParent != null && !containerManager.isEditable(targetParent)) {
+            LOGGER.warn("[ContainerCommandService] 粘贴失败：目标组 {} 未注册或已锁定", targetParent.getName());
+            return;
+        }
         if (isTimelineControlled(targetParent, "粘贴子容器")) {
             return;
         }
@@ -123,12 +134,8 @@ public class ContainerCommandService {
         if (selection.isEmpty()) {
             return null;
         }
-        // 锁定保护：任一容器被锁定则拒绝分组
-        for (Container c : selection) {
-            if (c != null && c.isLocked()) {
-                LOGGER.warn("[ContainerCommandService] 分组失败：存在被锁定的容器 {}", c.getName());
-                return null;
-            }
+        if (!requireAllEditable(selection, "分组")) {
+            return null;
         }
         if (hasTimelineControlledContainer(selection, "分组")) {
             return null;
@@ -143,11 +150,11 @@ public class ContainerCommandService {
         if (selection.isEmpty()) {
             return;
         }
-        for (Container c : selection) {
-            if (c != null && c.getType() == ContainerType.GROUP && c.isLocked()) {
-                LOGGER.warn("[ContainerCommandService] 解散组失败：组已锁定 {}", c.getName());
-                return;
-            }
+        List<Container> groups = selection.stream()
+            .filter(c -> c != null && c.getType() == ContainerType.GROUP)
+            .toList();
+        if (!requireAllEditable(groups, "解散组")) {
+            return;
         }
         if (hasTimelineControlledContainer(selection, "解散组")) {
             return;
@@ -178,12 +185,8 @@ public class ContainerCommandService {
         if (selection.isEmpty()) {
             return null;
         }
-        // 锁定保护：任一容器被锁定则拒绝合并
-        for (Container c : selection) {
-            if (c != null && c.isLocked()) {
-                LOGGER.warn("[ContainerCommandService] 合并失败：存在被锁定的容器 {}", c.getName());
-                return null;
-            }
+        if (!requireAllEditable(selection, "合并")) {
+            return null;
         }
         if (hasTimelineControlledContainer(selection, "合并")) {
             return null;
@@ -201,6 +204,10 @@ public class ContainerCommandService {
         if (container == null) {
             return;
         }
+        if (!containerManager.requireEditableTree(container, "移动")
+                || (targetParent != null && !containerManager.isEditable(targetParent))) {
+            return;
+        }
         if (isTimelineControlled(container, "移动")) {
             return;
         }
@@ -214,6 +221,10 @@ public class ContainerCommandService {
         Container dragged = containerManager.getContainer(draggedId);
         Container parent = parentId != null ? containerManager.getContainer(parentId) : null;
         if (dragged == null) {
+            return;
+        }
+        if (!containerManager.requireEditableTree(dragged, "移动")
+                || (parent != null && !containerManager.isEditable(parent))) {
             return;
         }
         if (isTimelineControlled(dragged, "移动")) {
@@ -244,6 +255,9 @@ public class ContainerCommandService {
         }
         Container container = containerManager.getContainer(containerId);
         if (container == null) {
+            return;
+        }
+        if (!containerManager.requireEditableTree(container, "移动")) {
             return;
         }
         if (isTimelineControlled(container, "移动")) {
@@ -292,15 +306,24 @@ public class ContainerCommandService {
         List<Container> resolved = new ArrayList<>();
         for (UUID id : ids) {
             Container c = containerManager.getContainer(id);
-            if (c == null) continue;
+            if (c != null) {
+                resolved.add(c);
+            }
+        }
+        // 锁定项不做静默过滤：任一项不可编辑则整批拒绝。
+        for (Container c : resolved) {
+            if (!containerManager.requireEditableTree(c, "批量移动")) {
+                return;
+            }
+        }
+        if (targetParent != null && !containerManager.isEditable(targetParent)) {
+            return;
+        }
+        for (Container c : resolved) {
             if (isTimelineControlled(c, "移动")) continue;
             if (targetParent != null && (c == targetParent || targetParent.isDescendantOf(c))) {
                 continue;
             }
-            if (targetParentId != null && targetParentId.equals(id)) {
-                continue;
-            }
-            resolved.add(c);
         }
         if (resolved.isEmpty()) return;
 
@@ -362,6 +385,9 @@ public class ContainerCommandService {
         if (dragged == null || reference == null || dragged == reference) {
             return;
         }
+        if (!containerManager.requireEditableTree(dragged, "移动")) {
+            return;
+        }
         if (isTimelineControlled(dragged, "移动")) {
             return;
         }
@@ -369,6 +395,9 @@ public class ContainerCommandService {
             return;
         }
         Container targetParent = reference.getParent();
+        if (targetParent != null && !containerManager.isEditable(targetParent)) {
+            return;
+        }
         List<Container> siblings = targetParent != null
             ? targetParent.getChildrenView()
             : containerManager.getRootContainersView();
@@ -406,6 +435,9 @@ public class ContainerCommandService {
         if (container == null) {
             return;
         }
+        if (!containerManager.requireEditable(container, "重命名")) {
+            return;
+        }
         if (isTimelineControlled(container, "重命名")) {
             return;
         }
@@ -428,15 +460,21 @@ public class ContainerCommandService {
         if (container == null) {
             return;
         }
+        if (!containerManager.requireEditable(container, "切换可见性")) {
+            return;
+        }
         if (isTimelineControlled(container, "切换可见性")) {
             return;
         }
-        execute(new ToggleContainerStateCommand(container));
+        execute(new ToggleContainerStateCommand(containerManager, container));
     }
 
     public void setContainerType(UUID containerId, ContainerType newType) {
         Container container = containerManager.getContainer(containerId);
         if (container == null || newType == null) {
+            return;
+        }
+        if (!containerManager.requireEditable(container, "修改类型")) {
             return;
         }
         if (isTimelineControlled(container, "修改类型")) {
@@ -483,6 +521,9 @@ public class ContainerCommandService {
 		if (container == null) {
 			return;
 		}
+		if (!containerManager.requireEditable(container, "修改默认预设")) {
+			return;
+		}
 		ContainerAnimationPreset preset = container.getDefaultAnimationPreset().copy();
 		operation.accept(preset);
 		execute(new SetContainerPresetCommand(containerManager, container, preset));
@@ -493,6 +534,9 @@ public class ContainerCommandService {
         if (container == null) {
             return;
         }
+        if (!containerManager.requireEditable(container, "修改元数据")) {
+            return;
+        }
         if (isTimelineControlled(container, "修改元数据")) {
             return;
         }
@@ -501,6 +545,9 @@ public class ContainerCommandService {
 
     public void batchSetMetadata(Collection<Container> containers, String key, Object value) {
         if (containers == null || containers.isEmpty() || key == null || key.isBlank()) {
+            return;
+        }
+        if (!requireAllEditable(containers, "批量修改元数据")) {
             return;
         }
         if (hasTimelineControlledContainer(containers, "批量修改元数据")) {
@@ -529,15 +576,21 @@ public class ContainerCommandService {
         if (containers == null || containers.isEmpty() || state == null) {
             return;
         }
+        if (!requireAllEditable(containers, "批量切换可见性")) {
+            return;
+        }
         if (hasTimelineControlledContainer(containers, "批量切换可见性")) {
             return;
         }
-        execute(new BatchSetContainerStateCommand(containers, state));
+        execute(new BatchSetContainerStateCommand(containerManager, containers, state));
     }
 
     public void releaseContainer(UUID containerId) {
         Container container = containerManager.getContainer(containerId);
         if (container == null) {
+            return;
+        }
+        if (!containerManager.requireEditableTree(container, "释放")) {
             return;
         }
         if (isTimelineControlled(container, "释放")) {
@@ -574,6 +627,10 @@ public class ContainerCommandService {
         if (first == null || second == null) {
             return;
         }
+        if (!containerManager.requireEditableTree(first, "交换")
+                || !containerManager.requireEditableTree(second, "交换")) {
+            return;
+        }
         if (isTimelineControlled(first, "交换") || isTimelineControlled(second, "交换")) {
             return;
         }
@@ -604,6 +661,18 @@ public class ContainerCommandService {
         if (commandHistory.canRedo()) {
             commandHistory.redo();
         }
+    }
+
+    private boolean requireAllEditable(Collection<Container> containers, String action) {
+        if (containers == null || containers.isEmpty()) {
+            return false;
+        }
+        for (Container container : containers) {
+            if (!containerManager.requireEditable(container, action)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean hasTimelineControlledContainer(Collection<Container> containers, String action) {

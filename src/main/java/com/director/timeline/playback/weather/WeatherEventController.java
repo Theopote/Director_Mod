@@ -1,5 +1,9 @@
 package com.director.timeline.playback.weather;
 
+import com.director.export.video.VideoExportManager;
+import com.director.timeline.playback.TimelinePlaybackSampler;
+import com.director.timeline.playback.TimelineSamplingContext;
+
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.client.world.ClientWorld;
@@ -77,14 +81,16 @@ public class WeatherEventController {
             clear(); return;
         }
         currentFlashBrightness = effects.flash(time);
+        TimelineSamplingContext context = TimelineSamplingContext.current();
         float previous = lastTimelineTime; lastTimelineTime = time;
         var client = MinecraftClient.getInstance();
         if (client == null || client.world == null || client.player == null) return;
-        var model = com.director.timeline.playback.TimelinePlaybackSampler.resolveModel();
-        // Seeking, preview and export never replay live sounds or world-side effects.
-        if (model == null || !model.isPlaying() || !Float.isFinite(previous)
+        var model = TimelinePlaybackSampler.resolveModel();
+        // Flash remains deterministic for exports; sounds, particles and lightning are preview-only.
+        if (!context.allowsLiveAudio() || !context.allowsParticles() || !context.allowsWorldMutation()
+                || model == null || !model.isPlaying() || !Float.isFinite(previous)
                 || time <= previous || time-previous > .25f
-                || com.director.export.video.VideoExportManager.getInstance().isExporting()) return;
+                || VideoExportManager.getInstance().isExporting()) return;
         long start=(long)Math.floor(previous*20d)+1, end=(long)Math.floor(time*20d);
         for(long tick=start;tick<=end;tick++) if(effects.lightningAt(tick)) {
             random.setSeed(effects.seedFor(tick));

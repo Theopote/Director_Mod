@@ -18,6 +18,9 @@ public class SetContainerOpacityCommand implements ContainerCommand {
     public SetContainerOpacityCommand(ContainerManager manager, Container container, float newOpacity) {
         this.manager = manager;
         this.containerId = container.getId();
+        if (!Float.isFinite(newOpacity)) {
+            throw new IllegalArgumentException("Opacity must be finite");
+        }
         this.newOpacity = Math.max(0.0f, Math.min(1.0f, newOpacity));
         this.oldOpacity = container.getOpacity();
     }
@@ -25,7 +28,7 @@ public class SetContainerOpacityCommand implements ContainerCommand {
     @Override
     public void execute() {
         Container container = manager.getContainer(containerId);
-        if (container != null) {
+        if (manager.requireEditable(container, "设置不透明度")) {
             container.setOpacity(newOpacity);
         }
     }
@@ -33,7 +36,7 @@ public class SetContainerOpacityCommand implements ContainerCommand {
     @Override
     public void undo() {
         Container container = manager.getContainer(containerId);
-        if (container != null) {
+        if (manager.requireEditable(container, "撤销不透明度修改")) {
             container.setOpacity(oldOpacity);
         }
     }

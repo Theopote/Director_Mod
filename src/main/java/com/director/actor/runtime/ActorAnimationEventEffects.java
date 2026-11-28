@@ -1,6 +1,7 @@
 package com.director.actor.runtime;
 
 import com.director.actor.prop.AnimationEventParticles;
+import com.director.timeline.playback.TimelineSamplingContext;
 import com.director.timeline.playback.camera.CameraSample;
 import com.director.timeline.playback.entity.EntityActionEvent;
 import net.minecraft.client.MinecraftClient;
@@ -31,19 +32,29 @@ public final class ActorAnimationEventEffects {
     /** {@code ownerId} scopes camera shake replacement for the same actor; null = anonymous source. */
     public void dispatch(Entity entity, EntityActionEvent event, float timelineTime, UUID ownerId) {
         if (event == null || event.type() == null) return;
+        TimelineSamplingContext context = TimelineSamplingContext.current();
         switch (event.type()) {
-            case PLAY_SOUND -> playSound(MinecraftClient.getInstance(), event.params());
+            case PLAY_SOUND -> {
+                if (context.allowsLiveAudio()) {
+                    playSound(MinecraftClient.getInstance(), event.params());
+                }
+            }
             case SPAWN_PARTICLE -> {
-                if (entity == null) return;
-                spawnParticles(MinecraftClient.getInstance(), entity, event.params());
+                if (context.allowsParticles() && entity != null) {
+                    spawnParticles(MinecraftClient.getInstance(), entity, event.params());
+                }
             }
             // Visibility is sticky in EntityClipSampler → sample.visibility; do not setInvisible here.
             case CAMERA_SHAKE -> {
-                UUID id = ownerId != null ? ownerId : UUID.randomUUID();
-                shakes.removeIf(s -> id.equals(s.ownerId()));
-                float duration = Math.max(0.01f, number(event.params(), "duration", .35f));
-                shakes.add(new Shake(id, timelineTime, duration,
-                        number(event.params(), "intensity", .25f), number(event.params(), "frequency", 14f)));
+                // Export/headless sampling must not advance the shared preview shake state.
+                if (context.isPreview()) {
+                    UUID id = ownerId != null ? ownerId : UUID.randomUUID();
+                    shakes.removeIf(s -> id.equals(s.ownerId()));
+                    float duration = Math.max(0.01f, number(event.params(), "duration", .35f));
+                    shakes.add(new Shake(id, timelineTime, duration,
+                            number(event.params(), "intensity", .25f),
+                            number(event.params(), "frequency", 14f)));
+                }
             }
             case SET_VISIBILITY -> { }
             default -> { }
@@ -52,7 +63,7 @@ public final class ActorAnimationEventEffects {
 
     /** Sole camera-shake apply point; TimelineCameraController must call this when sampling. */
     public CameraSample decorate(CameraSample sample, float timelineTime) {
-        if (sample == null) return null;
+        if (sample == null || !TimelineSamplingContext.current().isPreview()) return sample;
         shakes.removeIf(s -> timelineTime < s.start() || timelineTime > s.start() + s.duration());
         if (shakes.isEmpty()) return sample;
 

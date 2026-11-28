@@ -53,6 +53,7 @@ public class ClipKeyframe implements TimelineSelectable, Comparable<ClipKeyframe
 
     protected ClipKeyframe(UUID id, float time, TimelineInterpolation interpolation) {
         this.id = Objects.requireNonNull(id, "id");
+        requireFiniteTime(time);
         this.time = time;
         this.interpolation = Objects.requireNonNullElse(interpolation, TimelineInterpolation.LINEAR);
     }
@@ -101,6 +102,7 @@ public class ClipKeyframe implements TimelineSelectable, Comparable<ClipKeyframe
      * @param time 时间（秒）
      */
     public void setTime(float time) {
+        requireFiniteTime(time);
         this.time = time;
     }
     
@@ -166,6 +168,12 @@ public class ClipKeyframe implements TimelineSelectable, Comparable<ClipKeyframe
 
     public ClipKeyframe snapshot() {
         return new ClipKeyframe(id, time, interpolation);
+    }
+
+    private static void requireFiniteTime(float time) {
+        if (!Float.isFinite(time)) {
+            throw new IllegalArgumentException("Keyframe time must be finite");
+        }
     }
 }
 

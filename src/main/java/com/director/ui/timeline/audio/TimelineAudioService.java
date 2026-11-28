@@ -67,10 +67,10 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
     private final Map<UUID, BlockSoundTiming> blockSoundTimingByEventId = new HashMap<>();
 
     private Map<net.minecraft.util.math.BlockPos, Float> perBlockStartTimes(TimelineClip clip, float start, float end) {
-        if (clip == null || clip.getAnimationConfig().isWholeContainer() || clip.getBoundContainerId() == null) return Map.of();
+        if (clip == null || clip.getAnimationConfigForEditing().isWholeContainer() || clip.getBoundContainerId() == null) return Map.of();
         var container = DirectorServices.get().containers().getContainer(clip.getBoundContainerId());
         if (container == null) return Map.of();
-        var config = clip.getAnimationConfig();
+        var config = clip.getAnimationConfigForEditing();
         var entries = BlockSequenceGenerator.generate(null, container, config.getSequenceParameters(), end-start,
                 config.getDuration(), config.getDelay());
         var clock = com.director.core.animation.PerBlockAnimationTiming.layout(config, start, end);
@@ -414,7 +414,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
             return;
         }
 
-        ClipAnimationConfig config = clip.getAnimationConfig();
+        ClipAnimationConfig config = clip.getAnimationConfigForEditing();
         if (config == null) {
             config = ClipAnimationConfig.defaultConfig();
         }
@@ -505,8 +505,8 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
                     if (ev == null) {
                         continue;
                     }
-                    if (isContainer && containerClip.getAnimationConfig().isWholeContainer()) {
-                        var config = containerClip.getAnimationConfig();
+                    if (isContainer && containerClip.getAnimationConfigForEditing().isWholeContainer()) {
+                        var config = containerClip.getAnimationConfigForEditing();
                         float oldAnchor = AnimationSoundCollector.wholeContainerEventTime(config, oldStartTime, oldEndTime);
                         float newAnchor = AnimationSoundCollector.wholeContainerEventTime(config, newStartTime, newEndTime);
                         ev.setTime(Math.max(0, newAnchor + ev.getTime() - oldAnchor));
@@ -603,8 +603,8 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         var containerClip = isContainerClip(clip) ? clip : null;
         var blockStarts = perBlockStartTimes(containerClip, newStartTime, newEndTime);
         for (Map.Entry<UUID, Float> e : state.originalTimesByEventId.entrySet()) {
-            if (containerClip != null && containerClip.getAnimationConfig().isWholeContainer()) {
-                var config = containerClip.getAnimationConfig();
+            if (containerClip != null && containerClip.getAnimationConfigForEditing().isWholeContainer()) {
+                var config = containerClip.getAnimationConfigForEditing();
                 float oldAnchor = AnimationSoundCollector.wholeContainerEventTime(config, state.oldStart, state.oldEnd);
                 float newAnchor = AnimationSoundCollector.wholeContainerEventTime(config, newStartTime, newEndTime);
                 state.previewTimesByEventId.put(e.getKey(), Math.max(0, newAnchor + e.getValue() - oldAnchor));
@@ -952,7 +952,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         TimelineClip audioClip = new AudioTimelineClip(
                 formatAudioClipLabel(containerClip.getLabel(), isEraseTrack),
                 containerClip.getStartTime(),
-                com.director.core.animation.PerBlockAnimationTiming.completionLimit(containerClip.getAnimationConfig(), containerClip.getStartTime(), containerClip.getEndTime()),
+                com.director.core.animation.PerBlockAnimationTiming.completionLimit(containerClip.getAnimationConfigForEditing(), containerClip.getStartTime(), containerClip.getEndTime()),
                 clipColor
         );
         audioClip.bindToContainer(containerClip.getBoundContainerId(), containerClip.getBoundContainerName());
@@ -1107,7 +1107,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
             return;
         }
         float newStart = containerClip.getStartTime();
-        float newEnd = com.director.core.animation.PerBlockAnimationTiming.completionLimit(containerClip.getAnimationConfig(), containerClip.getStartTime(), containerClip.getEndTime());
+        float newEnd = com.director.core.animation.PerBlockAnimationTiming.completionLimit(containerClip.getAnimationConfigForEditing(), containerClip.getStartTime(), containerClip.getEndTime());
         float oldStart = audioClip.getStartTime();
         float oldEnd = audioClip.getEndTime();
         if (Math.abs(oldStart - newStart) < 0.0005f && Math.abs(oldEnd - newEnd) < 0.0005f) {
@@ -1131,7 +1131,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         float audioOldStart = audioClip.getStartTime();
         float audioOldEnd = audioClip.getEndTime();
         float audioNewEnd = com.director.core.animation.PerBlockAnimationTiming.completionLimit(
-                containerClip.getAnimationConfig(), newStartTime, newEndTime);
+                containerClip.getAnimationConfigForEditing(), newStartTime, newEndTime);
         // Remap key times into the new range before setTimeRange prunes orphans.
         updateAudioClipKeyframes(audioClip, audioOldStart, audioOldEnd, newStartTime, audioNewEnd);
         audioClip.setTimeRange(newStartTime, audioNewEnd);
@@ -1319,26 +1319,68 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         };
     }
 
-    /** Captures detached audio contents before a cut removes their links. */
     public java.util.function.Consumer<TimelineClip> captureAudioCopy(TimelineClip source) {
+        return captureAudioCopy(source, false);
+    }
+
+    public java.util.function.Consumer<TimelineClip> captureAudioCopy(TimelineClip source, boolean preserveContainerLink) {
+        TimelineModel sourceModel = timelineModel;
         float sourceStart = source.getStartTime();
         List<AudioEvent> events = captureClipEvents(source);
-        TimelineClip linked = linkedAudioClipsByClip.get(source);
-        TimelineTrack linkedTrack = linked != null ? linked.getParentTrack() : null;
-        TimelineClip template = linked != null ? new AudioTimelineClip(linked) : null;
+        TimelineClip linkedContainer = linkedContainerClipsByAudioClip.get(source);
+        TimelineClip owner = linkedContainer != null ? linkedContainer : source;
+        boolean sourceIsAudio = isAudioClip(source);
+        TimelineClip linkedAudio = sourceIsAudio ? source : linkedAudioClipsByClip.get(owner);
+        TimelineTrack linkedTrack = linkedAudio != null ? linkedAudio.getParentTrack() : null;
+        TimelineClip template = linkedAudio != null ? new AudioTimelineClip(linkedAudio) : null;
+        if (sourceModel == null && events.isEmpty() && template == null) {
+            return ignored -> {};
+        }
         return destination -> {
+            if (timelineModel != sourceModel || !isAttachedToTimeline(destination)) {
+                throw new IllegalStateException("Audio contents cannot be pasted into another timeline");
+            }
             float delta = destination.getStartTime() - sourceStart;
             TimelineTrack target = destination.getParentTrack();
-            if (template != null && linkedTrack != null) {
-                TimelineClip copy = new AudioTimelineClip(template);
+            if (sourceIsAudio) {
+                if (preserveContainerLink) {
+                    TimelineClip containerClip = isAttachedToTimeline(owner)
+                            ? owner : findContainerClipForAudioClip(destination, source.getBoundContainerId());
+                    if (!(destination instanceof AudioTimelineClip) || containerClip == null
+                            || !java.util.Objects.equals(destination.getBoundContainerId(), containerClip.getBoundContainerId())) {
+                        throw new IllegalStateException("Audio clip no longer has a matching container clip: destination="
+                                + destination.getClass().getSimpleName() + ", owner=" + containerClip
+                                + ", destinationContainer=" + destination.getBoundContainerId()
+                                + ", sourceContainer=" + source.getBoundContainerId());
+                    }
+                    linkAudioClip(containerClip, destination);
+                }
+            } else if (template != null) {
+                if (!isAttachedToTimeline(linkedTrack)
+                        || !java.util.Objects.equals(destination.getBoundContainerId(), owner.getBoundContainerId())) {
+                    throw new IllegalStateException("Linked audio track no longer belongs to this timeline");
+                }
+                AudioTimelineClip copy = new AudioTimelineClip(template);
                 copy.offsetTime(delta);
                 copy.setBoundContainerId(destination.getBoundContainerId());
-                linkedTrack.addClip(copy);
+                copy.setBoundContainerName(destination.getBoundContainerName());
+                if (!linkedTrack.addClip(copy)) {
+                    throw new IllegalStateException("Audio track rejected copied clip");
+                }
                 linkAudioClip(destination, copy);
                 target = linkedTrack;
             }
             insertClipEvents(destination, target, events, delta);
         };
+    }
+
+    private boolean isAttachedToTimeline(TimelineClip clip) {
+        return clip != null && clip.getParentTrack() != null && timelineModel != null
+                && timelineModel.getAllTracks().contains(clip.getParentTrack());
+    }
+
+    private boolean isAttachedToTimeline(TimelineTrack track) {
+        return track != null && timelineModel != null && timelineModel.getAllTracks().contains(track);
     }
 
     public List<AudioEvent> captureClipEvents(TimelineClip clip) {
@@ -1360,11 +1402,12 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
     public void insertClipEvents(TimelineClip clip, TimelineTrack track, List<AudioEvent> events, float delta) {
         AudioTrack audioTrack = resolveAudioTrack(track);
         if (audioTrack == null) return;
+        TimelineClip eventOwner = linkedContainerClipsByAudioClip.getOrDefault(clip, clip);
         for (AudioEvent template : events) {
             AudioEvent event = new AudioEvent(template.getLabel(), template.getSoundId(), template.getTime() + delta);
             event.setVolume(template.getVolume()); event.setPitch(template.getPitch()); event.setEnabled(template.isEnabled());
             audioTrack.addEvent(event);
-            linkEventToClip(clip, event);
+            linkEventToClip(eventOwner, event);
         }
     }
 
@@ -1470,7 +1513,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
     }
 
     private int computeAutoSoundSignature(TimelineClip clip) {
-        ClipAnimationConfig cfg = clip != null ? clip.getAnimationConfig() : null;
+        ClipAnimationConfig cfg = clip != null ? clip.getAnimationConfigForEditing() : null;
         if (cfg == null) {
             return 0;
         }

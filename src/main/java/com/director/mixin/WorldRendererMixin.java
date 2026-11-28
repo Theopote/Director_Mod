@@ -49,6 +49,8 @@ public abstract class WorldRendererMixin {
     private void director$resetReadiness(net.minecraft.client.world.ClientWorld nextWorld, CallbackInfo ci) {
         com.director.core.animation.StaticSectionMeshRenderer.release();
         com.director.core.container.visibility.ClientSectionInvalidation.getInstance().reset(nextWorld);
+        com.director.core.container.visibility.BlockVisualStateManager.getInstance().onClientWorldChanged(
+                nextWorld == null ? null : nextWorld.getRegistryKey());
     }
 
     @Inject(method = "reload()V", at = @At("HEAD"))

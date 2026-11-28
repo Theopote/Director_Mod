@@ -208,6 +208,14 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     
     // ========== 构造函数 ==========
     public TimelineModel(TimelineViewportState viewportState) {
+        this(viewportState, true);
+    }
+
+    /**
+     * @param loadSavedData 是否在构造完成后读取当前世界的时间线存档。
+     *                     持久化加载使用 {@code false} 创建暂存模型，避免递归读盘。
+     */
+    public TimelineModel(TimelineViewportState viewportState, boolean loadSavedData) {
         this.viewportState = viewportState != null ? viewportState : new TimelineViewportState();
 
         com.director.actor.rig.skeleton.CustomRigPersistence.loadFromWorld(
@@ -220,7 +228,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
                 com.director.actor.model.CustomModelLibrary.getInstance());
         com.director.actor.model.BuiltInCustomModels.registerDefaults();
         // Clip preset validation needs the project's animation purposes.
-        if (TimelineModelPersistence.hasSavedData()) {
+        if (loadSavedData && TimelineModelPersistence.hasSavedData()) {
             lastTimelineSave = TimelineModelPersistence.loadFromFile(this, this.viewportState);
         }
         // 如果没有保存的数据，轨道列表已初始化为空，时间线为空
@@ -262,6 +270,68 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
 
     public void setSuppressPersistenceWrites(boolean suppress) {
         this.suppressPersistenceWrites = suppress;
+    }
+
+    /**
+     * 提交一个已完成反序列化和校验的暂存模型。
+     *
+     * <p>所有可能失败的 DTO 校验都必须在调用前完成。本方法先复制集合与设置，
+     * 再一次性替换 live model 的持久化状态，不创建新的 {@code TimelineModel}，
+     * 也不触发加载过程中的自动保存。调用方负责在提交后重建音频链接。</p>
+     */
+    public void commitRestoredState(TimelineModel restored, TimelineViewportState targetViewport) {
+        if (restored == null || restored == this) {
+            throw new IllegalArgumentException("必须提交一个独立的暂存时间线模型");
+        }
+
+        // 预计算提交内容；此后不再执行 DTO 校验或可能拒绝数据的模型操作。
+        List<TimelineTrack> previousTracks = List.copyOf(tracks);
+        List<TimelineTrack> restoredTracks = List.copyOf(restored.tracks);
+        List<com.director.lighting.PointLight> restoredLights = List.copyOf(restored.pointLights);
+        List<TimelineMarker> restoredMarkers = List.copyOf(restored.markers);
+        TimelineSnapSettings restoredSnapSettings = new TimelineSnapSettings();
+        restoredSnapSettings.copyFrom(restored.snapSettings);
+        float restoredPixelsPerSecond = restored.viewportState.getPixelsPerSecond();
+        float restoredScrollX = restored.viewportState.getScrollX();
+
+        tracks.clear();
+        tracks.addAll(restoredTracks);
+        for (TimelineTrack track : previousTracks) {
+            if (track != null && track.getOwnerModel() == this) {
+                track.setOwnerModel(null);
+            }
+        }
+        pointLights.clear();
+        pointLights.addAll(restoredLights);
+        markers.clear();
+        markers.addAll(restoredMarkers);
+
+        for (TimelineTrack track : tracks) {
+            track.setOwnerModel(this);
+        }
+        frameRate = restored.frameRate;
+        timeUnit = restored.timeUnit;
+        duration = restored.duration;
+        loopEnabled = restored.loopEnabled;
+        playbackSpeed = restored.playbackSpeed;
+        inPoint = restored.inPoint;
+        outPoint = restored.outPoint;
+        snapSettings.copyFrom(restoredSnapSettings);
+        cachedDynamicDuration = 0f;
+        isDurationDirty = true;
+
+        selectedItems.clear();
+        lastClickedItem = null;
+        multiSelectMode = false;
+        actorEditContextRevision++;
+        audioSeekRevision++;
+
+        TimelineViewportState viewport = targetViewport != null ? targetViewport : this.viewportState;
+        viewport.setPixelsPerSecond(restoredPixelsPerSecond);
+        viewport.setScrollX(restoredScrollX);
+
+        // 使用既有轨道结构事件通知 UI/音频采样器一次，避免提交前暴露部分状态。
+        notifyModelChanged("track_added");
     }
 
     public void setClipSoundCollector(TimelineClipSoundCollector collector) {
@@ -367,6 +437,11 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         outPoint = null;
         cachedDynamicDuration = 0f;
         isDurationDirty = true;
+        for (TimelineTrack track : tracks) {
+            if (track != null && track.getOwnerModel() == this) {
+                track.setOwnerModel(null);
+            }
+        }
         tracks.clear();
         pointLights.clear();
         audioSeekRevision++;
@@ -689,6 +764,9 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
 
     public void insertTrack(int index, TimelineTrack track) {
         tracks.add(Math.clamp(index, 0, tracks.size()), track);
+        if (track != null) {
+            track.setOwnerModel(this);
+        }
         markDurationDirty(); // 轨道添加可能影响总时长
         notifyModelChanged("track_added"); // ⭐ 通知监听器（如 TimelineCameraController）轨道已添加
         trackPlaybackListener.onTrackAdded(track);
@@ -696,6 +774,9 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     
     public void removeTrack(TimelineTrack track) {
         tracks.remove(track);
+        if (track != null && track.getOwnerModel() == this) {
+            track.setOwnerModel(null);
+        }
         markDurationDirty(); // 轨道移除可能影响总时长
         notifyModelChanged("track_removed"); // ⭐ 通知监听器轨道已移除
         trackPlaybackListener.onTrackRemoved(track);
@@ -996,7 +1077,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
                     maxEndTime = Math.max(maxEndTime, clip.getEndTime());
                     if (track.getType() == TrackType.CONTAINER && clip.getBoundContainerId() != null) {
                         maxEndTime = Math.max(maxEndTime, com.director.core.animation.PerBlockAnimationTiming.completionLimit(
-                                clip.getAnimationConfig(), clip.getStartTime(), clip.getEndTime()));
+                                clip.getAnimationConfigForEditing(), clip.getStartTime(), clip.getEndTime()));
                     }
                     // clip 内关键帧（理论上应在 clip 范围内，但这里做兜底）
                     for (com.director.timeline.model.clip.ClipKeyframe kf : clip.getClipKeyframes()) {

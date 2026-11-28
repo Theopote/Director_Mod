@@ -38,15 +38,14 @@ public class BatchSetContainerMetadataCommand implements ContainerCommand {
 
     @Override
     public void execute() {
+        List<Container> resolved = resolveEditableTargets("批量修改元数据");
+        if (resolved == null) {
+            return;
+        }
+
         oldMetadata.clear();
-
-        for (UUID containerId : containerIds) {
-            Container container = manager.getContainer(containerId);
-            if (container == null) {
-                continue;
-            }
-
-            oldMetadata.put(containerId, new MetadataSnapshot(
+        for (Container container : resolved) {
+            oldMetadata.put(container.getId(), new MetadataSnapshot(
                 container.hasMetadata(key),
                 container.getMetadata(key)
             ));
@@ -61,19 +60,35 @@ public class BatchSetContainerMetadataCommand implements ContainerCommand {
 
     @Override
     public void undo() {
+        List<Container> resolved = new ArrayList<>();
         for (UUID containerId : containerIds) {
             Container container = manager.getContainer(containerId);
-            MetadataSnapshot snapshot = oldMetadata.get(containerId);
-            if (container == null || snapshot == null) {
-                continue;
+            if (container != null && oldMetadata.containsKey(containerId)) {
+                resolved.add(container);
             }
-
+        }
+        if (!manager.requireAllEditable(resolved, "撤销批量元数据修改")) {
+            return;
+        }
+        for (Container container : resolved) {
+            MetadataSnapshot snapshot = oldMetadata.get(container.getId());
             if (!snapshot.hadKey) {
                 container.removeMetadata(key);
             } else {
                 container.setMetadata(key, snapshot.oldValue);
             }
         }
+    }
+
+    private List<Container> resolveEditableTargets(String action) {
+        List<Container> resolved = new ArrayList<>();
+        for (UUID containerId : containerIds) {
+            Container container = manager.getContainer(containerId);
+            if (container != null) {
+                resolved.add(container);
+            }
+        }
+        return manager.requireAllEditable(resolved, action) ? resolved : null;
     }
 
     @Override

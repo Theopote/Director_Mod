@@ -529,6 +529,7 @@ public class TimelinePanel extends AbstractPanel
         runtime.setEnabled(false);
         try {
             model.reloadForCurrentWorld();
+            DirectorServices.get().containerTimeline().remapContainerReferences();
         } finally {
             runtime.bind(model,com.director.actor.ActorRegistryManager.getInstance());
             runtime.setEnabled(enabled);

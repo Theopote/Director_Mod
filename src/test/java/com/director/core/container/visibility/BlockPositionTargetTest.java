@@ -26,10 +26,10 @@ class BlockPositionTargetTest {
         var target = new BlockPositionTarget(Set.of(a, b));
         var shown = new LongOpenHashSet();
         var work = new TimelineVisibilityWork(shown, target);
-        while (!work.isComplete()) work.process(1, Long.MAX_VALUE, (pos, visible) -> true);
+        while (!work.isComplete()) work.process(1, Long.MAX_VALUE, (pos, visible) -> TimelineVisibilityWork.ApplyResult.SUCCESS);
         assertEquals(new LongOpenHashSet(new long[] {a.asLong(), b.asLong()}), shown);
         var rewind = new TimelineVisibilityWork(shown, new BlockPositionTarget(Set.of()));
-        while (!rewind.isComplete()) rewind.process(1, Long.MAX_VALUE, (pos, visible) -> true);
+        while (!rewind.isComplete()) rewind.process(1, Long.MAX_VALUE, (pos, visible) -> TimelineVisibilityWork.ApplyResult.SUCCESS);
         assertTrue(shown.isEmpty());
         assertEquals(2, target.size());
     }

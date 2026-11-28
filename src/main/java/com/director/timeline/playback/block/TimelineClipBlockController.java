@@ -113,6 +113,8 @@ public class TimelineClipBlockController {
      */
     private static final class ContainerBlocksCache {
         long geometryRevision = -1;
+        boolean initialized;
+        RegistryKey<World> levelKey;
         List<BlockPos> blocks = List.of();
         Set<BlockPos> all = Set.of();
         final SettledBlockSections settled = new SettledBlockSections(
@@ -146,6 +148,9 @@ public class TimelineClipBlockController {
         ContainerType containerType;
         int sequenceParamsHash;
         int animationHash;
+        int started = -1;
+        int finished = -1;
+        int staticBucket = -2;
         VisibleBlocksResult result;
     }
 
@@ -166,8 +171,11 @@ public class TimelineClipBlockController {
         }
         if (cache.blocks == null
                 || cache.geometryRevision != mod
+                || !Objects.equals(cache.levelKey, container.getLevelKey())
                 || (cache.blocks.isEmpty() && container.getBlockCount() > 0)) {
             cache.geometryRevision = mod;
+            cache.initialized = true;
+            cache.levelKey = container.getLevelKey();
             cache.blocks = new ArrayList<>(container.getBlocksView());
             cache.all = BlockPositionSets.immutableCopy(cache.blocks);
         }
@@ -177,6 +185,35 @@ public class TimelineClipBlockController {
     private Set<BlockPos> getCachedAllBlocks(Container container) {
         getCachedContainerBlocks(container);
         return container == null ? Set.of() : blocksCacheByContainer.get(container).all;
+    }
+
+    /** Reconcile client ownership against the previous geometry, not only the new block set. */
+    private void reconcileContainerGeometry(Container container) {
+        ContainerBlocksCache cache = blocksCacheByContainer.get(container);
+        if (cache == null || !cache.initialized) return;
+        long revision = container.getGeometryRevision();
+        RegistryKey<World> level = container.getLevelKey();
+        if (cache.geometryRevision == revision && Objects.equals(cache.levelKey, level)) return;
+
+        Set<BlockPos> oldAll = cache.all;
+        var manager = BlockVisualStateManager.getInstance();
+        if (!Objects.equals(cache.levelKey, level)) {
+            manager.clearOverridesFor(container);
+        } else {
+            getCachedContainerBlocks(container);
+            Set<BlockPos> removed = new HashSet<>(oldAll);
+            removed.removeAll(cache.all);
+            if (!removed.isEmpty() && level != null) manager.releaseContainerPositions(container.getId(), level, removed);
+            if (!removed.isEmpty() && level != null && DirectorServices.isInitialized()) {
+                var visibility = DirectorServices.get().visibilityOrNull();
+                if (visibility != null) visibility.restoreContainerBlocks(container, removed);
+            }
+        }
+        stableFramesByContainer.remove(container.getId());
+        wholeRenderCacheByContainer.remove(container.getId());
+        perBlockRenderCacheByContainer.remove(container.getId());
+        lastVisualParamsByContainerId.remove(container.getId());
+        resetPerBlockEffects();
     }
 
     private static int hashSequenceParameters(com.director.core.animation.sequence.SequenceParameters p) {
@@ -256,6 +293,15 @@ public class TimelineClipBlockController {
         return lo;
     }
 
+    private static int[] sequenceCutoffs(List<BlockSequenceEntry> entries, PerBlockAnimationTiming.Layout timing,
+                                         float currentTime, float clipStart, boolean instant) {
+        float base = currentTime - clipStart - timing.delay();
+        int started = upperBoundNormalized(entries, timing.threshold(base));
+        int finished = instant ? started
+                : upperBoundNormalized(entries, timing.threshold(base - timing.duration()));
+        return new int[] {started, finished};
+    }
+
     private static boolean isBlockTrackType(TrackType trackType) {
         return trackType == TrackType.CONTAINER;
     }
@@ -287,10 +333,35 @@ public class TimelineClipBlockController {
         boolean occluded;
         Container container;
         long geometryRevision;
+        RegistryKey<World> levelKey;
         int animationHash;
     }
 
     private final Map<UUID, LastVisualParams> lastVisualParamsByContainerId = new HashMap<>();
+
+    private record StableContainerFrame(VisibleBlocksResult visibility, float opacity,
+                                        ClipAnimationConfig config, TimelineClip clip, int staticBucket) {}
+    private record VisualWrite(BlockPos pos, BlockVisualStateManager.BlockVisualState state) {}
+    private record WholeRenderCache(ClipAnimationConfig config, long geometryRevision, float opacity,
+                                    Set<BlockPos> visible, com.director.core.animation.WholeContainerAnimation.Frame frame,
+                                    net.minecraft.util.math.Vec3d pivot, long sectionRevision,
+                                    RegistryKey<World> level, List<VisualWrite> writes,
+                                    List<BlockVisualStateManager.RenderEntry> entries) {}
+    private record PerBlockRenderCache(ClipAnimationConfig config, long geometryRevision, float opacity,
+                                       Set<BlockPos> visible, int staticBucket, long sectionRevision,
+                                       RegistryKey<World> level, List<VisualWrite> writes,
+                                       List<BlockVisualStateManager.RenderEntry> entries) {}
+
+    private final Map<UUID, StableContainerFrame> stableFramesByContainer = new HashMap<>();
+    private final Map<TimelineClip, Integer> lastStaticBucketByClip = new IdentityHashMap<>();
+    private final Map<UUID, WholeRenderCache> wholeRenderCacheByContainer = new HashMap<>();
+    private final Map<UUID, PerBlockRenderCache> perBlockRenderCacheByContainer = new HashMap<>();
+    private final Map<UUID, Long> containerFailureCounts = new HashMap<>();
+    private final Set<UUID> containersNeedingRetry = new HashSet<>();
+    private long containerFailureCount;
+    private long lastContainerFailureNanos;
+    private String lastContainerFailureMessage = "";
+    private boolean lastObservedPlaying;
 
     // ===== 性能采样（节流日志）=====
     private long lastPerfLogMs = 0L;
@@ -327,18 +398,17 @@ public class TimelineClipBlockController {
         }
 
         try {
-            // 清理容器方块缓存
+            // Owner indexes retain historical coordinates even after geometry shrink or registry removal.
+            BlockVisualStateManager.getInstance().clearOverridesFor(container);
             blocksCacheByContainer.remove(container);
-
-            // 清理序列顺序缓存
-
-            // 清理容器相关的所有片段缓存
-            // 注意：需要遍历找到引用该容器的片段
             sequenceCacheByClip.entrySet().removeIf(entry -> container.getId().equals(entry.getKey().getBoundContainerId()));
-
             visibleBlocksCacheByClip.entrySet().removeIf(entry -> container.getId().equals(entry.getKey().getBoundContainerId()));
-
-            // 清理可见方块跟踪
+            lastStaticBucketByClip.entrySet().removeIf(entry -> container.getId().equals(entry.getKey().getBoundContainerId()));
+            perBlockEffectSampleTime.entrySet().removeIf(entry -> container.getId().equals(entry.getKey().getBoundContainerId()));
+            containersNeedingRetry.remove(container.getId());
+            stableFramesByContainer.remove(container.getId());
+            wholeRenderCacheByContainer.remove(container.getId());
+            perBlockRenderCacheByContainer.remove(container.getId());
             lastFrameVisibleBlocks.remove(container.getId());
             lastFrameWorldBlocks.remove(container.getId());
             lastVisualParamsByContainerId.remove(container.getId());
@@ -425,28 +495,106 @@ public class TimelineClipBlockController {
      * 是否需要在当前帧运行方块控制器（播放 / 拖动 / 模型或时间变化后的单次同步）。
      */
     public boolean needsClipBlockUpdate(TimelineModel model) {
-        if (model == null) {
-            return false;
-        }
-        if (model.isPlaying() || model.isScrubbing()) {
-            return true;
-        }
+        if (model == null) return false;
+        boolean playing = model.isPlaying();
+        if (model.isScrubbing()) return true;
+        if (!containersNeedingRetry.isEmpty()) return true;
         if (worldHandoffPending || TimelinePlacementBudget.isCatchUp()) return true;
         if (lastHandledSectionRevision != com.director.core.container.visibility.ClientSectionInvalidation.getInstance().revision())
             return true;
-        if (timelineRevision != lastHandledRevision) {
-            return true;
-        }
+        if (timelineRevision != lastHandledRevision || playing != lastObservedPlaying) return true;
+
         float currentTime = model.getCurrentTime();
+        if (playing) {
+            // Stable playback buckets retain their render entries and do no set diff or sampling.
+            // A bucket transition (including a loop/seek to another static phase) still gets one pass.
+            for (TimelineTrack track : model.getAllTracks()) {
+                if (track == null || !isBlockTrackType(track.getType())) continue;
+                boolean enabled = !track.isLocked() && track.isVisible();
+                for (TimelineClip clip : track.getClips()) {
+                    if (clip == null || clip.getBoundContainerId() == null) continue;
+                    Container container = DirectorServices.get().containers().getContainer(clip.getBoundContainerId());
+                    if (container == null) return true;
+                    int bucket = staticTimeBucket(clip, currentTime, enabled, container);
+                    if (bucket < 0 || !Objects.equals(lastStaticBucketByClip.get(clip), bucket)) return true;
+                }
+            }
+            return false;
+        }
+
         boolean timeChanged = Float.isNaN(lastHandledPreviewTime)
                 || Math.abs(currentTime - lastHandledPreviewTime) > 1e-4f;
-        if (timeChanged) {
-            return true;
-        }
-        // 【修复】静止预览时，若 timelineDrivingPaused 还是 false（分帧追平尚未被暂停），
-        // 仍然需要进入 update() 执行一次帧末尾的 pauseTimelineDriving()，
-        // 否则 tick() 会持续处理已经完成的时间线目标，浪费服务端资源。
+        if (timeChanged) return true;
+        // A paused timeline may still owe the visibility service one final pause call.
         return !timelineDrivingPaused;
+    }
+
+    /** -1 means dynamic; nonnegative values identify stable before/disabled/delayed/after phases. */
+    static int staticTimeBucket(TimelineClip clip, float time, boolean enabled, Container container) {
+        if (!enabled) return 0;
+        float start = clip.getStartTime();
+        float end = clip.getEndTime();
+        if (time < start) return 1;
+        ClipAnimationConfig config = clip.getAnimationConfigForEditing();
+        if (config == null) config = ClipAnimationConfig.defaultConfig();
+        float completion = com.director.core.animation.PerBlockAnimationTiming.effectiveAnimationEndTime(config, start, end);
+        boolean fading = clip.isPostAnimationFadeEnabled()
+                && clip.getPostAnimationFadeEnd() > clip.getPostAnimationFadeStart()
+                && time >= completion + clip.getPostAnimationFadeStart()
+                && time <= completion + clip.getPostAnimationFadeEnd();
+        if (fading || (!clip.getVisibilityKeyframes().isEmpty() && time <= end)) return -1;
+        if (config.isWholeContainer()) {
+            var window = com.director.core.animation.WholeContainerAnimation.window(config, start, end);
+            if (time < window.start()) return 2;
+            if (time == window.start() && window.end() <= window.start()) return -1;
+            return time < window.end() ? -1 : 3;
+        }
+        var timing = PerBlockAnimationTiming.layout(config, start, end);
+        float firstAction = start + timing.delay();
+        if (time < firstAction) return 2;
+        boolean instantAtStart = config.getMode() == com.director.core.container.AnimationMode.INSTANT
+                && time == firstAction;
+        return instantAtStart || time < completion ? -1 : 3;
+    }
+
+    public long getContainerFailureCount() {
+        return containerFailureCount;
+    }
+
+    public long getContainerFailureCount(UUID containerId) {
+        return containerFailureCounts.getOrDefault(containerId, 0L);
+    }
+
+    public String getLastContainerFailureMessage() {
+        return lastContainerFailureMessage;
+    }
+
+    /** Package-level seam used by focused isolation tests; production applies the same gate per container. */
+    boolean runIsolatedContainer(UUID containerId, Runnable action) {
+        try {
+            action.run();
+            return true;
+        } catch (RuntimeException failure) {
+            containerFailureCount++;
+            containerFailureCounts.merge(containerId, 1L, Long::sum);
+            lastContainerFailureNanos = System.nanoTime();
+            lastContainerFailureMessage = containerId + ":" + failure.getClass().getSimpleName() + ":" + failure.getMessage();
+            long failures = containerFailureCounts.getOrDefault(containerId, 1L);
+            if (failures <= 3 || (failures & (failures - 1)) == 0) {
+                LOGGER.warn("[TimelineClipBlockController] container {} update failed; retaining last stable frame: {}",
+                        containerId, failure.toString(), failure);
+            }
+            return false;
+        }
+    }
+
+    /** Guarantees frame-tail cleanup even when an unexpected subsystem exception escapes. */
+    void runFrame(Runnable frameBody) {
+        try {
+            frameBody.run();
+        } finally {
+            BlockVisualStateManager.getInstance().finishFrame();
+        }
     }
 
     private void ensureModelListenerBound(TimelineModel model) {
@@ -524,6 +672,7 @@ public class TimelineClipBlockController {
 
         if (!playing
                 && !scrubbing
+                && playing == lastObservedPlaying
                 && !previewTimeChanged
                 && !worldHandoffPending
                 && !TimelinePlacementBudget.isCatchUp()
@@ -542,8 +691,9 @@ public class TimelineClipBlockController {
 
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
 
-        // 保留持久可见性差量，只清理上一帧临时动画覆盖。
-        visualStateManager.beginTimelineFrame();
+        runFrame(() -> {
+        Set<UUID> failedContainerIds = new HashSet<>();
+        Map<UUID, BlockVisualStateManager.ContainerCheckpoint> checkpoints = new HashMap<>();
 
         // currentFrameVisibleBlocks：保持为“渲染可见集合”（用于遮挡/overlay/视觉状态）
         Map<UUID, Set<BlockPos>> currentFrameVisibleBlocks = new LinkedHashMap<>();
@@ -552,6 +702,9 @@ public class TimelineClipBlockController {
         Map<UUID, Float> currentFrameOpacity = new LinkedHashMap<>();
         Map<UUID, List<BlockSequenceEntry>> currentFrameSequences = new LinkedHashMap<>();
         Map<UUID, ClipAnimationConfig> currentFrameConfigs = new LinkedHashMap<>();
+        Map<UUID, Container> currentFrameContainers = new LinkedHashMap<>();
+        Map<UUID, TimelineClip> currentFrameClips = new LinkedHashMap<>();
+        Map<UUID, Integer> currentFrameStaticBuckets = new LinkedHashMap<>();
 
         // 本帧世界方块（AIR/恢复）变化导致的重渲染位置（与视觉覆盖层无关）
 
@@ -561,72 +714,48 @@ public class TimelineClipBlockController {
 
         final long tAfterClear = System.nanoTime();
 
-        // ◆ 步骤1：遍历所有轨道和片段，计算每个容器在当前时间应该显示的方块和其默认透明度
+        // Sample each container independently. A bad sequence/config/world read cannot abort
+        // the rest of the frame; a previous stable sample is retained until the next success.
         for (TimelineTrack track : activeModel.getAllTracks()) {
-            if (track == null) {
-                continue;
-            }
-
+            if (track == null) continue;
             boolean trackEnabled = !track.isLocked() && track.isVisible();
-            TrackType trackType = track.getType();
-            if (!isBlockTrackType(trackType)) {
-                continue;
-            }
-
+            if (!isBlockTrackType(track.getType())) continue;
             for (TimelineClip clip : track.getClips()) {
-                if (clip == null || clip.getBoundContainerId() == null) {
-                    continue;
-                }
-
+                if (clip == null || clip.getBoundContainerId() == null) continue;
                 UUID containerId = clip.getBoundContainerId();
                 Container container = DirectorServices.get().containers().getContainer(containerId);
-                if (container == null) {
-                    continue;
-                }
+                if (container == null) continue;
 
-                ClipAnimationConfig config = clip.getAnimationConfig();
-                if (config == null) {
-                    config = ClipAnimationConfig.defaultConfig();
-                    if (LOGGER.isDebugEnabled()) {
+                boolean sampled = runIsolatedContainer(containerId, () -> {
+                    ensureContainerWorldBinding(container);
+                    reconcileContainerGeometry(container);
+                    ClipAnimationConfig config = clip.getAnimationConfigForEditing();
+                    if (config == null) {
+                        config = ClipAnimationConfig.defaultConfig();
                         LOGGER.debug("[TimelineClipBlockController] Clip {} animation config missing, using default",
                                 clip.getLabel());
                     }
-                }
-                currentFrameConfigs.put(containerId, config);
-
-                // ◆ 根据播放头位置和片段配置计算应该显示的方块
-                // 完全基于片段的ClipAnimationConfig，不依赖容器状态
-                VisibleBlocksResult result = calculateVisibleBlocks(
-                        clip, currentTime, trackEnabled, container, config, previewMode);
-                Set<BlockPos> renderBlocks = result.renderBlocks();
-                Set<BlockPos> worldBlocks = result.worldBlocks();
-                currentFrameVisibleBlocks.put(containerId, renderBlocks);
-                currentFrameWorldBlocks.put(containerId, worldBlocks);
-
-                // ✅ 计算透明度：使用可见性关键帧和 post-animation fade
-                // 支持可见性关键帧和 post-animation fade 功能
-                float opacityTime = currentTime;
-                if (!config.isWholeContainer() && currentTime > clip.getEndTime()) {
-                    var opacitySequence = result.sequenceEntries();
-                    if (opacitySequence.isEmpty()) opacitySequence = getOrGenerateSequenceEntries(clip, container, config,
-                            clip.getLength(), config.getDuration(), config.getDelay() + config.getSequenceParameters().getGlobalDelay());
-                    if (!opacitySequence.isEmpty()) {
-                        float finished = PerBlockAnimationTiming.layout(config, clip.getStartTime(), clip.getEndTime())
-                                .window(opacitySequence.getLast().getNormalizedTime()).end();
-                        float tail = Math.max(0, finished - clip.getEndTime());
-                        opacityTime = Math.max(clip.getEndTime(), currentTime - tail);
-                    }
-                }
-                float finalOpacity = clip.computeAlphaAtGlobalTime(opacityTime);
-                currentFrameOpacity.put(containerId, finalOpacity);
-
-                currentFrameSequences.put(containerId, result.sequenceEntries());
-
-                if (LOGGER.isTraceEnabled() && !renderBlocks.isEmpty()) {
-                    LOGGER.trace(
-                            "[TimelineClipBlockController] 片段 {} (容器: {}) render={} world={} (时间: {:.2f}s, 片段范围: [{:.2f}s, {:.2f}s])",
-                            clip.getLabel(), container.getName(), renderBlocks.size(), worldBlocks.size(), currentTime,
-                            clip.getStartTime(), clip.getEndTime());
+                    ClipFrameSample sample = sampleClipFrame(clip, currentTime, trackEnabled, container, config, previewMode);
+                    Set<BlockPos> renderBlocks = isContainerInClientWorld(container)
+                            ? sample.visibility().renderBlocks() : Collections.emptySet();
+                    currentFrameContainers.put(containerId, container);
+                    currentFrameClips.put(containerId, clip);
+                    currentFrameConfigs.put(containerId, config);
+                    currentFrameVisibleBlocks.put(containerId, renderBlocks);
+                    currentFrameWorldBlocks.put(containerId, sample.visibility().worldBlocks());
+                    currentFrameOpacity.put(containerId, sample.opacity());
+                    currentFrameSequences.put(containerId, sample.visibility().sequenceEntries());
+                    currentFrameStaticBuckets.put(containerId, sample.staticBucket());
+                });
+                if (sampled) {
+                    containersNeedingRetry.remove(containerId);
+                } else {
+                    failedContainerIds.add(containerId);
+                    containersNeedingRetry.add(containerId);
+                    putStableFrame(containerId, stableFramesByContainer.get(containerId), container, clip,
+                            currentFrameVisibleBlocks, currentFrameWorldBlocks, currentFrameOpacity,
+                            currentFrameSequences, currentFrameConfigs, currentFrameContainers,
+                            currentFrameClips, currentFrameStaticBuckets);
                 }
             }
         }
@@ -741,8 +870,16 @@ public class TimelineClipBlockController {
         // ⭐ 重新启用遮挡检测
         Set<UUID> occludedContainers = new HashSet<>();
         applyOcclusionOverrides(currentTime, currentFrameVisibleBlocks, currentFrameOpacity,
-                                occludedContainers, containerToClipMap);
+                                occludedContainers, containerToClipMap, failedContainerIds);
         final long tAfterOcclusion = System.nanoTime();
+
+        // Capture before beginTimelineFrame restores animation baselines and clears entries.
+        Set<UUID> checkpointIds = new HashSet<>(currentFrameContainers.keySet());
+        checkpointIds.addAll(failedContainerIds);
+        for (UUID containerId : checkpointIds) {
+            checkpoints.put(containerId, visualStateManager.beginContainerUpdate(containerId));
+        }
+        visualStateManager.beginTimelineFrame();
 
         // ✅ 步骤3：应用方块可见性状态（两层系统）
         // 双重控制机制：
@@ -752,6 +889,10 @@ public class TimelineClipBlockController {
 
         for (Map.Entry<UUID, Set<BlockPos>> entry : currentFrameVisibleBlocks.entrySet()) {
             UUID containerId = entry.getKey();
+            if (failedContainerIds.contains(containerId)) {
+                visualStateManager.rollbackContainerUpdate(containerId);
+                continue;
+            }
             // renderBlocks：用于视觉状态/overlay/动画采样
             Set<BlockPos> renderBlocks = entry.getValue();
             // worldBlocks：用于真实世界方块落地（ENTER 延后到动画结束）
@@ -759,8 +900,9 @@ public class TimelineClipBlockController {
                     java.util.Collections.emptySet());
             float opacity = currentFrameOpacity.getOrDefault(containerId, 1.0f);
 
-            Container container = DirectorServices.get().containers().getContainer(containerId);
+            Container container = currentFrameContainers.get(containerId);
             if (container == null) {
+                visualStateManager.rollbackContainerUpdate(containerId);
                 continue;
             }
 
@@ -770,14 +912,15 @@ public class TimelineClipBlockController {
             LastVisualParams lastParams = lastVisualParamsByContainerId.get(containerId);
             boolean containerStructureChanged = (lastParams == null)
                     || lastParams.container != container
-                    || (lastParams.geometryRevision != containerMod);
+                    || (lastParams.geometryRevision != containerMod)
+                    || !Objects.equals(lastParams.levelKey, container.getLevelKey());
 
             // 🔹 关键改动：判断容器是否被遮挡
             // 如果被遮挡，方块仍然需要在世界中存在，但通过 Mixin 阻止渲染
             TimelineClip occludedClip = containerToClipMap.get(containerId);
             boolean occlusionTransparencyEnabled = occludedClip == null
-                    || (occludedClip.getAnimationConfig() != null
-                    && occludedClip.getAnimationConfig().isOcclusionTransparencyEnabled());
+                    || (occludedClip.getAnimationConfigForEditing() != null
+                    && occludedClip.getAnimationConfigForEditing().isOcclusionTransparencyEnabled());
             boolean isOccluded = occlusionTransparencyEnabled && occludedContainers.contains(containerId);
 
             boolean visualParamsChanged = lastParams == null
@@ -786,6 +929,7 @@ public class TimelineClipBlockController {
                     || lastParams.animationHash != visibleAnimationHash(containerToClipMap.get(containerId), currentFrameConfigs.get(containerId))
                     || containerStructureChanged;
 
+            boolean applied = runIsolatedContainer(containerId, () -> {
             // ◆ 关键：先恢复真实方块（即使容器状态是 HIDDEN）
             // 容器被拖拽到时间线时会被设置为HIDDEN，但我们需要根据片段配置显示方块
             // 🔹 对于被遮挡的容器：方块需要存在（不是 AIR），但通过 Mixin 阻止 Minecraft 渲染
@@ -818,7 +962,9 @@ public class TimelineClipBlockController {
                 LOGGER.warn("[TimelineClipBlockController] ContainerVisibilityService 未初始化，无法控制方块显示");
             }
 
-            // 播放与拖动预览共享视觉状态和动作采样，只在播放时触发特效。
+            // Client visual/render state is dimension-local. Server visibility work above still
+            // uses the container's bound world, even while another client dimension is active.
+            if (isContainerInClientWorld(container) && container.getLevelKey() != null) {
             ClipAnimationConfig frameConfig = currentFrameConfigs.get(containerId);
             if (frameConfig != null && frameConfig.isWholeContainer()) {
                 registerWholeContainerEntries(visualStateManager, container, occludedClip,
@@ -830,14 +976,16 @@ public class TimelineClipBlockController {
                 if (containerStructureChanged) {
                     List<BlockPos> all = getCachedContainerBlocks(container);
                     if (renderBlocks == null || renderBlocks.isEmpty()) {
-                        visualStateManager.setBlocksState(all, BlockVisualStateManager.BlockVisualState.hidden());
+                        visualStateManager.setBlocksState(all, BlockVisualStateManager.BlockVisualState.hidden(),
+                                containerId, container.getLevelKey());
                     } else {
-                        visualStateManager.setBlocksState(all, BlockVisualStateManager.BlockVisualState.hidden());
+                        visualStateManager.setBlocksState(all, BlockVisualStateManager.BlockVisualState.hidden(),
+                                containerId, container.getLevelKey());
                         BlockVisualStateManager.BlockVisualState visibleState = (opacity < 1.0f)
                                 ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true)
                                 .withSuppressWorldRendering(true)
                                 : BlockVisualStateManager.BlockVisualState.normal();
-                        visualStateManager.setBlocksState(renderBlocks, visibleState);
+                        visualStateManager.setBlocksState(renderBlocks, visibleState, containerId, container.getLevelKey());
                     }
                 } else {
                     if (renderSetChanged) {
@@ -847,9 +995,11 @@ public class TimelineClipBlockController {
                                 .withSuppressWorldRendering(true)
                                 : BlockVisualStateManager.BlockVisualState.normal();
                         SequenceVisibility.forEachDifference(prevVisible, renderBlocks,
-                                pos -> visualStateManager.setBlockState(pos, hidden));
+                                pos -> visualStateManager.setBlockState(
+                                        new BlockVisualStateManager.PositionKey(container.getLevelKey(), pos), hidden, containerId));
                         SequenceVisibility.forEachDifference(renderBlocks, prevVisible,
-                                pos -> visualStateManager.setBlockState(pos, visible));
+                                pos -> visualStateManager.setBlockState(
+                                        new BlockVisualStateManager.PositionKey(container.getLevelKey(), pos), visible, containerId));
                     }
 
                     if (visualParamsChanged) {
@@ -858,7 +1008,7 @@ public class TimelineClipBlockController {
                                     ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true)
                                     .withSuppressWorldRendering(true)
                                     : BlockVisualStateManager.BlockVisualState.normal();
-                            visualStateManager.setBlocksState(renderBlocks, visibleState);
+                            visualStateManager.setBlocksState(renderBlocks, visibleState, containerId, container.getLevelKey());
                         }
                     }
                 }
@@ -875,18 +1025,69 @@ public class TimelineClipBlockController {
                         sequenceEntries,
                         currentTime,
                         renderBlocks,
-                        previewMode);
+                        opacity,
+                        previewMode,
+                        currentFrameStaticBuckets.getOrDefault(containerId, -1));
             }
+            }
+            });
+            if (applied) {
+                containersNeedingRetry.remove(containerId);
+                visualStateManager.commitContainerUpdate(containerId);
+                StableContainerFrame stable = new StableContainerFrame(
+                        new VisibleBlocksResult(currentFrameWorldBlocks.get(containerId),
+                                currentFrameVisibleBlocks.get(containerId), currentFrameSequences.get(containerId)),
+                        opacity, currentFrameConfigs.get(containerId).copy(), currentFrameClips.get(containerId),
+                        currentFrameStaticBuckets.getOrDefault(containerId, -1));
+                stableFramesByContainer.put(containerId, stable);
+                lastStaticBucketByClip.put(currentFrameClips.get(containerId), stable.staticBucket());
+                LastVisualParams updated = lastParams != null ? lastParams : new LastVisualParams();
+                updated.opacity = opacity;
+                updated.occluded = isOccluded;
+                updated.container = container;
+                updated.geometryRevision = containerMod;
+                updated.levelKey = container.getLevelKey();
+                updated.animationHash = visibleAnimationHash(containerToClipMap.get(containerId), currentFrameConfigs.get(containerId));
+                lastVisualParamsByContainerId.put(containerId, updated);
+            } else {
+                failedContainerIds.add(containerId);
+                containersNeedingRetry.add(containerId);
+                visualStateManager.rollbackContainerUpdate(containerId);
+                // If server submission had started before a client-side failure, restore the
+                // previous stable target rather than leaving a half-applied container.
+                if (visibilityService != null) {
+                    try {
+                        Set<BlockPos> previousWorld = lastFrameWorldBlocks.get(containerId);
+                        visibilityService.showContainerBlocksForTimeline(container,
+                                previousWorld != null ? previousWorld : Collections.emptySet());
+                    } catch (RuntimeException rollbackFailure) {
+                        LOGGER.warn("[TimelineClipBlockController] visibility rollback failed for {}: {}",
+                                containerId, rollbackFailure.toString());
+                    }
+                }
+            }
+        }
 
-            if (lastParams == null) {
-                lastParams = new LastVisualParams();
-                lastVisualParamsByContainerId.put(containerId, lastParams);
+        // Failed containers keep their previous sampled target in all bookkeeping maps.
+        for (UUID containerId : failedContainerIds) {
+            StableContainerFrame stable = stableFramesByContainer.get(containerId);
+            if (stable != null) {
+                putStableFrame(containerId, stable, currentFrameContainers.get(containerId), stable.clip(),
+                        currentFrameVisibleBlocks, currentFrameWorldBlocks, currentFrameOpacity,
+                        currentFrameSequences, currentFrameConfigs, currentFrameContainers,
+                        currentFrameClips, currentFrameStaticBuckets);
+            } else {
+                currentFrameVisibleBlocks.remove(containerId);
+                currentFrameWorldBlocks.remove(containerId);
+                currentFrameOpacity.remove(containerId);
+                currentFrameSequences.remove(containerId);
+                currentFrameConfigs.remove(containerId);
+                currentFrameContainers.remove(containerId);
+                currentFrameClips.remove(containerId);
+                currentFrameStaticBuckets.remove(containerId);
             }
-            lastParams.opacity = opacity;
-            lastParams.occluded = isOccluded;
-            lastParams.container = container;
-            lastParams.geometryRevision = containerMod;
-            lastParams.animationHash = visibleAnimationHash(containerToClipMap.get(containerId), currentFrameConfigs.get(containerId));
+            if (stable != null) desiredWorldBlocks.put(containerId, stable.visibility().worldBlocks());
+            else desiredWorldBlocks.remove(containerId);
         }
         final long tAfterEntries = System.nanoTime();
 
@@ -905,7 +1106,8 @@ public class TimelineClipBlockController {
             }
         } catch (Exception ignored) {
         }
-        cleanupContainersNoLongerControlled(desiredWorldBlocks.keySet(), visibilityService, visualStateManager, rerender);
+        cleanupContainersNoLongerControlled(desiredWorldBlocks.keySet(), visibilityService, visualStateManager, rerender,
+                failedContainerIds);
         int visualCandidates = visualStateManager.getChangeCandidateCount();
 
         for (var pos : rerender) {
@@ -920,9 +1122,11 @@ public class TimelineClipBlockController {
         final long tAfterRerender = System.nanoTime();
 
         // 更新 lastFrameVisibleBlocks（渲染可见集）与 lastFrameWorldBlocks（世界落地集），并清理已不存在的容器
-        lastFrameVisibleBlocks.keySet().retainAll(currentFrameVisibleBlocks.keySet());
-        lastFrameWorldBlocks.keySet().retainAll(desiredWorldBlocks.keySet());
-        lastVisualParamsByContainerId.keySet().retainAll(currentFrameVisibleBlocks.keySet());
+        Set<UUID> retainedContainerIds = new HashSet<>(currentFrameContainers.keySet());
+        retainedContainerIds.addAll(failedContainerIds);
+        lastFrameVisibleBlocks.keySet().retainAll(retainedContainerIds);
+        lastFrameWorldBlocks.keySet().retainAll(retainedContainerIds);
+        lastVisualParamsByContainerId.keySet().retainAll(retainedContainerIds);
         for (Map.Entry<UUID, Set<BlockPos>> e : currentFrameVisibleBlocks.entrySet()) {
             UUID id = e.getKey();
             Set<BlockPos> s = e.getValue();
@@ -935,8 +1139,13 @@ public class TimelineClipBlockController {
             Set<BlockPos> s = e.getValue();
             lastFrameWorldBlocks.put(id, s != null ? s : java.util.Collections.emptySet());
         }
+        lastStaticBucketByClip.keySet().retainAll(currentFrameClips.keySet());
+        stableFramesByContainer.keySet().retainAll(retainedContainerIds);
+        wholeRenderCacheByContainer.keySet().retainAll(retainedContainerIds);
+        perBlockRenderCacheByContainer.keySet().retainAll(retainedContainerIds);
         lastHandledRevision = timelineRevision;
         lastHandledPreviewTime = currentTime;
+        lastObservedPlaying = playing;
         if (!playing && !scrubbing) {
             if (!timelineDrivingPaused && visibilityService != null) {
                 visibilityService.pauseTimelineDriving();
@@ -945,7 +1154,6 @@ public class TimelineClipBlockController {
         } else {
             timelineDrivingPaused = false;
         }
-        visualStateManager.finishFrame();
 
         // ✅ 修复：定期清理不再活跃的容器/片段缓存，防止内存泄漏
         // 每 N 帧（约 3 秒 @ 60fps）执行一次清理
@@ -1025,6 +1233,51 @@ public class TimelineClipBlockController {
                     visualCandidates,
                     renderEntryCount);
         }
+        });
+    }
+
+    /** Unified visibility/opacity phase sample (C-06), also used by focused boundary tests. */
+    record ClipFrameSample(VisibleBlocksResult visibility, float opacity, int staticBucket) {}
+
+    ClipFrameSample sampleClipFrame(TimelineClip clip, float currentTime, boolean trackEnabled,
+                                    Container container, ClipAnimationConfig config, boolean previewMode) {
+        VisibleBlocksResult visibility = calculateVisibleBlocks(
+                clip, currentTime, trackEnabled, container, config, previewMode);
+        boolean demolition = container != null && container.getType() == ContainerType.DEMOLITION;
+        // A disabled or not-yet-started demolition clip is a no-op: preserve structure and alpha.
+        float opacity = demolition && (!trackEnabled || currentTime < clip.getStartTime())
+                ? 1.0f : clip.computeAlphaAtGlobalTime(currentTime);
+        return new ClipFrameSample(visibility, opacity, staticTimeBucket(clip, currentTime, trackEnabled, container));
+    }
+
+    static RegistryKey<World> currentClientWorldKey() {
+        try {
+            var world = MinecraftClient.getInstance().world;
+            return world == null ? null : world.getRegistryKey();
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private boolean isContainerInClientWorld(Container container) {
+        RegistryKey<World> current = currentClientWorldKey();
+        return current != null && container != null && Objects.equals(container.getLevelKey(), current);
+    }
+
+    private void putStableFrame(UUID containerId, StableContainerFrame stable, Container container, TimelineClip clip,
+                                Map<UUID, Set<BlockPos>> visible, Map<UUID, Set<BlockPos>> world,
+                                Map<UUID, Float> opacity, Map<UUID, List<BlockSequenceEntry>> sequences,
+                                Map<UUID, ClipAnimationConfig> configs, Map<UUID, Container> containers,
+                                Map<UUID, TimelineClip> clips, Map<UUID, Integer> buckets) {
+        if (stable == null) return;
+        visible.put(containerId, stable.visibility().renderBlocks());
+        world.put(containerId, stable.visibility().worldBlocks());
+        opacity.put(containerId, stable.opacity());
+        sequences.put(containerId, stable.visibility().sequenceEntries());
+        configs.put(containerId, stable.config());
+        if (container != null) containers.put(containerId, container);
+        clips.put(containerId, clip != null ? clip : stable.clip());
+        buckets.put(containerId, stable.staticBucket());
     }
 
     private VisibleBlocksResult calculateVisibleBlocks(TimelineClip clip,
@@ -1046,18 +1299,31 @@ public class TimelineClipBlockController {
             var params = config.getSequenceParameters();
             int paramsHash = hashSequenceParameters(params);
 
-            // 检查所有影响可见方块的因素是否都没变
-            if (Math.abs(cache.lastCurrentTime - currentTime) < com.director.core.animation.AnimationConstants.VISIBLE_BLOCKS_CACHE_TIME_EPSILON &&
-                cache.lastTrackEnabled == trackEnabled &&
-                cache.lastPreviewMode == previewMode &&
-                cache.container == container &&
-                cache.geometryRevision == containerMod &&
-                cache.containerType == container.getType() &&
-                cache.sequenceParamsHash == paramsHash &&
-                cache.animationHash == visibleAnimationHash(clip, config) &&
-                cache.result != null) {
-                // 缓存命中！直接返回
+            boolean sameInputs = cache.lastTrackEnabled == trackEnabled
+                    && cache.lastPreviewMode == previewMode
+                    && cache.container == container
+                    && cache.geometryRevision == containerMod
+                    && cache.containerType == container.getType()
+                    && cache.sequenceParamsHash == paramsHash
+                    && cache.animationHash == visibleAnimationHash(clip, config)
+                    && cache.result != null;
+            if (sameInputs && Math.abs(cache.lastCurrentTime - currentTime)
+                    < com.director.core.animation.AnimationConstants.VISIBLE_BLOCKS_CACHE_TIME_EPSILON) {
                 return cache.result;
+            }
+            if (sameInputs) {
+                int bucket = staticTimeBucket(clip, currentTime, trackEnabled, container);
+                if (bucket >= 0 && cache.staticBucket == bucket) return cache.result;
+                var sequenceCache = sequenceCacheByClip.get(clip);
+                if (bucket < 0 && sequenceCache != null && sequenceCache.entries == cache.result.sequenceEntries()
+                        && sequenceCache.geometryRevision == containerMod
+                        && sequenceCache.sequenceParamsHash == paramsHash
+                        && Math.abs(sequenceCache.clipDuration - clip.getLength()) < 1e-4f) {
+                    var timing = PerBlockAnimationTiming.layout(config, clip.getStartTime(), clip.getEndTime());
+                    int[] cutoffs = sequenceCutoffs(sequenceCache.entries, timing, currentTime, clip.getStartTime(),
+                            config.getMode() == com.director.core.container.AnimationMode.INSTANT);
+                    if (cache.started == cutoffs[0] && cache.finished == cutoffs[1]) return cache.result;
+                }
             }
         }
 
@@ -1079,6 +1345,16 @@ public class TimelineClipBlockController {
         cache.sequenceParamsHash = config != null ? hashSequenceParameters(config.getSequenceParameters()) : 0;
         cache.animationHash = visibleAnimationHash(clip, config);
         cache.result = result;
+        cache.staticBucket = staticTimeBucket(clip, currentTime, trackEnabled, container);
+        if (!result.sequenceEntries().isEmpty() && config != null) {
+            var timing = PerBlockAnimationTiming.layout(config, clip.getStartTime(), clip.getEndTime());
+            int[] cutoffs = sequenceCutoffs(result.sequenceEntries(), timing, currentTime, clip.getStartTime(),
+                    config.getMode() == com.director.core.container.AnimationMode.INSTANT);
+            cache.started = cutoffs[0];
+            cache.finished = cutoffs[1];
+        } else {
+            cache.started = cache.finished = -1;
+        }
 
         return result;
     }
@@ -1133,9 +1409,11 @@ public class TimelineClipBlockController {
                     frame.renderVisible() ? all : Collections.emptySet(), List.of());
         }
 
-        // 片段范围内：按序列推进
-        if (currentTime >= clipStart && (config == null ? currentTime <= clipEnd
-                : currentTime <= PerBlockAnimationTiming.completionLimit(config, clipStart, clipEnd))) {
+        // 片段范围内：按序列推进。有效完成时间包含逐块 tail，且 ALL_AT_ONCE
+        // 可能早于片段右边界完成；两种情况都必须走同一套序列采样。
+        float effectiveEnd = config == null ? clipEnd
+                : com.director.core.animation.PerBlockAnimationTiming.effectiveAnimationEndTime(config, clipStart, clipEnd);
+        if (currentTime >= clipStart && currentTime <= effectiveEnd) {
             float clipDuration = clipEnd - clipStart;
             float animDuration = clipDuration;
             float delay = 0.0f;
@@ -1205,18 +1483,18 @@ public class TimelineClipBlockController {
 
             // Only the sequence cutoffs affect membership. Moving time within the same
             // boundaries reuses immutable sets; animation poses still sample the exact time.
-            float base = currentTime - clipStart - delay;
-            int started = upperBoundNormalized(sequenceEntries, timing == null ? 0 : timing.threshold(base));
-            int finished = isInstant ? started
-                    : upperBoundNormalized(sequenceEntries, timing == null ? 0 : timing.threshold(base - animDuration));
+            int[] cutoffs = timing == null ? new int[] {0, 0}
+                    : sequenceCutoffs(sequenceEntries, timing, currentTime, clipStart, isInstant);
+            int started = cutoffs[0];
+            int finished = cutoffs[1];
             var visibility = sequenceCacheByClip.get(clip).visibility;
             var frame = visibility.sample(isDemolition ? finished : started,
                     isDemolition ? started : finished, isDemolition);
             return new VisibleBlocksResult(frame.world(), frame.render(), sequenceEntries);
         }
 
-        // 片段右侧
-        if (currentTime > clipEnd) {
+        // 有效动画完成之后：普通容器全量显示，拆除容器保持全清除。
+        if (currentTime > effectiveEnd) {
             if (!isDemolition) {
                 // 普通容器：全量显示
                 Set<BlockPos> all = getCachedAllBlocks(container);
@@ -1251,12 +1529,10 @@ public class TimelineClipBlockController {
     private void registerWholeContainerEntries(BlockVisualStateManager manager, Container container,
             TimelineClip clip, ClipAnimationConfig config, float time, Set<BlockPos> visibleBlocks,
             float opacity) {
-        if (clip == null) return;
+        if (clip == null || container.getLevelKey() == null) return;
         boolean exit = container.getType() == ContainerType.DEMOLITION;
         boolean enabled = clip.getParentTrack() == null
                 || (!clip.getParentTrack().isLocked() && clip.getParentTrack().isVisible());
-        // Retain the intact structure before demolition starts and while its track is disabled.
-        if (exit && (!enabled || time < clip.getStartTime())) opacity = 1.0f;
         var frame = com.director.core.animation.WholeContainerAnimation.sample(
                 config, clip.getStartTime(), clip.getEndTime(), enabled ? time : clip.getStartTime() - 1, exit);
         if (enabled && opacity > 0 && config.getWholeContainer().isDustEnabled()
@@ -1266,8 +1542,33 @@ public class TimelineClipBlockController {
         }
         var pivot = com.director.core.animation.WholeContainerAnimation.pivot(
                 container.getBoundingBox(), config.getWholeContainer());
-        // Rebuild overrides even while scrubbing: the original world structure must stay hidden.
-        manager.setBlocksState(getCachedContainerBlocks(container), BlockVisualStateManager.BlockVisualState.hidden().withSuppressWorldRendering(true));
+        long geometry = container.getGeometryRevision();
+        long sectionRevision = com.director.core.container.visibility.ClientSectionInvalidation.getInstance().revision();
+        RegistryKey<World> level = container.getLevelKey();
+        WholeRenderCache cached = wholeRenderCacheByContainer.get(container.getId());
+        boolean same = cached != null && cached.config.hasSameValues(config)
+                && cached.geometryRevision == geometry && Float.compare(cached.opacity, opacity) == 0
+                && (cached.visible == visibleBlocks || cached.visible.equals(visibleBlocks))
+                && cached.frame.equals(frame) && cached.pivot.equals(pivot)
+                && cached.sectionRevision == sectionRevision && Objects.equals(cached.level, level);
+        if (same) {
+            manager.setBlocksState(getCachedContainerBlocks(container),
+                    BlockVisualStateManager.BlockVisualState.hidden().withSuppressWorldRendering(true),
+                    container.getId(), level);
+            for (var write : cached.writes) {
+                manager.setBlockState(new BlockVisualStateManager.PositionKey(level, write.pos()), write.state(), container.getId());
+            }
+            manager.addRenderEntries(container.getId(), level, cached.entries);
+            return;
+        }
+
+        List<VisualWrite> writes = new ArrayList<>();
+        List<BlockVisualStateManager.RenderEntry> entries = new ArrayList<>();
+        var hidden = BlockVisualStateManager.BlockVisualState.hidden().withSuppressWorldRendering(true);
+        List<BlockPos> all = getCachedContainerBlocks(container);
+        manager.setBlocksState(all, hidden, container.getId(), level);
+        for (BlockPos pos : all) writes.add(new VisualWrite(pos, hidden));
+        var sharedTransform = frame.worldTransform(pivot);
         for (BlockPos pos : visibleBlocks) {
             BlockState state = resolveBlockStateForRender(container, pos);
             if (state == null) continue;
@@ -1279,23 +1580,30 @@ public class TimelineClipBlockController {
             if (!frame.animating() && !worldReady) worldHandoffPending = true;
             boolean overlay = frame.animating() || !worldReady || opacity < 0.999f;
             if (!overlay) {
-                manager.setBlockState(pos, visual);
+                manager.setBlockState(new BlockVisualStateManager.PositionKey(level, pos), visual, container.getId());
+                writes.add(new VisualWrite(pos, visual));
                 continue;
             }
             var snapshot = new BlockAnimationSnapshot(pos, state);
             snapshot.markFullyVisible();
             snapshot.setRawProgress(frame.progress());
-            snapshot.setTransform(frame.localTransform(pos, pivot));
+            // One shared pivot/world matrix is used by rendering, neighbors, AO, light,
+            // biome color and BlockEntity display-coordinate queries.
+            snapshot.setSharedWorldTransform(sharedTransform);
             snapshot.setAlpha(frame.alpha());
             visual = visual.withSuppressWorldRendering(true);
-            manager.setBlockState(pos, visual);
-            manager.addRenderEntry(new BlockVisualStateManager.RenderEntry(pos, state, visual, clip,
-                    new BlockSequenceEntry(pos, 0, 0, 0), snapshot));
+            manager.setBlockState(new BlockVisualStateManager.PositionKey(level, pos), visual, container.getId());
+            writes.add(new VisualWrite(pos, visual));
+            var renderEntry = new BlockVisualStateManager.RenderEntry(pos, state, visual, clip,
+                    new BlockSequenceEntry(pos, 0, 0, 0), snapshot);
+            entries.add(renderEntry);
+            manager.addRenderEntry(renderEntry, container.getId(), level);
         }
+        wholeRenderCacheByContainer.put(container.getId(), new WholeRenderCache(config.copy(), geometry, opacity,
+                visibleBlocks, frame, pivot, sectionRevision, level, List.copyOf(writes), List.copyOf(entries)));
         // Rebuild old uploaded meshes before the next world draw, including large selections.
-        // This queue is independent of the generic per-block rerender count limit.
         var world = MinecraftClient.getInstance().world;
-        for (var pos : getCachedContainerBlocks(container)) {
+        for (var pos : all) {
             if (manager.hasWorldSuppressionChanged(pos))
                 com.director.core.animation.WholeContainerRenderSections.getInstance().request(world, pos);
         }
@@ -1358,7 +1666,7 @@ public class TimelineClipBlockController {
         getCachedContainerBlocks(container);
         var visits = blocksCacheByContainer.get(container).settled.visit(world, visibleBlocks,
                 container.getBlockStore().getRevision(), pos -> {
-            var visual = manager.getBlockState(pos);
+            var visual = manager.getBlockState(container.getLevelKey(), pos);
             if (visual.isHidden()) return true;
             BlockState state = resolveBlockStateForRender(container, pos);
             if (state == null) return false;
@@ -1369,8 +1677,9 @@ public class TimelineClipBlockController {
             snapshot.markFullyVisible();
             snapshot.setTransform(null);
             var overlay = visual.withSuppressWorldRendering(true);
-            manager.setAnimatedBlockState(pos, overlay);
-            manager.addRenderEntry(new BlockVisualStateManager.RenderEntry(pos, state, overlay, clip, null, snapshot));
+            manager.setAnimatedBlockState(pos, overlay, container.getId(), container.getLevelKey());
+            manager.addRenderEntry(new BlockVisualStateManager.RenderEntry(pos, state, overlay, clip, null, snapshot),
+                    container.getId(), container.getLevelKey());
             return false;
         });
         frameSettledChecks += visits.checked();
@@ -1385,7 +1694,9 @@ public class TimelineClipBlockController {
             List<BlockSequenceEntry> sequenceEntries,
             float currentTime,
             Set<BlockPos> visibleBlocks,
-            boolean previewMode) {
+            float opacity,
+            boolean previewMode,
+            int staticBucket) {
         if (previewMode && clip != null) {
             // 拖动不是时间推进，恢复播放时不要补发拖动期间跨过的完成特效。
             perBlockEffectSampleTime.remove(clip);
@@ -1410,6 +1721,26 @@ public class TimelineClipBlockController {
             }
             return;
         }
+
+        long geometryRevision = container.getGeometryRevision();
+        long sectionRevision = com.director.core.container.visibility.ClientSectionInvalidation.getInstance().revision();
+        RegistryKey<World> level = container.getLevelKey();
+        PerBlockRenderCache cached = perBlockRenderCacheByContainer.get(container.getId());
+        boolean cacheHit = staticBucket >= 0 && cached != null && cached.config.hasSameValues(config)
+                && cached.geometryRevision == geometryRevision && Float.compare(cached.opacity, opacity) == 0
+                && (cached.visible == visibleBlocks || cached.visible.equals(visibleBlocks))
+                && cached.staticBucket == staticBucket && cached.sectionRevision == sectionRevision
+                && Objects.equals(cached.level, level);
+        if (cacheHit) {
+            if (!previewMode) perBlockEffectSampleTime.put(clip, currentTime);
+            for (var write : cached.writes) {
+                visualStateManager.setAnimatedBlockState(write.pos(), write.state(), container.getId(), level);
+            }
+            visualStateManager.addRenderEntries(container.getId(), level, cached.entries);
+            return;
+        }
+        List<VisualWrite> staticWrites = staticBucket >= 0 ? new ArrayList<>() : null;
+        List<BlockVisualStateManager.RenderEntry> staticEntries = staticBucket >= 0 ? new ArrayList<>() : null;
 
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace(
@@ -1461,7 +1792,7 @@ public class TimelineClipBlockController {
             }
 
             // 🔥 步骤 2：获取视觉状态（可能已经被遮挡逻辑修改过）
-            BlockVisualStateManager.BlockVisualState visualState = visualStateManager.getBlockState(pos);
+            BlockVisualStateManager.BlockVisualState visualState = visualStateManager.getBlockState(level, pos);
             if (visualState.isHidden()) {
                 continue;
             }
@@ -1489,9 +1820,12 @@ public class TimelineClipBlockController {
             BlockState blockState;
             BlockAnimationSnapshot snapshot;
 
-            // ✅ 修复：INSTANT 模式或需要特效时，即使不在动画窗口内也应该调用 sample() 来触发特效
+            // Only an instant block's exact start needs a direct sample here. All other
+            // effects are covered by active animation windows or the crossed start/end
+            // event ranges above; settled blocks are never sampled every frame.
             boolean needsEffects = !previewMode && !config.getEffects().isEmpty();
-            boolean shouldSampleForEffects = isInstant && needsEffects && currentTime >= blockStartTime;
+            boolean shouldSampleForEffects = isInstant && needsEffects
+                    && Math.abs(currentTime - blockStartTime) <= com.director.core.animation.AnimationConstants.TIME_EPSILON;
 
             // World and overlay never draw the same block simultaneously.
 
@@ -1512,27 +1846,12 @@ public class TimelineClipBlockController {
                     continue;
                 }
 
-                // ✅ 修复：即使不在动画窗口内，如果需要特效，也应该调用 sample() 来触发特效
-                // 对于静态方块（动画已结束），设置 rawProgress = 1.0，允许后段特效（如 DUST_BURST）触发
-                if (needsEffects && currentTime >= blockStartTime) {
-                    // 调用 sample() 来触发特效，即使方块不在动画窗口内
-                    long randomSeed = container.getId().getLeastSignificantBits() ^ pos.asLong();
-                    snapshot = BlockAnimationEngine.sample(
-                            pos,
-                            blockState,
-                            config,
-                            entry,
-                            clipStart,
-                            clipEnd,
-                            currentTime,
-                            randomSeed);
-                } else {
-                    // 视觉状态需要 overlay（遮挡/透明）：构造轻量 snapshot（不走 sample）
-                    snapshot = new BlockAnimationSnapshot(pos, blockState);
-                    snapshot.markFullyVisible();
-                    snapshot.setSequenceNormalizedTime(seqNormalizedTime);
-                    snapshot.setTransform(null); // null = identity
-                }
+                // Settled overlay: construct a lightweight identity snapshot without sampling.
+                // Completion/start one-shots were already handled by the event ranges above.
+                snapshot = new BlockAnimationSnapshot(pos, blockState);
+                snapshot.markFullyVisible();
+                snapshot.setSequenceNormalizedTime(seqNormalizedTime);
+                snapshot.setTransform(null);
             } else {
                 // 🔥 步骤 3：动画窗口内或需要特效时，解析方块状态 + 采样
                 blockState = resolveBlockStateForRender(container, pos);
@@ -1575,7 +1894,8 @@ public class TimelineClipBlockController {
             }
 
             visualState = visualState.withSuppressWorldRendering(true);
-            visualStateManager.setAnimatedBlockState(pos, visualState);
+            visualStateManager.setAnimatedBlockState(pos, visualState, container.getId(), level);
+            if (staticWrites != null) staticWrites.add(new VisualWrite(pos, visualState));
 
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[TimelineClipBlockController] Adding render entry: pos={} alpha={}",
@@ -1584,18 +1904,24 @@ public class TimelineClipBlockController {
 
             // 🔥 步骤 7：创建 RenderEntry 2.0 并加入 BlockVisualStateManager
             // 关键：传入使用时间线时间采样好的 snapshot，避免渲染时用世界时间重采样
-            visualStateManager.addRenderEntry(
-                    new BlockVisualStateManager.RenderEntry(
+            var renderEntry = new BlockVisualStateManager.RenderEntry(
                             pos,
                             blockState,
                             visualState,
                             clip, // 🔥 timeline clip（动画需要）
                             entry, // 🔥 sequence entry（决定 normalizedTime）
                             snapshot // ✅ 传入使用时间线时间采样的 snapshot
-                    ));
+                    );
+            visualStateManager.addRenderEntry(renderEntry, container.getId(), level);
+            if (staticEntries != null) staticEntries.add(renderEntry);
             registeredEntries++;
         }
 
+        if (staticWrites != null) {
+            perBlockRenderCacheByContainer.put(container.getId(), new PerBlockRenderCache(config.copy(),
+                    geometryRevision, opacity, visibleBlocks, staticBucket, sectionRevision, level,
+                    List.copyOf(staticWrites), List.copyOf(staticEntries)));
+        }
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[TimelineClipBlockController] registerRenderEntries completed: {} entries added",
                     registeredEntries);
@@ -1605,51 +1931,44 @@ public class TimelineClipBlockController {
     private void cleanupContainersNoLongerControlled(Set<UUID> activeContainerIds,
                                                      com.director.core.container.visibility.ContainerVisibilityService visibilityService,
                                                      BlockVisualStateManager visualStateManager,
-                                                     Set<BlockPos> rerender) {
-        if (lastFrameWorldBlocks.isEmpty()) {
-            return;
-        }
-
+                                                     Set<BlockPos> rerender,
+                                                     Set<UUID> failedContainerIds) {
         Set<UUID> removed = new HashSet<>(lastFrameWorldBlocks.keySet());
-        if (activeContainerIds != null && !activeContainerIds.isEmpty()) {
-            removed.removeAll(activeContainerIds);
-        }
-        if (removed.isEmpty()) {
-            return;
-        }
+        removed.addAll(lastFrameVisibleBlocks.keySet());
+        removed.addAll(stableFramesByContainer.keySet());
+        if (activeContainerIds != null) removed.removeAll(activeContainerIds);
+        if (removed.isEmpty()) return;
 
         ContainerManager manager = DirectorServices.get().containers();
         for (UUID containerId : removed) {
             Container container = manager != null ? manager.getContainer(containerId) : null;
-            if (container == null) {
-                continue;
-            }
+            List<BlockPos> historical = new ArrayList<>(lastFrameWorldBlocks.getOrDefault(containerId, Collections.emptySet()));
+            historical.addAll(lastFrameVisibleBlocks.getOrDefault(containerId, Collections.emptySet()));
+            ContainerBlocksCache cache = blocksCacheByContainer.get(container);
+            if (cache != null) historical.addAll(cache.all);
+            if (rerender != null) rerender.addAll(historical);
 
-            List<BlockPos> allBlocks = getCachedContainerBlocks(container);
-            if (rerender != null) {
-                rerender.addAll(allBlocks);
-            }
-
-            if (visualStateManager != null) {
-                visualStateManager.setBlocksState(allBlocks,
-                        container.isHidden()
-                                ? BlockVisualStateManager.BlockVisualState.hidden()
-                                : BlockVisualStateManager.BlockVisualState.normal());
-            }
-
-            if (visibilityService == null) {
-                continue;
-            }
-
-            try {
-                if (container.isHidden()) {
-                    visibilityService.showContainerBlocksForTimeline(container, Collections.emptySet());
-                } else if (visibilityService.hasSnapshot(container)) {
-                    visibilityService.showContainer(container);
+            boolean cleaned = runIsolatedContainer(containerId, () -> {
+                if (visualStateManager != null) {
+                    if (container != null) visualStateManager.clearOverridesFor(container);
+                    else visualStateManager.clearOverridesFor(containerId); // registry-independent old-coordinate cleanup
                 }
-            } catch (Exception e) {
-                LOGGER.warn("[TimelineClipBlockController] 清理脱离时间线控制的容器失败: {} - {}",
-                        container.getName(), e.getMessage(), e);
+                if (visibilityService != null && container != null) {
+                    if (container.isHidden()) {
+                        visibilityService.showContainerBlocksForTimeline(container, Collections.emptySet());
+                    } else if (visibilityService.hasSnapshot(container)) {
+                        visibilityService.showContainer(container);
+                    }
+                }
+            });
+            if (cleaned) {
+                containersNeedingRetry.remove(containerId);
+                stableFramesByContainer.remove(containerId);
+                wholeRenderCacheByContainer.remove(containerId);
+                perBlockRenderCacheByContainer.remove(containerId);
+            } else {
+                failedContainerIds.add(containerId);
+                containersNeedingRetry.add(containerId);
             }
         }
     }
@@ -1683,96 +2002,69 @@ public class TimelineClipBlockController {
         return null;
     }
 
-    private record VisibleBlocksResult(Set<BlockPos> worldBlocks, Set<BlockPos> renderBlocks,
-                                       List<BlockSequenceEntry> sequenceEntries) {
+    record VisibleBlocksResult(Set<BlockPos> worldBlocks, Set<BlockPos> renderBlocks,
+                               List<BlockSequenceEntry> sequenceEntries) {
     }
 
     private void applyOcclusionOverrides(float currentTime,
                                          Map<UUID, Set<BlockPos>> currentFrameVisibleBlocks,
                                          Map<UUID, Float> currentFrameOpacity,
                                          Set<UUID> occludedContainers,
-                                         Map<UUID, TimelineClip> containerToClipMap) {
-
-        List<TimelineClip> activeFadeClips = findActiveAutoFadeClips(currentTime);
-        if (activeFadeClips.isEmpty()) {
-            return;
-        }
-
-        for (TimelineClip activeClip : activeFadeClips) {
-            UUID activeContainerId = activeClip.getBoundContainerId();
-            if (activeContainerId == null) {
-                continue;
-            }
-            Container activeContainer = DirectorServices.get().containers()
-                    .getContainer(activeContainerId);
-            if (activeContainer == null) {
-                continue;
-            }
-
-            List<Container> candidates = collectPreviousContainers(activeClip, currentFrameVisibleBlocks);
-            if (candidates.isEmpty()) {
-                continue;
-            }
-
-            Set<UUID> occludingBlocks = occlusionResolver.resolveOccludingContainers(activeContainer,
-                    candidates);
-            if (occludingBlocks.isEmpty()) {
-                continue;
-            }
-
-            float fadeOpacity = activeClip.getAutoFadeOpacity();
-
-            for (UUID containerId : occludingBlocks) {
-
-                TimelineClip occludedClip = containerToClipMap != null ? containerToClipMap.get(containerId) : null;
-                boolean occlusionTransparencyEnabled = occludedClip == null
-                        || (occludedClip.getAnimationConfig() != null
-                        && occludedClip.getAnimationConfig().isOcclusionTransparencyEnabled());
-                if (!occlusionTransparencyEnabled) {
-                    continue;
-                }
-
-                // 更新透明度映射，影响后续的视觉状态设置
-                Set<BlockPos> currentVisible = currentFrameVisibleBlocks.get(containerId);
-                if (currentVisible != null && !currentVisible.isEmpty()) {
-                    // 更新透明度
-                    currentFrameOpacity.put(containerId, fadeOpacity);
-
-                    // 🔹 标记该容器被遮挡，需要隐藏世界方块
-                    occludedContainers.add(containerId);
-
-                    if (LOGGER.isTraceEnabled()) {
-                        LOGGER.trace("[Occlusion] clip={} 强制淡化容器 {} (透明度 {}), 标记为需要隐藏世界方块",
-                                activeClip.getLabel(), containerId, fadeOpacity);
-                    }
-                }
-            }
-        }
-    }
-
-    private List<TimelineClip> findActiveAutoFadeClips(float currentTime) {
+                                         Map<UUID, TimelineClip> containerToClipMap,
+                                         Set<UUID> failedContainerIds) {
         TimelineModel model = resolveActiveModel();
-        if (model == null) {
-            return List.of();
-        }
-        List<TimelineClip> active = new ArrayList<>();
+        if (model == null) return;
+
         for (TimelineTrack track : model.getAllTracks()) {
-            if (track == null || track.isLocked() || !track.isVisible()) {
+            if (track == null || track.isLocked() || !track.isVisible() || !isBlockTrackType(track.getType())) {
                 continue;
             }
-            if (!isBlockTrackType(track.getType())) {
-                continue;
-            }
-            for (TimelineClip clip : track.getClips()) {
-                if (clip == null || !clip.isAutoFadePreviousClips()) {
-                    continue;
-                }
-                if (currentTime >= clip.getStartTime() && currentTime <= clip.getEndTime()) {
-                    active.add(clip);
+            for (TimelineClip activeClip : track.getClips()) {
+                if (activeClip == null || activeClip.getBoundContainerId() == null) continue;
+                UUID activeContainerId = activeClip.getBoundContainerId();
+                boolean applied = runIsolatedContainer(activeContainerId, () -> {
+                    if (!activeClip.isAutoFadePreviousClips()
+                            || currentTime < activeClip.getStartTime() || currentTime > activeClip.getEndTime()) {
+                        return;
+                    }
+                    Container activeContainer = DirectorServices.get().containers().getContainer(activeContainerId);
+                    if (activeContainer == null) return;
+                    List<Container> candidates = collectPreviousContainers(activeClip, currentFrameVisibleBlocks);
+                    if (candidates.isEmpty()) return;
+                    Set<UUID> occludingBlocks = occlusionResolver.resolveOccludingContainers(activeContainer,
+                            candidates);
+                    if (occludingBlocks.isEmpty()) return;
+
+                    float fadeOpacity = activeClip.getAutoFadeOpacity();
+                    for (UUID containerId : occludingBlocks) {
+                        boolean candidateApplied = runIsolatedContainer(containerId, () -> {
+                            TimelineClip occludedClip = containerToClipMap != null ? containerToClipMap.get(containerId) : null;
+                            boolean occlusionTransparencyEnabled = occludedClip == null
+                                    || (occludedClip.getAnimationConfigForEditing() != null
+                                    && occludedClip.getAnimationConfigForEditing().isOcclusionTransparencyEnabled());
+                            if (!occlusionTransparencyEnabled) return;
+                            Set<BlockPos> currentVisible = currentFrameVisibleBlocks.get(containerId);
+                            if (currentVisible != null && !currentVisible.isEmpty()) {
+                                currentFrameOpacity.put(containerId, fadeOpacity);
+                                occludedContainers.add(containerId);
+                                if (LOGGER.isTraceEnabled()) {
+                                    LOGGER.trace("[Occlusion] clip={} 强制淡化容器 {} (透明度 {}), 标记为需要隐藏世界方块",
+                                            activeClip.getLabel(), containerId, fadeOpacity);
+                                }
+                            }
+                        });
+                        if (!candidateApplied) {
+                            failedContainerIds.add(containerId);
+                            containersNeedingRetry.add(containerId);
+                        }
+                    }
+                });
+                if (!applied) {
+                    failedContainerIds.add(activeContainerId);
+                    containersNeedingRetry.add(activeContainerId);
                 }
             }
         }
-        return active;
     }
 
     private List<Container> collectPreviousContainers(TimelineClip activeClip,

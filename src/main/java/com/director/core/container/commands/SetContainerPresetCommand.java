@@ -26,7 +26,7 @@ public class SetContainerPresetCommand implements ContainerCommand {
     @Override
     public void execute() {
         Container container = manager.getContainer(containerId);
-        if (container != null) {
+        if (manager.requireEditable(container, "修改默认预设")) {
             container.setDefaultAnimationPreset(newPreset);
         }
     }
@@ -34,7 +34,7 @@ public class SetContainerPresetCommand implements ContainerCommand {
     @Override
     public void undo() {
         Container container = manager.getContainer(containerId);
-        if (container != null) {
+        if (manager.requireEditable(container, "撤销默认预设修改")) {
             container.setDefaultAnimationPreset(oldPreset);
         }
     }

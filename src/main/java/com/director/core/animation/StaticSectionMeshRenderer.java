@@ -78,7 +78,7 @@ public final class StaticSectionMeshRenderer {
         var groups = new LinkedHashMap<TimelineClip, Map<Long, List<RenderEntry>>>();
         for (var entry : entries) {
             if (!stationaryOpaque.test(entry) || entry.clip() == null || excluded.contains(entry.pos())
-                    || entry.clip().getAnimationConfig() == null || entry.clip().getAnimationConfig().isWholeContainer()
+                    || entry.clip().getAnimationConfigForEditing() == null || entry.clip().getAnimationConfigForEditing().isWholeContainer()
                     || !entry.visualState().shouldSuppressWorldRendering() || !entry.visualState().shouldWriteDepth()
                     || entry.blockState().getRenderType() != BlockRenderType.MODEL || entry.blockState().hasBlockEntity()
                     || !entry.blockState().getFluidState().isEmpty()

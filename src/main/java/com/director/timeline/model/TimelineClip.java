@@ -27,6 +27,7 @@ import java.util.UUID;
  */
 public class TimelineClip {
     private static final float MINIMUM_LENGTH = 0.05f; // 定义最小片段长度常量
+    private static final float DEFAULT_POST_ANIMATION_FADE_END = 2.0f;
 
     private String label;
     private float startTime;
@@ -48,7 +49,7 @@ public class TimelineClip {
     private boolean postAnimationFadeEnabled;
     
     /** 动画结束后的淡化结束时间（相对于片段结束时间，秒）。超过此时间后，方块恢复为完全不透明 */
-    private float postAnimationFadeEnd = 2.0f; // 默认在片段结束后2秒恢复
+    private float postAnimationFadeEnd = DEFAULT_POST_ANIMATION_FADE_END; // 默认在片段结束后2秒恢复
     
     /** 片段恢复为最终状态的绝对时间（endTime + postAnimationFadeEnd），缓存计算 */
     private transient Float cachedRestoreTime = null;
@@ -61,12 +62,17 @@ public class TimelineClip {
     private TimelineTrack parentTrack = null;
 
     public TimelineClip(String label, float startTime, float endTime, int color) {
+        requireFinite(startTime, "Start time");
+        requireFinite(endTime, "End time");
         if (startTime > endTime) {
             throw new IllegalArgumentException("Start time cannot be after end time.");
         }
+        float normalizedEnd = Math.max(startTime + MINIMUM_LENGTH, endTime);
+        requireFinite(normalizedEnd, "End time");
+        requireFinite(normalizedEnd + DEFAULT_POST_ANIMATION_FADE_END, "Restore time");
         this.label = Objects.requireNonNull(label, "Label cannot be null");
         this.startTime = startTime;
-        this.endTime = Math.max(startTime + MINIMUM_LENGTH, endTime);
+        this.endTime = normalizedEnd;
         this.color = color;
     }
 
@@ -157,7 +163,11 @@ public class TimelineClip {
     }
 
     public void setLength(float length) {
-        this.endTime = this.startTime + Math.max(MINIMUM_LENGTH, length);
+        requireFinite(length, "Length");
+        float newEnd = this.startTime + Math.max(MINIMUM_LENGTH, length);
+        requireFinite(newEnd, "End time");
+        requireFinite(newEnd + postAnimationFadeEnd, "Restore time");
+        this.endTime = newEnd;
         invalidateRestoreTimeCache();
         pruneOrphanedKeyframes(); // 确保关键帧在范围内
     }
@@ -168,6 +178,10 @@ public class TimelineClip {
      * @param newEnd   新的结束时间
      */
     public void setTimeRange(float newStart, float newEnd) {
+        requireFinite(newStart, "Start time");
+        requireFinite(newEnd, "End time");
+        requireFinite(newEnd - newStart, "Clip length");
+        requireFinite(newEnd + postAnimationFadeEnd, "Restore time");
         if (newStart > newEnd) {
             throw new IllegalArgumentException("Start time cannot be after end time.");
         }
@@ -182,9 +196,19 @@ public class TimelineClip {
      * @param delta 时间偏移量
      */
     public void offsetTime(float delta) {
+        requireFinite(delta, "Time offset");
+        float newStart = this.startTime + delta;
+        float newEnd = this.endTime + delta;
+        requireFinite(newStart, "Start time");
+        requireFinite(newEnd, "End time");
+        requireFinite(newEnd - newStart, "Clip length");
+        requireFinite(newEnd + postAnimationFadeEnd, "Restore time");
+        for (com.director.timeline.model.clip.ClipKeyframe keyframe : this.clipKeyframes) {
+            if (keyframe != null) requireFinite(keyframe.getTime() + delta, "Keyframe time");
+        }
         this.cachedRestoreTime = null;
-        this.startTime += delta;
-        this.endTime += delta;
+        this.startTime = newStart;
+        this.endTime = newEnd;
 
         for (com.director.timeline.model.clip.ClipKeyframe kf : this.clipKeyframes) {
             if (kf != null) {
@@ -242,13 +266,21 @@ public class TimelineClip {
 
     public float getStartTime() { return startTime; }
     public void setStartTime(float startTime) {
-        this.startTime = Math.min(startTime, this.endTime - MINIMUM_LENGTH);
+        requireFinite(startTime, "Start time");
+        float newStart = Math.min(startTime, this.endTime - MINIMUM_LENGTH);
+        requireFinite(newStart, "Start time");
+        this.startTime = newStart;
         pruneOrphanedKeyframes();
+        invalidateRestoreTimeCache();
     }
 
     public float getEndTime() { return endTime; }
     public void setEndTime(float endTime) {
-        this.endTime = Math.max(endTime, this.startTime + MINIMUM_LENGTH);
+        requireFinite(endTime, "End time");
+        float newEnd = Math.max(endTime, this.startTime + MINIMUM_LENGTH);
+        requireFinite(newEnd, "End time");
+        requireFinite(newEnd + postAnimationFadeEnd, "Restore time");
+        this.endTime = newEnd;
         pruneOrphanedKeyframes();
         invalidateRestoreTimeCache();
     }
@@ -331,6 +363,7 @@ public class TimelineClip {
         if (keyframe == null) {
             return;
         }
+        requireFinite(newTime, "Keyframe time");
         // 确保新时间在片段范围内
         if (!containsTime(newTime)) {
             newTime = Math.max(getStartTime(), Math.min(getEndTime(), newTime));
@@ -350,25 +383,21 @@ public class TimelineClip {
      * @return 新的片段实例，包含相同的属性
      */
     public TimelineClip duplicateShallow() {
-        TimelineClip copy = new TimelineClip(this.label, this.startTime, this.endTime, this.color);
-        copy.animationConfig = this.animationConfig != null ? this.animationConfig.copy() : ClipAnimationConfig.defaultConfig();
-        copy.boundContainerId = this.boundContainerId;
-        copy.boundContainerName = this.boundContainerName;
-        copy.autoFadePreviousClips = this.autoFadePreviousClips;
-        copy.autoFadeOpacity = this.autoFadeOpacity;
-        copy.postAnimationFadeStart = this.postAnimationFadeStart;
-        copy.postAnimationFadeEnabled = this.postAnimationFadeEnabled;
-        copy.postAnimationFadeEnd = this.postAnimationFadeEnd;
-        // 复制关键帧
-        for (com.director.timeline.model.clip.ClipKeyframe kf : this.clipKeyframes) {
-            if (kf != null) {
-                copy.clipKeyframes.add(kf.copy());
-            }
-        }
-        return copy;
+        return new TimelineClip(this);
     }
 
+    /**
+     * 返回动画配置的深拷贝，调用方修改返回值不会影响片段。
+     */
     public ClipAnimationConfig getAnimationConfig() {
+        return animationConfig != null ? animationConfig.copy() : ClipAnimationConfig.defaultConfig();
+    }
+
+    /**
+     * 返回内部可变配置，仅供 UI 连续属性编辑事务及确实需要原地修改配置的代码使用。
+     * 调用方对返回值的修改会立即反映到片段状态。
+     */
+    public ClipAnimationConfig getAnimationConfigForEditing() {
         if (animationConfig == null) {
             animationConfig = ClipAnimationConfig.defaultConfig();
         }
@@ -383,7 +412,7 @@ public class TimelineClip {
         if (preset == null) {
             return;
         }
-        ClipAnimationConfig config = getAnimationConfig();
+        ClipAnimationConfig config = getAnimationConfigForEditing();
         config.setMode(preset.getMode());
         config.setDuration(Math.max(config.getDuration(), preset.getSuggestedDuration()));
         config.setDelay(preset.getDelay());
@@ -406,6 +435,7 @@ public class TimelineClip {
     }
 
     public void setAutoFadeOpacity(float autoFadeOpacity) {
+        requireFinite(autoFadeOpacity, "Auto fade opacity");
         this.autoFadeOpacity = UIUtils.clamp(autoFadeOpacity, 0f, 1f);
         invalidateRestoreTimeCache();
     }
@@ -429,10 +459,13 @@ public class TimelineClip {
      * @param postAnimationFadeStart 淡化开始时间（秒），必须 >= 0
      */
     public void setPostAnimationFadeStart(float postAnimationFadeStart) {
-        this.postAnimationFadeStart = Math.max(0.0f, postAnimationFadeStart);
-        if (this.postAnimationFadeStart > this.postAnimationFadeEnd) {
-            this.postAnimationFadeEnd = this.postAnimationFadeStart;
-        }
+        requireFinite(postAnimationFadeStart, "Post-animation fade start");
+        float newStart = Math.max(0.0f, postAnimationFadeStart);
+        float newEnd = Math.max(this.postAnimationFadeEnd, newStart);
+        requireFinite(endTime + newStart, "Restore time");
+        requireFinite(endTime + newEnd, "Restore time");
+        this.postAnimationFadeStart = newStart;
+        this.postAnimationFadeEnd = newEnd;
         invalidateRestoreTimeCache();
     }
     
@@ -451,21 +484,33 @@ public class TimelineClip {
      * @param postAnimationFadeEnd 淡化结束时间（秒），必须 >= postAnimationFadeStart
      */
     public void setPostAnimationFadeEnd(float postAnimationFadeEnd) {
-        this.postAnimationFadeEnd = Math.max(this.postAnimationFadeStart, postAnimationFadeEnd);
+        requireFinite(postAnimationFadeEnd, "Post-animation fade end");
+        float newEnd = Math.max(this.postAnimationFadeStart, postAnimationFadeEnd);
+        requireFinite(endTime + newEnd, "Restore time");
+        this.postAnimationFadeEnd = newEnd;
         invalidateRestoreTimeCache();
     }
     
     /**
+     * 动画实际结束的全局时间。逐块序列的 delay/duration 可能延伸到片段右边界之后；
+     * 整容器动画仍以片段右边界为准。透明度、fade 与播放控制器共用此时钟。
+     */
+    public float getEffectiveAnimationEndTime() {
+        return com.director.core.animation.PerBlockAnimationTiming.effectiveAnimationEndTime(
+                getAnimationConfigForEditing(), startTime, endTime);
+    }
+
+    /**
      * 获取片段恢复为最终状态的绝对时间
-     * 
-     * <p>计算方式：endTime + postAnimationFadeEnd
-     * 
+     *
+     * <p>计算方式：有效动画结束时间 + postAnimationFadeEnd
+     *
      * @return 恢复时间（秒）
      */
     public float getRestoreTime() {
-        if (cachedRestoreTime == null) {
-            cachedRestoreTime = endTime + postAnimationFadeEnd;
-        }
+        // Animation configuration is intentionally mutable, so its completion clock
+        // must be re-evaluated rather than cached only by clip resize/fade setters.
+        cachedRestoreTime = getEffectiveAnimationEndTime() + postAnimationFadeEnd;
         return cachedRestoreTime;
     }
     
@@ -476,8 +521,8 @@ public class TimelineClip {
      * @return 如果在淡化阶段返回 true
      */
     public boolean isInPostAnimationFade(float time) {
-        float fadeStart = endTime + postAnimationFadeStart;
-        float fadeEnd = endTime + postAnimationFadeEnd;
+        float fadeStart = getEffectiveAnimationEndTime() + postAnimationFadeStart;
+        float fadeEnd = getEffectiveAnimationEndTime() + postAnimationFadeEnd;
         return postAnimationFadeEnabled && fadeEnd > fadeStart && time >= fadeStart && time <= fadeEnd;
     }
     
@@ -496,6 +541,12 @@ public class TimelineClip {
      */
     private void invalidateRestoreTimeCache() {
         cachedRestoreTime = null;
+    }
+
+    private static void requireFinite(float value, String name) {
+        if (!Float.isFinite(value)) {
+            throw new IllegalArgumentException(name + " must be finite");
+        }
     }
     
     // ========== 可见性关键帧管理（问题5修复）==========
@@ -618,9 +669,9 @@ public class TimelineClip {
         if (localTime > getLength()) {
             // 片段已结束，可能需要考虑 post-animation fade
             if (isInPostAnimationFade(globalTime)) {
-                // 在淡化阶段，计算淡化透明度
-                float fadeStart = endTime + postAnimationFadeStart;
-                float fadeEnd = endTime + postAnimationFadeEnd;
+                // 在淡化阶段，以有效动画结束时间为基准计算淡化透明度
+                float fadeStart = getEffectiveAnimationEndTime() + postAnimationFadeStart;
+                float fadeEnd = getEffectiveAnimationEndTime() + postAnimationFadeEnd;
                 float fadeT = (globalTime - fadeStart) / (fadeEnd - fadeStart);
                 // 从 1.0 淡出到 autoFadeOpacity
                 return computeAlphaAt(getLength()) * (1.0f - (1.0f - autoFadeOpacity) * fadeT);

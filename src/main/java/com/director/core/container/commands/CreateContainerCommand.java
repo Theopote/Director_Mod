@@ -30,8 +30,11 @@ public class CreateContainerCommand implements ContainerCommand {
     
     @Override
     public void execute() {
-        createdContainer = manager.createContainer(name, type);
         Container safeParent = parent != null && parent.getType() == ContainerType.GROUP ? parent : null;
+        if (safeParent != null && !manager.isEditable(safeParent)) {
+            return;
+        }
+        createdContainer = manager.createContainer(name, type);
         if (safeParent != null) {
             manager.moveContainerToParent(createdContainer, safeParent);
         }

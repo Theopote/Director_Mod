@@ -44,7 +44,7 @@ class PerBlockScheduleTest {
     }
     @Test void changingActionDurationDoesNotMoveAnyStartsOrResizeTheClip() {
         var container = new Container("blocks"); container.addBlocks(List.of(BlockPos.ORIGIN, new BlockPos(1,0,0)));
-        var clip = new TimelineClip("blocks", 0, 2, 0); var config = clip.getAnimationConfig();
+        var clip = new TimelineClip("blocks", 0, 2, 0); var config = clip.getAnimationConfigForEditing();
         config.setMode(AnimationMode.FADE_IN); config.setDuration(1);
         var first = BlockSequenceGenerator.generate(null, container, config.getSequenceParameters(), 2, 1, 0);
         config.setDuration(5);
@@ -71,7 +71,7 @@ class PerBlockScheduleTest {
     @Test void soundsRemainAtCompletionAfterTheClipEnd() {
         var container = new Container("blocks"); container.addBlocks(List.of(BlockPos.ORIGIN, new BlockPos(1,0,0), new BlockPos(2,0,0)));
         for (var phase : ClipAnimationConfig.AnimationPhase.values()) {
-            var clip = new TimelineClip("blocks", 10, 10.3f, 0); var config = clip.getAnimationConfig();
+            var clip = new TimelineClip("blocks", 10, 10.3f, 0); var config = clip.getAnimationConfigForEditing();
             config.setMode(AnimationMode.FADE_IN); config.setDuration(2); config.setPhase(phase);
             config.getParams().put(phase == ClipAnimationConfig.AnimationPhase.EXIT ? "exitSoundTiming" : "enterSoundTiming", "END");
             var entries = BlockSequenceGenerator.generate(null, container, config.getSequenceParameters(), clip.getLength(), 2, 0);
@@ -100,8 +100,8 @@ class PerBlockScheduleTest {
         var model = new com.director.timeline.model.TimelineModel(new com.director.timeline.model.TimelineViewportState());
         var track = new com.director.timeline.model.TimelineTrack("blocks", com.director.timeline.model.TrackType.CONTAINER);
         model.addTrack(track); var clip = new TimelineClip("blocks", 10, 12, 0);
-        clip.getAnimationConfig().setMode(AnimationMode.FADE_IN);
-        clip.getAnimationConfig().setDuration(2); track.addClip(clip);
+        clip.getAnimationConfigForEditing().setMode(AnimationMode.FADE_IN);
+        clip.getAnimationConfigForEditing().setDuration(2); track.addClip(clip);
         clip.bindToContainer(java.util.UUID.randomUUID(), "blocks"); model.setDuration(0.1f);
         assertTrue(model.getDuration()>=14); assertEquals(2, clip.getLength());
     }

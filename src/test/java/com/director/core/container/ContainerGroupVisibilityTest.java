@@ -1,6 +1,7 @@
 package com.director.core.container;
 
 import org.junit.jupiter.api.Test;
+import com.director.core.DirectorServices;
 import com.director.core.container.commands.BatchSetContainerStateCommand;
 import net.minecraft.nbt.NbtCompound;
 
@@ -44,21 +45,29 @@ class ContainerGroupVisibilityTest {
 
     @Test
     void batchVisibilityUpdatesLocalPreferencesAndUndoRestoresThem() {
-        Container group = new Container("group", ContainerType.GROUP);
+        DirectorServices.initialize();
+        ContainerManager manager = DirectorServices.get().containers();
+        Container group = new Container("group visibility test", ContainerType.GROUP);
         Container child = new Container("child", ContainerType.GENERAL);
         group.addChild(child);
         child.setState(ContainerState.HIDDEN, false);
+        manager.addContainer(group);
 
-        var command = new BatchSetContainerStateCommand(List.of(group, child), ContainerState.VISIBLE);
-        command.execute();
-        assertEquals(ContainerState.VISIBLE, group.getState());
-        assertEquals(ContainerState.VISIBLE, child.getState());
-        assertFalse(child.isHidden());
+        try {
+            var command = new BatchSetContainerStateCommand(
+                manager, List.of(group, child), ContainerState.VISIBLE);
+            command.execute();
+            assertEquals(ContainerState.VISIBLE, group.getState());
+            assertEquals(ContainerState.VISIBLE, child.getState());
+            assertFalse(child.isHidden());
 
-        command.undo();
-        assertEquals(ContainerState.VISIBLE, group.getState());
-        assertEquals(ContainerState.HIDDEN, child.getState());
-        assertTrue(child.isHidden());
+            command.undo();
+            assertEquals(ContainerState.VISIBLE, group.getState());
+            assertEquals(ContainerState.HIDDEN, child.getState());
+            assertTrue(child.isHidden());
+        } finally {
+            manager.removeContainer(group);
+        }
     }
 
     @Test

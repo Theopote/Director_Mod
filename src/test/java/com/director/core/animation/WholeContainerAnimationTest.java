@@ -249,9 +249,9 @@ class WholeContainerAnimationTest {
         target.translate(1, 2, 3);
         target.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90));
         var apply = BlockAnimationRenderer.class.getDeclaredMethod("applyAnimationTransformFromSnapshot",
-                MatrixStack.class, BlockAnimationSnapshot.class);
+                MatrixStack.class, BlockAnimationSnapshot.class, net.minecraft.world.BlockRenderView.class);
         apply.setAccessible(true);
-        apply.invoke(null, target, snapshot);
+        apply.invoke(null, target, snapshot, null);
         var point = target.peek().getPositionMatrix().transformPosition(new Vector3f(1, 0, 0));
         var normal = target.peek().getNormalMatrix().transform(new Vector3f(1, 0, 0));
         assertEquals(1, point.x, 0.0001f);

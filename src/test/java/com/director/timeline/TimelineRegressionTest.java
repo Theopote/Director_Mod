@@ -1,5 +1,9 @@
 package com.director.timeline;
 
+import com.director.core.animation.ClipAnimationConfig;
+import com.director.core.animation.effect.EffectInstance;
+import com.director.core.animation.effect.EffectType;
+import com.director.core.container.AnimationMode;
 import com.director.timeline.audio.TimelineAudioPlaybackPolicy;
 import com.director.timeline.layout.TimelineClipLayoutResolver;
 import com.director.timeline.layout.TimelineClipLayoutResolver.Interval;
@@ -340,5 +344,193 @@ class TimelineRegressionTest {
         ChangeKeyframeInterpolationCommand.setKeyframeInterpolationDirectly(clip, 2, TimelineInterpolation.STEP);
         history.executeCommand(new DeleteClipCommand(model, clip, track.getClips())); history.undo();
         assertEquals(TimelineInterpolation.STEP, ChangeKeyframeInterpolationCommand.getKeyframeInterpolation(clip, 2));
+    }
+    @Test void animationConfigGetterReturnsDetachedCopyOfAllMutableState() {
+        var clip = new TimelineClip("safe", 0, 4, 0);
+        var live = clip.getAnimationConfigForEditing();
+        live.setMode(AnimationMode.FADE_IN);
+        live.setDuration(1.5f);
+        live.setParam("strength", 2.0f);
+        live.getWholeContainer().setScale(0.75f);
+        live.getSequenceParameters().setBatchSize(4);
+        var liveEffect = new EffectInstance(EffectType.FLASH_WHITE);
+        liveEffect.setDuration(0.4f);
+        liveEffect.setFloat("intensity", 3.0f);
+        live.addEffect(liveEffect);
+
+        var detached = clip.getAnimationConfig();
+        assertNotSame(live, detached);
+        assertNotSame(live.getParams(), detached.getParams());
+        assertNotSame(live.getWholeContainer(), detached.getWholeContainer());
+        assertNotSame(live.getSequenceParameters(), detached.getSequenceParameters());
+        assertNotSame(live.getEffects(), detached.getEffects());
+        assertNotSame(liveEffect, detached.getEffects().getFirst());
+
+        detached.setMode(AnimationMode.GRAVITY_FALL);
+        detached.setDuration(9);
+        detached.getParams().clear();
+        detached.getParams().put("strength", 99);
+        detached.getWholeContainer().setScale(0.1f);
+        detached.getSequenceParameters().setBatchSize(1);
+        detached.getEffects().getFirst().setDuration(0.9f);
+        detached.getEffects().getFirst().setFloat("intensity", 9);
+        detached.getEffects().clear();
+        detached.addEffect(new EffectInstance(EffectType.DUST_BURST));
+
+        var current = clip.getAnimationConfigForEditing();
+        assertSame(live, current);
+        assertEquals(AnimationMode.FADE_IN, current.getMode());
+        assertEquals(1.5f, current.getDuration());
+        assertEquals(2.0f, current.getParams().get("strength"));
+        assertEquals(0.75f, current.getWholeContainer().getScale());
+        assertEquals(4, current.getSequenceParameters().getBatchSize());
+        assertEquals(1, current.getEffects().size());
+        assertSame(liveEffect, current.getEffects().getFirst());
+        assertEquals(0.4f, liveEffect.getDuration());
+        assertEquals(3.0f, liveEffect.getFloat("intensity", 0));
+    }
+    @Test void animationConfigEditingGetterExposesLiveClipState() {
+        var clip = new TimelineClip("editing", 0, 4, 0);
+        var config = clip.getAnimationConfigForEditing();
+        config.setMode(AnimationMode.FADE_IN);
+        config.setDuration(3);
+        config.setParam("edited", true);
+        var effect = new EffectInstance(EffectType.FLASH_WHITE);
+        effect.setFloat("intensity", 2.0f);
+        config.addEffect(effect);
+
+        assertSame(config, clip.getAnimationConfigForEditing());
+        var observed = clip.getAnimationConfig();
+        assertEquals(AnimationMode.FADE_IN, observed.getMode());
+        assertEquals(3, observed.getDuration());
+        assertEquals(true, observed.getParams().get("edited"));
+        assertEquals(EffectType.FLASH_WHITE, observed.getEffects().getFirst().getType());
+        assertEquals(2.0f, observed.getEffects().getFirst().getFloat("intensity", 0));
+    }
+    @Test void setAnimationConfigDefensivelyCopiesNestedStateAndEffects() {
+        var clip = new TimelineClip("setter", 0, 4, 0);
+        var source = ClipAnimationConfig.defaultConfig();
+        source.setMode(AnimationMode.FADE_IN);
+        source.setDuration(2.5f);
+        source.setParam("strength", 2.0f);
+        source.getWholeContainer().setScale(0.6f);
+        source.getSequenceParameters().setBatchSize(3);
+        var sourceEffect = new EffectInstance(EffectType.FLASH_WHITE);
+        sourceEffect.setDuration(0.4f);
+        sourceEffect.setFloat("intensity", 3.0f);
+        source.addEffect(sourceEffect);
+        clip.setAnimationConfig(source);
+
+        assertNotSame(source, clip.getAnimationConfigForEditing());
+        source.setMode(AnimationMode.GRAVITY_FALL);
+        source.setDuration(9);
+        source.getParams().clear();
+        source.getWholeContainer().setScale(0.1f);
+        source.getSequenceParameters().setBatchSize(1);
+        sourceEffect.setDuration(0.9f);
+        sourceEffect.setFloat("intensity", 9);
+        source.getEffects().clear();
+
+        var stored = clip.getAnimationConfigForEditing();
+        assertEquals(AnimationMode.FADE_IN, stored.getMode());
+        assertEquals(2.5f, stored.getDuration());
+        assertEquals(2.0f, stored.getParams().get("strength"));
+        assertEquals(0.6f, stored.getWholeContainer().getScale());
+        assertEquals(3, stored.getSequenceParameters().getBatchSize());
+        assertEquals(1, stored.getEffects().size());
+        var storedEffect = stored.getEffects().getFirst();
+        assertNotSame(sourceEffect, storedEffect);
+        assertEquals(0.4f, storedEffect.getDuration());
+        assertEquals(3.0f, storedEffect.getFloat("intensity", 0));
+    }
+    @Test void shallowDuplicatePreservesVisibilityKeyframesAndZeroLength() {
+        var source = new TimelineClip("source", 0, 4, 0);
+        source.addVisibilityKeyframe(VisibilityKeyframe.ghost(1.5f, 0.4f));
+        var duplicate = source.duplicateShallow();
+        assertNotSame(source, duplicate);
+        assertEquals(source.getVisibilityKeyframes(), duplicate.getVisibilityKeyframes());
+        assertNotSame(source.getVisibilityKeyframes().first(), duplicate.getVisibilityKeyframes().first());
+
+        source.setTimeRange(5, 5);
+        var emptyRange = source.duplicateShallow();
+        assertEquals(5, emptyRange.getStartTime());
+        assertEquals(5, emptyRange.getEndTime());
+        assertEquals(0, emptyRange.getLength());
+    }
+    @Test void clipLookupUsesHalfOpenRangesAndExactZeroLengthMatches() {
+        var track = new TimelineTrack("clips", TrackType.CONTAINER);
+        model.addTrack(track);
+        var first = new TimelineClip("first", 1, 3, 0);
+        var second = new TimelineClip("second", 3, 5, 0);
+        var zeroLength = new TimelineClip("zero", 5, 5.05f, 0);
+        zeroLength.setTimeRange(5, 5);
+        track.addClip(first);
+        track.addClip(second);
+        track.addClip(zeroLength);
+
+        assertSame(first, track.findClipAtTime(1));
+        assertSame(first, track.findClipAtTime(2.99f));
+        assertSame(second, track.findClipAtTime(3));
+        assertSame(second, track.findClipAtTime(4.99f));
+        assertSame(zeroLength, track.findClipAtTime(5));
+        assertNull(track.findClipAtTime(5.01f));
+    }
+    @Test void populatedTrackRejectsIncompatibleTypeChange() {
+        var track = new TimelineTrack("bound", TrackType.CONTAINER);
+        model.addTrack(track);
+        var clip = new TimelineClip("bound", 0, 2, 0);
+        clip.setBoundContainerId(UUID.randomUUID());
+        assertTrue(track.addClip(clip));
+
+        assertThrows(IllegalStateException.class, () -> track.setType(TrackType.CAMERA));
+        assertEquals(TrackType.CONTAINER, track.getType());
+        assertSame(clip, track.getClips().getFirst());
+    }
+    @Test void trackClipViewCannotBypassAttachmentInvariants() {
+        var track = new TimelineTrack("readonly", TrackType.CONTAINER);
+        model.addTrack(track);
+        var clip = new TimelineClip("clip", 0, 2, 0);
+        assertTrue(track.addClip(clip));
+
+        assertThrows(UnsupportedOperationException.class, () -> track.getClips().clear());
+        assertEquals(1, track.getClips().size());
+        assertSame(track, clip.getParentTrack());
+    }
+    @Test void keyframeModelsRejectNonFiniteNumbers() {
+        for (float value : new float[] {Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY}) {
+            assertThrows(IllegalArgumentException.class, () -> new com.director.timeline.model.clip.ClipKeyframe(value));
+            var keyframe = new com.director.timeline.model.clip.ClipKeyframe(1);
+            assertThrows(IllegalArgumentException.class, () -> keyframe.setTime(value));
+            assertThrows(IllegalArgumentException.class,
+                    () -> new VisibilityKeyframe(value, 0.5f, VisibilityKeyframe.VisibilityMode.NORMAL));
+            assertThrows(IllegalArgumentException.class,
+                    () -> new VisibilityKeyframe(0.5f, value, VisibilityKeyframe.VisibilityMode.NORMAL));
+            var visibility = VisibilityKeyframe.normal(0.5f);
+            assertThrows(IllegalArgumentException.class, () -> visibility.setAlpha(value));
+        }
+    }
+    @Test void clipModelsRejectNonFiniteNumbersWithoutPartialMutation() {
+        for (float value : new float[] {Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY}) {
+            assertThrows(IllegalArgumentException.class, () -> new TimelineClip("invalid", value, 4, 0));
+            assertThrows(IllegalArgumentException.class, () -> new TimelineClip("invalid", 0, value, 0));
+            var clip = new TimelineClip("clip", 1, 4, 0);
+            clip.addKeyframe(2);
+            var before = clip.snapshot();
+            assertThrows(IllegalArgumentException.class, () -> clip.setTimeRange(value, 5));
+            assertThrows(IllegalArgumentException.class, () -> clip.setTimeRange(0, value));
+            assertThrows(IllegalArgumentException.class, () -> clip.setStartTime(value));
+            assertThrows(IllegalArgumentException.class, () -> clip.setEndTime(value));
+            assertThrows(IllegalArgumentException.class, () -> clip.setLength(value));
+            assertThrows(IllegalArgumentException.class, () -> clip.offsetTime(value));
+            assertThrows(IllegalArgumentException.class, () -> clip.setAutoFadeOpacity(value));
+            assertThrows(IllegalArgumentException.class, () -> clip.setPostAnimationFadeStart(value));
+            assertThrows(IllegalArgumentException.class, () -> clip.setPostAnimationFadeEnd(value));
+            assertThrows(IllegalArgumentException.class, () -> clip.moveKeyframe(clip.getClipKeyframes().getFirst(), value));
+            assertTrue(clip.hasSameStateAs(before));
+        }
+        var extreme = new TimelineClip("extreme", 0, Float.MAX_VALUE - 4, 0);
+        assertThrows(IllegalArgumentException.class, () -> extreme.offsetTime(Float.MAX_VALUE));
+        assertEquals(0, extreme.getStartTime());
+        assertEquals(Float.MAX_VALUE - 4, extreme.getEndTime());
     }
 }

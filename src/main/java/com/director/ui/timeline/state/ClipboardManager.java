@@ -1,6 +1,5 @@
 package com.director.ui.timeline.state;
 
-import com.director.core.DirectorServices;
 import com.director.ui.timeline.commands.DeleteClipCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.timeline.model.TimelineClip;
@@ -23,6 +22,8 @@ public final class ClipboardManager {
     }
     
     private TimelineClip clip;
+    private TimelineClip cutSource;
+    private TimelineModel cutSourceModel;
     private boolean isCut;
     private com.director.lighting.PointLight lightAsset;
     private void captureLight(TimelineClip clip,TimelineModel model) {
@@ -48,16 +49,23 @@ public final class ClipboardManager {
             return;
         }
         
-        // 复制到剪贴板
-        captureLight(clip,model);
-        this.clip = com.director.timeline.model.TimelineClipCopies.copy(clip);
-        this.initializeAudio = com.director.ui.timeline.audio.TimelineAudioService.getInstance().captureAudioCopy(clip);
-        this.isCut = true;
-        
-        // 删除原片段（使用命令支持撤销）
+        var lightSnapshot = clip instanceof com.director.lighting.LightTimelineClip light && model != null
+                ? model.getPointLight(light.lightId()) : null;
+        TimelineClip copied = com.director.timeline.model.TimelineClipCopies.copyForCut(clip);
+        var audioInitializer = com.director.ui.timeline.audio.TimelineAudioService.getInstance()
+                .captureAudioCopy(clip, true);
         DeleteClipCommand cmd = new DeleteClipCommand(model, clip, track.getClips());
         history.executeCommand(cmd);
-        
+        if (!cmd.canUndo()) {
+            return;
+        }
+
+        this.lightAsset = lightSnapshot;
+        this.clip = copied;
+        this.initializeAudio = audioInitializer;
+        this.cutSource = clip;
+        this.cutSourceModel = model;
+        this.isCut = true;
         model.setSelectedClip(null);
         LOGGER.info("[Timeline] 剪切片段: {}", clip.getLabel());
     }
@@ -74,7 +82,10 @@ public final class ClipboardManager {
         }
         captureLight(clip,model);
         this.clip = com.director.timeline.model.TimelineClipCopies.copy(clip);
-        this.initializeAudio = com.director.ui.timeline.audio.TimelineAudioService.getInstance().captureAudioCopy(clip);
+        this.initializeAudio = com.director.ui.timeline.audio.TimelineAudioService.getInstance()
+                .captureAudioCopy(clip, false);
+        this.cutSource = null;
+        this.cutSourceModel = null;
         this.isCut = false;
         LOGGER.info("[Timeline] 复制片段: {}", clip.getLabel());
     }
@@ -87,14 +98,16 @@ public final class ClipboardManager {
             return;
         }
 
-        if (!canPasteToTrack(track)) {
+        if (!canPasteToTrack(track, model)) {
             LOGGER.info("[Timeline] 剪贴板片段不能粘贴到轨道: clip={}, track={}",
                 clip.getLabel(), track.getName());
             return;
         }
         
         // 创建副本
-        TimelineClip newClip = com.director.timeline.model.TimelineClipCopies.copy(clip);
+        TimelineClip newClip = isCut
+                ? com.director.timeline.model.TimelineClipCopies.copyForCut(clip)
+                : com.director.timeline.model.TimelineClipCopies.copy(clip);
         
         // 调整时间以避免重叠
         float pasteTime = model.getCurrentTime();
@@ -171,7 +184,10 @@ public final class ClipboardManager {
     }
 
     public void clear() {
-        clip = null;lightAsset=null;
+        clip = null;
+        cutSource = null;
+        cutSourceModel = null;
+        lightAsset = null;
         initializeAudio = ignored -> {};
         isCut = false;
     }
@@ -180,8 +196,12 @@ public final class ClipboardManager {
         return clip != null;
     }
 
-    private boolean canPasteToTrack(TimelineTrack track) {
-        if (clip == null || track == null) {
+    private boolean canPasteToTrack(TimelineTrack track, TimelineModel model) {
+        if (clip == null || track == null || model == null || !model.getAllTracks().contains(track)) {
+            return false;
+        }
+        if (isCut && cutSource != null && cutSourceModel != null
+                && cutSourceModel.getAllTracks().stream().anyMatch(item -> item.getClips().contains(cutSource))) {
             return false;
         }
         if (clip instanceof com.director.lighting.LightTimelineClip) return track.getType()==TrackType.LIGHT;
@@ -191,14 +211,12 @@ public final class ClipboardManager {
         if (clip.getBoundContainerId() == null) {
             return true;
         }
-        if (clip instanceof com.director.timeline.model.audio.AudioTimelineClip) {
-            return track.getType() == TrackType.AUDIO;
-        }
         if (track.getType() != TrackType.CONTAINER) {
             return false;
         }
-        return isCut || !DirectorServices.get().containerTimeline()
-            .isContainerOnTimeline(clip.getBoundContainerId());
+        return isCut || model.getAllTracks().stream()
+                .flatMap(item -> item.getClips().stream())
+                .noneMatch(item -> clip.getBoundContainerId().equals(item.getBoundContainerId()));
     }
 }
 

@@ -2,6 +2,7 @@ package com.director.mixin;
 
 import com.director.core.container.visibility.BlockVisualStateManager;
 import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.util.math.MatrixStack;
@@ -64,11 +65,14 @@ public class BlockRenderManagerMixin {
         // The animation also uses world tessellation, but must render while its real blocks are suppressed.
         if (world instanceof com.director.core.animation.WholeContainerRenderView) return;
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
-        if (!visualStateManager.hasActiveOverrides()) {
+        var clientWorld = MinecraftClient.getInstance().world;
+        if (clientWorld == null || !visualStateManager.hasActiveOverrides(clientWorld.getRegistryKey())) {
             return;
         }
 
-        BlockVisualStateManager.BlockVisualState visualState = visualStateManager.getBlockState(pos);
+        // A coordinate from another dimension must never suppress terrain in the active world.
+        BlockVisualStateManager.BlockVisualState visualState = visualStateManager.getBlockState(
+                clientWorld.getRegistryKey(), pos);
         if (visualState != null && visualState.shouldSuppressWorldRendering()) {
             // 阻止该方块被烘焙进区块网格，由我们的覆盖层渲染接管
             ci.cancel();

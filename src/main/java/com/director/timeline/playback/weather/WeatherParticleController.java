@@ -1,7 +1,9 @@
 package com.director.timeline.playback.weather;
 
 import com.director.mixin.accessor.WeatherParticleAccessor;
+import com.director.export.video.VideoExportManager;
 import com.director.timeline.playback.TimelinePlaybackSampler;
+import com.director.timeline.playback.TimelineSamplingContext;
 import com.director.timeline.playback.camera.CameraRuntime;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.Particle;
@@ -27,12 +29,16 @@ public final class WeatherParticleController {
     public boolean isEnabled() { return enabled; }
     public void updateSample(WeatherSample sample) {
         currentSample=sample;
+        if (!TimelineSamplingContext.current().allowsParticles()
+                || VideoExportManager.getInstance().isExporting()) return;
         if(sample==null || !sample.enabled)clear();
     }
     public void clear() {
         particles.values().forEach(p -> p.particle().markDead()); particles.clear(); world=null;
     }
     public void tick() {
+        if (!TimelineSamplingContext.current().allowsParticles()
+                || VideoExportManager.getInstance().isExporting()) return;
         if(!enabled || currentSample==null || !currentSample.enabled) { clear(); return; }
         var client=MinecraftClient.getInstance(); var model=TimelinePlaybackSampler.resolveModel();
         if(client==null || client.world==null || client.gameRenderer==null || client.particleManager==null || model==null)return;

@@ -15,8 +15,8 @@ class WholeContainerAnimationPersistenceTest {
             model.setSuppressPersistenceWrites(true);
             var track = new TimelineTrack("blocks", TrackType.CONTAINER);
             var clip = new TimelineClip("assembly", 3, 8, 0xFFFFFFFF);
-            clip.getAnimationConfig().setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER);
-            var settings = clip.getAnimationConfig().getWholeContainer();
+            clip.getAnimationConfigForEditing().setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER);
+            var settings = clip.getAnimationConfigForEditing().getWholeContainer();
             settings.setEffect(effect);
             settings.setPivot(WholeContainerAnimationConfig.Pivot.CUSTOM);
             settings.setCustomPivot(-1.25f, 2.5f, 0.75f);
@@ -42,7 +42,7 @@ class WholeContainerAnimationPersistenceTest {
             assertEquals(45, loaded.getRotationZ());
             assertEquals(20, loaded.getOffsetX());
             assertEquals(0.25f, loaded.getScale());
-            var duplicate = clip.duplicateShallow().getAnimationConfig().getWholeContainer();
+            var duplicate = clip.duplicateShallow().getAnimationConfigForEditing().getWholeContainer();
             duplicate.setCustomPivot(0, 0, 0);
             duplicate.setRotation(0, 0, 0);
             assertEquals(-1.25f, settings.getPivotX());
@@ -55,7 +55,7 @@ class WholeContainerAnimationPersistenceTest {
         var model = new TimelineModel(viewport); model.setSuppressPersistenceWrites(true);
         var track = new TimelineTrack("blocks", TrackType.CONTAINER);
         var clip = new TimelineClip("Fade and rotate", 3, 8, 0);
-        var config = clip.getAnimationConfig(); config.setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER);
+        var config = clip.getAnimationConfigForEditing(); config.setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER);
         var settings = config.getWholeContainer(); settings.setEffect(WholeContainerAnimationConfig.Effect.TRANSFORM);
         settings.setTranslationEnabled(false); settings.setScaleEnabled(false);
         settings.setRotationEnabled(true); settings.setOpacityEnabled(true);
@@ -70,7 +70,7 @@ class WholeContainerAnimationPersistenceTest {
         assertTrue(loaded.getWholeContainer().isRotationEnabled()); assertTrue(loaded.getWholeContainer().isOpacityEnabled());
         assertEquals(0.25f, loaded.getWholeContainer().getOpacity());
         assertEquals(WholeContainerAnimation.sample(config, 3, 8, 4, false), WholeContainerAnimation.sample(loaded, 3, 8, 4, false));
-        var copy = clip.duplicateShallow().getAnimationConfig().getWholeContainer();
+        var copy = clip.duplicateShallow().getAnimationConfigForEditing().getWholeContainer();
         copy.setOpacity(1); copy.setTranslationEnabled(true); copy.setOpacityEnabled(false);
         assertEquals(0.25f, settings.getOpacity()); assertFalse(settings.isTranslationEnabled()); assertTrue(settings.isOpacityEnabled());
     }
@@ -81,7 +81,7 @@ class WholeContainerAnimationPersistenceTest {
         model.setSuppressPersistenceWrites(true);
         var track = new TimelineTrack("blocks", TrackType.CONTAINER);
         var clip = new TimelineClip("assembly", 3, 8, 0xFFFFFFFF);
-        var config = clip.getAnimationConfig();
+        var config = clip.getAnimationConfigForEditing();
         config.setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER);
         config.getWholeContainer().setEffect(WholeContainerAnimationConfig.Effect.FLY);
         config.getWholeContainer().setPivot(WholeContainerAnimationConfig.Pivot.CENTER);
@@ -118,9 +118,9 @@ class WholeContainerAnimationPersistenceTest {
         assertEquals(4.9f - 1.0f / 60, AnimationSoundCollector.wholeContainerEventTime(
                 restored.getTracks().getFirst().getClips().getFirst()), 0.0001f);
         var duplicate = clip.duplicateShallow();
-        duplicate.getAnimationConfig().getParams().put("enterSoundOffsetSeconds", 1.0f);
+        duplicate.getAnimationConfigForEditing().getParams().put("enterSoundOffsetSeconds", 1.0f);
         assertEquals(-0.2f, config.getParams().get("enterSoundOffsetSeconds"));
-        duplicate.getAnimationConfig().getWholeContainer().setScale(0.8f);
+        duplicate.getAnimationConfigForEditing().getWholeContainer().setScale(0.8f);
         assertTrue(duplicate.getAnimationConfig().isWholeContainer());
         assertEquals(0.2f, config.getWholeContainer().getScale());
         dto.tracks.getFirst().clips.getFirst().animationScope = null;
@@ -134,7 +134,7 @@ class WholeContainerAnimationPersistenceTest {
             var model = new TimelineModel(viewport); model.setSuppressPersistenceWrites(true);
             var track = new TimelineTrack("assembly", TrackType.CONTAINER);
             var clip = new TimelineClip("complete configuration", 3, 8, 0);
-            var c = clip.getAnimationConfig();
+            var c = clip.getAnimationConfigForEditing();
             c.setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER); c.setPhase(phase);
             c.setDelay(0.5f); c.setDuration(2); c.setEasing("EASE_IN_OUT_CUBIC");
             var s = c.getWholeContainer();

@@ -98,10 +98,10 @@ public class MoveClipCommand extends BaseTimelineCommand {
         com.director.ui.timeline.audio.TimelineAudioService.getInstance().moveLinkedEventsToTrack(item, target);
     }
 
-    private void applyRange(TimelineClip timelineClip, float start, float end, float fromStart, float fromEnd) {
+    private void applyRange(TimelineClip timelineClip, float start, float end) {
         if (timelineClip != null) {
-            if (Float.compare(end - start, fromEnd - fromStart) == 0) {
-                timelineClip.offsetTime(start - fromStart);
+            if (Float.compare(end - start, timelineClip.getLength()) == 0) {
+                timelineClip.offsetTime(start - timelineClip.getStartTime());
             } else {
                 timelineClip.setTimeRange(start, end);
             }
@@ -119,7 +119,7 @@ public class MoveClipCommand extends BaseTimelineCommand {
         }
         TimelineClip timelineClip = (clip instanceof ClipAdapter adapter) ? adapter.getTimelineClip() : null;
         moveTo(newTrack);
-        applyRange(timelineClip, newStartTime, newEndTime, oldStartTime, oldEndTime);
+        applyRange(timelineClip, newStartTime, newEndTime);
         // 同步：自动生成的音频事件默认跟随片段移动（可对单个事件取消链接）
         if (timelineClip != null) {
             com.director.ui.timeline.audio.TimelineAudioService.getInstance()
@@ -137,7 +137,7 @@ public class MoveClipCommand extends BaseTimelineCommand {
         }
         TimelineClip timelineClip = (clip instanceof ClipAdapter adapter) ? adapter.getTimelineClip() : null;
         moveTo(oldTrack);
-        applyRange(timelineClip, oldStartTime, oldEndTime, newStartTime, newEndTime);
+        applyRange(timelineClip, oldStartTime, oldEndTime);
         if (timelineClip != null) {
             com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                     .onClipTimeRangeChanged(timelineClip, newStartTime, newEndTime, oldStartTime, oldEndTime);

@@ -8,6 +8,7 @@ import com.director.core.animation.sequence.BlockSequenceEntry;
 import com.director.core.animation.transform.AnimationTransformerFactory;
 import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.container.AnimationMode;
+import com.director.timeline.playback.TimelineSamplingContext;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.math.MatrixStack;
@@ -90,7 +91,7 @@ public final class BlockAnimationEngine {
 
     /** A playback frame crossed the block start; prime thresholds even if no intermediate frame was rendered. */
     public static void primeEffectsBeforeStart(BlockPos pos, ClipAnimationConfig config, float now) {
-        if (pos == null || config == null) return;
+        if (pos == null || config == null || !TimelineSamplingContext.current().allowsParticles()) return;
         for (var effect : config.getEffects()) {
             if (effect == null || !effect.isEnabled()
                     || effect.getTriggerMode() != EffectInstance.TriggerMode.ONE_SHOT) continue;
@@ -184,7 +185,9 @@ public final class BlockAnimationEngine {
                     snapshot.setTransform(null); // null = identity
                     snapshot.setAlpha(1.0f);
                     // 允许触发特效（虽然 INSTANT 模式通常不需要特效，但保留兼容性）
-                    if (emitEffects) applyEffectsSafe(snapshot, config, now, randomSeed);
+                    if (emitEffects && TimelineSamplingContext.current().allowsParticles()) {
+                        applyEffectsSafe(snapshot, config, now, randomSeed);
+                    }
                 } else {
                     snapshot.markHidden();
                 }
@@ -206,7 +209,10 @@ public final class BlockAnimationEngine {
             snapshot.setAnimationFinished(now >= blockStartTime);
             snapshot.setSequenceNormalizedTime(seqNormalizedTime);
             snapshot.setTransform(null);
-            if (now >= blockStartTime && emitEffects) applyEffectsSafe(snapshot, config, now, randomSeed);
+            if (now >= blockStartTime && emitEffects
+                    && TimelineSamplingContext.current().allowsParticles()) {
+                applyEffectsSafe(snapshot, config, now, randomSeed);
+            }
             return snapshot;
         }
 
@@ -256,7 +262,9 @@ public final class BlockAnimationEngine {
                 snapshot.setAnimationFinished(true);
             }
             // ✅ 修复：动画结束后仍然检查并触发特效（特别是后段特效，如 DUST_BURST）
-            if (emitEffects) applyEffectsSafe(snapshot, config, now, randomSeed);
+            if (emitEffects && TimelineSamplingContext.current().allowsParticles()) {
+                applyEffectsSafe(snapshot, config, now, randomSeed);
+            }
             return snapshot;
         }
 
@@ -372,7 +380,9 @@ public final class BlockAnimationEngine {
         snapshot.setTransform(matrices);
 
         // ===== 6. 应用特效（粒子 / 其他可视效果） =====
-        if (emitEffects) applyEffectsSafe(snapshot, config, now, randomSeed);
+        if (emitEffects && TimelineSamplingContext.current().allowsParticles()) {
+            applyEffectsSafe(snapshot, config, now, randomSeed);
+        }
 
         return snapshot;
     }

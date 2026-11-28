@@ -22,4 +22,12 @@ public interface ContainerClipAudioSync {
     void onClipRemoved(TimelineClip clip);
 
     void updateLinkedAudioClipLabel(UUID containerId, String newName);
+
+    /**
+     * 捕获片段关联音频的删除前状态。默认端口无需恢复任何音频。
+     * 实现类已提供同名方法时无需额外适配。
+     */
+    default Runnable captureRemovalState(TimelineClip clip) {
+        return () -> { };
+    }
 }

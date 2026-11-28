@@ -26,7 +26,7 @@ public class SetContainerTypeCommand implements ContainerCommand {
     @Override
     public void execute() {
         Container container = manager.getContainer(containerId);
-        if (container != null && newType != null) {
+        if (manager.requireEditable(container, "修改类型") && newType != null) {
             // 不允许将类型改为 GROUP
             if (newType == ContainerType.GROUP) {
                 return;
@@ -39,7 +39,7 @@ public class SetContainerTypeCommand implements ContainerCommand {
     @Override
     public void undo() {
         Container container = manager.getContainer(containerId);
-        if (container != null && oldType != null) {
+        if (manager.requireEditable(container, "撤销类型修改") && oldType != null) {
             container.setType(oldType);
         }
     }

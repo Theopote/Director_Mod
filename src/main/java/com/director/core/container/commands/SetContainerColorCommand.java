@@ -25,7 +25,7 @@ public class SetContainerColorCommand implements ContainerCommand {
     @Override
     public void execute() {
         Container container = manager.getContainer(containerId);
-        if (container != null) {
+        if (manager.requireEditable(container, "修改颜色")) {
             oldColor = container.getColor();
             container.setColor(newColor);
         }
@@ -34,7 +34,7 @@ public class SetContainerColorCommand implements ContainerCommand {
     @Override
     public void undo() {
         Container container = manager.getContainer(containerId);
-        if (container != null) {
+        if (manager.requireEditable(container, "撤销颜色修改")) {
             container.setColor(oldColor);
         }
     }

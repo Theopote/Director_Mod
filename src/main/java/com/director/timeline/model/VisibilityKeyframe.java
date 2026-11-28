@@ -53,9 +53,11 @@ public final class VisibilityKeyframe implements Comparable<VisibilityKeyframe> 
      * @param mode 可见性模式
      */
     public VisibilityKeyframe(float time, float alpha, VisibilityMode mode) {
+        requireFinite(time, "Time");
         if (time < 0) {
             throw new IllegalArgumentException("Time must be >= 0");
         }
+        requireFinite(alpha, "Alpha");
         this.time = time;
         this.alpha = clamp01(alpha);
         this.mode = Objects.requireNonNullElse(mode, VisibilityMode.NORMAL);
@@ -107,6 +109,7 @@ public final class VisibilityKeyframe implements Comparable<VisibilityKeyframe> 
     }
     
     public void setAlpha(float alpha) {
+        requireFinite(alpha, "Alpha");
         if (mode == VisibilityMode.HIDE) {
             this.alpha = 0.0f;
         } else if (mode == VisibilityMode.SHOW) {
@@ -183,6 +186,12 @@ public final class VisibilityKeyframe implements Comparable<VisibilityKeyframe> 
     
     private static float clamp01(float v) {
         return v < 0f ? 0f : (Math.min(v, 1f));
+    }
+
+    private static void requireFinite(float value, String name) {
+        if (!Float.isFinite(value)) {
+            throw new IllegalArgumentException(name + " must be finite");
+        }
     }
 }
 

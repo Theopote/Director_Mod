@@ -217,7 +217,7 @@ public class TimelineClipPropertyUi {
 
     boolean renderBasicProperties(TimelineClip clip, TimelineClipUiVariant variant) {
         boolean modified = false;
-        ClipAnimationConfig config = clip.getAnimationConfig();
+        ClipAnimationConfig config = clip.getAnimationConfigForEditing();
 
         PropertyRow.field(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_START_TIME));
         float[] startVal = { clip.getStartTime() };
@@ -245,7 +245,7 @@ public class TimelineClipPropertyUi {
             String lengthTooltip = variant == TimelineClipUiVariant.DEMOLITION
                     ? ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_DURATION_TOOLTIP_DEMOLITION)
                     : ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_DURATION_TOOLTIP_BUILD);
-            ImGui.setTooltip(clip.getAnimationConfig().isWholeContainer()
+            ImGui.setTooltip(clip.getAnimationConfigForEditing().isWholeContainer()
                     ? wholeText("clip_span_hint") : lengthTooltip);
         }
 
@@ -354,7 +354,7 @@ public class TimelineClipPropertyUi {
     private boolean renderAnimationSettingsInternal(TimelineClip clip, TimelineClipAnimationPolicy policy) {
         boolean modified = false;
 
-        ClipAnimationConfig config = clip.getAnimationConfig();
+        ClipAnimationConfig config = clip.getAnimationConfigForEditing();
         if (config == null) {
             LOGGER.warn("片段的动画配置为空");
             ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_CONFIG_EMPTY));
@@ -473,7 +473,7 @@ public class TimelineClipPropertyUi {
         }
         if (ImGui.isItemHovered()) ImGui.setTooltip(wholeText("per_block_delay_hint"));
         ImGui.beginDisabled(currentMode == AnimationMode.INSTANT);
-        float[] duration = { clip.getAnimationConfig().getDuration() };
+        float[] duration = { clip.getAnimationConfigForEditing().getDuration() };
         PropertyRow.field(wholeText("per_block_duration"));
         if (ImGui.dragFloat("##clip_per_block_duration", duration, 0.01f, 0.0001f, 300f, "%.4fs")) {
             if (duration[0] < 0.0f) {
@@ -871,7 +871,7 @@ public class TimelineClipPropertyUi {
     boolean renderSequenceBehavior(TimelineClip clip, TimelineClipUiVariant variant) {
         boolean modified = false;
 
-        ClipAnimationConfig config = clip.getAnimationConfig();
+        ClipAnimationConfig config = clip.getAnimationConfigForEditing();
         if (config == null) {
             ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_CONFIG_EMPTY));
             return false;
@@ -1054,7 +1054,7 @@ public class TimelineClipPropertyUi {
         // 轻提示：这些字段现在已在运行时生效
         ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_TIMING_SUMMARY,
                 clip.getLength(),
-                config != null ? clip.getAnimationConfig().getDuration() : 0.0f,
+                config != null ? clip.getAnimationConfigForEditing().getDuration() : 0.0f,
                 (config != null ? Math.max(0.0f, config.getDelay()) : 0.0f) + Math.max(0.0f, params.getGlobalDelay())));
 
         return modified;
@@ -1501,7 +1501,7 @@ public class TimelineClipPropertyUi {
      * </ul>
      */
     private boolean renderWholeEffectsSection(TimelineClip clip) {
-        var settings = clip.getAnimationConfig().getWholeContainer();
+        var settings = clip.getAnimationConfigForEditing().getWholeContainer();
         ImInt preset = new ImInt(settings.getDustPreset().ordinal());
         boolean modified = false;
         PropertyRow.field(wholeText("visual_preset"));
@@ -1548,11 +1548,11 @@ public class TimelineClipPropertyUi {
     }
 
     boolean renderEffectsSection(TimelineClip clip) {
-        if (clip.getAnimationConfig() != null && clip.getAnimationConfig().isWholeContainer())
+        if (clip.getAnimationConfigForEditing() != null && clip.getAnimationConfigForEditing().isWholeContainer())
             return renderWholeEffectsSection(clip);
         boolean modified = false;
 
-        ClipAnimationConfig config = clip.getAnimationConfig();
+        ClipAnimationConfig config = clip.getAnimationConfigForEditing();
         if (config == null) {
             ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_CONFIG_EMPTY));
             return false;
@@ -1846,11 +1846,11 @@ public class TimelineClipPropertyUi {
         UITheme.subheading(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_TIMELINE_HEADER));
 
         // ✅ 特效时间轴是“相对于单块动画窗口”的归一化（0..1），而不是相对于片段长度
-        ClipAnimationConfig cfg = clip.getAnimationConfig();
+        ClipAnimationConfig cfg = clip.getAnimationConfigForEditing();
         float animLen = 0.0001f;
         if (cfg != null) {
             animLen = cfg.isWholeContainer() ? Math.max(0.05f, Math.min(cfg.getDuration(), clip.getLength()))
-                    : Math.max(0.0001f, cfg.getMode() == AnimationMode.INSTANT ? 0 : clip.getAnimationConfig().getDuration());
+                    : Math.max(0.0001f, cfg.getMode() == AnimationMode.INSTANT ? 0 : clip.getAnimationConfigForEditing().getDuration());
         }
 
         // 作用阶段

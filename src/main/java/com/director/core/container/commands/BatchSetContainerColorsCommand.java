@@ -35,13 +35,16 @@ public class BatchSetContainerColorsCommand implements ContainerCommand {
     
     @Override
     public void execute() {
+        List<Container> resolved = resolveEditableTargets("批量修改颜色");
+        if (resolved == null) {
+            return;
+        }
+
         oldTitleColors.clear();
         oldIconColors.clear();
-        
-        for (UUID id : containerIds) {
-            Container container = manager.getContainer(id);
-            if (container == null) continue;
-            
+
+        for (Container container : resolved) {
+            UUID id = container.getId();
             if (titleColor != null) {
                 Integer oldTitleColor = (Integer) container.getMetadata("titleColor", null);
                 if (oldTitleColor == null) {
@@ -64,10 +67,19 @@ public class BatchSetContainerColorsCommand implements ContainerCommand {
     
     @Override
     public void undo() {
+        List<Container> resolved = new ArrayList<>();
         for (UUID id : containerIds) {
             Container container = manager.getContainer(id);
-            if (container == null) continue;
-            
+            if (container != null && (oldTitleColors.containsKey(id) || oldIconColors.containsKey(id))) {
+                resolved.add(container);
+            }
+        }
+        if (!manager.requireAllEditable(resolved, "撤销批量颜色修改")) {
+            return;
+        }
+
+        for (Container container : resolved) {
+            UUID id = container.getId();
             if (titleColor != null) {
                 Integer oldColor = oldTitleColors.get(id);
                 if (oldColor != null) {
@@ -92,6 +104,17 @@ public class BatchSetContainerColorsCommand implements ContainerCommand {
         }
     }
     
+    private List<Container> resolveEditableTargets(String action) {
+        List<Container> resolved = new ArrayList<>();
+        for (UUID id : containerIds) {
+            Container container = manager.getContainer(id);
+            if (container != null) {
+                resolved.add(container);
+            }
+        }
+        return manager.requireAllEditable(resolved, action) ? resolved : null;
+    }
+
     @Override
     public String getDescription() {
         int count = containerIds.size();

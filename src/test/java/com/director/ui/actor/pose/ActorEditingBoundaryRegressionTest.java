@@ -50,7 +50,7 @@ class ActorEditingBoundaryRegressionTest {
         assertTrue(rows.handleKeyCommand(model,"delete"));
         assertTrue(asset.findBoneTrack("head").orElseThrow().rotation().findAt(1).isPresent());
         owner.setLocked(false);
-        owner.getClips().remove(spawn.getTimelineClip());
+        owner.removeClip(spawn.getTimelineClip());
         assertNull(ActorEmbeddedAnimation.selectedReference(model,owner));
         assertNull(selection.snapshot(model));
     }

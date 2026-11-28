@@ -91,7 +91,7 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         boolean sequenceModified = false;
         boolean animationModified = false;
 
-        if (Card.beginIf(!clip.getAnimationConfig().isWholeContainer(), "erase_timeline_clip.sequence", "序列行为")) {
+        if (Card.beginIf(!clip.getAnimationConfigForEditing().isWholeContainer(), "erase_timeline_clip.sequence", "序列行为")) {
             sequenceModified = propertyUi.renderSequenceBehavior(clip, TimelineClipUiVariant.DEMOLITION);
             modified |= sequenceModified;
         }
@@ -103,10 +103,10 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         }
         Card.end();
 
-        List<EffectInstance> effects = clip.getAnimationConfig() != null
-                ? clip.getAnimationConfig().getEffects() : Collections.emptyList();
+        List<EffectInstance> effects = clip.getAnimationConfigForEditing() != null
+                ? clip.getAnimationConfigForEditing().getEffects() : Collections.emptyList();
         String effectsHeader = Icons.PARTICLE + " 特效 (Effects)";
-        if (!clip.getAnimationConfig().isWholeContainer() && !effects.isEmpty()) {
+        if (!clip.getAnimationConfigForEditing().isWholeContainer() && !effects.isEmpty()) {
             effectsHeader += " (" + effects.size() + ")";
         }
         if (Card.begin("erase_timeline_clip.effects", effectsHeader)) {

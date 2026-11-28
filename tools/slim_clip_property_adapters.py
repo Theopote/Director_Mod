@@ -158,7 +158,7 @@ def add_render_basic_properties():
     method = '''
     boolean renderBasicProperties(TimelineClip clip, TimelineClipUiVariant variant) {
         boolean modified = false;
-        ClipAnimationConfig config = clip.getAnimationConfig();
+        ClipAnimationConfig config = clip.getAnimationConfigForEditing();
 
         float contentWidth = ImGui.getContentRegionAvailX();
         float labelWidth = 80.0f;

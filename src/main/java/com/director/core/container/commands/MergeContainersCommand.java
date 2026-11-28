@@ -58,6 +58,13 @@ public class MergeContainersCommand implements ContainerCommand {
 
         mergedParent = determineCommonParent();
         mergedInsertIndex = computeInsertIndex();
+        for (Container target : targets) {
+            if (!manager.requireEditableTree(target, "合并")
+                    || (target.getParent() != null && !manager.isEditable(target.getParent()))
+                    || (mergedParent != null && !manager.isEditable(mergedParent))) {
+                return;
+            }
+        }
 
         String baseName = (preferredName == null || preferredName.isBlank())
             ? targets.getFirst().getName() + "_合并"
@@ -133,8 +140,15 @@ public class MergeContainersCommand implements ContainerCommand {
 
     @Override
     public void undo() {
-        if (mergedContainer == null) {
+        if (mergedContainer == null || !manager.requireEditableTree(mergedContainer, "撤销合并")) {
             return;
+        }
+        for (Container container : removedContainers) {
+            Container parent = originalParents.get(removedContainers.indexOf(container));
+            if (container.isLocked() || manager.getContainer(container.getId()) != null
+                    || (parent != null && !manager.isEditable(parent))) {
+                return;
+            }
         }
 
         // 按保存的顺序恢复容器

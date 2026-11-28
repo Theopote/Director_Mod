@@ -1,6 +1,7 @@
 package com.director.core.container.commands;
 
 import com.director.core.container.Container;
+import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerState;
 
 import java.util.*;
@@ -10,40 +11,78 @@ import java.util.*;
  */
 public class BatchSetContainerStateCommand implements ContainerCommand {
 
-    private final List<Container> containers;
+    private final ContainerManager manager;
+    private final List<UUID> containerIds = new ArrayList<>();
     private final ContainerState newState;
-    private final Map<Container, ContainerState> oldStates = new LinkedHashMap<>();
+    private final Map<UUID, ContainerState> oldStates = new LinkedHashMap<>();
 
-    public BatchSetContainerStateCommand(Collection<Container> containers, ContainerState newState) {
-        this.containers = new ArrayList<>(containers);
+    public BatchSetContainerStateCommand(ContainerManager manager,
+                                         Collection<Container> containers,
+                                         ContainerState newState) {
+        this.manager = manager;
         this.newState = newState;
+        if (containers != null) {
+            for (Container container : containers) {
+                if (container != null) {
+                    containerIds.add(container.getId());
+                }
+            }
+        }
     }
 
     @Override
     public void execute() {
-        oldStates.clear();
-        for (Container container : containers) {
-            if (container == null) continue;
-            oldStates.putIfAbsent(container, container.getState());
+        List<Container> resolved = resolveEditableTargets("批量切换可见性");
+        if (resolved == null || newState == null) {
+            return;
         }
-        Map<Container, ContainerState> newStates = new LinkedHashMap<>();
-        for (Container container : oldStates.keySet()) newStates.put(container, newState);
-        applyStates(newStates);
+        oldStates.clear();
+        Map<UUID, ContainerState> newStates = new LinkedHashMap<>();
+        for (Container container : resolved) {
+            oldStates.put(container.getId(), container.getState());
+            newStates.put(container.getId(), newState);
+        }
+        applyStates(newStates, "批量切换可见性");
     }
 
     @Override
     public void undo() {
-        applyStates(oldStates);
+        applyStates(oldStates, "撤销批量可见性修改");
     }
 
-    private static void applyStates(Map<Container, ContainerState> states) {
+    private List<Container> resolveEditableTargets(String action) {
+        List<Container> resolved = new ArrayList<>();
+        for (UUID containerId : containerIds) {
+            Container container = manager.getContainer(containerId);
+            if (container != null) {
+                resolved.add(container);
+            }
+        }
+        return manager.requireAllEditable(resolved, action) ? resolved : null;
+    }
+
+    private void applyStates(Map<UUID, ContainerState> states, String action) {
+        if (states.isEmpty()) {
+            return;
+        }
+        List<Container> targets = new ArrayList<>();
+        for (UUID id : states.keySet()) {
+            Container container = manager.getContainer(id);
+            if (container != null) {
+                targets.add(container);
+            }
+        }
+        if (!manager.requireAllEditable(targets, action)) {
+            return;
+        }
+
         Set<Container> affectedLeaves = Collections.newSetFromMap(new IdentityHashMap<>());
-        for (Container container : states.keySet()) collectLeaves(container, affectedLeaves);
+        for (Container container : targets) collectLeaves(container, affectedLeaves);
 
         Map<Container, Boolean> oldVisibility = new IdentityHashMap<>();
         for (Container leaf : affectedLeaves) oldVisibility.put(leaf, leaf.isEffectivelyVisible());
-        for (Map.Entry<Container, ContainerState> entry : states.entrySet()) {
-            entry.getKey().setState(entry.getValue(), false);
+        for (Container container : targets) {
+            container.setState(states.get(container.getId()), false);
         }
         for (Container leaf : affectedLeaves) leaf.refreshEffectiveVisibility(oldVisibility.get(leaf));
     }
@@ -59,6 +98,6 @@ public class BatchSetContainerStateCommand implements ContainerCommand {
 
     @Override
     public String getDescription() {
-        return "批量设置 " + containers.size() + " 个容器为" + newState.getDisplayName();
+        return "批量设置 " + containerIds.size() + " 个容器为" + newState.getDisplayName();
     }
 }

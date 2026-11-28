@@ -20,9 +20,9 @@ class ContainerClipBoundaryTest {
         var container = new Container("building");
         container.addBlocks(Set.of(new BlockPos(1, 2, 3), new BlockPos(4, 5, 6), new BlockPos(7, 8, 9)));
         var clip = new TimelineClip("building", 2, 4, 0);
-        clip.getAnimationConfig().setMode(com.director.core.container.AnimationMode.FADE_IN);
-        clip.getAnimationConfig().setDuration(0.4f);
-        clip.getAnimationConfig().getSequenceParameters().setConcurrencyMode(
+        clip.getAnimationConfigForEditing().setMode(com.director.core.container.AnimationMode.FADE_IN);
+        clip.getAnimationConfigForEditing().setDuration(0.4f);
+        clip.getAnimationConfigForEditing().getSequenceParameters().setConcurrencyMode(
                 com.director.core.animation.sequence.ConcurrencyMode.ONE_BY_ONE);
         var render = blocks(controller, container, clip, 2.01f, true, "renderBlocks");
         var world = blocks(controller, container, clip, 2.01f, true, "worldBlocks");
@@ -38,7 +38,7 @@ class ContainerClipBoundaryTest {
         var container = new Container("building");
         container.addBlocks(Set.of(new BlockPos(1, 2, 3), new BlockPos(4, 5, 6), new BlockPos(7, 8, 9)));
         var clip = new TimelineClip("building", 2, 4, 0);
-        var config = clip.getAnimationConfig();
+        var config = clip.getAnimationConfigForEditing();
         config.setMode(com.director.core.container.AnimationMode.FADE_IN); config.setDuration(0.4f);
         config.getSequenceParameters().setConcurrencyMode(com.director.core.animation.sequence.ConcurrencyMode.ONE_BY_ONE);
         var sample = TimelineClipBlockController.class.getDeclaredMethod("calculateVisibleBlocksInternal",
@@ -68,7 +68,7 @@ class ContainerClipBoundaryTest {
         Method sample = TimelineClipBlockController.class.getDeclaredMethod("calculateVisibleBlocksInternal",
                 TimelineClip.class, float.class, boolean.class, Container.class, ClipAnimationConfig.class, boolean.class);
         sample.setAccessible(true);
-        Object result = sample.invoke(controller, clip, time, enabled, container, clip.getAnimationConfig(), true);
+        Object result = sample.invoke(controller, clip, time, enabled, container, clip.getAnimationConfigForEditing(), true);
         Method field = result.getClass().getDeclaredMethod(accessor); field.setAccessible(true);
         return (Set<?>) field.invoke(result);
     }

@@ -6,6 +6,8 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.RotationAxis;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 /** Pure timeline sampling: no world edits, effects, or frame-dependent state. */
 public final class WholeContainerAnimation {
@@ -24,6 +26,24 @@ public final class WholeContainerAnimation {
                      float progress, float scale, float x, float y, float z) {
             this(worldVisible, renderVisible, animating, progress, scale, x, y, z, 0, 0, 0);
         }
+        /**
+         * One world-space transform shared by every block in the assembly. Block models are
+         * authored in [0,1] local coordinates, so this matrix also transforms their centers
+         * (pos + 0.5), neighbors, light and biome query positions consistently.
+         */
+        public Matrix4f worldTransform(Vec3d pivot) {
+            if (!animating) return null;
+            Matrix4f matrix = new Matrix4f();
+            matrix.translate((float) pivot.x + x, (float) pivot.y + y, (float) pivot.z + z);
+            if (rotationY != 0) matrix.rotateY((float) Math.toRadians(rotationY));
+            if (rotationX != 0) matrix.rotateX((float) Math.toRadians(rotationX));
+            if (rotationZ != 0) matrix.rotateZ((float) Math.toRadians(rotationZ));
+            float safeScale = Math.max(0.0001f, scale);
+            matrix.scale(safeScale);
+            matrix.translate(-(float) pivot.x, -(float) pivot.y, -(float) pivot.z);
+            return matrix;
+        }
+
         /** Conjugate the shared pivot into block-local space, preserving all relative positions. */
         public MatrixStack localTransform(BlockPos pos, Vec3d pivot) {
             if (!animating) return null;

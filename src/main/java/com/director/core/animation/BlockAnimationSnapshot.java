@@ -3,6 +3,7 @@ package com.director.core.animation;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
+import org.joml.Matrix4f;
 
 /**
  * BlockAnimationSnapshot
@@ -39,6 +40,13 @@ public final class BlockAnimationSnapshot {
      * 这样可以避免在大量静态方块上分配 MatrixStack / 做矩阵比较。
      */
     private MatrixStack transform;
+
+    /**
+     * Optional shared whole-container world transform. All entries in one assembly retain
+     * the same read-only matrix; the renderer applies it directly to block-model space.
+     * Null keeps the legacy per-block local-transform path.
+     */
+    private Matrix4f sharedWorldTransform;
 
     /** 当前是否需要渲染（false 直接跳过） */
     private boolean visible;
@@ -102,6 +110,15 @@ public final class BlockAnimationSnapshot {
     public void setTransform(MatrixStack transform) {
         // 允许 null：代表单位矩阵
         this.transform = transform;
+    }
+
+    public Matrix4f getSharedWorldTransform() {
+        return sharedWorldTransform;
+    }
+
+    public void setSharedWorldTransform(Matrix4f sharedWorldTransform) {
+        // Shared by the assembly; callers must treat the matrix as immutable after sampling.
+        this.sharedWorldTransform = sharedWorldTransform;
     }
 
     public boolean isVisible() {

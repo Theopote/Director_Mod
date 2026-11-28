@@ -1,5 +1,6 @@
 package com.director.core.animation;
 
+import com.director.timeline.playback.TimelineSamplingContext;
 import net.minecraft.util.math.BlockPos;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -21,7 +22,8 @@ public final class WholeContainerDust {
     }
 
     public static List<Particle> sample(List<BlockPos> blocks, WholeContainerAnimationConfig settings, long seed) {
-        if (!settings.isDustEnabled() || settings.getDustIntensity() <= 0 || blocks.isEmpty()) return List.of();
+        if (!TimelineSamplingContext.current().allowsParticles()
+                || !settings.isDustEnabled() || settings.getDustIntensity() <= 0 || blocks.isEmpty()) return List.of();
         if (settings.getDustPreset() == WholeContainerAnimationConfig.DustPreset.SHOCKWAVE)
             return WholeContainerImpactRing.sample(blocks, settings, seed);
         int bottom = blocks.stream().mapToInt(BlockPos::getY).min().orElse(0);

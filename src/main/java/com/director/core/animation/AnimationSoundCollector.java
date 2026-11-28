@@ -71,7 +71,7 @@ public class AnimationSoundCollector {
             return events;
         }
 
-        ClipAnimationConfig config = clip.getAnimationConfig();
+        ClipAnimationConfig config = clip.getAnimationConfigForEditing();
         if (config == null) config = ClipAnimationConfig.defaultConfig();
         if (config.isWholeContainer()) {
             // A single placement/removal sound for the assembly, rather than thousands of simultaneous sounds.
@@ -321,7 +321,7 @@ public class AnimationSoundCollector {
 
     /** One assembly sound just before the world handoff, independent of per-block audio settings. */
     static float wholeContainerEventTime(TimelineClip clip) {
-        return wholeContainerEventTime(clip.getAnimationConfig(), clip.getStartTime(), clip.getEndTime());
+        return wholeContainerEventTime(clip.getAnimationConfigForEditing(), clip.getStartTime(), clip.getEndTime());
     }
 
     public static float wholeContainerEventTime(ClipAnimationConfig config, float start, float end) {

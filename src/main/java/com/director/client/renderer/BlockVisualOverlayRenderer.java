@@ -19,13 +19,14 @@ public class BlockVisualOverlayRenderer {
     public void renderOverlays(MatrixStack matrices, VertexConsumerProvider consumers, Vec3d camera) {
         var manager = BlockVisualStateManager.getInstance();
         var client = MinecraftClient.getInstance();
-        if (!manager.hasActiveOverrides() || client.world == null) return;
-        var overlays = manager.getOverlayBlocks();
+        if (client.world == null || !manager.hasActiveOverrides(client.world.getRegistryKey())) return;
+        var level = client.world.getRegistryKey();
+        var overlays = manager.getOverlayBlocks(level);
         if (overlays.isEmpty()) return;
         var fallback = new ArrayList<BlockVisualStateManager.RenderEntry>();
         for (var pos : overlays) {
-            if (manager.hasRenderEntry(pos)) continue;
-            var visual = manager.getBlockState(pos);
+            if (manager.hasRenderEntry(new BlockVisualStateManager.PositionKey(level, pos))) continue;
+            var visual = manager.getBlockState(level, pos);
             if (visual.isHidden() || visual.getAlphaMultiplier() <= 0 || visual.getAlphaMultiplier() >= 1) continue;
             var state = client.world.getBlockState(pos);
             if (state.isAir()) continue;

@@ -585,7 +585,7 @@ public final class DirectorRendererRegistry {
             return;
         }
         BlockVisualStateManager manager = BlockVisualStateManager.getInstance();
-        var entries = manager.getRenderEntries();
+        var entries = manager.getRenderEntries(world.getRegistryKey());
         if (entries == null || entries.isEmpty()) {
             return;
         }

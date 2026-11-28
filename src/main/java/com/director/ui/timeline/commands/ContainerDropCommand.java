@@ -257,7 +257,7 @@ public final class ContainerDropCommand extends BaseTimelineCommand {
         clip.bindToContainer(container.getId(), container.getName());
         initializeAnimationConfig(clip, container);
         if (container.getType() == ContainerType.DEMOLITION) {
-            ClipAnimationConfig config = clip.getAnimationConfig();
+            ClipAnimationConfig config = clip.getAnimationConfigForEditing();
             config.setPhase(ClipAnimationConfig.AnimationPhase.EXIT);
             config.setMode(AnimationMode.FADE_OUT);
             clip.setAnimationConfig(config);
@@ -526,12 +526,7 @@ public final class ContainerDropCommand extends BaseTimelineCommand {
 
     private void restoreTrackClips() {
         for (Map.Entry<TimelineTrack, List<TimelineClip>> entry : originalTrackClips.entrySet()) {
-            List<TimelineClip> clips = entry.getKey().getClips();
-            clips.clear();
-            clips.addAll(entry.getValue());
-            for (TimelineClip clip : entry.getValue()) {
-                clip.setParentTrack(entry.getKey());
-            }
+            entry.getKey().replaceClips(entry.getValue());
         }
     }
 

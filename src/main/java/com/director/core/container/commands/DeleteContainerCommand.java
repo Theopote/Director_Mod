@@ -15,6 +15,7 @@ public class DeleteContainerCommand implements ContainerCommand {
     private final Container parent;
     @SuppressWarnings("unused") // 保留用于未来恢复位置功能
     private final int indexInParent;
+    private boolean executed;
     
     public DeleteContainerCommand(ContainerManager manager, Container container) {
         this.manager = manager;
@@ -29,14 +30,22 @@ public class DeleteContainerCommand implements ContainerCommand {
     
     @Override
     public void execute() {
-        java.util.Collections.singletonList(container); // no-op to keep context
+        if (!manager.requireEditableTree(container, "删除")) {
+            return;
+        }
         manager.removeContainers(java.util.Collections.singletonList(container));
+        executed = true;
     }
-    
+
     @Override
     public void undo() {
+        if (!executed || container.isLocked() || manager.getContainer(container.getId()) != null
+                || (parent != null && !manager.isEditable(parent))) {
+            return;
+        }
         manager.addContainer(container);
         manager.moveContainerToParent(container, parent, indexInParent);
+        executed = false;
     }
     
     @Override

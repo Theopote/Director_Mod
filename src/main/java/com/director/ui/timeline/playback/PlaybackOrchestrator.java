@@ -5,6 +5,7 @@ import net.minecraft.client.MinecraftClient;
 import com.director.ui.coordinator.UIPlaybackBridge;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.playback.TimelinePlaybackSampler;
+import com.director.timeline.playback.TimelineSamplingContext;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +80,8 @@ public final class PlaybackOrchestrator {
      * @param deltaSeconds UI帧间隔秒数（建议已做clamp）
      */
     public void tick(float deltaSeconds) {
-        if (VideoExportManager.getInstance().isExporting()) {
+        if (VideoExportManager.getInstance().isExporting()
+                || !TimelineSamplingContext.current().isPreview()) {
             return;
         }
         if (model == null) {
@@ -195,11 +197,33 @@ public final class PlaybackOrchestrator {
                 .getInstance().updateForPlayback(sampledTime));
     }
 
-    /**
-     * 在指定时间点采样整条时间线（视频导出 / 离线抓帧）。
-     */
+    /** Stops preview advancement and clears lifecycle/audio cursors before an export owns the timeline. */
+    public void onExportStarted() {
+        lastPlaying = false;
+        TimelineAudioController.getInstance().reset();
+    }
+
+    /** Forces the next preview tick to rebuild playback lifecycle state from the restored model. */
+    public void onExportFinished() {
+        lastPlaying = false;
+        TimelineAudioController.getInstance().reset();
+    }
+
+    /** 在指定时间点采样整条时间线（交互预览 / 离线抓帧）。 */
     public void sampleAt(float timeSeconds) {
-        TimelinePlaybackSampler.sampleWorldAt(timeSeconds);
+        sampleAt(timeSeconds, TimelineSamplingContext.PREVIEW);
+    }
+
+    public void sampleAt(float timeSeconds, TimelineSamplingContext context) {
+        TimelinePlaybackSampler.sampleWorldAt(timeSeconds, context);
+    }
+
+    public void sampleForExport(float timeSeconds) {
+        sampleAt(timeSeconds, TimelineSamplingContext.EXPORT);
+    }
+
+    public void sampleHeadless(float timeSeconds) {
+        sampleAt(timeSeconds, TimelineSamplingContext.HEADLESS);
     }
 
     private void driveSubsystems(float deltaSeconds) {

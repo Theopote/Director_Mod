@@ -3,6 +3,7 @@ package com.director.core.container.visibility;
 import com.director.core.container.BlockStore;
 import com.director.core.container.BlockEntityNbtIO;
 import com.director.core.container.Container;
+import com.director.timeline.playback.TimelineSamplingContext;
 import com.director.timeline.playback.block.TimelinePlacementBudget;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -63,16 +64,15 @@ public class ContainerVisibilityService {
     private final Map<UUID, Set<BlockPos>> lastAcceptedBlocks = new HashMap<>();
     private final Map<UUID, TimelinePreparation> preparations = new LinkedHashMap<>();
     private final Set<UUID> preparedForTimeline = new HashSet<>();
+    private final Map<UUID, QuarantineSignature> quarantined = new HashMap<>();
 
-
-    /**
-     * 已完成 backfill 的容器 ID 集合。
-     *
-     * <p>backfillSnapshotFromBlockStore 是 O(N) 遍历，只需在快照首次建立时执行一次。
-     * 当快照被 clearAll 清除时，同步从这里移除。
-     * 注意：cancelPendingTasks 不清除此标志，因为快照本身仍然有效。
-     */
-    private final Set<UUID> backfilledContainers = new HashSet<>();
+    /** Geometry/snapshot versions for which the symmetric backfill has already run. */
+    private final Map<UUID, BackfillState> backfilledContainers = new HashMap<>();
+    private record BackfillState(long geometryRevision, long snapshotRevision) {}
+    private record TargetSignature(int size, long sum, long xor) {}
+    private record QuarantineSignature(String reason, RegistryKey<World> levelKey,
+                                       long geometryRevision, long snapshotRevision,
+                                       TargetSignature target, boolean worldAvailable) {}
 
     private final Deque<VisibilityTask> pendingTasks = new ArrayDeque<>();
     private final Set<ServerWorld> lightingWorlds = new HashSet<>();
@@ -80,8 +80,15 @@ public class ContainerVisibilityService {
     private long lastPerfLogNanos;
     private long perfAttempts, perfWrites, perfTicks, perfLightingSchedules;
     private long perfAcceptedTargets, perfReusedTargets;
+    private long perfTransientWaits, perfPermanentFailures, perfRetriesExhausted;
+    private long perfMissingSnapshots, perfMissingWorlds;
+    private long tickSequence;
     private double perfMaxTickMs;
     private int tickWrites;
+
+    public record Diagnostics(int preparing, int working, int submitted, int quarantined,
+                              long transientWaits, long permanentFailures, long retriesExhausted,
+                              long missingSnapshots, long missingWorlds) {}
 
 
     public ContainerVisibilityService(MinecraftServer server) {
@@ -95,6 +102,7 @@ public class ContainerVisibilityService {
 
     public void tick() {
         long started = System.nanoTime();
+        tickSequence++;
         boolean hadWork = !preparations.isEmpty() || !submittedTargets.isEmpty()
                 || !pendingTasks.isEmpty() || !timelineWork.isEmpty();
         tickWrites = 0;
@@ -108,19 +116,37 @@ public class ContainerVisibilityService {
             if (preparation.complete()) {
                 snapshots.put(entry.getKey(), preparation.store);
                 lastShownBlocks.put(entry.getKey(), preparation.shown);
-                backfilledContainers.add(entry.getKey());
+                backfilledContainers.put(entry.getKey(), new BackfillState(
+                        preparation.container.getGeometryRevision(), preparation.store.getRevision()));
                 preparedForTimeline.add(entry.getKey());
+                preparations.remove(entry.getKey());
+            } else if (preparation.failureReason != null) {
+                quarantine(entry.getValue().container, (Set<BlockPos>) null,
+                        preparation.failureReason, true);
                 preparations.remove(entry.getKey());
             }
         }
         for (var entry : submittedTargets.entrySet()) {
             if (System.nanoTime() >= deadline) break;
             var target = entry.getValue();
-            if (!preparedForTimeline.contains(entry.getKey())) {
+            if (quarantineMatches(entry.getKey(), target.container(), target.blocks())) {
+                submittedTargets.remove(entry.getKey(), target);
+                continue;
+            }
+            if (!preparedForTimeline.contains(entry.getKey()) || !snapshots.containsKey(entry.getKey())) {
                 prepareContainerForTimelineOnServer(target.container());
                 continue;
             }
             if (submittedTargets.remove(entry.getKey(), target)) {
+                BlockStore snapshot = snapshots.get(entry.getKey());
+                if (snapshot == null) {
+                    quarantine(target.container(), target.blocks(), "缺少运行时快照", false);
+                    continue;
+                }
+                if (backfillSnapshotIfNeeded(target.container(), snapshot)) {
+                    // Geometry/data changed: the same target object must be reconciled again.
+                    lastAcceptedBlocks.remove(entry.getKey());
+                }
                 if (lastAcceptedBlocks.get(entry.getKey()) == target.blocks()) {
                     perfReusedTargets++;
                     continue;
@@ -157,18 +183,36 @@ public class ContainerVisibilityService {
                 }
                 ServerWorld world = resolveWorld(container);
                 BlockStore store = snapshots.get(containerId);
-                if (world == null || store == null) {
-                    timelineWork.put(containerId, work);
+                if (world == null) {
+                    perfMissingWorlds++;
+                    quarantine(container, work.target(), "容器世界不可用", true);
+                    continue;
+                }
+                if (store == null) {
+                    perfMissingSnapshots++;
+                    quarantine(container, work.target(), "缺少运行时快照", false);
                     continue;
                 }
                 var affectedChunks = new LongOpenHashSet();
                 int quantum = Math.max(512, budget / ids.size());
-                int consumed = work.process(Math.min(budget, quantum), deadline, (pos, visible) -> visible
-                        ? timelineShowAt(world, store, BlockPos.fromLong(pos), affectedChunks)
-                        : timelineHideAt(world, store, BlockPos.fromLong(pos), affectedChunks));
+                int consumed = work.process(Math.min(budget, quantum), deadline, (pos, visible) -> {
+                    var result = visible
+                            ? timelineShowAt(world, store, BlockPos.fromLong(pos), affectedChunks)
+                            : timelineHideAt(world, store, BlockPos.fromLong(pos), affectedChunks);
+                    if (result == TimelineVisibilityWork.ApplyResult.WAITING) perfTransientWaits++;
+                    if (result == TimelineVisibilityWork.ApplyResult.FAILED) perfPermanentFailures++;
+                    return result;
+                });
                 budget -= Math.max(1, consumed);
                 if (!affectedChunks.isEmpty()) flushLightingForChunks(world, affectedChunks);
                 if (work.isComplete()) {
+                    if (work.hasFailures()) {
+                        perfRetriesExhausted += work.retriesExhausted();
+                        quarantine(container, work.target(),
+                                "可见性追平失败（永久失败=" + work.permanentFailures()
+                                        + "，瞬态重试耗尽=" + work.retriesExhausted() + "）", false);
+                        continue;
+                    }
                     LongSet latest = timelineVisibilityTargets.get(containerId);
                     if (latest == work.target()) timelineVisibilityTargets.remove(containerId);
                     else if (latest != null) timelineWork.put(containerId,
@@ -193,13 +237,17 @@ public class ContainerVisibilityService {
             if (now - lastPerfLogNanos >= 5_000_000_000L) {
                 long oldest = now;
                 for (long time : firstTargetNanos.values()) oldest = Math.min(oldest, time);
-                LOGGER.info("[Perf][ContainerVisibility] ticks={} budgetUsed={} writes={} maxTickMs={} preparing={} working={} submitted={} acceptedTargets={} reusedTargets={} lightingSchedules={} oldestTargetMs={}",
+                LOGGER.info("[Perf][ContainerVisibility] ticks={} budgetUsed={} writes={} maxTickMs={} preparing={} working={} submitted={} quarantined={} acceptedTargets={} reusedTargets={} lightingSchedules={} transientWaits={} permanentFailures={} retriesExhausted={} missingSnapshots={} missingWorlds={} oldestTargetMs={}",
                         perfTicks, perfAttempts, perfWrites, String.format(java.util.Locale.ROOT, "%.2f", perfMaxTickMs),
-                        preparations.size(), timelineWork.size(), submittedTargets.size(), perfAcceptedTargets, perfReusedTargets,
-                        perfLightingSchedules, (now - oldest) / 1_000_000L);
+                        preparations.size(), timelineWork.size(), submittedTargets.size(), quarantined.size(),
+                        perfAcceptedTargets, perfReusedTargets, perfLightingSchedules,
+                        perfTransientWaits, perfPermanentFailures, perfRetriesExhausted,
+                        perfMissingSnapshots, perfMissingWorlds, (now - oldest) / 1_000_000L);
                 lastPerfLogNanos = now;
                 perfAttempts = perfWrites = perfTicks = perfLightingSchedules = 0;
                 perfAcceptedTargets = perfReusedTargets = 0;
+                perfTransientWaits = perfPermanentFailures = perfRetriesExhausted = 0;
+                perfMissingSnapshots = perfMissingWorlds = 0;
                 perfMaxTickMs = 0;
             }
         }
@@ -229,12 +277,89 @@ public class ContainerVisibilityService {
         return server.getWorld(key);
     }
 
+    public Diagnostics diagnostics() {
+        return new Diagnostics(preparations.size(), timelineWork.size(), submittedTargets.size(),
+                quarantined.size(), perfTransientWaits, perfPermanentFailures,
+                perfRetriesExhausted, perfMissingSnapshots, perfMissingWorlds);
+    }
+
+    private static TargetSignature targetSignature(Set<BlockPos> target) {
+        if (target == null) return new TargetSignature(-1, 0, 0);
+        long sum = 0, xor = 0;
+        for (BlockPos pos : target) {
+            if (pos == null) continue;
+            long value = pos.asLong();
+            sum += value;
+            xor ^= value;
+        }
+        return new TargetSignature(target.size(), sum, xor);
+    }
+
+    private static TargetSignature targetSignature(LongSet target) {
+        if (target == null) return new TargetSignature(-1, 0, 0);
+        long sum = 0, xor = 0;
+        for (long value : target) {
+            sum += value;
+            xor ^= value;
+        }
+        return new TargetSignature(target.size(), sum, xor);
+    }
+
+    private boolean quarantineMatches(UUID containerId, Container container, Set<BlockPos> target) {
+        QuarantineSignature signature = quarantined.get(containerId);
+        if (signature == null) return false;
+        BlockStore snapshot = snapshots.get(containerId);
+        RegistryKey<World> level = container.getLevelKey();
+        boolean worldAvailable = level != null && server != null && server.getWorld(level) != null;
+        TargetSignature currentTarget = targetSignature(target);
+        boolean matches = Objects.equals(signature.levelKey, level)
+                && signature.geometryRevision == container.getGeometryRevision()
+                && signature.snapshotRevision == (snapshot == null ? -1 : snapshot.getRevision())
+                && signature.worldAvailable == worldAvailable
+                && (signature.target.size() < 0 || signature.target.equals(currentTarget));
+        if (!matches) quarantined.remove(containerId);
+        return matches;
+    }
+
+    private void quarantine(Container container, Set<BlockPos> target, String reason, boolean worldMissing) {
+        UUID id = container.getId();
+        RegistryKey<World> level = container.getLevelKey();
+        BlockStore snapshot = snapshots.get(id);
+        quarantined.put(id, new QuarantineSignature(reason, level, container.getGeometryRevision(),
+                snapshot == null ? -1 : snapshot.getRevision(), targetSignature(target),
+                !worldMissing && level != null && server != null && server.getWorld(level) != null));
+        timelineWork.remove(id);
+        timelineVisibilityTargets.remove(id);
+        preparations.remove(id);
+        preparedForTimeline.remove(id);
+        submittedTargets.remove(id);
+        lastAcceptedBlocks.remove(id);
+        lastShownBlocks.remove(id);
+        firstTargetNanos.remove(id);
+        LOGGER.warn("[Visibility] 容器 {} 已隔离：{}（geometryRevision={}, snapshotRevision={}）",
+                container.getName(), reason, container.getGeometryRevision(),
+                snapshot == null ? -1 : snapshot.getRevision());
+    }
+
+    private void quarantine(Container container, LongSet target, String reason, boolean worldMissing) {
+        Set<BlockPos> positions = new HashSet<>();
+        if (target != null) {
+            for (long value : target) positions.add(BlockPos.fromLong(value));
+        }
+        quarantine(container, positions, reason, worldMissing);
+    }
+
+    private void quarantine(Container container, Collection<BlockPos> target, String reason, boolean worldMissing) {
+        quarantine(container, target != null ? new HashSet<>(target) : Collections.<BlockPos>emptySet(),
+                reason, worldMissing);
+    }
+
     // =========================================================================
     // 容器面板操作：hideContainer / showContainer（整体操作，走 pendingTasks）
     // =========================================================================
 
     public void hideContainer(Container container) {
-        if (container == null) {
+        if (container == null || !TimelineSamplingContext.current().allowsWorldMutation()) {
             return;
         }
         runOnServer(() -> hideContainerOnServer(container));
@@ -259,7 +384,8 @@ public class ContainerVisibilityService {
             store = new BlockStore();
             backfillSnapshotFromBlockStore(container, store);
             snapshots.put(container.getId(), store);
-            backfilledContainers.add(container.getId());
+            backfilledContainers.put(container.getId(), new BackfillState(
+                    container.getGeometryRevision(), store.getRevision()));
             lastShownBlocks.remove(container.getId());
             enqueueOrRun(createHideTask(container, world, store,
                     new java.util.ArrayList<>(container.getBlocksView())));
@@ -269,7 +395,7 @@ public class ContainerVisibilityService {
     }
 
     public void showContainer(Container container) {
-        if (container == null) {
+        if (container == null || !TimelineSamplingContext.current().allowsWorldMutation()) {
             return;
         }
         runOnServer(() -> showContainerOnServer(container));
@@ -288,7 +414,9 @@ public class ContainerVisibilityService {
                 store = snapshots.get(container.getId());
             }
             if (store == null) {
-                LOGGER.warn("[Visibility] 容器 {} 无快照可恢复，跳过", container.getName());
+                perfMissingSnapshots++;
+                quarantine(container, Collections.<BlockPos>emptySet(), "无快照可恢复", false);
+                LOGGER.warn("[Visibility] 容器 {} 无快照可恢复，已隔离", container.getName());
                 return;
             }
         }
@@ -299,7 +427,8 @@ public class ContainerVisibilityService {
     }
 
     public void restoreContainerBlocks(Container container, Collection<BlockPos> blocks) {
-        if (container == null || blocks == null || blocks.isEmpty()) {
+        if (container == null || blocks == null || blocks.isEmpty()
+                || !TimelineSamplingContext.current().allowsWorldMutation()) {
             return;
         }
         runOnServer(() -> restoreContainerBlocksOnServer(container, blocks));
@@ -316,6 +445,8 @@ public class ContainerVisibilityService {
             store = snapshots.get(container.getId());
         }
         if (store == null) {
+            perfMissingSnapshots++;
+            quarantine(container, blocks, "释放操作缺少运行时快照", false);
             return;
         }
         backfillSnapshotIfNeeded(container, store);
@@ -334,7 +465,7 @@ public class ContainerVisibilityService {
      * 提交后调用方不得修改该集合；连续提交会合并，只保留最新的待处理目标。
      */
     public void showContainerBlocksForTimeline(Container container, Set<BlockPos> blocksToShow) {
-        if (container == null) {
+        if (container == null || !TimelineSamplingContext.current().allowsWorldMutation()) {
             return;
         }
         final Set<BlockPos> target = blocksToShow != null ? blocksToShow : Collections.emptySet();
@@ -347,7 +478,7 @@ public class ContainerVisibilityService {
      * <p>接管时取消旧的面板整体任务，保留快照和已恢复状态；不打断其他容器。
      */
     public void prepareContainerForTimeline(Container container) {
-        if (container == null) {
+        if (container == null || !TimelineSamplingContext.current().allowsWorldMutation()) {
             return;
         }
         runOnServer(() -> prepareContainerForTimelineOnServer(container));
@@ -355,7 +486,9 @@ public class ContainerVisibilityService {
 
     private void prepareContainerForTimelineOnServer(Container container) {
         UUID id = container.getId();
-        if (preparedForTimeline.contains(id) || preparations.containsKey(id)) return;
+        if ((preparedForTimeline.contains(id) && snapshots.containsKey(id))
+                || preparations.containsKey(id)) return;
+        quarantined.remove(id);
         cancelPendingTasks(id);
         firstTargetNanos.putIfAbsent(id, System.nanoTime());
         preparations.put(id, new TimelinePreparation(container));
@@ -368,6 +501,9 @@ public class ContainerVisibilityService {
         final LongSet shown = new LongOpenHashSet();
         Iterator<BlockPos> positions;
         long version;
+        int worldWaitAttempts;
+        long nextWorldAttemptTick;
+        String failureReason;
 
         TimelinePreparation(Container container) {
             this.container = container;
@@ -376,15 +512,32 @@ public class ContainerVisibilityService {
         }
 
         private void restart() {
-            version = container.getModifiedTime();
+            version = container.getGeometryRevision();
             positions = container.getBlocksView().iterator();
             shown.clear();
+            worldWaitAttempts = 0;
+            nextWorldAttemptTick = 0;
+            failureReason = null;
+            backfillSnapshotFromBlockStore(container, store);
         }
 
         int process(int budget, long deadline) {
-            if (version != container.getModifiedTime()) restart();
+            if (version != container.getGeometryRevision()) restart();
+            if (tickSequence < nextWorldAttemptTick) return 0;
             ServerWorld world = resolveWorld(container);
-            if (world == null) return 0;
+            if (world == null) {
+                worldWaitAttempts++;
+                perfMissingWorlds++;
+                if (worldWaitAttempts >= TimelineVisibilityWork.MAX_TRANSIENT_ATTEMPTS) {
+                    failureReason = "容器世界持续不可用";
+                } else {
+                    long delay = 1L << Math.min(worldWaitAttempts - 1, 5);
+                    nextWorldAttemptTick = tickSequence + delay;
+                }
+                return 0;
+            }
+            worldWaitAttempts = 0;
+            nextWorldAttemptTick = 0;
             int used = 0;
             while (used < budget && positions.hasNext() && System.nanoTime() < deadline) {
                 BlockPos pos = positions.next();
@@ -394,8 +547,8 @@ public class ContainerVisibilityService {
                     if (source != null) store.add(pos, source.copy());
                     else store.capture(world, pos);
                 }
-                if (!world.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)
-                        || !world.getBlockState(pos).isAir()) shown.add(pos.asLong());
+                if (world.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)
+                        && !world.getBlockState(pos).isAir()) shown.add(pos.asLong());
             }
             return used;
         }
@@ -452,11 +605,10 @@ public class ContainerVisibilityService {
         if (src == null || src.isEmpty()) return false;
 
         BlockStore snapshot = new BlockStore();
-        for (Map.Entry<net.minecraft.util.math.BlockPos, com.director.core.container.BlockStore.Entry> e
-                : src.raw().entrySet()) {
-            snapshot.add(e.getKey(), e.getValue().copy());
-        }
+        backfillSnapshotFromBlockStore(container, snapshot);
         snapshots.put(container.getId(), snapshot);
+        backfilledContainers.put(container.getId(), new BackfillState(
+                container.getGeometryRevision(), snapshot.getRevision()));
 
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[Visibility] 容器 {} 已从 blockStore 创建快照 (方块数: {})",
@@ -466,35 +618,53 @@ public class ContainerVisibilityService {
     }
 
     /**
-     * 幂等 backfill：仅在 backfilledContainers 中没有记录时才做全量扫描，之后跳过。
+     * Runs the symmetric geometry diff only when container geometry or snapshot data changed.
+     *
+     * @return whether a backfill pass was performed
      */
-    private void backfillSnapshotIfNeeded(Container container, BlockStore snapshot) {
+    private boolean backfillSnapshotIfNeeded(Container container, BlockStore snapshot) {
         UUID id = container.getId();
-        if (!backfilledContainers.contains(id)) {
-            backfillSnapshotFromBlockStore(container, snapshot);
-            backfilledContainers.add(id);
+        BackfillState state = backfilledContainers.get(id);
+        if (state != null && state.geometryRevision == container.getGeometryRevision()
+                && state.snapshotRevision == snapshot.getRevision()) {
+            return false;
         }
+        backfillSnapshotFromBlockStore(container, snapshot);
+        backfilledContainers.put(id, new BackfillState(
+                container.getGeometryRevision(), snapshot.getRevision()));
+        return true;
     }
 
     /**
-     * 用容器持久化 blockStore 补齐运行时快照中缺失的方块条目（O(N) 操作，请通过幂等门控调用）。
+     * Symmetric diff between the runtime snapshot and the container's current geometry.
+     * Stale snapshot entries are removed even when the persistent source is empty.
      */
     private void backfillSnapshotFromBlockStore(Container container, BlockStore snapshot) {
         if (container == null || snapshot == null) return;
-        com.director.core.container.BlockStore source = container.getBlockStore();
-        if (source == null || source.isEmpty()) return;
+        Set<BlockPos> geometry = new HashSet<>(container.getBlocksView());
+        int removed = 0;
+        for (BlockPos pos : new ArrayList<>(snapshot.positions())) {
+            if (pos != null && geometry.contains(pos)) continue;
+            snapshot.remove(pos);
+            removed++;
+        }
 
         int added = 0;
-        for (Map.Entry<BlockPos, BlockStore.Entry> entry : source.raw().entrySet()) {
-            BlockPos pos = entry.getKey();
-            BlockStore.Entry value = entry.getValue();
-            if (pos == null || value == null || snapshot.contains(pos)) continue;
-            snapshot.add(pos, value.copy());
-            added++;
+        com.director.core.container.BlockStore source = container.getBlockStore();
+        if (source != null) {
+            for (BlockPos pos : geometry) {
+                if (pos == null) continue;
+                BlockStore.Entry existing = snapshot.get(pos);
+                if (existing != null && existing.state != null) continue;
+                BlockStore.Entry value = source.get(pos);
+                if (value == null || value.state == null) continue;
+                snapshot.add(pos, value.copy());
+                added++;
+            }
         }
-        if (added > 0 && LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[Visibility] 容器 {} 快照已从 blockStore 补齐 {} 个方块 (总数: {})",
-                    container.getName(), added, snapshot.size());
+        if ((added > 0 || removed > 0) && LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[Visibility] 容器 {} 快照几何同步: 补充={} 删除={} 总数={}",
+                    container.getName(), added, removed, snapshot.size());
         }
     }
 
@@ -512,10 +682,14 @@ public class ContainerVisibilityService {
         lastAcceptedBlocks.clear();
         preparations.clear();
         preparedForTimeline.clear();
+        quarantined.clear();
         lightingWorlds.clear();
         firstTargetNanos.clear();
         perfAttempts = perfWrites = perfTicks = perfLightingSchedules = 0;
         perfAcceptedTargets = perfReusedTargets = 0;
+        perfTransientWaits = perfPermanentFailures = perfRetriesExhausted = 0;
+        perfMissingSnapshots = perfMissingWorlds = 0;
+        tickSequence = 0;
         perfMaxTickMs = 0;
         lastPerfLogNanos = 0;
         backfilledContainers.clear();
@@ -527,36 +701,41 @@ public class ContainerVisibilityService {
     // 内部：时间线 apply 逻辑（tick() 调用）
     // =========================================================================
 
-    private boolean timelineHideAt(ServerWorld world, BlockStore store, BlockPos pos,
+    private TimelineVisibilityWork.ApplyResult timelineHideAt(ServerWorld world, BlockStore store, BlockPos pos,
                                    LongOpenHashSet affectedChunks) {
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-        if (!world.getChunkManager().isChunkLoaded(cx, cz)) return false;
-        if (world.getBlockState(pos).isAir()) return true;
-        if (!store.contains(pos)) store.capture(world, pos);
-        net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
-        if (be != null) world.removeBlockEntity(pos);
+        if (!world.getChunkManager().isChunkLoaded(cx, cz)) return TimelineVisibilityWork.ApplyResult.WAITING;
+        if (world.getBlockState(pos).isAir()) return TimelineVisibilityWork.ApplyResult.SUCCESS;
         try {
+            if (!store.contains(pos)) store.capture(world, pos);
+            net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
+            if (be != null) world.removeBlockEntity(pos);
             if (world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH)) {
                 tickWrites++;
             }
         } catch (Exception e) {
             LOGGER.warn("[Visibility] Failed to timeline-hide block at {}: {}", pos, e.toString());
-            return false;
+            return TimelineVisibilityWork.ApplyResult.FAILED;
+        }
+        if (!world.getBlockState(pos).isAir()) {
+            LOGGER.warn("[Visibility] Timeline-hide did not materialize at {}", pos);
+            return TimelineVisibilityWork.ApplyResult.FAILED;
         }
         trackAffectedChunk(affectedChunks, cx, cz);
-        return true;
+        return TimelineVisibilityWork.ApplyResult.SUCCESS;
     }
 
-    private boolean timelineShowAt(ServerWorld world, BlockStore store, BlockPos pos,
+    private TimelineVisibilityWork.ApplyResult timelineShowAt(ServerWorld world, BlockStore store, BlockPos pos,
                                    LongOpenHashSet affectedChunks) {
-        BlockStore.Entry entry = store.get(pos);
-        if (entry == null) return false;
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-        if (!world.getChunkManager().isChunkLoaded(cx, cz)) return false;
-        if (entry.state == null) return false;
-        if (world.getBlockState(pos).equals(entry.state)) return true;
-        restoreBlockEntry(world, pos, entry, affectedChunks);
-        return world.getBlockState(pos).equals(entry.state);
+        if (!world.getChunkManager().isChunkLoaded(cx, cz)) return TimelineVisibilityWork.ApplyResult.WAITING;
+        BlockStore.Entry entry = store.get(pos);
+        if (entry == null || entry.state == null) {
+            LOGGER.warn("[Visibility] Timeline-show snapshot entry is missing/invalid at {}", pos);
+            return TimelineVisibilityWork.ApplyResult.FAILED;
+        }
+        if (world.getBlockState(pos).equals(entry.state)) return TimelineVisibilityWork.ApplyResult.SUCCESS;
+        return restoreBlockEntry(world, pos, entry, affectedChunks);
     }
 
 
@@ -573,6 +752,7 @@ public class ContainerVisibilityService {
         lastAcceptedBlocks.remove(task.containerId);
         preparations.remove(task.containerId);
         preparedForTimeline.remove(task.containerId);
+        quarantined.remove(task.containerId);
         int blockCount = task.remaining();
         ContainerVisibilityFeedback.onTaskQueued(task.containerName, task.actionLabel, blockCount);
         pendingTasks.addLast(task);
@@ -634,35 +814,46 @@ public class ContainerVisibilityService {
         if (world != null && affectedChunks != null && !affectedChunks.isEmpty()) lightingWorlds.add(world);
     }
 
-    private void restoreBlockEntry(ServerWorld world, BlockPos pos, BlockStore.Entry entry,
+    private TimelineVisibilityWork.ApplyResult restoreBlockEntry(ServerWorld world, BlockPos pos, BlockStore.Entry entry,
                                    LongOpenHashSet affectedChunks) {
-        if (world == null || pos == null || entry == null || entry.state == null) return;
+        if (world == null || pos == null || entry == null || entry.state == null) {
+            return TimelineVisibilityWork.ApplyResult.FAILED;
+        }
         int cx = pos.getX() >> 4, cz = pos.getZ() >> 4;
-        try {
-            if (!world.getChunkManager().isChunkLoaded(cx, cz)) world.getChunk(cx, cz);
-        } catch (Exception ignored) {}
-        if (!world.getChunkManager().isChunkLoaded(cx, cz)) return;
+        if (!world.getChunkManager().isChunkLoaded(cx, cz)) {
+            return TimelineVisibilityWork.ApplyResult.WAITING;
+        }
 
+        boolean changed;
         try {
-            if (world.setBlockState(pos, entry.state, ContainerBlockUpdateFlags.BATCH)) {
-                tickWrites++;
-            }
+            changed = world.setBlockState(pos, entry.state, ContainerBlockUpdateFlags.BATCH);
+            if (changed) tickWrites++;
         } catch (Exception e) {
             // Defense in depth: never let one bad block (e.g. pumpkin pattern NPE) crash the server.
             LOGGER.warn("[Visibility] Failed to restore block at {} to {}: {}",
                     pos, entry.state, e.toString());
-            return;
+            return TimelineVisibilityWork.ApplyResult.FAILED;
         }
-        trackAffectedChunk(affectedChunks, cx, cz);
+        if (!world.getBlockState(pos).equals(entry.state)) {
+            LOGGER.warn("[Visibility] Restore did not materialize at {}", pos);
+            return TimelineVisibilityWork.ApplyResult.FAILED;
+        }
+        if (changed) trackAffectedChunk(affectedChunks, cx, cz);
 
-        if (entry.beNbt == null) return;
-        try {
-            net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
-            if (be == null) return;
-            BlockEntityNbtIO.restore(be, entry.beNbt, world.getRegistryManager());
-        } catch (Exception e) {
-            LOGGER.warn("[Visibility] Failed to restore block entity at {}: {}", pos, e.toString());
+        if (entry.beNbt != null) {
+            try {
+                net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
+                if (be == null) {
+                    LOGGER.warn("[Visibility] Snapshot block entity is missing at {}", pos);
+                    return TimelineVisibilityWork.ApplyResult.FAILED;
+                }
+                BlockEntityNbtIO.restore(be, entry.beNbt, world.getRegistryManager());
+            } catch (Exception e) {
+                LOGGER.warn("[Visibility] Failed to restore block entity at {}: {}", pos, e.toString());
+                return TimelineVisibilityWork.ApplyResult.FAILED;
+            }
         }
+        return TimelineVisibilityWork.ApplyResult.SUCCESS;
     }
 
     // =========================================================================
@@ -766,6 +957,9 @@ public class ContainerVisibilityService {
             if (kind == TaskKind.SHOW) {
                 snapshots.remove(containerId);
                 lastShownBlocks.remove(containerId);
+                lastAcceptedBlocks.remove(containerId);
+                preparedForTimeline.remove(containerId);
+                backfilledContainers.remove(containerId);
             }
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Visibility] 容器 {} {}完成，处理 {} 个方块，实际改动 {} 个",

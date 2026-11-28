@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -773,7 +774,7 @@ public class TimelineModelPersistence {
                     clipDTO.visibilityKeyframes.add(vdto);
                 }
 
-                ClipAnimationConfig config = clip.getAnimationConfig();
+                ClipAnimationConfig config = clip.getAnimationConfigForEditing();
                 clipDTO.animationMode = config.getMode().name();
                 clipDTO.animationScope = config.getScope().name();
                 clipDTO.animationPhase = config.getPhase().name();
@@ -939,28 +940,27 @@ public class TimelineModelPersistence {
                     sourceVersion, dto.schemaVersion);
     }
 
-    public static void fromDTO(TimelineDTO dto, TimelineModel model, TimelineViewportState viewportState) {
+    public static void fromDTO(TimelineDTO dto, TimelineModel liveModel, TimelineViewportState viewportState) {
         if (dto == null) {
-            LOGGER.warn("[TimelineModelPersistence] DTO 为空，跳过恢复");
-            return;
+            throw new IllegalArgumentException("时间线 DTO 不能为空");
+        }
+        if (liveModel == null) {
+            throw new IllegalArgumentException("目标时间线模型不能为空");
         }
         migrate(dto);
 
-        TimelineAudioLoadHook audioHook = model.getAudioLoadHook();
-        boolean prevSuppress = audioHook.isSuppressAutoCreate();
-        audioHook.setSuppressAutoCreate(true);
-        boolean previousPersistenceSuppression = model.isSuppressPersistenceWrites();
+        // 禁止暂存模型构造时自动读盘，否则会递归进入本加载流程。
+        TimelineModel model = new TimelineModel(new TimelineViewportState(), false);
         model.setSuppressPersistenceWrites(true);
+        TimelineAudioLoadHook audioHook = liveModel.getAudioLoadHook();
+        model.setAudioLoadHook(audioHook);
+        boolean prevSuppress = audioHook.isSuppressAutoCreate();
         try {
-        
-        // 恢复视图状态
-        if (viewportState != null) {
-            viewportState.setPixelsPerSecond(dto.pixelsPerSecond);
-            viewportState.setScrollX(dto.scrollX);
-        } else {
-            model.setZoom(dto.pixelsPerSecond);
-            model.setScrollX(dto.scrollX);
-        }
+        audioHook.setSuppressAutoCreate(true);
+
+        // 视图状态也只写入暂存模型；校验失败时不能提前改变调用方持有的 viewport。
+        model.setZoom(dto.pixelsPerSecond);
+        model.setScrollX(dto.scrollX);
         model.setSnappingEnabled(dto.snapEnabled);
         model.getSnapSettings().setGridInterval(dto.snapInterval);
         model.getSnapSettings().setSnapToGrid(dto.snapToGrid);
@@ -1012,13 +1012,15 @@ public class TimelineModelPersistence {
         if (dto.tracks != null) {
         for (TrackDTO trackDTO : dto.tracks) {
             if (trackDTO == null) {
-                continue;
+                throw new IllegalArgumentException("时间线轨道列表包含 null");
             }
             // 创建轨道
             TrackType type = resolveTrackType(trackDTO);
             
             // 根据轨道类型创建正确的轨道实例
             TimelineTrack track = getTimelineTrack(trackDTO, type);
+            // 先挂到暂存模型，使片段唯一性只检查本次恢复的数据，而非 live/global model。
+            model.addTrack(track);
 
             // 恢复轨道级自动化关键帧
             if (trackDTO.automationKeyframes != null) {
@@ -1150,10 +1152,27 @@ public class TimelineModelPersistence {
             }
             
             // 恢复所有片段
+            if (trackDTO.clips == null) {
+                throw new IllegalArgumentException("轨道 '" + trackDTO.name + "' 的 clips 不能为 null");
+            }
             for (ClipDTO clipDTO : trackDTO.clips) {
+                if (clipDTO == null) {
+                    throw new IllegalArgumentException("轨道 '" + trackDTO.name + "' 包含 null 片段");
+                }
+                if (clipDTO.label == null) {
+                    throw new IllegalArgumentException("轨道 '" + trackDTO.name + "' 的片段 label 不能为 null");
+                }
+                if (!Float.isFinite(clipDTO.startTime) || !Float.isFinite(clipDTO.endTime)
+                        || clipDTO.startTime > clipDTO.endTime) {
+                    throw new IllegalArgumentException("轨道 '" + trackDTO.name + "' 的片段 '"
+                            + clipDTO.label + "' 时间范围非法: " + clipDTO.startTime + ".." + clipDTO.endTime);
+                }
                 // ✅ AUDIO 轨道上的片段必须是 AudioTimelineClip，否则会被轨道约束误判并拒绝加入轨道，导致“重启后音频面板丢失”。
                 java.util.UUID lightId=ParseUtils.uuidOrNull(clipDTO.lightId,"LightClip.id");
-                if(track.getType()==TrackType.LIGHT && (lightId==null || model.getPointLight(lightId)==null)) continue;
+                if(track.getType()==TrackType.LIGHT && (lightId==null || model.getPointLight(lightId)==null)) {
+                    throw new IllegalArgumentException("轨道 '" + trackDTO.name + "' 的灯光片段 '"
+                            + clipDTO.label + "' 引用了不存在的灯光");
+                }
                 TimelineClip clip = track.getType()==TrackType.LIGHT
                         ? new com.director.lighting.LightTimelineClip(clipDTO.label,clipDTO.startTime,clipDTO.endTime,lightId)
                         : (track.getType() == TrackType.AUDIO)
@@ -1161,7 +1180,7 @@ public class TimelineModelPersistence {
                         : new TimelineClip(clipDTO.label, clipDTO.startTime, clipDTO.endTime, clipDTO.color);
                 clip.setAutoFadePreviousClips(clipDTO.autoFadePreviousClips);
                 clip.setAutoFadeOpacity(clipDTO.autoFadeOpacity);
-                ClipAnimationConfig config = clip.getAnimationConfig();
+                ClipAnimationConfig config = clip.getAnimationConfigForEditing();
                 if (clipDTO.animationMode != null) {
                     AnimationMode mode = ParseUtils.enumOrNull(clipDTO.animationMode, AnimationMode.class, "Clip.animationMode");
                     if (mode != null) {
@@ -1303,13 +1322,18 @@ public class TimelineModelPersistence {
                     }
                 }
                 
-                track.addClip(clip);
+                if (!track.addClip(clip)) {
+                    throw new IllegalArgumentException("无法恢复轨道 '" + track.getName()
+                            + "' 的片段 '" + clipDTO.label + "'：轨道约束拒绝添加");
+                }
             }
             
             // 恢复轨道的所有 PathClip
             if (trackDTO.pathClips != null) {
                 for (PathClipDTO pathClipDTO : trackDTO.pathClips) {
-                    if (pathClipDTO == null || pathClipDTO.type == null) continue;
+                    if (pathClipDTO == null || pathClipDTO.type == null) {
+                        throw new IllegalArgumentException("轨道 '" + trackDTO.name + "' 包含缺少类型的 PathClip");
+                    }
                     try {
                         com.director.timeline.model.camera.path.CameraPathClip pathClip = null;
                         
@@ -1380,15 +1404,16 @@ public class TimelineModelPersistence {
                                 }
                                 pathClip = crane;
                             }
-                            default -> LOGGER.warn("[TimelineModelPersistence] 未知的 PathClip 类型: {}", pathClipDTO.type);
+                            default -> throw new IllegalArgumentException("未知的 PathClip 类型: " + pathClipDTO.type);
                         }
                         
                         if (pathClip != null) {
                             pathClip.setEnabled(pathClipDTO.enabled);
                             track.addCameraPathClip(pathClip);
                         }
-                    } catch (Exception e) {
-                        LOGGER.error("[TimelineModelPersistence] 加载 PathClip 时发生错误: {}", pathClipDTO.name, e);
+                    } catch (RuntimeException e) {
+                        throw new IllegalArgumentException("恢复轨道 '" + trackDTO.name
+                                + "' 的 PathClip '" + pathClipDTO.name + "' 失败", e);
                     }
                 }
             }
@@ -1422,11 +1447,14 @@ public class TimelineModelPersistence {
 
                     if (etDTO.clips != null) {
                         for (EntityClipDTO cdto : etDTO.clips) {
-                            if (cdto == null || cdto.clipType == null) continue;
-                            try {
-                                actorTrack.addClip(entityClipFromDTO(cdto));
-                            } catch (Exception e) {
-                                LOGGER.error("[TimelineModelPersistence] 加载 EntityClip 时发生错误: {}", cdto.name, e);
+                            if (cdto == null || cdto.clipType == null) {
+                                throw new IllegalArgumentException("演员轨道 '" + trackDTO.name + "' 包含缺少类型的 EntityClip");
+                            }
+                            int previousClipCount = actorTrack.getClipCount();
+                            actorTrack.addClip(entityClipFromDTO(cdto));
+                            if (actorTrack.getClipCount() == previousClipCount) {
+                                throw new IllegalArgumentException("演员轨道 '" + trackDTO.name
+                                        + "' 的 EntityClip '" + cdto.name + "' 被拒绝添加或 ID 重复");
                             }
                         }
                     }
@@ -1434,14 +1462,18 @@ public class TimelineModelPersistence {
                     track.setActorTrackPayload(actorTrack);
                     // Actor payload is authoritative; generic deserialized clips cannot edit it.
                     for(var stale:new java.util.ArrayList<>(track.getClips()))track.removeClip(stale);
-                    for(var entity:actorTrack.getClips())
-                        track.addClip(new com.director.timeline.model.entity.EntityTimelineClip(entity,actorTrack.getColorRgba()));
-                } catch (Exception e) {
-                    LOGGER.error("[TimelineModelPersistence] 加载 ActorTrack payload 时发生错误: {}", e.getMessage(), e);
+                    for(var entity:actorTrack.getClips()) {
+                        var wrapper = new com.director.timeline.model.entity.EntityTimelineClip(entity,actorTrack.getColorRgba());
+                        if (!track.addClip(wrapper)) {
+                            throw new IllegalArgumentException("演员轨道 '" + trackDTO.name
+                                    + "' 的 EntityClip '" + entity.getName() + "' 被轨道约束拒绝添加");
+                        }
+                    }
+                } catch (RuntimeException e) {
+                    throw new IllegalArgumentException("恢复演员轨道 '" + trackDTO.name + "' 失败", e);
                 }
             }
 
-            model.addTrack(track);
             restoredTrackCount++;
         }
         }
@@ -1456,12 +1488,14 @@ public class TimelineModelPersistence {
         }
         
         LOGGER.info("[TimelineModelPersistence] 成功恢复 {} 条轨道", restoredTrackCount);
-    
+
+        // DTO 校验、轨道/片段恢复和灯光清理全部成功后，才替换 live model。
+        liveModel.commitRestoredState(model, viewportState);
+        // 链接重建期间继续保持 suppressed，避免加载动作生成音频片段或事件。
+        audioHook.setTimelineModel(liveModel);
         } finally {
-            model.setSuppressPersistenceWrites(previousPersistenceSuppression);
             audioHook.setSuppressAutoCreate(prevSuppress);
         }
-        audioHook.setTimelineModel(model);
     }
 
 
@@ -2088,42 +2122,42 @@ public class TimelineModelPersistence {
     }
     
     /**
-     * 从文件加载 TimelineModel（按世界）
+     * 从文件加载 TimelineModel（按世界）。读取、解析或校验失败会向调用方抛出异常，
+     * 不会返回 {@code null} 伪装成“没有存档”。
      */
     public static Instant loadFromFile(TimelineModel model, TimelineViewportState viewportState) {
-        try {
-            Path timelineFile = getTimelineFile();
-            if (timelineFile == null) {
-                LOGGER.debug("[TimelineModelPersistence] 当前无活动存档目录，跳过加载");
-                return null;
-            }
-
-            if (Files.exists(timelineFile)) {
-                String json = Files.readString(timelineFile);
-                TimelineDTO dto = GSON.fromJson(json, TimelineDTO.class);
-
-                // ⚠️ 历史问题修复：之前把 “目录修改时间” 放进 fingerprint，会导致关游戏/自动保存后指纹改变，误判并删档。
-                // 现在仅做“软校验”：不匹配也不删除，最多记录警告并继续加载（因为文件本身已经按世界隔离）。
-                if (dto != null && dto.worldFingerprint != null && !isFingerprintMatch(dto.worldFingerprint)) {
-                    LOGGER.warn("[TimelineModelPersistence] 世界指纹不匹配（将继续尝试加载，不删除文件）: {}", timelineFile);
-                }
-                
-                fromDTO(dto, model, viewportState);
-                LOGGER.info("[TimelineModelPersistence] 世界 {} 的时间线数据已加载: {}", 
-                    WorldIdentifier.getCurrentWorldId(), timelineFile);
-                if (dto != null) {
-                    return Files.getLastModifiedTime(timelineFile).toInstant();
-                }
-            } else {
-                LOGGER.info("[TimelineModelPersistence] 世界 {} 的时间线数据文件不存在，使用默认数据", 
-                    WorldIdentifier.getCurrentWorldId());
-            }
-        } catch (IOException e) {
-            LOGGER.error("[TimelineModelPersistence] 加载时间线数据失败: {}", e.getMessage(), e);
-        } catch (Exception e) {
-            LOGGER.error("[TimelineModelPersistence] 解析时间线数据失败: {}", e.getMessage(), e);
+        Path timelineFile = getTimelineFile();
+        if (timelineFile == null) {
+            LOGGER.debug("[TimelineModelPersistence] 当前无活动存档目录，跳过加载");
+            return null;
         }
-        return null;
+        return loadFromFile(model, viewportState, timelineFile);
+    }
+
+    /** 显式文件入口，供持久化回归测试在不依赖当前世界目录的情况下验证加载原子性。 */
+    static Instant loadFromFile(TimelineModel model, TimelineViewportState viewportState, Path timelineFile) {
+        if (timelineFile == null || !Files.exists(timelineFile)) {
+            LOGGER.info("[TimelineModelPersistence] 时间线数据文件不存在，使用默认数据: {}", timelineFile);
+            return null;
+        }
+        try {
+            String json = Files.readString(timelineFile);
+            TimelineDTO dto = GSON.fromJson(json, TimelineDTO.class);
+
+            // ⚠️ 历史问题修复：之前把 “目录修改时间” 放进 fingerprint，会导致关游戏/自动保存后指纹改变，误判并删档。
+            // 现在仅做“软校验”：不匹配也不删除，最多记录警告并继续加载（因为文件本身已经按世界隔离）。
+            if (dto != null && dto.worldFingerprint != null && !isFingerprintMatch(dto.worldFingerprint)) {
+                LOGGER.warn("[TimelineModelPersistence] 世界指纹不匹配（将继续尝试加载，不删除文件）: {}", timelineFile);
+            }
+
+            // 提交前读取文件元数据，避免提交后因 stat 失败而把一次成功加载报告为失败。
+            Instant lastModified = Files.getLastModifiedTime(timelineFile).toInstant();
+            fromDTO(dto, model, viewportState);
+            LOGGER.info("[TimelineModelPersistence] 时间线数据已加载: {}", timelineFile);
+            return lastModified;
+        } catch (IOException e) {
+            throw new UncheckedIOException("读取时间线数据失败: " + timelineFile, e);
+        }
     }
     
     /**

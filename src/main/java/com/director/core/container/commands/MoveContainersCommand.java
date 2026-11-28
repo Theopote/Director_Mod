@@ -23,6 +23,7 @@ public class MoveContainersCommand implements ContainerCommand {
 
     /** 每项：(containerId, oldParentId, oldIndex) — 构建时快照，undo 时按此恢复 */
     private final List<Item> items;
+    private boolean executed;
 
     public MoveContainersCommand(ContainerManager manager,
                                  UUID targetParentId,
@@ -37,6 +38,22 @@ public class MoveContainersCommand implements ContainerCommand {
     @Override
     public void execute() {
         Container targetParent = targetParentId != null ? manager.getContainer(targetParentId) : null;
+        if (targetParentId != null && targetParent == null) {
+            return;
+        }
+        if (targetParent != null && !manager.isEditable(targetParent)) {
+            return;
+        }
+        for (Item item : items) {
+            Container container = manager.getContainer(item.containerId);
+            if (container == null || !manager.requireEditableTree(container, "批量移动")
+                    || (container.getParent() != null && !manager.isEditable(container.getParent()))
+                    || (targetParent != null && (targetParent == container
+                        || targetParent.isDescendantOf(container)))) {
+                return;
+            }
+        }
+
         boolean append = targetIndexBase < 0;
 
         for (int i = 0; i < items.size(); i++) {
@@ -59,19 +76,34 @@ public class MoveContainersCommand implements ContainerCommand {
             }
             manager.moveContainerToParent(c, targetParent, insertIndex);
         }
+        executed = true;
     }
 
     @Override
     public void undo() {
+        if (!executed) {
+            return;
+        }
+        for (Item item : items) {
+            Container container = manager.getContainer(item.containerId);
+            Container oldParent = item.oldParentId != null ? manager.getContainer(item.oldParentId) : null;
+            if (container == null || !manager.requireEditableTree(container, "撤销批量移动")
+                    || (item.oldParentId != null && oldParent == null)
+                    || (container.getParent() != null && !manager.isEditable(container.getParent()))
+                    || (oldParent != null && !manager.isEditable(oldParent))
+                    || (oldParent != null && (oldParent == container || oldParent.isDescendantOf(container)))) {
+                return;
+            }
+        }
         for (int i = items.size() - 1; i >= 0; i--) {
             Item it = items.get(i);
             Container c = manager.getContainer(it.containerId);
-            if (c == null) continue;
             Container oldParent = it.oldParentId != null ? manager.getContainer(it.oldParentId) : null;
             manager.moveContainerToParent(c, oldParent, it.oldIndex);
             c.setLocked(it.oldLocked);
             c.setState(it.oldState);
         }
+        executed = false;
     }
 
     @Override

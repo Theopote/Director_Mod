@@ -18,8 +18,8 @@ class WholeContainerAnimationAudioAuditTest {
     }
     private TimelineClip clip() {
         var clip = new TimelineClip("assembly", 10, 20, 0);
-        clip.getAnimationConfig().setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER);
-        clip.getAnimationConfig().setDuration(2); return clip;
+        clip.getAnimationConfigForEditing().setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER);
+        clip.getAnimationConfigForEditing().setDuration(2); return clip;
     }
     @Test void resizingUsesHandoffInsteadOfScalingSoundWithTheClip() throws Exception {
         var clip = clip(); float time = AnimationSoundCollector.wholeContainerEventTime(clip);
@@ -45,7 +45,7 @@ class WholeContainerAnimationAudioAuditTest {
         var service = ctor.newInstance(); var signature = TimelineAudioService.class
                 .getDeclaredMethod("computeAutoSoundSignature", TimelineClip.class); signature.setAccessible(true);
         var clip = clip(); var before = signature.invoke(service, clip);
-        clip.getAnimationConfig().getWholeContainer().setEffect(WholeContainerAnimationConfig.Effect.INSTANT);
+        clip.getAnimationConfigForEditing().getWholeContainer().setEffect(WholeContainerAnimationConfig.Effect.INSTANT);
         assertNotEquals(before, signature.invoke(service, clip));
     }
 }

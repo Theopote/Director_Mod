@@ -33,6 +33,12 @@ public class UngroupContainersCommand implements ContainerCommand {
         if (groups.isEmpty()) {
             return;
         }
+        for (Container group : groups) {
+            if (!manager.requireEditableTree(group, "解散组")
+                    || (group.getParent() != null && !manager.isEditable(group.getParent()))) {
+                return;
+            }
+        }
 
         for (Container group : groups) {
             Container parent = group.getParent();
@@ -52,6 +58,18 @@ public class UngroupContainersCommand implements ContainerCommand {
 
     @Override
     public void undo() {
+        for (GroupSnapshot snapshot : snapshots) {
+            if (snapshot.group.isLocked() || manager.getContainer(snapshot.group.getId()) != null
+                    || (snapshot.parent != null && !manager.isEditable(snapshot.parent))) {
+                return;
+            }
+            for (Container child : snapshot.children) {
+                if (!manager.requireEditableTree(child, "撤销解散组")
+                        || (child.getParent() != null && !manager.isEditable(child.getParent()))) {
+                    return;
+                }
+            }
+        }
         for (int i = snapshots.size() - 1; i >= 0; i--) {
             GroupSnapshot snapshot = snapshots.get(i);
             manager.addContainer(snapshot.group);

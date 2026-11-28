@@ -565,12 +565,16 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
     /** Caller clears the exporting flag before restoring, on the client thread. */
     public synchronized void restoreStateAfterExport(ExportState state) {
         if (state == null || state.model() != timelineModel) return;
-        setActiveCameraTrack(state.track());
-        previewing = state.previewing(); previewTimeSeconds = state.previewTime();
-        previewSample = state.previewSample();
-        if (timelineModel != null) {
-            timelineModel.setCurrentTime(state.time());
-            timelineModel.setPlaying(state.playing());
+        try {
+            setActiveCameraTrack(state.track());
+            previewing = state.previewing(); previewTimeSeconds = state.previewTime();
+            previewSample = state.previewSample();
+        } finally {
+            // Playback state must survive a camera-track/sampler restoration failure.
+            if (timelineModel != null) {
+                timelineModel.setCurrentTime(state.time());
+                timelineModel.setPlaying(state.playing());
+            }
         }
         updateOwnerAndSample(0f);
     }

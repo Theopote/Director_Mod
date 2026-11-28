@@ -39,6 +39,9 @@ public class PasteContainersCommand implements ContainerCommand {
         if (templates.isEmpty()) {
             return;
         }
+        if (targetParent != null && !manager.isEditable(targetParent)) {
+            return;
+        }
 
         pasted.clear();
         int nextIndex = insertIndex;

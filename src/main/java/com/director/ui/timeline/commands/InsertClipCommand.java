@@ -33,11 +33,11 @@ public final class InsertClipCommand extends BaseTimelineCommand {
         super(model, "clip_added"); this.track = track; this.clip = clip; this.initializeAudio = initializeAudio;
     }
     @Override protected void doExecute() {
+        executeMayMutate = false;
         if (track.getClips().contains(clip) || clip.getParentTrack() != null) {
             throw new IllegalStateException("Clip is already attached to a track");
         }
         added = false;
-        executeMayMutate = false;
         entityAdded = false;
         lightChanged = false;
         previousLight = null;

@@ -4,6 +4,7 @@ import com.director.core.animation.effect.EffectInstance;
 import com.director.core.animation.effect.EffectType;
 import com.director.core.animation.sequence.BlockSequenceEntry;
 import com.director.core.container.AnimationMode;
+import com.director.timeline.playback.TimelineSamplingContext;
 import net.minecraft.util.math.BlockPos;
 import org.junit.jupiter.api.Test;
 
@@ -66,6 +67,29 @@ class PerBlockAnimationPreviewTest {
         assertEquals(0.25f, a.getRawProgress(), 0.00001f);
         assertEquals(0.15f, b.getRawProgress(), 0.00001f);
         assertTrue(a.getAlpha() > b.getAlpha());
+    }
+
+    @Test void exportAndHeadlessSamplingDoNotAdvanceParticleTriggerState() throws Exception {
+        var gate = Class.forName(BlockAnimationEngine.class.getName() + "$EffectRuntimeGate");
+        var statesField = gate.getDeclaredField("STATES");
+        statesField.setAccessible(true);
+        var states = (Map<?, ?>) statesField.get(null);
+        var before = Map.copyOf(states);
+        var config = config(AnimationMode.FADE_IN, ClipAnimationConfig.AnimationPhase.ENTER);
+        var effect = new EffectInstance(EffectType.DUST_BURST);
+        effect.setTriggerMode(EffectInstance.TriggerMode.ONE_SHOT);
+        config.getEffects().add(effect);
+        var entry = new BlockSequenceEntry(BlockPos.ORIGIN, 0, 0, 0);
+
+        for (var context : new TimelineSamplingContext[]{
+                TimelineSamplingContext.EXPORT, TimelineSamplingContext.HEADLESS}) {
+            try (var ignored = TimelineSamplingContext.open(context)) {
+                for (float time : new float[]{0, 0.25f, 1, 2.25f, 4, 1, 0.25f}) {
+                    BlockAnimationEngine.sample(BlockPos.ORIGIN, null, config, entry, 0, 1, time, 42);
+                }
+            }
+        }
+        assertEquals(before, states);
     }
 
     @Test void scrubbingDoesNotCreateOrAdvanceParticleTriggerState() throws Exception {

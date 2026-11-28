@@ -22,7 +22,7 @@ class TimelineClipEditSessionTest {
         track = new TimelineTrack("Blocks", TrackType.CONTAINER);
         model.addTrack(track);
         clip = new TimelineClip("Structure", 10, 20, 0);
-        clip.getAnimationConfig().setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER);
+        clip.getAnimationConfigForEditing().setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER);
         track.addClip(clip);
         history = new TimelineCommandHistory();
         TimelineCommandBridge.bind(history);
@@ -40,7 +40,7 @@ class TimelineClipEditSessionTest {
     @Test void continuousDragCommitsOnceOnReleaseAndRefreshesOnUndoRedo() {
         for (int i = 1; i <= 80; i++) {
             final int angle = i * 9;
-            change(() -> clip.getAnimationConfig().getWholeContainer().setRotation(0, angle, 0), true);
+            change(() -> clip.getAnimationConfigForEditing().getWholeContainer().setRotation(0, angle, 0), true);
         }
         assertEquals(0, history.getUndoSize());
         assertEquals(0, refreshes.get());
@@ -55,7 +55,7 @@ class TimelineClipEditSessionTest {
         assertEquals(3, refreshes.get());
     }
     @Test void undoRestoresCombinedTransformAndCustomPivotWithoutTouchingPerBlockSettings() {
-        var config = clip.getAnimationConfig();
+        var config = clip.getAnimationConfigForEditing();
         config.setParam("legacySetting", 42);
         config.getSequenceParameters().setGlobalDelay(3);
         change(() -> {
@@ -67,7 +67,7 @@ class TimelineClipEditSessionTest {
             config.setDelay(1); config.setDuration(4); config.setEasing("EASE_IN_CUBIC");
         }, false);
         history.undo();
-        assertSame(config, clip.getAnimationConfig());
+        assertSame(config, clip.getAnimationConfigForEditing());
         assertEquals(WholeContainerAnimationConfig.Effect.SCALE, config.getWholeContainer().getEffect());
         assertEquals(0, config.getWholeContainer().getPivotX());
         assertEquals(2, config.getDuration());
@@ -82,18 +82,18 @@ class TimelineClipEditSessionTest {
         assertEquals(3, config.getSequenceParameters().getGlobalDelay());
     }
     @Test void scopeSwitchesKeepSettingsAndAreUndoableInBothDirections() {
-        clip.getAnimationConfig().setScope(ClipAnimationConfig.AnimationScope.PER_BLOCK);
-        change(() -> clip.getAnimationConfig().setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER), false);
+        clip.getAnimationConfigForEditing().setScope(ClipAnimationConfig.AnimationScope.PER_BLOCK);
+        change(() -> clip.getAnimationConfigForEditing().setScope(ClipAnimationConfig.AnimationScope.WHOLE_CONTAINER), false);
         history.undo(); assertFalse(clip.getAnimationConfig().isWholeContainer());
         history.redo(); assertTrue(clip.getAnimationConfig().isWholeContainer());
-        change(() -> clip.getAnimationConfig().setScope(ClipAnimationConfig.AnimationScope.PER_BLOCK), false);
+        change(() -> clip.getAnimationConfigForEditing().setScope(ClipAnimationConfig.AnimationScope.PER_BLOCK), false);
         history.undo(); assertTrue(clip.getAnimationConfig().isWholeContainer());
         assertEquals(1, history.getUndoSize());
         assertEquals(1, history.getRedoSize());
         assertEquals(180, clip.getAnimationConfig().getWholeContainer().getRotationY());
     }
     @Test void applyingPresetAndResettingEachHaveOneUndoStep() {
-        var config = clip.getAnimationConfig();
+        var config = clip.getAnimationConfigForEditing();
         config.getWholeContainer().setPivot(WholeContainerAnimationConfig.Pivot.CUSTOM);
         config.getWholeContainer().setCustomPivot(1, 2, 3);
         change(() -> WholeContainerAnimationPresets.apply(config, WholeContainerAnimationPresets.Preset.SPIN_FLY, null), false);
@@ -112,7 +112,7 @@ class TimelineClipEditSessionTest {
     }
 
     @Test void channelTogglesAndOpacityValuesUndoAndRedoAsOneGesture() {
-        var s = clip.getAnimationConfig().getWholeContainer(); s.setEffect(WholeContainerAnimationConfig.Effect.TRANSFORM);
+        var s = clip.getAnimationConfigForEditing().getWholeContainer(); s.setEffect(WholeContainerAnimationConfig.Effect.TRANSFORM);
         change(() -> {
             s.setTranslationEnabled(false); s.setRotationEnabled(false); s.setScaleEnabled(false);
             s.setOpacityEnabled(true); s.setOpacity(0.25f);
@@ -128,19 +128,19 @@ class TimelineClipEditSessionTest {
 
     @Test void noOpAndDragReturningToOriginalDoNotCreateHistoryOrSounds() {
         edits.beginFrame(model, clip); edits.endFrame(false, false, "Edit");
-        change(() -> clip.getAnimationConfig().getWholeContainer().setRotation(0, 720, 0), true);
-        change(() -> clip.getAnimationConfig().getWholeContainer().setRotation(0, 180, 0), false);
+        change(() -> clip.getAnimationConfigForEditing().getWholeContainer().setRotation(0, 720, 0), true);
+        change(() -> clip.getAnimationConfigForEditing().getWholeContainer().setRotation(0, 180, 0), false);
         assertEquals(0, history.getUndoSize()); assertEquals(0, refreshes.get());
     }
     @Test void collapsedSectionFlushesThePendingGesture() {
-        change(() -> clip.getAnimationConfig().setDelay(1), true);
+        change(() -> clip.getAnimationConfigForEditing().setDelay(1), true);
         edits.finishIfIdle(false);
         assertEquals(1, history.getUndoSize());
         history.undo(); assertEquals(0, clip.getAnimationConfig().getDelay());
         history.redo(); assertEquals(1, clip.getAnimationConfig().getDelay());
     }
     @Test void switchingClipsCommitsToOriginalTarget() {
-        change(() -> clip.getAnimationConfig().getWholeContainer().setScale(0.5f), true);
+        change(() -> clip.getAnimationConfigForEditing().getWholeContainer().setScale(0.5f), true);
         var other = new TimelineClip("Other", 20, 30, 0); track.addClip(other);
         edits.beginFrame(model, other);
         assertEquals(1, history.getUndoSize());
@@ -148,19 +148,19 @@ class TimelineClipEditSessionTest {
         assertEquals(0, other.getAnimationConfig().getWholeContainer().getScale());
     }
     @Test void removedClipDropsPendingEdit() {
-        change(() -> clip.getAnimationConfig().setDuration(1), true);
+        change(() -> clip.getAnimationConfigForEditing().setDuration(1), true);
         track.removeClip(clip); edits.finishIfIdle(false);
         assertEquals(0, history.getUndoSize()); assertEquals(0, refreshes.get());
     }
     @Test void changingProjectsDoesNotPutOldGestureIntoNewHistory() {
-        change(() -> clip.getAnimationConfig().setDuration(1), true);
+        change(() -> clip.getAnimationConfigForEditing().setDuration(1), true);
         edits.beginFrame(new TimelineModel(new TimelineViewportState()), null);
         edits.finishIfIdle(false);
         assertEquals(0, history.getUndoSize()); assertEquals(0, refreshes.get());
     }
     @Test void independentConsecutiveDragsProduceIndependentUndoSteps() {
-        change(() -> clip.getAnimationConfig().getWholeContainer().setRotation(0, 720, 0), false);
-        change(() -> clip.getAnimationConfig().getWholeContainer().setScale(0.5f), false);
+        change(() -> clip.getAnimationConfigForEditing().getWholeContainer().setRotation(0, 720, 0), false);
+        change(() -> clip.getAnimationConfigForEditing().getWholeContainer().setScale(0.5f), false);
         assertEquals(2, history.getUndoSize());
         history.undo();
         assertEquals(0, clip.getAnimationConfig().getWholeContainer().getScale());
@@ -175,21 +175,21 @@ class TimelineClipEditSessionTest {
     @Test void durationUndoAndRedoKeepThePreviewAtTheSamePhase() {
         model.setCurrentTime(10.5f);
         change(() -> {
-            clip.getAnimationConfig().setDuration(1);
+            clip.getAnimationConfigForEditing().setDuration(1);
             model.setCurrentTime(10.25f); // live UI preview adjustment
         }, false);
         history.undo(); assertEquals(10.5f, model.getCurrentTime());
         history.redo(); assertEquals(10.25f, model.getCurrentTime());
     }
     @Test void perBlockEditsAlsoEnterClipHistory() {
-        clip.getAnimationConfig().setScope(ClipAnimationConfig.AnimationScope.PER_BLOCK);
-        change(() -> clip.getAnimationConfig().setDuration(1), false);
+        clip.getAnimationConfigForEditing().setScope(ClipAnimationConfig.AnimationScope.PER_BLOCK);
+        change(() -> clip.getAnimationConfigForEditing().setDuration(1), false);
         assertEquals(1, history.getUndoSize()); assertEquals(1, refreshes.get());
         history.undo(); assertEquals(2, clip.getAnimationConfig().getDuration());
         history.redo(); assertEquals(1, clip.getAnimationConfig().getDuration());
     }
     @Test void motionModifierAndParametersUndoAndRedoTogether() {
-        var s = clip.getAnimationConfig().getWholeContainer();
+        var s = clip.getAnimationConfigForEditing().getWholeContainer();
         change(() -> {
             s.setMotion(WholeContainerAnimationConfig.Motion.BOUNCE);
             s.setMotionStrength(0.6f); s.setMotionCycles(5); s.setBounceHeight(3);
@@ -203,7 +203,7 @@ class TimelineClipEditSessionTest {
         assertEquals(0.6f, s.getMotionStrength()); assertEquals(5, s.getMotionCycles()); assertEquals(3, s.getBounceHeight());
     }
     @Test void dustSettingsUndoAndRedoTogether() {
-        var s = clip.getAnimationConfig().getWholeContainer();
+        var s = clip.getAnimationConfigForEditing().getWholeContainer();
         change(() -> {
             s.setDustEnabled(true); s.setDustIntensity(2); s.setDustSpread(3);
         }, false);
@@ -213,7 +213,7 @@ class TimelineClipEditSessionTest {
         assertTrue(s.isDustEnabled()); assertEquals(2, s.getDustIntensity()); assertEquals(3, s.getDustSpread());
     }
     @Test void visualPresetSelectionUndoAndRedoRestoresPresetAndParameters() {
-        var s = clip.getAnimationConfig().getWholeContainer();
+        var s = clip.getAnimationConfigForEditing().getWholeContainer();
         change(() -> s.setDustPreset(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST), false);
         history.undo();
         assertEquals(WholeContainerAnimationConfig.DustPreset.NONE, s.getDustPreset());
@@ -227,7 +227,7 @@ class TimelineClipEditSessionTest {
         assertFalse(s.isDustEnabled());
     }
     @Test void applyingMotionPresetUndoesTogetherAndPreservesVisualSelection() {
-        var config = clip.getAnimationConfig();
+        var config = clip.getAnimationConfigForEditing();
         config.getWholeContainer().setDustPreset(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST);
         change(() -> com.director.core.animation.WholeContainerAnimationPresets.apply(config,
                 com.director.core.animation.WholeContainerAnimationPresets.Preset.BOUNCE_DROP, null), false);
@@ -241,7 +241,7 @@ class TimelineClipEditSessionTest {
         assertEquals(WholeContainerAnimationConfig.DustPreset.IMPACT_DUST, config.getWholeContainer().getDustPreset());
     }
     @Test void shockwaveSelectionAndTweaksUndoAndRedoWithoutChangingMotion() {
-        var config = clip.getAnimationConfig();
+        var config = clip.getAnimationConfigForEditing();
         config.getWholeContainer().setMotion(WholeContainerAnimationConfig.Motion.ELASTIC);
         change(() -> {
             config.getWholeContainer().setDustPreset(WholeContainerAnimationConfig.DustPreset.SHOCKWAVE);
@@ -255,7 +255,7 @@ class TimelineClipEditSessionTest {
         assertEquals(2, config.getWholeContainer().getDustSpread());
     }
     @Test void waveCountAndDecayUndoAndRedoTogether() {
-        var s = clip.getAnimationConfig().getWholeContainer();
+        var s = clip.getAnimationConfigForEditing().getWholeContainer();
         s.setDustPreset(WholeContainerAnimationConfig.DustPreset.SHOCKWAVE);
         change(() -> { s.setShockwaveCount(5); s.setShockwaveDecay(0.6f); }, false);
         history.undo();
@@ -264,7 +264,7 @@ class TimelineClipEditSessionTest {
         assertEquals(5, s.getShockwaveCount()); assertEquals(0.6f, s.getShockwaveDecay());
     }
     @Test void arcPathAndHeightUndoAndRedoTogether() {
-        var s = clip.getAnimationConfig().getWholeContainer();
+        var s = clip.getAnimationConfigForEditing().getWholeContainer();
         change(() -> {
             s.setFlightPath(WholeContainerAnimationConfig.FlightPath.ARC);
             s.setArcHeight(-5);
@@ -277,7 +277,7 @@ class TimelineClipEditSessionTest {
         assertEquals(-5, s.getArcHeight());
     }
     @Test void dampingAndDebrisSettingsRestoreOnUndoRedo() {
-        var s = clip.getAnimationConfig().getWholeContainer();
+        var s = clip.getAnimationConfigForEditing().getWholeContainer();
         change(() -> {
             s.setMotionDamping(9);
             s.setDustPreset(WholeContainerAnimationConfig.DustPreset.DEBRIS_CLOUD);
@@ -296,8 +296,8 @@ class TimelineClipEditSessionTest {
     @Test void scopeSwitchUndoAlsoRestoresCumulativeClipLength() {
         float originalLength = clip.getLength();
         change(() -> {
-            clip.getAnimationConfig().setScope(ClipAnimationConfig.AnimationScope.PER_BLOCK);
-            clip.getAnimationConfig().setDuration(0.1f);
+            clip.getAnimationConfigForEditing().setScope(ClipAnimationConfig.AnimationScope.PER_BLOCK);
+            clip.getAnimationConfigForEditing().setDuration(0.1f);
             clip.setLength(7);
         }, false);
         history.undo();
@@ -348,7 +348,7 @@ class TimelineClipEditSessionTest {
     }
 
     @Test void perBlockSequenceAndEffectEditsUndoAndRedoTogether() {
-        var config = clip.getAnimationConfig();
+        var config = clip.getAnimationConfigForEditing();
         config.setScope(ClipAnimationConfig.AnimationScope.PER_BLOCK);
         var sequence = config.getSequenceParameters();
         var effect = new com.director.core.animation.effect.EffectInstance(
@@ -364,7 +364,7 @@ class TimelineClipEditSessionTest {
         }, false);
         var effectId = effect.getId();
         history.undo();
-        assertSame(config, clip.getAnimationConfig());
+        assertSame(config, clip.getAnimationConfigForEditing());
         assertSame(sequence, config.getSequenceParameters());
         assertEquals(0, config.getDelay());
         assertEquals(2, config.getDuration());

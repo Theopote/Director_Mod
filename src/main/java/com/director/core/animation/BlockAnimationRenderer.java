@@ -83,8 +83,9 @@ public class BlockAnimationRenderer {
         Map<TimelineClip, WholeContainerRenderView> staticViews = new IdentityHashMap<>();
         for (var entry : entries) {
             if (entry != null && entry.pos() != null && entry.clip() != null
-                    && entry.clip().getAnimationConfig() != null && entry.clip().getAnimationConfig().isWholeContainer()
-                    && entry.overrideSnapshot() != null && entry.blockState() != null)
+                    && entry.clip().getAnimationConfigForEditing() != null && entry.clip().getAnimationConfigForEditing().isWholeContainer()
+                    && entry.overrideSnapshot() != null && entry.overrideSnapshot().getSharedWorldTransform() != null
+                    && entry.blockState() != null)
                 assemblies.computeIfAbsent(entry.clip(), key -> new HashMap<>()).put(entry.pos(), entry.blockState());
             else if (isStaticOpaqueEntry(entry))
                 staticAssemblies.computeIfAbsent(entry.clip(), key -> new HashMap<>()).put(entry.pos(), entry.blockState());
@@ -95,9 +96,16 @@ public class BlockAnimationRenderer {
         for (var entry : entries) {
             if (entry == null || entry.pos() == null || entry.overrideSnapshot() == null
                     || !assemblies.containsKey(entry.clip()) || views.containsKey(entry.clip())) continue;
-            var stack = entry.overrideSnapshot().getTransform();
-            views.put(entry.clip(), new WholeContainerRenderView(world, assemblies.get(entry.clip()), entry.pos(),
-                    stack != null ? stack.peek().getPositionMatrix() : new org.joml.Matrix4f()));
+            var snapshot = entry.overrideSnapshot();
+            var shared = snapshot.getSharedWorldTransform();
+            if (shared != null) {
+                // Every block queries neighbors/AO/light/color/BlockEntities through the same
+                // assembly pivot transform; never promote an arbitrary first block's local matrix.
+                views.put(entry.clip(), WholeContainerRenderView.forWorldTransform(
+                        world, assemblies.get(entry.clip()), shared, true));
+            }
+            // Legacy whole-container snapshots without a shared matrix deliberately fall
+            // through to the independent-block path below; no first-block transform is reused.
         }
         matrices.push();
         matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
@@ -156,7 +164,9 @@ public class BlockAnimationRenderer {
     private static boolean isStaticOpaqueEntry(BlockVisualStateManager.RenderEntry entry) {
         return entry != null && entry.pos() != null && entry.blockState() != null
                 && entry.overrideSnapshot() != null && entry.overrideSnapshot().isVisible()
-                && entry.overrideSnapshot().getTransform() == null && entry.overrideSnapshot().getAlpha() >= 0.999f
+                && entry.overrideSnapshot().getTransform() == null
+                && entry.overrideSnapshot().getSharedWorldTransform() == null
+                && entry.overrideSnapshot().getAlpha() >= 0.999f
                 && entry.visualState() != null && !entry.visualState().isHidden()
                 && entry.visualState().getAlphaMultiplier() >= 0.999f;
     }
@@ -201,11 +211,12 @@ public class BlockAnimationRenderer {
         // 4. 应用世界平移 + 局部动画矩阵并渲染
         matrices.push();
 
-        // 5.1 平移到方块世界坐标
-        matrices.translate(pos.getX(), pos.getY(), pos.getZ());
-
-        // 5.2 叠加局部动画矩阵（围绕方块中心）
-        applyAnimationTransformFromSnapshot(matrices, snapshot);
+        if (snapshot.getSharedWorldTransform() == null) {
+            // Legacy independent-block path: translate to the block, then apply its local matrix.
+            matrices.translate(pos.getX(), pos.getY(), pos.getZ());
+        }
+        // Whole-container snapshots instead carry one shared world-space pivot transform.
+        applyAnimationTransformFromSnapshot(matrices, snapshot, assemblyView);
 
         // 5.3 渲染方块（带 alpha 和深度控制）
         BlockPos lightPos=displayedLightPosition(pos,snapshot);
@@ -215,6 +226,11 @@ public class BlockAnimationRenderer {
     }
 
     static BlockPos displayedLightPosition(BlockPos pos, BlockAnimationSnapshot snapshot) {
+        if (snapshot.getSharedWorldTransform() != null) {
+            var center = snapshot.getSharedWorldTransform().transformPosition(new org.joml.Vector3f(
+                    pos.getX() + 0.5f, pos.getY() + 0.5f, pos.getZ() + 0.5f));
+            return BlockPos.ofFloored(center.x, center.y, center.z);
+        }
         if(snapshot.getTransform()==null) return pos;
         var center=snapshot.getTransform().peek().getPositionMatrix()
                 .transformPosition(new org.joml.Vector3f(.5f,.5f,.5f));
@@ -231,8 +247,18 @@ public class BlockAnimationRenderer {
      * <p>
      * 结果：worldMatrix = worldMatrix * localAnimMatrix
      */
-    private static void applyAnimationTransformFromSnapshot(MatrixStack matrices, BlockAnimationSnapshot snapshot) {
+    private static void applyAnimationTransformFromSnapshot(MatrixStack matrices,
+            BlockAnimationSnapshot snapshot, BlockRenderView assemblyView) {
         if (snapshot == null) return;
+        var shared = snapshot.getSharedWorldTransform();
+        if (shared != null) {
+            matrices.peek().getPositionMatrix().mul(shared);
+            var sharedNormal = assemblyView instanceof WholeContainerRenderView view
+                    ? view.getNormalTransform()
+                    : new org.joml.Matrix3f(shared);
+            matrices.peek().getNormalMatrix().mul(sharedNormal);
+            return;
+        }
         MatrixStack snapshotStack = snapshot.getTransform();
         // Null is the normal static pose. Logging here once per block stalls large overlays.
         if (snapshotStack == null) return;

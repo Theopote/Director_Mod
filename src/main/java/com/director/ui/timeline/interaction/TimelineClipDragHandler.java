@@ -247,7 +247,7 @@ public final class TimelineClipDragHandler {
             snappedStart = targetTrack.resolveClipStartTime(snappedStart, length, handle.clip);
         }
 
-        handle.clip.setTimeRange(snappedStart, snappedStart + length);
+        handle.clip.offsetTime(snappedStart - handle.clip.getStartTime());
         model.markDurationDirty();
 
         com.director.ui.timeline.audio.TimelineAudioService.getInstance()
@@ -364,7 +364,7 @@ public final class TimelineClipDragHandler {
         }
         com.director.ui.timeline.audio.TimelineAudioService.getInstance().moveLinkedEventsToTrack(handle.clip, handle.track);
         if(handle.lightState!=null && handle.clip instanceof com.director.lighting.LightTimelineClip light) light.restoreState(handle.lightState);
-        else handle.clip.setTimeRange(interactionManager.getDragStartValue(),interactionManager.getDragStartValue2());
+        else handle.clip.restoreStateFrom(handle.gestureState);
         model.markDurationDirty();
     }
 
@@ -384,7 +384,8 @@ public final class TimelineClipDragHandler {
                 commandHistory.executeCommand(new com.director.ui.timeline.commands.StateChangeCommand(model,"Resize light clip",
                     () -> light.restoreState(handle.lightState), () -> light.restoreState(after)));
             } else commandHistory.executeCommand(
-                    new ResizeClipCommand(model, handle.clip, originalStart, originalEnd, currentStart, currentEnd));
+                    new ResizeClipCommand(model, handle.clip, originalStart, originalEnd,
+                            currentStart, currentEnd, handle.gestureState));
             if (LOGGER.isDebugEnabled()) {
                 if (leftEdge) {
                     LOGGER.debug("[Timeline] 调整片段左边缘: {}s -> {}s (片段: {})",

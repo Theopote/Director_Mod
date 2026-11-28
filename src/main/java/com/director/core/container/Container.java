@@ -85,8 +85,14 @@ public class Container {
     }
 
     void addChildAt(Container child, int index) {
+        if (child == null) {
+            throw new IllegalArgumentException("Cannot add a null child");
+        }
         if (child == this) {
             throw new IllegalArgumentException("Cannot add container to itself");
+        }
+        if (child.isDescendantOf(this)) {
+            throw new IllegalArgumentException("Cannot add an ancestor below its descendant");
         }
         if (child.parent == this && children.contains(child)) {
             // 已存在于当前容器中，仅调整顺序
@@ -306,6 +312,10 @@ public class Container {
     public boolean hasMetadata(String key) {
         return metadata.containsKey(key);
     }
+
+    public Map<String, Object> getMetadataView() {
+        return Collections.unmodifiableMap(metadata);
+    }
     
     public void removeMetadata(String key) {
         metadata.remove(key);
@@ -444,10 +454,9 @@ public class Container {
     }
     
     public ContainerAnimationPreset getDefaultAnimationPreset() {
-        if (defaultAnimationPreset == null) {
-            defaultAnimationPreset = ContainerAnimationPreset.defaultPreset();
-        }
-        return defaultAnimationPreset;
+        return defaultAnimationPreset != null
+                ? defaultAnimationPreset.copy()
+                : ContainerAnimationPreset.defaultPreset();
     }
 
     public void setDefaultAnimationPreset(ContainerAnimationPreset preset) {
@@ -456,8 +465,11 @@ public class Container {
     }
     
     public float getOpacity() { return opacity; }
-    public void setOpacity(float opacity) { 
-        this.opacity = Math.max(0f, Math.min(1f, opacity)); 
+    public void setOpacity(float opacity) {
+        if (!Float.isFinite(opacity)) {
+            throw new IllegalArgumentException("Opacity must be finite");
+        }
+        this.opacity = Math.max(0f, Math.min(1f, opacity));
         markModified();
     }
     
@@ -487,6 +499,18 @@ public class Container {
     
     public long getCreatedTime() { return createdTime; }
     public long getModifiedTime() { return modifiedTime; }
+
+    /**
+     * 仅用于持久化恢复，避免经过会刷新 modifiedTime 的业务 setter。
+     */
+    public void restoreTimestampsForRecovery(long createdTime, long modifiedTime) {
+        if (createdTime >= 0L) {
+            this.createdTime = createdTime;
+        }
+        if (modifiedTime >= 0L) {
+            this.modifiedTime = modifiedTime;
+        }
+    }
     
     // ========== 世界归属（v5.2） ==========
     

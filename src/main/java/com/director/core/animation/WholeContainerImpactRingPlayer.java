@@ -1,6 +1,8 @@
 package com.director.core.animation;
 
+import com.director.export.video.VideoExportManager;
 import com.director.mixin.BillboardParticleAccessor;
+import com.director.timeline.playback.TimelineSamplingContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.world.ClientWorld;
@@ -29,6 +31,8 @@ public final class WholeContainerImpactRingPlayer {
 
     public static void play(MinecraftClient client, List<BlockPos> blocks,
             WholeContainerAnimationConfig settings, long seed) {
+        if (client == null || !TimelineSamplingContext.current().allowsParticles()
+                || VideoExportManager.getInstance().isExporting()) return;
         bind(client.world);
         if (boundWorld == null) return;
         var waves = WholeContainerImpactRing.waves(blocks, settings, seed);
@@ -51,6 +55,8 @@ public final class WholeContainerImpactRingPlayer {
     }
 
     public static void tick(MinecraftClient client) {
+        if (client == null || !TimelineSamplingContext.current().allowsParticles()
+                || VideoExportManager.getInstance().isExporting()) return;
         bind(client.world);
         if (boundWorld == null || client.isPaused()) return;
         tick++;

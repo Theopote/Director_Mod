@@ -100,7 +100,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         boolean sequenceModified = false;
         boolean animationModified = false;
 
-        if (!clip.getAnimationConfig().isWholeContainer()) {
+        if (!clip.getAnimationConfigForEditing().isWholeContainer()) {
             if (Card.begin("timeline_clip.section_sequence", TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_SEQUENCE))) {
                 sequenceModified = propertyUi.renderSequenceBehavior(clip, TimelineClipUiVariant.CONTAINER);
                 modified |= sequenceModified;
@@ -114,10 +114,10 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         }
         Card.end();
 
-        List<EffectInstance> effects = clip.getAnimationConfig() != null ? clip.getAnimationConfig().getEffects()
+        List<EffectInstance> effects = clip.getAnimationConfigForEditing() != null ? clip.getAnimationConfigForEditing().getEffects()
                 : java.util.Collections.emptyList();
         String effectsHeader = Icons.PARTICLE + " "
-                + (clip.getAnimationConfig().isWholeContainer() || effects.isEmpty()
+                + (clip.getAnimationConfigForEditing().isWholeContainer() || effects.isEmpty()
                 ? TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER)
                 : TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER_COUNT, effects.size()));
         if (Card.begin("timeline_clip.effects", effectsHeader)) {

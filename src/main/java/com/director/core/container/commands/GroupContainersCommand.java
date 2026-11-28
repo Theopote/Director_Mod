@@ -68,6 +68,13 @@ public class GroupContainersCommand implements ContainerCommand {
             groupParent = null;
             groupInsertIndex = manager.getRootContainersView().size();
         }
+        for (Container target : targets) {
+            if (!manager.requireEditableTree(target, "分组")
+                    || (target.getParent() != null && !manager.isEditable(target.getParent()))
+                    || (groupParent != null && !manager.isEditable(groupParent))) {
+                return;
+            }
+        }
 
         String baseName = (preferredName == null || preferredName.isBlank())
             ? "组"
@@ -89,8 +96,17 @@ public class GroupContainersCommand implements ContainerCommand {
 
     @Override
     public void undo() {
-        if (groupContainer == null) {
+        if (groupContainer == null || !manager.isRegistered(groupContainer)
+                || groupContainer.getChildCount() != targets.size()
+                || !manager.requireEditableTree(groupContainer, "撤销分组")) {
             return;
+        }
+        for (Container target : targets) {
+            Container originalParent = originalParents.get(targets.indexOf(target));
+            if (!manager.requireEditableTree(target, "撤销分组")
+                    || (originalParent != null && !manager.isEditable(originalParent))) {
+                return;
+            }
         }
 
         // 将子容器还原到原位置

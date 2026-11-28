@@ -20,7 +20,7 @@ class ContainerSequenceCacheTest {
         var method = TimelineClipBlockController.class.getDeclaredMethod("getOrGenerateSequenceEntries",
                 TimelineClip.class, Container.class, ClipAnimationConfig.class, float.class, float.class, float.class);
         method.setAccessible(true);
-        return (List<BlockSequenceEntry>) method.invoke(controller, clip, container, clip.getAnimationConfig(),
+        return (List<BlockSequenceEntry>) method.invoke(controller, clip, container, clip.getAnimationConfigForEditing(),
                 length, duration, delay);
     }
 
@@ -55,7 +55,7 @@ class ContainerSequenceCacheTest {
         for (int x = 0; x < 8; x++) for (int y = 0; y < 4; y++) positions.add(new BlockPos(x, y, 0));
         container.addBlocks(positions);
         var clip = new TimelineClip("clip", 0, 4, 0);
-        var config = clip.getAnimationConfig();
+        var config = clip.getAnimationConfigForEditing();
         for (var concurrency : ConcurrencyMode.values()) for (var mapping : TimeMappingStrategy.values()) {
             var params = config.getSequenceParameters();
             params.setConcurrencyMode(concurrency); params.setTimeMappingStrategy(mapping);

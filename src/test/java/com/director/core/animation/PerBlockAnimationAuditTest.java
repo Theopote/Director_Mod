@@ -70,7 +70,7 @@ class PerBlockAnimationAuditTest {
     }
 
     @Test void legacyRenderContextUsesIndependentWindowsAndIncludesTail() {
-        var clip = new TimelineClip("blocks", 10, 11, 0); var config = clip.getAnimationConfig();
+        var clip = new TimelineClip("blocks", 10, 11, 0); var config = clip.getAnimationConfigForEditing();
         config.setMode(AnimationMode.FADE_IN); config.setDuration(2); config.setDelay(0.25f);
         var entry = new BlockSequenceEntry(BlockPos.ORIGIN, 0.75f, 0, 0);
         assertNull(BlockAnimationContext.build(null, BlockPos.ORIGIN, clip, config, entry, 10.5));
@@ -87,7 +87,7 @@ class PerBlockAnimationAuditTest {
         var track = new TimelineTrack("blocks", TrackType.CONTAINER);
         var clip = new TimelineClip("blocks", 0, 1, 0);
         track.addClip(clip); model.addTrack(track); clip.setBoundContainerId(java.util.UUID.randomUUID());
-        var config = clip.getAnimationConfig(); config.setMode(AnimationMode.FADE_IN); config.setDuration(2);
+        var config = clip.getAnimationConfigForEditing(); config.setMode(AnimationMode.FADE_IN); config.setDuration(2);
         model.setDuration(0.1f); assertEquals(3, model.getDuration());
         config.setDuration(10); model.markDirty(); assertEquals(11, model.getDuration());
     }
@@ -96,7 +96,7 @@ class PerBlockAnimationAuditTest {
         var viewport = new TimelineViewportState(); var model = new TimelineModel(viewport);
         model.setSuppressPersistenceWrites(true); var track = new TimelineTrack("blocks", TrackType.CONTAINER);
         var clip = new TimelineClip("fade", 0, 1, 0); clip.setPostAnimationFadeStart(3); clip.setPostAnimationFadeEnd(7);
-        clip.getAnimationConfig().setOcclusionTransparencyEnabled(false); track.addClip(clip); model.addTrack(track);
+        clip.getAnimationConfigForEditing().setOcclusionTransparencyEnabled(false); track.addClip(clip); model.addTrack(track);
         var gson = new Gson(); var dto = gson.fromJson(gson.toJson(TimelineModelPersistence.toDTO(model, viewport)),
                 TimelineModelPersistence.TimelineDTO.class);
         var restored = new TimelineModel(new TimelineViewportState()); restored.setSuppressPersistenceWrites(true);

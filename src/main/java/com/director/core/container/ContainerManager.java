@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.director.core.DirectorServices;
 import com.director.core.container.persistence.ContainerPersistence;
+import com.director.timeline.container.ContainerTimelineService;
 import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.registry.RegistryKey;
 
@@ -149,12 +150,14 @@ public class ContainerManager {
     public void addContainer(Container container) {
         if (container == null) return;
         java.util.ArrayList<Container> added = new java.util.ArrayList<>();
+        Map<UUID, Map<UUID, String>> recoveryTargets = new LinkedHashMap<>();
         writeLock.lock();
         try {
-            attachHierarchyInternal(container, container.getParent(), added);
+            attachHierarchyInternal(container, container.getParent(), added, recoveryTargets);
         } finally {
             writeLock.unlock();
         }
+        publishAttachRecoveryTargets(recoveryTargets);
         
         // v5.2: 不再使用HiddenBlockRegistry，可见性由ContainerVisibilityService管理
         for (Container c : added) {
@@ -170,15 +173,17 @@ public class ContainerManager {
     public void addContainers(java.util.Collection<Container> list) {
         if (list == null || list.isEmpty()) return;
         java.util.ArrayList<Container> added = new java.util.ArrayList<>();
+        Map<UUID, Map<UUID, String>> recoveryTargets = new LinkedHashMap<>();
         writeLock.lock();
         try {
             for (Container container : list) {
                 if (container == null) continue;
-                attachHierarchyInternal(container, container.getParent(), added);
+                attachHierarchyInternal(container, container.getParent(), added, recoveryTargets);
             }
         } finally {
             writeLock.unlock();
         }
+        publishAttachRecoveryTargets(recoveryTargets);
         for (Container c : added) {
             syncVisibilityForAddedContainer(c);
             fireContainerAdded(c);
@@ -193,15 +198,17 @@ public class ContainerManager {
     public void restoreHierarchyBulk(java.util.Collection<Container> roots) {
         if (roots == null || roots.isEmpty()) return;
         java.util.ArrayList<Container> restored = new java.util.ArrayList<>();
+        Map<UUID, Map<UUID, String>> recoveryTargets = new LinkedHashMap<>();
         writeLock.lock();
         try {
             for (Container root : roots) {
                 if (root == null) continue;
-                attachHierarchyInternal(root, null, restored);
+                attachHierarchyInternal(root, null, restored, recoveryTargets, true);
             }
         } finally {
             writeLock.unlock();
         }
+        publishAttachRecoveryTargets(recoveryTargets);
         // 锁外统一触发 Added 事件（子先父后影响较小，这里按 DFS 顺序触发）
         for (Container c : restored) {
             syncVisibilityForAddedContainer(c);
@@ -210,12 +217,25 @@ public class ContainerManager {
     }
 
     // 递归将容器树挂入当前管理器（假定已持有写锁），并收集用于事件触发
-    private void attachHierarchyInternal(Container node, Container parent, java.util.List<Container> restored) {
+    private void attachHierarchyInternal(Container node, Container parent, java.util.List<Container> restored,
+                                         Map<UUID, Map<UUID, String>> recoveryTargets) {
+        attachHierarchyInternal(node, parent, restored, recoveryTargets, false);
+    }
+
+    private void attachHierarchyInternal(Container node, Container parent, java.util.List<Container> restored,
+                                         Map<UUID, Map<UUID, String>> recoveryTargets,
+                                         boolean preserveExistingNameIndex) {
         if (node == null) return;
-        ensureUniqueIdForAttach(node);
+        ensureUniqueIdForAttach(node, recoveryTargets);
         containers.put(node.getId(), node);
-        Container previousByName = containersByName.put(node.getName(), node);
-        if (previousByName != null && previousByName != node) {
+        Container previousByName = containersByName.get(node.getName());
+        if (previousByName == null || previousByName == node) {
+            containersByName.put(node.getName(), node);
+        } else if (preserveExistingNameIndex) {
+            // 撤销恢复不得抢走执行后新建的同名无关容器的名称索引。
+            LOGGER.warn("[ContainerManager] 恢复容器 {} 时保留已有同名索引", node.getName());
+        } else {
+            containersByName.put(node.getName(), node);
             LOGGER.warn("[ContainerManager] 覆盖重复名称容器: {}", node.getName());
         }
         if (parent == null) {
@@ -232,11 +252,12 @@ public class ContainerManager {
         }
         restored.add(node);
         for (Container child : new java.util.ArrayList<>(node.getChildrenInternal())) {
-            attachHierarchyInternal(child, node, restored);
+            attachHierarchyInternal(child, node, restored, recoveryTargets, preserveExistingNameIndex);
         }
     }
 
-    private void ensureUniqueIdForAttach(Container node) {
+    private void ensureUniqueIdForAttach(Container node,
+                                         Map<UUID, Map<UUID, String>> recoveryTargets) {
         Container existing = containers.get(node.getId());
         if (existing == null || existing == node) {
             return;
@@ -248,8 +269,16 @@ public class ContainerManager {
             newId = UUID.randomUUID();
         } while (containers.containsKey(newId));
         node.replaceIdForRecovery(newId);
+        Map<UUID, String> targets = recoveryTargets.computeIfAbsent(oldId, ignored -> new LinkedHashMap<>());
+        targets.put(existing.getId(), existing.getName());
+        targets.put(node.getId(), node.getName());
         LOGGER.warn("[ContainerManager] 检测到重复容器 ID，已为 {} 重建 ID: {} -> {}",
             node.getName(), oldId, newId);
+    }
+
+    private void publishAttachRecoveryTargets(Map<UUID, Map<UUID, String>> recoveryTargets) {
+        if (recoveryTargets == null || recoveryTargets.isEmpty()) return;
+        ContainerTimelineService.requireInitialized().registerContainerRecoveryTargets(recoveryTargets);
     }
 
     /**
@@ -263,6 +292,7 @@ public class ContainerManager {
         if (parents == null || indices == null) return;
         if (parents.size() != items.size() || indices.size() != items.size()) return;
         java.util.ArrayList<Container> restored = new java.util.ArrayList<>();
+        Map<UUID, Map<UUID, String>> recoveryTargets = new LinkedHashMap<>();
         writeLock.lock();
         try {
             for (int i = 0; i < items.size(); i++) {
@@ -270,9 +300,14 @@ public class ContainerManager {
                 if (c == null) continue;
                 Container parent = parents.get(i);
                 int index = indices.get(i) != null ? indices.get(i) : -1;
-                ensureUniqueIdForAttach(c);
+                ensureUniqueIdForAttach(c, recoveryTargets);
                 containers.put(c.getId(), c);
-                containersByName.put(c.getName(), c);
+                Container previousByName = containersByName.get(c.getName());
+                if (previousByName == null || previousByName == c) {
+                    containersByName.put(c.getName(), c);
+                } else {
+                    LOGGER.warn("[ContainerManager] 恢复容器 {} 时保留已有同名索引", c.getName());
+                }
                 if (parent != null) {
                     int applied = index < 0 ? parent.getChildCount() : Math.min(index, parent.getChildCount());
                     parent.addChildAt(c, applied);
@@ -282,12 +317,13 @@ public class ContainerManager {
                 }
                 restored.add(c);
                 for (Container child : new java.util.ArrayList<>(c.getChildrenInternal())) {
-                    attachHierarchyInternal(child, c, restored);
+                    attachHierarchyInternal(child, c, restored, recoveryTargets, true);
                 }
             }
         } finally {
             writeLock.unlock();
         }
+        publishAttachRecoveryTargets(recoveryTargets);
         // 统一触发 Added/Moved 事件
         for (Container c : restored) {
             if (c == null) continue;
@@ -303,92 +339,111 @@ public class ContainerManager {
     
     public void removeContainer(Container container) {
         if (container == null) return;
-        if (container.isLocked()) {
-            LOGGER.warn("[ContainerManager] 无法删除容器 {}：容器已锁定", container.getName());
-            return;
-        }
-
-        // 1) 收集要删除的所有容器（子到父的后序顺序）
-        List<Container> toRemove = new ArrayList<>();
-        collectAllDescendants(container, toRemove);
-        toRemove.add(container);
-
-        // 2) 在锁外处理可见性恢复（避免长时间持有锁）
-        try {
-            var visibilityService = DirectorServices.get().visibilityOrNull();
-            if (visibilityService != null) {
-                for (Container c : toRemove) {
-                    if (c.isHidden() || visibilityService.hasSnapshot(c)) {
-                        try {
-                            visibilityService.showContainer(c);
-                        } catch (Exception visEx) {
-                            LOGGER.warn("[ContainerManager] 删除容器 {} 时恢复方块失败: {}", c.getName(), visEx.getMessage());
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.warn("[ContainerManager] 删除容器时恢复方块状态失败: {}", e.getMessage());
-        }
-
-        // 2.5) 在锁外删除时间线上的对应片段（避免长时间持有锁）
-        try {
-            var timelineService = DirectorServices.get().containerTimeline();
-            for (Container c : toRemove) {
-                int removedCount = timelineService.removeClipsForContainer(c.getId());
-                if (removedCount > 0) {
-                    LOGGER.info("[ContainerManager] 容器 {} 在时间线上的 {} 个片段已自动删除", c.getName(), removedCount);
-                }
-            }
-        } catch (Exception ex) {
-            LOGGER.warn("[ContainerManager] 删除容器时删除片段失败: {}", ex.getMessage());
-        }
-
-        // 3) 一次性进入锁内进行结构与选择状态更新
-        boolean selectionChanged = false;
-        writeLock.lock();
-        try {
-            for (Container c : toRemove) {
-                // 从父容器断开或根列表移除
-                Container parent = c.getParent();
-                if (parent != null) {
-                    parent.removeChild(c);
-                } else {
-                    rootContainers.remove(c);
-                }
-                // 从总表移除
-                containers.remove(c.getId());
-                containersByName.remove(c.getName());
-                // 更新选择状态
-                if (deselectInternal(c)) {
-                    selectionChanged = true;
-                }
-            }
-        } finally {
-            writeLock.unlock();
-        }
-
-        // 4) 在锁外批量触发事件（自底向上）
-        for (Container c : toRemove) {
-            fireContainerRemoved(c);
-            LOGGER.info("[ContainerManager] 删除容器: {}", c.getName());
-        }
-        if (selectionChanged) {
-            fireSelectionChanged();
-        }
-        ContainerPersistence.requestAutoSave();
+        removeContainers(Collections.singletonList(container));
     }
 
     // 后序遍历收集所有子孙
     private void collectAllDescendants(Container container, List<Container> list) {
+        if (container == null || list == null) return;
         for (Container child : container.getChildren()) {
             collectAllDescendants(child, list);
             list.add(child);
         }
     }
-    
+
+    /** 删除整棵子树前先确认每个对象仍是当前管理器注册的实例。 */
+    private boolean isRegisteredTree(Container container) {
+        if (!isRegistered(container)) {
+            return false;
+        }
+        for (Container child : container.getChildren()) {
+            if (!isRegisteredTree(child)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void removeNameIndexIfOwned(Container container) {
+        if (container == null) return;
+        Container indexed = containersByName.get(container.getName());
+        if (indexed == container) {
+            containersByName.remove(container.getName());
+        }
+    }
+
+    private void removeContainerIdIfOwned(Container container) {
+        if (containers.get(container.getId()) == container) {
+            containers.remove(container.getId());
+        }
+    }
+
     // ========== 容器查找 ==========
-    
+
+    /**
+     * 注册身份校验。容器 {@link Container#equals(Object)} 按 UUID 比较，
+     * 但管理器边界必须确认传入对象就是当前注册的实例。
+     */
+    public boolean isRegistered(Container container) {
+        if (container == null) {
+            return false;
+        }
+        readLock.lock();
+        try {
+            return containers.get(container.getId()) == container;
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    /** 内容、属性和结构编辑的统一门禁；选择、激活和解锁不受此门禁限制。 */
+    public boolean isEditable(Container container) {
+        if (container == null) {
+            return false;
+        }
+        readLock.lock();
+        try {
+            return containers.get(container.getId()) == container && !container.isLocked();
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    public boolean requireEditable(Container container, String action) {
+        if (isEditable(container)) {
+            return true;
+        }
+        LOGGER.warn("[ContainerManager] 拒绝{}：容器 {} 未注册或已锁定",
+            action, container != null ? container.getName() : "null");
+        return false;
+    }
+
+    /** 批量编辑先完整预检，任一项目不可编辑则整批拒绝。 */
+    public boolean requireAllEditable(Collection<Container> containers, String action) {
+        if (containers == null || containers.isEmpty()) {
+            return false;
+        }
+        for (Container container : containers) {
+            if (!isEditable(container)) {
+                LOGGER.warn("[ContainerManager] 拒绝批量{}：容器 {} 未注册或已锁定，整批未执行",
+                    action, container != null ? container.getName() : "null");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** 结构操作会连带移动整棵子树，因此子容器也必须全部可编辑。 */
+    public boolean requireEditableTree(Container container, String action) {
+        if (container == null) {
+            return false;
+        }
+        List<Container> tree = new ArrayList<>();
+        collectAllDescendants(container, tree);
+        tree.add(container);
+        return requireAllEditable(tree, action);
+    }
+
     public Container getContainer(UUID id) {
         if (id == null) return null;
         readLock.lock();
@@ -442,19 +497,32 @@ public class ContainerManager {
      */
     public void removeContainers(Collection<Container> containersToDelete) {
         if (containersToDelete == null || containersToDelete.isEmpty()) return;
-        // 收集所有需要删除的容器（包含其子孙），按出现顺序去重
-        java.util.LinkedHashSet<Container> all = new java.util.LinkedHashSet<>();
-        for (Container c : containersToDelete) {
-            if (c == null) continue;
-            java.util.ArrayList<Container> tmp = new java.util.ArrayList<>();
-            collectAllDescendants(c, tmp);
-            all.addAll(tmp);
-            all.add(c);
+
+        // 先验证整批请求及展开后的子树；任何失效/锁定项都拒绝整批，
+        // 避免可见性、时间线或选择状态发生部分修改。
+        Set<Container> all = Collections.newSetFromMap(new IdentityHashMap<>());
+        all.addAll(containersToDelete);
+        if (all.contains(null) || all.isEmpty()) return;
+        for (Container c : all) {
+            if (!isRegisteredTree(c)) {
+                LOGGER.warn("[ContainerManager] 拒绝批量删除：容器 {} 未注册或层级已失效", c.getName());
+                return;
+            }
         }
+        for (Container c : all) {
+            List<Container> descendants = new ArrayList<>();
+            collectAllDescendants(c, descendants);
+            all.addAll(descendants);
+        }
+        if (!requireAllEditable(all, "删除")) {
+            return;
+        }
+        List<Container> toRemove = new ArrayList<>(all);
+
         // 先在锁外处理可见性恢复，避免隐藏残留
         var visibilityService = DirectorServices.get().visibilityOrNull();
         if (visibilityService != null) {
-            for (Container c : all) {
+            for (Container c : toRemove) {
                 try {
                     if (c.isHidden() || visibilityService.hasSnapshot(c)) {
                         visibilityService.showContainer(c);
@@ -467,7 +535,7 @@ public class ContainerManager {
         // 在锁外删除时间线上的对应片段（避免长时间持有锁）
         try {
             var timelineService = DirectorServices.get().containerTimeline();
-            for (Container c : all) {
+            for (Container c : toRemove) {
                 int removedCount = timelineService.removeClipsForContainer(c.getId());
                 if (removedCount > 0) {
                     LOGGER.info("[ContainerManager] 容器 {} 在时间线上的 {} 个片段已自动删除", c.getName(), removedCount);
@@ -478,27 +546,35 @@ public class ContainerManager {
         }
         // 锁内批量移除
         boolean selectionChanged = false;
+        Container oldActive = null;
         writeLock.lock();
         try {
-            for (Container c : all) {
+            for (Container c : toRemove) {
                 Container parent = c.getParent();
                 if (parent != null) {
                     parent.removeChild(c);
                 } else {
                     rootContainers.remove(c);
                 }
-                containers.remove(c.getId());
-                containersByName.remove(c.getName());
+                removeContainerIdIfOwned(c);
+                removeNameIndexIfOwned(c);
                 if (deselectInternal(c)) {
                     selectionChanged = true;
+                }
+                if (activeContainer == c) {
+                    oldActive = c;
+                    activeContainer = null;
                 }
             }
         } finally {
             writeLock.unlock();
         }
         // 锁外批量事件
-        for (Container c : all) {
+        for (Container c : toRemove) {
             fireContainerRemoved(c);
+        }
+        if (oldActive != null) {
+            fireActiveContainerChanged(oldActive, null);
         }
         if (selectionChanged) {
             fireSelectionChanged();
@@ -518,10 +594,28 @@ public class ContainerManager {
      */
     public void moveContainersToParent(java.util.List<Container> containersToMove, Container newParent, int startIndex) {
         if (containersToMove == null || containersToMove.isEmpty()) return;
+
+        // 先对原始请求整批预检，再过滤循环与重复项；锁定项不能被静默跳过。
+        for (Container c : containersToMove) {
+            if (c == null || !requireEditableTree(c, "移动")) {
+                return;
+            }
+            Container oldParent = c.getParent();
+            if (oldParent != null && !isEditable(oldParent)) {
+                LOGGER.warn("[ContainerManager] 拒绝批量移动：源父容器 {} 未注册或已锁定", oldParent.getName());
+                return;
+            }
+        }
+        if (newParent != null && !isEditable(newParent)) {
+            LOGGER.warn("[ContainerManager] 拒绝批量移动：目标父容器 {} 未注册或已锁定", newParent.getName());
+            return;
+        }
+
         // 过滤非法与循环引用
         java.util.ArrayList<Container> list = new java.util.ArrayList<>();
+        Set<Container> seen = Collections.newSetFromMap(new IdentityHashMap<>());
         for (Container c : containersToMove) {
-            if (c == null) continue;
+            if (!seen.add(c)) continue;
             if (newParent != null && (newParent == c || newParent.isDescendantOf(c))) continue;
             list.add(c);
         }
@@ -572,6 +666,18 @@ public class ContainerManager {
 
     public void moveContainerToParent(Container container, Container newParent, int index) {
         if (container == null) return;
+        if (!requireEditableTree(container, "移动")) {
+            return;
+        }
+        Container sourceParent = container.getParent();
+        if (sourceParent != null && !isEditable(sourceParent)) {
+            LOGGER.warn("[ContainerManager] 拒绝移动：源父容器 {} 未注册或已锁定", sourceParent.getName());
+            return;
+        }
+        if (newParent != null && !isEditable(newParent)) {
+            LOGGER.warn("[ContainerManager] 拒绝移动：目标父容器 {} 未注册或已锁定", newParent.getName());
+            return;
+        }
         if (newParent != null && (newParent == container || newParent.isDescendantOf(container))) {
             LOGGER.warn("[ContainerManager] 无法将容器 {} 移动到其子孙节点 {}", container.getName(), newParent.getName());
             return;
@@ -614,6 +720,21 @@ public class ContainerManager {
 
     public void swapContainers(Container first, Container second) {
         if (first == null || second == null || first == second) {
+            return;
+        }
+        if (!requireEditableTree(first, "交换") || !requireEditableTree(second, "交换")) {
+            return;
+        }
+        Container oldParentA = first.getParent();
+        Container oldParentB = second.getParent();
+        if ((oldParentA != null && !isEditable(oldParentA))
+                || (oldParentB != null && !isEditable(oldParentB))) {
+            LOGGER.warn("[ContainerManager] 拒绝交换：源父容器未注册或已锁定");
+            return;
+        }
+        if (oldParentA != oldParentB
+                && (first.isDescendantOf(second) || second.isDescendantOf(first))) {
+            LOGGER.warn("[ContainerManager] 拒绝交换祖先与后代容器：{} / {}", first.getName(), second.getName());
             return;
         }
 
@@ -824,6 +945,72 @@ public class ContainerManager {
     public Set<Container> getSelectedContainersView() {
         return Collections.unmodifiableSet(getSelectedContainers());
     }
+
+    public Container getLastSelectedContainer() {
+        readLock.lock();
+        try {
+            return lastSelectedContainer;
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    /**
+     * 命令撤销专用：恢复快照中的选择，同时保留执行后产生的无关选择。
+     * 仅接受仍在本管理器注册的对象。
+     */
+    public void restoreSelection(Collection<Container> selection, Container primary, Container lastSelected) {
+        List<Container> restored = new ArrayList<>();
+        if (selection != null) {
+            for (Container container : selection) {
+                if (isRegistered(container) && !restored.contains(container)) {
+                    restored.add(container);
+                }
+            }
+        }
+        boolean hasUnrelatedSelection;
+        Container currentPrimary;
+        Container currentLast;
+        readLock.lock();
+        try {
+            currentPrimary = selectedContainer;
+            currentLast = lastSelectedContainer;
+            hasUnrelatedSelection = selectedContainers.stream()
+                .anyMatch(container -> isRegistered(container) && !restored.contains(container));
+        } finally {
+            readLock.unlock();
+        }
+        for (Container container : getSelectedContainers()) {
+            if (isRegistered(container) && !restored.contains(container)) {
+                restored.add(container);
+            }
+        }
+        Container restoredPrimary = restored.contains(primary) ? primary
+            : (restored.isEmpty() ? null : restored.get(0));
+        if (hasUnrelatedSelection && isRegistered(currentPrimary)) {
+            restoredPrimary = currentPrimary;
+        }
+        Container restoredLast = restored.contains(lastSelected) ? lastSelected : restoredPrimary;
+        if (hasUnrelatedSelection && isRegistered(currentLast)) {
+            restoredLast = currentLast;
+        }
+
+        boolean changed;
+        writeLock.lock();
+        try {
+            changed = !selectedContainers.equals(restored)
+                || selectedContainer != restoredPrimary || lastSelectedContainer != restoredLast;
+            selectedContainers.clear();
+            selectedContainers.addAll(restored);
+            selectedContainer = restoredPrimary;
+            lastSelectedContainer = restoredLast;
+        } finally {
+            writeLock.unlock();
+        }
+        if (changed) {
+            fireSelectionChanged();
+        }
+    }
     
     public boolean isSelected(Container container) {
         readLock.lock();
@@ -904,6 +1091,9 @@ public class ContainerManager {
         if (container == null || newName == null) {
             return;
         }
+        if (!requireEditable(container, "重命名")) {
+            return;
+        }
         String trimmed = sanitizeContainerName(newName);
         if (trimmed.isEmpty()) {
             return;
@@ -922,7 +1112,7 @@ public class ContainerManager {
                 appliedName = generateUniqueName(trimmed);
             }
             if (oldName != null) {
-                containersByName.remove(oldName);
+                removeNameIndexIfOwned(container);
             }
             container.setName(appliedName);
             containersByName.put(appliedName, container);
@@ -958,12 +1148,13 @@ public class ContainerManager {
         }
         if (lastSelectedContainer == container) {
             lastSelectedContainer = null;
+            changed = true;
         }
         return changed;
     }
 
     private boolean clearSelectionInternal() {
-        if (!selectedContainers.isEmpty() || selectedContainer != null) {
+        if (!selectedContainers.isEmpty() || selectedContainer != null || lastSelectedContainer != null) {
             selectedContainers.clear();
             selectedContainer = null;
             lastSelectedContainer = null;
@@ -1048,6 +1239,10 @@ public class ContainerManager {
             return;
         }
         
+        if (!requireEditable(container, "添加方块")) {
+            return;
+        }
+
         if (positions == null || positions.isEmpty()) {
             return;
         }
@@ -1309,17 +1504,43 @@ public class ContainerManager {
     public void clear() {
         List<Container> removedContainers;
         boolean selectionChanged;
+        Container oldActive;
         writeLock.lock();
         try {
             removedContainers = new ArrayList<>(containers.values());
             containers.clear();
             containersByName.clear();
             rootContainers.clear();
-            selectionChanged = !selectedContainers.isEmpty() || selectedContainer != null;
+            selectionChanged = !selectedContainers.isEmpty()
+                || selectedContainer != null || lastSelectedContainer != null;
             selectedContainers.clear();
             selectedContainer = null;
+            lastSelectedContainer = null;
+            oldActive = activeContainer;
+            activeContainer = null;
         } finally {
             writeLock.unlock();
+        }
+
+        // 普通清空也必须归还隐藏方块；存档加载只替换管理器状态。
+        if (!ContainerPersistence.isLoading()) {
+            try {
+                var visibilityService = DirectorServices.get().visibilityOrNull();
+                if (visibilityService != null) {
+                    for (Container c : removedContainers) {
+                        if (c.isHidden() || visibilityService.hasSnapshot(c)) {
+                            visibilityService.showContainer(c);
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                LOGGER.warn("[ContainerManager] 清空容器时恢复方块失败: {}", ex.getMessage());
+            }
+        }
+
+        // 持久化加载负责按世界替换/保留恢复映射；普通清空才丢弃旧映射。
+        if (!ContainerPersistence.isLoading()) {
+            ContainerTimelineService.requireInitialized().clearContainerRecoveryMapping();
         }
 
         // 在锁外删除所有容器在时间线上的片段。
@@ -1343,6 +1564,9 @@ public class ContainerManager {
         LOGGER.info("[ContainerManager] 清空所有容器: {}", removedContainers.size());
         for (int i = removedContainers.size() - 1; i >= 0; i--) {
             fireContainerRemoved(removedContainers.get(i));
+        }
+        if (oldActive != null) {
+            fireActiveContainerChanged(oldActive, null);
         }
         if (selectionChanged) {
             fireSelectionChanged();

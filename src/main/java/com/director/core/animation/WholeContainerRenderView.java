@@ -9,6 +9,7 @@ import net.minecraft.world.BlockRenderView;
 import net.minecraft.world.LightType;
 import net.minecraft.world.biome.ColorResolver;
 import net.minecraft.world.chunk.light.LightingProvider;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import java.util.Map;
@@ -19,24 +20,43 @@ public final class WholeContainerRenderView implements BlockRenderView {
     private final Map<BlockPos, BlockState> states;
     private final BlockPos origin;
     private final Matrix4f transform;
+    private final Matrix3f normalTransform;
     private final boolean cullNeighbors;
+    private final boolean worldCoordinates;
     public WholeContainerRenderView(BlockRenderView world, Map<BlockPos, BlockState> states,
             BlockPos origin, Matrix4f transform) {
         this(world, states, origin, transform, true);
     }
     public WholeContainerRenderView(BlockRenderView world, Map<BlockPos, BlockState> states,
             BlockPos origin, Matrix4f transform, boolean cullNeighbors) {
+        this(world, states, origin, transform, cullNeighbors, false);
+    }
+    private WholeContainerRenderView(BlockRenderView world, Map<BlockPos, BlockState> states,
+            BlockPos origin, Matrix4f transform, boolean cullNeighbors, boolean worldCoordinates) {
         this.cullNeighbors = cullNeighbors;
         this.world = world; this.states = states; this.origin = origin;
         this.transform = new Matrix4f(transform);
+        this.normalTransform = new Matrix3f(transform);
+        this.worldCoordinates = worldCoordinates;
+    }
+    /** Shared whole-container pivot transform in absolute world coordinates. */
+    public static WholeContainerRenderView forWorldTransform(BlockRenderView world, Map<BlockPos, BlockState> states,
+            Matrix4f transform, boolean cullNeighbors) {
+        return new WholeContainerRenderView(world, states, null, transform, cullNeighbors, true);
     }
     public boolean cullNeighbors() { return cullNeighbors; }
+    public Matrix3f getNormalTransform() { return normalTransform; }
     public BlockPos displayedPosition(BlockPos pos) {
-        var p = transform.transformPosition(new Vector3f(
-                pos.getX() - origin.getX() + 0.5f, pos.getY() - origin.getY() + 0.5f,
-                pos.getZ() - origin.getZ() + 0.5f));
-        return BlockPos.ofFloored(origin.getX() + (double) p.x, origin.getY() + (double) p.y,
-                origin.getZ() + (double) p.z);
+        var p = worldCoordinates
+                ? transform.transformPosition(new Vector3f(
+                        pos.getX() + 0.5f, pos.getY() + 0.5f, pos.getZ() + 0.5f))
+                : transform.transformPosition(new Vector3f(
+                        pos.getX() - origin.getX() + 0.5f, pos.getY() - origin.getY() + 0.5f,
+                        pos.getZ() - origin.getZ() + 0.5f));
+        return worldCoordinates
+                ? BlockPos.ofFloored(p.x, p.y, p.z)
+                : BlockPos.ofFloored(origin.getX() + (double) p.x, origin.getY() + (double) p.y,
+                        origin.getZ() + (double) p.z);
     }
     @Override public BlockState getBlockState(BlockPos pos) {
         var state = states.get(pos);

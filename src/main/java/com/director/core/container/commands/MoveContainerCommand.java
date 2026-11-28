@@ -21,6 +21,7 @@ public class MoveContainerCommand implements ContainerCommand {
 
     private final Container targetParent;
     private final int targetIndex;
+    private boolean executed;
 
     public MoveContainerCommand(ContainerManager manager,
                                 Container container,
@@ -35,11 +36,17 @@ public class MoveContainerCommand implements ContainerCommand {
     @Override
     public void execute() {
         Container container = manager.getContainer(containerId);
-        if (container == null) {
+        if (container == null || !manager.requireEditableTree(container, "移动")
+                || (targetParent != null && !manager.isEditable(targetParent))) {
+            return;
+        }
+        Container currentParent = container.getParent();
+        if ((currentParent != null && !manager.isEditable(currentParent))
+                || (targetParent != null && (targetParent == container || targetParent.isDescendantOf(container)))) {
             return;
         }
 
-        oldParent = container.getParent();
+        oldParent = currentParent;
         java.util.List<Container> rootView = manager.getRootContainersView();
         oldIndex = oldParent != null
             ? oldParent.indexOfChild(container)
@@ -48,17 +55,24 @@ public class MoveContainerCommand implements ContainerCommand {
         oldState = container.getState();
 
         manager.moveContainerToParent(container, targetParent, targetIndex);
+        executed = true;
     }
 
     @Override
     public void undo() {
+        if (!executed) {
+            return;
+        }
         Container container = manager.getContainer(containerId);
-        if (container == null) {
+        if (container == null || !manager.requireEditableTree(container, "撤销移动")
+                || (oldParent != null && !manager.isEditable(oldParent))
+                || (oldParent != null && oldParent.isDescendantOf(container))) {
             return;
         }
         manager.moveContainerToParent(container, oldParent, oldIndex);
         container.setLocked(oldLocked);
         container.setState(oldState);
+        executed = false;
     }
 
     @Override

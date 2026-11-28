@@ -49,6 +49,23 @@ class WholeContainerRenderViewTest {
         view.getBlockState(source);
         assertEquals(displayed, world.sampled);
     }
+    @Test void sharedWorldTransformSamplesEveryBlockThroughTheAssemblyPivot() {
+        var world = new World();
+        var pivot = new net.minecraft.util.math.Vec3d(10, 20, 30);
+        var frame = new com.director.core.animation.WholeContainerAnimation.Frame(
+                false, true, true, 0.5f, 1, 0, 0, 0, 0, 0, 90);
+        var view = WholeContainerRenderView.forWorldTransform(world, Map.of(),
+                frame.worldTransform(pivot), true);
+        var source = new BlockPos(9, 20, 30);
+        assertEquals(new BlockPos(9, 19, 30), view.displayedPosition(source));
+        view.getBlockEntity(source);
+        assertEquals(new BlockPos(9, 19, 30), world.sampled);
+        var normal = view.getNormalTransform().transform(new org.joml.Vector3f(1, 0, 0));
+        assertEquals(0, normal.x, 0.000001f);
+        assertEquals(1, normal.y, 0.000001f);
+        assertEquals(0, normal.z, 0.000001f);
+    }
+
     @Test void identityKeepsNativeShadingAndRotationChangesFaceShadingSmoothly() {
         var world = new World();
         var resting = new WholeContainerRenderView(world, Map.of(), BlockPos.ORIGIN, new Matrix4f());

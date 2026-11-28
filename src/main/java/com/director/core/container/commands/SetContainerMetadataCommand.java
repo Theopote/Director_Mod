@@ -27,7 +27,7 @@ public class SetContainerMetadataCommand implements ContainerCommand {
     @Override
     public void execute() {
         Container container = manager.getContainer(containerId);
-        if (container != null) {
+        if (manager.requireEditable(container, "修改元数据")) {
             container.setMetadata(key, newValue);
         }
     }
@@ -35,7 +35,7 @@ public class SetContainerMetadataCommand implements ContainerCommand {
     @Override
     public void undo() {
         Container container = manager.getContainer(containerId);
-        if (container != null) {
+        if (manager.requireEditable(container, "撤销元数据修改")) {
             if (oldValue == null) {
                 container.removeMetadata(key);
             } else {

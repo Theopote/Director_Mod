@@ -35,4 +35,13 @@ public final class PerBlockAnimationTiming {
                 == com.director.core.animation.sequence.ConcurrencyMode.ALL_AT_ONCE;
         return (simultaneous ? start : end) + timing.delay() + timing.duration();
     }
+
+    /**
+     * Shared animation-completion clock for opacity, fade and playback visibility.
+     * Whole-container sampling is clipped by the timeline, while a per-block sequence may
+     * continue into a tail after the clip's right edge.
+     */
+    public static float effectiveAnimationEndTime(ClipAnimationConfig config, float start, float end) {
+        return completionLimit(config, start, end);
+    }
 }

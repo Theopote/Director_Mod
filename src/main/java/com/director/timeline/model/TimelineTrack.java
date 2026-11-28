@@ -12,7 +12,11 @@ import com.director.timeline.model.camera.path.CustomPathClip;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +36,8 @@ public class TimelineTrack {
 
     private String name;
     private TrackType type;  // 轨道类型
+    /** 所属模型；离线轨道在加入模型后也使用模型局部唯一性。 */
+    private TimelineModel ownerModel;
     private final List<TimelineClip> clips = new ArrayList<>();
     private final List<TimelineSelectable> automationKeyframes = new ArrayList<>();
     private boolean locked = false;
@@ -126,6 +132,35 @@ public class TimelineTrack {
         return false;
     }
 
+    /** Atomically restores a command snapshot without replaying audio collection. */
+    public void replaceClips(List<TimelineClip> restoredClips) {
+        Objects.requireNonNull(restoredClips, "restoredClips");
+        var restored = new ArrayList<TimelineClip>(restoredClips);
+        var identities = Collections.newSetFromMap(new IdentityHashMap<>());
+        var boundContainers = new HashSet<UUID>();
+        for (TimelineClip clip : restored) {
+            if (clip == null || !identities.add(clip) || !isReplacementClipValid(clip, boundContainers)) {
+                throw new IllegalStateException("Invalid clip snapshot for track " + name);
+            }
+        }
+        for (TimelineClip clip : this.clips) {
+            if (!identities.contains(clip)) clip.setParentTrack(null);
+        }
+        this.clips.clear();
+        this.clips.addAll(restored);
+        for (TimelineClip clip : restored) clip.setParentTrack(this);
+        clips.sort(Comparator.comparing(TimelineClip::getStartTime));
+    }
+
+    private boolean isReplacementClipValid(TimelineClip clip, Set<UUID> boundContainers) {
+        if ((clip instanceof com.director.lighting.LightTimelineClip) != (type == TrackType.LIGHT)) return false;
+        if (clip instanceof com.director.timeline.model.audio.AudioTimelineClip
+                || clip.getBoundContainerId() == null) return true;
+        return type == TrackType.CONTAINER
+                && boundContainers.add(clip.getBoundContainerId())
+                && !isContainerAlreadyOnOtherTimelineClip(clip);
+    }
+
     /**
      * 从轨道移除片段，并清除父引用。
      */
@@ -140,6 +175,24 @@ public class TimelineTrack {
         if (containerId == null) {
             return false;
         }
+        for (TimelineClip existing : clips) {
+            if (existing != null && existing != candidate && containerId.equals(existing.getBoundContainerId())) {
+                return true;
+            }
+        }
+        if (ownerModel != null) {
+            for (TimelineTrack track : ownerModel.getTracks()) {
+                if (track == null || track == this || track.getType() != TrackType.CONTAINER) {
+                    continue;
+                }
+                for (TimelineClip existing : track.getClips()) {
+                    if (existing != null && existing != candidate && containerId.equals(existing.getBoundContainerId())) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
         var service = DirectorServices.get().containerTimeline();
         for (TimelineClip existing : service.findClipsForContainer(containerId)) {
             if (existing != null && existing != candidate) {
@@ -147,6 +200,14 @@ public class TimelineTrack {
             }
         }
         return false;
+    }
+
+    void setOwnerModel(TimelineModel ownerModel) {
+        this.ownerModel = ownerModel;
+    }
+
+    TimelineModel getOwnerModel() {
+        return ownerModel;
     }
 
     /**
@@ -157,7 +218,13 @@ public class TimelineTrack {
      */
     public TimelineClip findClipAtTime(float time) {
         for (TimelineClip clip : clips) {
-            if (time >= clip.getStartTime() && time <= clip.getEndTime()) {
+            if (clip != null && Float.compare(clip.getStartTime(), clip.getEndTime()) == 0
+                    && Float.compare(time, clip.getStartTime()) == 0) {
+                return clip;
+            }
+        }
+        for (TimelineClip clip : clips) {
+            if (clip != null && time >= clip.getStartTime() && time < clip.getEndTime()) {
                 return clip;
             }
         }
@@ -211,7 +278,7 @@ public class TimelineTrack {
     }
 
     public List<TimelineClip> getClips() {
-        return clips;
+        return Collections.unmodifiableList(clips);
     }
 
     public boolean isLocked() {
@@ -243,7 +310,12 @@ public class TimelineTrack {
     }
 
     public void setType(TrackType type) {
-        this.type = type != null ? type : TrackType.CONTAINER;
+        TrackType nextType = type != null ? type : TrackType.CONTAINER;
+        if (nextType != this.type && (!clips.isEmpty() || !automationKeyframes.isEmpty()
+                || !cameraPathClips.isEmpty())) {
+            throw new IllegalStateException("Cannot change track type while it contains timeline items");
+        }
+        this.type = nextType;
     }
 
     public boolean isMuted() {

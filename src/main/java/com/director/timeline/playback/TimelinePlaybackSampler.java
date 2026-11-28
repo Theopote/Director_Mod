@@ -7,6 +7,8 @@ import com.director.timeline.playback.time.TimelineWorldController;
 import com.director.timeline.playback.weather.TimelineWeatherController;
 import com.director.timeline.playback.block.TimelineClipBlockController;
 
+import java.util.Objects;
+
 /**
  * 以 {@link TimelineModel} 为唯一时钟的时间线采样入口（导出 / 离线抓帧 / 重同步）。
  * <p>
@@ -21,24 +23,61 @@ public final class TimelinePlaybackSampler {
      * 在指定时间点采样完整世界状态（环境/演员/方块片段，不含相机）。
      */
     public static void sampleWorldAt(float timeSeconds) {
-        sampleWorldAt(timeSeconds, TimelineSamplingPolicy.PREVIEW);
+        sampleWorldAt(timeSeconds, TimelineSamplingContext.PREVIEW);
     }
 
     public static void sampleWorldForExport(float timeSeconds) {
-        if (!Float.isFinite(timeSeconds) || timeSeconds < 0) throw new IllegalArgumentException("导出采样时间无效");
-        sampleWorldAt(timeSeconds, TimelineSamplingPolicy.EXPORT);
+        sampleWorldAt(timeSeconds, TimelineSamplingContext.EXPORT);
     }
 
-    private static void sampleWorldAt(float timeSeconds, TimelineSamplingPolicy policy) {
-        TimelineModel model = resolveModel();
-        if (model == null) {
-            if (policy == TimelineSamplingPolicy.EXPORT) throw new IllegalStateException("导出时间线已关闭或被卸载");
-            return;
+    public static void sampleWorldHeadless(float timeSeconds) {
+        sampleWorldAt(timeSeconds, TimelineSamplingContext.HEADLESS);
+    }
+
+    public static void sampleWorldAt(float timeSeconds, TimelineSamplingContext context) {
+        Objects.requireNonNull(context, "context");
+        if (!Float.isFinite(timeSeconds) || timeSeconds < 0) {
+            String label = context != null && context.mode() == TimelineSamplingContext.Mode.PREVIEW
+                    ? "采样" : context != null && context.mode() == TimelineSamplingContext.Mode.HEADLESS
+                    ? "无头采样" : "导出";
+            throw new IllegalArgumentException(label + "时间无效");
         }
-        model.setCurrentTime(timeSeconds);
-        policy.run("点光源", timeSeconds, () -> com.director.lighting.PointLightRuntime.update(model));
-        driveSubsystems(timeSeconds, policy);
-        policy.run("方块片段", timeSeconds, () -> TimelineClipBlockController.getInstance().update());
+        try (var ignored = TimelineSamplingContext.open(context)) {
+            TimelineModel model = resolveModel();
+            if (model == null) {
+                if (context.isStrict()) {
+                    String label = context.mode() == TimelineSamplingContext.Mode.HEADLESS ? "无头" : "导出";
+                    throw new IllegalStateException(label + "时间线已关闭或被卸载");
+                }
+                return;
+            }
+            TimelineSamplingPolicy policy = TimelineSamplingPolicy.forContext(context);
+            HeadlessPlaybackState headlessState = context.mode() == TimelineSamplingContext.Mode.HEADLESS
+                    ? HeadlessPlaybackState.captureAndSuspend(model) : null;
+            try {
+                model.setCurrentTime(timeSeconds);
+                policy.run("点光源", timeSeconds, () -> com.director.lighting.PointLightRuntime.update(model));
+                driveSubsystems(timeSeconds, policy);
+                policy.run("方块片段", timeSeconds, () -> TimelineClipBlockController.getInstance().update());
+            } finally {
+                if (headlessState != null) headlessState.restore(model);
+            }
+        }
+    }
+
+    static record HeadlessPlaybackState(float time, boolean playing, boolean scrubbing) {
+        static HeadlessPlaybackState captureAndSuspend(TimelineModel model) {
+            var state = new HeadlessPlaybackState(model.getCurrentTime(), model.isPlaying(), model.isScrubbing());
+            model.setPlaying(false);
+            model.setScrubbing(false);
+            return state;
+        }
+
+        void restore(TimelineModel model) {
+            model.setCurrentTime(time);
+            model.setScrubbing(scrubbing);
+            model.setPlaying(playing);
+        }
     }
 
     public static float resolveDuration(float fallbackSeconds) {

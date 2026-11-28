@@ -93,7 +93,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                 if (containerClip == null) {
                     UITheme.colored(UITheme.Semantic.DANGER, "⚠ 未找到绑定的容器片段（可能需要先生成一次自动音效）。");
                 } else {
-                    var cfg = containerClip.getAnimationConfig();
+                    var cfg = containerClip.getAnimationConfigForEditing();
                     if (cfg == null) {
                         ImGui.textDisabled("容器片段动画配置为空，无法同步音效。");
                     } else if (cfg.isWholeContainer()) {

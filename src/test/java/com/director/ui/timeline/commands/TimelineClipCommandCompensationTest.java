@@ -170,6 +170,33 @@ class TimelineClipCommandCompensationTest {
     }
 
     @Test
+    void resizeUndoRestoresPrunedKeyframesAndRedoKeepsFinalState() {
+        TimelineTrack target = track("Target");
+        TimelineClip clip = new TimelineClip("Resize", 0f, 4f, 0);
+        clip.addKeyframe(3f);
+        clip.addVisibilityKeyframe(new com.director.timeline.model.VisibilityKeyframe(
+                2.5f, 0.4f, com.director.timeline.model.VisibilityKeyframe.VisibilityMode.GHOST));
+        target.addClip(clip);
+        TimelineClip gestureStart = clip.snapshot();
+        var keyframeId = clip.getClipKeyframes().getFirst().getId();
+
+        clip.setTimeRange(0f, 2f);
+        TimelineClip preview = clip.snapshot();
+        ResizeClipCommand command = new ResizeClipCommand(
+                model, clip, 0f, 4f, 0f, 2f, gestureStart);
+
+        history.executeCommand(command);
+        assertTrue(clip.hasSameStateAs(preview));
+        assertEquals(preview.getVisibilityKeyframes(), clip.getVisibilityKeyframes());
+        assertTrue(history.undo());
+        assertTrue(clip.hasSameStateAs(gestureStart));
+        assertEquals(keyframeId, clip.getClipKeyframes().getFirst().getId());
+        assertEquals(1, clip.getVisibilityKeyframes().size());
+        assertTrue(history.redo());
+        assertTrue(clip.hasSameStateAs(preview));
+    }
+
+    @Test
     void baseCommandInvokesCompensationAndKeepsFailedExecutionOutOfHistory() {
         AtomicBoolean value = new AtomicBoolean(false);
         BaseTimelineCommand command = new BaseTimelineCommand(model, "test") {

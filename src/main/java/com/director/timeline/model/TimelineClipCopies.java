@@ -20,13 +20,23 @@ public final class TimelineClipCopies {
     }
 
     public static TimelineClip copy(TimelineClip source) {
+        return copy(source, false);
+    }
+
+    public static TimelineClip copyForCut(TimelineClip source) {
+        return copy(source, true);
+    }
+
+    private static TimelineClip copy(TimelineClip source, boolean preserveAudioBinding) {
         if (source instanceof EntityTimelineClip wrapper) {
             return new EntityTimelineClip(copyEntityClip(wrapper.getEntityClip()), source.getColor());
         }
         if (source instanceof AudioTimelineClip) {
             var copy = new AudioTimelineClip(source);
-            copy.setBoundContainerId(null);
-            copy.setBoundContainerName(null);
+            if (!preserveAudioBinding) {
+                copy.setBoundContainerId(null);
+                copy.setBoundContainerName(null);
+            }
             return copy;
         }
         if(source instanceof com.director.lighting.LightTimelineClip light) return new com.director.lighting.LightTimelineClip(light);

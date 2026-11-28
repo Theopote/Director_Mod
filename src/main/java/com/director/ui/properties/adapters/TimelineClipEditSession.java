@@ -14,12 +14,12 @@ public final class TimelineClipEditSession {
         void apply(TimelineModel model, TimelineClip clip) {
             if (model.findTrackForClip(clip) == null)
                 throw new IllegalStateException("Edited clip is no longer in this timeline");
-            var config = clip.getAnimationConfig();
+            var config = clip.getAnimationConfigForEditing();
             float oldDuration = config.getDuration();
             float oldStart = clip.getStartTime();
             float oldEnd = clip.getEndTime();
-            boolean retime = config.isWholeContainer() && snapshot.getAnimationConfig().isWholeContainer()
-                    && Float.compare(config.getDelay(), snapshot.getAnimationConfig().getDelay()) == 0;
+            boolean retime = config.isWholeContainer() && snapshot.getAnimationConfigForEditing().isWholeContainer()
+                    && Float.compare(config.getDelay(), snapshot.getAnimationConfigForEditing().getDelay()) == 0;
             clip.restoreStateFrom(snapshot);
             var audio = TimelineAudioService.getInstance();
             if (audio.getTimelineModel() == model && (oldStart != clip.getStartTime() || oldEnd != clip.getEndTime())) {
@@ -46,7 +46,7 @@ public final class TimelineClipEditSession {
     public void beginFrame(TimelineModel model, TimelineClip clip) {
         if (pendingClip != null && pendingModel != model) clearPending();
         if (pendingClip != null && pendingClip != clip) finishIfIdle(false);
-        if (pendingClip != null && pendingClip.getAnimationConfig() != pendingConfig) clearPending();
+        if (pendingClip != null && pendingClip.getAnimationConfigForEditing() != pendingConfig) clearPending();
         frameModel = model;
         frameClip = clip;
         frameBefore = clip != null && model != null && model.findTrackForClip(clip) != null
@@ -58,7 +58,7 @@ public final class TimelineClipEditSession {
                 && frameModel.findTrackForClip(frameClip) != null && pendingClip == null) {
             pendingClip = frameClip;
             pendingModel = frameModel;
-            pendingConfig = frameClip.getAnimationConfig();
+            pendingConfig = frameClip.getAnimationConfigForEditing();
             pendingBefore = frameBefore;
             pendingDescription = description;
         }
@@ -81,7 +81,7 @@ public final class TimelineClipEditSession {
         var before = pendingBefore;
         var description = pendingDescription;
         clearPending();
-        if (model.findTrackForClip(clip) == null || clip.getAnimationConfig() != config) return;
+        if (model.findTrackForClip(clip) == null || clip.getAnimationConfigForEditing() != config) return;
         var after = new State(clip.snapshot(), refreshSound);
         if (before.snapshot.hasSameStateAs(after.snapshot)) return;
         TimelineCommandBridge.execute(new StateChangeCommand(model, description,
@@ -95,7 +95,7 @@ public final class TimelineClipEditSession {
         var config = pendingConfig;
         var before = pendingBefore;
         clearPending();
-        if (model.findTrackForClip(clip) == null || clip.getAnimationConfig() != config) return;
+        if (model.findTrackForClip(clip) == null || clip.getAnimationConfigForEditing() != config) return;
         before.apply(model, clip);
     }
 }

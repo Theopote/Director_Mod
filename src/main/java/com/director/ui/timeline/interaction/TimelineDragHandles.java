@@ -18,11 +18,13 @@ public final class TimelineDragHandles {
     public static final class ClipHandle {
         public final TimelineTrack track;
         public final TimelineClip clip;
+        public final TimelineClip gestureState;
         public final com.director.lighting.LightTimelineClip.State lightState;
 
         public ClipHandle(TimelineTrack track, TimelineClip clip) {
             this.track = track;
             this.clip = clip;
+            gestureState = clip.snapshot();
             lightState=clip instanceof com.director.lighting.LightTimelineClip light?light.captureState():null;
         }
     }
