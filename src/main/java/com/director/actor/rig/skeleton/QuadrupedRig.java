@@ -31,6 +31,19 @@ public final class QuadrupedRig {
     private QuadrupedRig() {}
 
     private static BoneDefinition bone(String id, int parent, BoneTransform rest, BoneCapabilities capabilities) {
-        return new BoneDefinition(id, id, parent, rest, capabilities);
+        return new BoneDefinition(id, displayName(id), parent, rest, capabilities);
+    }
+
+    private static String displayName(String id) {
+        return switch (id) {
+            case ROOT           -> "Root";
+            case BODY           -> "Body";
+            case HEAD           -> "Head";
+            case LEFT_FRONT_LEG  -> "Left Front Leg";
+            case RIGHT_FRONT_LEG -> "Right Front Leg";
+            case LEFT_HIND_LEG   -> "Left Hind Leg";
+            case RIGHT_HIND_LEG  -> "Right Hind Leg";
+            default             -> id;
+        };
     }
 }

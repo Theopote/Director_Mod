@@ -126,8 +126,12 @@ public final class ActorPoseClipPropertyAdapter implements IPropertyAdapter<Acto
     private boolean radSlider(String label, float radians, FloatSetter setter) {
         float[] degrees = {(float) Math.toDegrees(radians)};
         int id = label.indexOf("##");
-        PropertyRow.field(label.substring(0, id));
-        boolean changed = ImGui.sliderFloat(label.substring(id), degrees, -90.0f, 90.0f,
+        // If no "##" separator is present, treat the whole label as the display name and
+        // use an empty ImGui id suffix — prevents StringIndexOutOfBoundsException.
+        String displayLabel = id >= 0 ? label.substring(0, id) : label;
+        String imguiId      = id >= 0 ? label.substring(id)    : "##";
+        PropertyRow.field(displayLabel);
+        boolean changed = ImGui.sliderFloat(imguiId, degrees, -90.0f, 90.0f,
                 "%.1f deg");
         if (changed) setter.set((float) Math.toRadians(degrees[0]));
         gesture.observe(label,changed);

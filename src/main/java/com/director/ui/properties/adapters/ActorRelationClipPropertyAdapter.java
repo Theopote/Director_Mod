@@ -135,7 +135,12 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
 
         if (Card.begin("actor_relation_clip.section_target", ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_TARGET))) {
             ActorRegistry registry = ActorRegistryManager.getInstance();
-            UUID selfActorId = source.getTimelineClip().getParentTrack().getActorTrackPayload().getActorRef().getActorId();
+            // Guard against the clip not yet being attached to a track (e.g. during undo/redo).
+            var _wrapper  = source.getTimelineClip();
+            var _track    = _wrapper  == null ? null : _wrapper.getParentTrack();
+            var _payload  = _track    == null ? null : _track.getActorTrackPayload();
+            var _actorRef = _payload  == null ? null : _payload.getActorRef();
+            UUID selfActorId = _actorRef == null ? null : _actorRef.getActorId();
             List<Actor> actors = new ArrayList<>();
             for (Actor actor : registry.getAllActors()) {
                 if (selfActorId == null || !selfActorId.equals(actor.getActorId())) {
